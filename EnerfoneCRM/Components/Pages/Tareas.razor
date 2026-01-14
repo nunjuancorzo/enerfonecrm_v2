@@ -1,0 +1,662 @@
+@page "/tareas"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@rendermode InteractiveServer
+@inject TareaPendienteService TareaService
+@inject UsuarioService UsuarioService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Enerfone CRM - Tareas</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    <div class="alert alert-warning m-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        No tienes acceso a esta página. Por favor, inicia sesión.
+    </div>
+}
+else
+{
+    <div class="container-fluid p-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="fw-bold mb-1">
+                            <i class="bi bi-list-check text-primary me-2"></i>
+                            Tareas Pendientes
+                        </h2>
+                        <p class="text-muted">Gestiona tus tareas y actividades</p>
+                    </div>
+                    <button class="btn btn-primary" @onclick="MostrarModalCrear">
+                        <i class="bi bi-plus-circle me-2"></i>Nueva Tarea
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        <!-- Filtros -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Estado</label>
+                        <select @bind="filtroEstado" @bind:after="AplicarFiltros" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="Activa">Activa</option>
+                            <option value="Cerrada">Cerrada</option>
+                        </select>
+                    </div>
+                    @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                    {
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Usuario</label>
+                            <select @bind="filtroUsuario" @bind:after="AplicarFiltros" class="form-select">
+                                <option value="">Todos los usuarios</option>
+                                @foreach (var usuario in usuarios)
+                                {
+                                    <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de tareas -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                @if (cargando)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary"></div>
+                        <p class="mt-2">Cargando tareas...</p>
+                    </div>
+                }
+                else if (!tareas.Any())
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">No hay tareas pendientes</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 50px;"></th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("Descripcion")'>
+                                        Descripción
+                                        @if (columnaOrden == "Descripcion")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("UsuarioAsignado")'>
+                                        Asignado a
+                                        @if (columnaOrden == "UsuarioAsignado")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("Prioridad")'>
+                                        Prioridad
+                                        @if (columnaOrden == "Prioridad")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("FechaVencimiento")'>
+                                        Fecha
+                                        @if (columnaOrden == "FechaVencimiento")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("Estado")'>
+                                        Estado
+                                        @if (columnaOrden == "Estado")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var tarea in tareasFiltradas)
+                                {
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" 
+                                                   class="form-check-input" 
+                                                   checked="@(tarea.Estado == "Cerrada")"
+                                                   @onchange="() => CambiarEstadoTarea(tarea)" />
+                                        </td>
+                                        <td>
+                                            <div class="@(tarea.Estado == "Cerrada" ? "text-decoration-line-through text-muted" : "")">
+                                                @tarea.Descripcion
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(tarea.Notas))
+                                            {
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-sticky"></i> @tarea.Notas
+                                                </small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">@tarea.NombreUsuarioAsignado</span>
+                                        </td>
+                                        <td>
+                                            @if (tarea.Prioridad == "Alta")
+                                            {
+                                                <span class="badge bg-danger">Alta</span>
+                                            }
+                                            else if (tarea.Prioridad == "Media")
+                                            {
+                                                <span class="badge bg-warning">Media</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-info">Baja</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@tarea.FechaCreacion.ToString("dd/MM/yyyy")</small>
+                                            @if (tarea.FechaVencimiento.HasValue)
+                                            {
+                                                <br />
+                                                <small class="text-muted">
+                                                    <i class="bi bi-calendar-event"></i> @tarea.FechaVencimiento.Value.ToString("dd/MM/yyyy")
+                                                </small>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (tarea.Estado == "Activa")
+                                            {
+                                                <span class="badge bg-success">Activa</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Cerrada</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(tarea)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(tarea)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    @if (tareas.Any() && totalPaginas > 1)
+                    {
+                        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                            <div class="text-muted">
+                                Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos tareas
+                            </div>
+                            <nav>
+                                <ul class="pagination mb-0">
+                                    <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(1)" disabled="@(paginaActual == 1)">
+                                            <i class="bi bi-chevron-double-left"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)" disabled="@(paginaActual == 1)">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </button>
+                                    </li>
+                                    @for (int i = Math.Max(1, paginaActual - 2); i <= Math.Min(totalPaginas, paginaActual + 2); i++)
+                                    {
+                                        var pagina = i;
+                                        <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(pagina)">@pagina</button>
+                                        </li>
+                                    }
+                                    <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)" disabled="@(paginaActual == totalPaginas)">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(totalPaginas)" disabled="@(paginaActual == totalPaginas)">
+                                            <i class="bi bi-chevron-double-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Crear/Editar Tarea -->
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @if (modoEdicion)
+                        {
+                            <text><i class="bi bi-pencil me-2"></i>Editar Tarea</text>
+                        }
+                        else
+                        {
+                            <text><i class="bi bi-plus-circle me-2"></i>Nueva Tarea</text>
+                        }
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="tareaActual" OnValidSubmit="GuardarTarea">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Descripción *</label>
+                            <InputTextArea @bind-Value="tareaActual.Descripcion" class="form-control" rows="3" />
+                            <ValidationMessage For="() => tareaActual.Descripcion" class="text-danger" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Asignar a *</label>
+                                @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                {
+                                    <select @bind="tareaActual.IdUsuarioAsignado" class="form-select">
+                                        <option value="0">Seleccionar usuario...</option>
+                                        @foreach (var usuario in usuarios)
+                                        {
+                                            <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    <input type="text" class="form-control" value="@AuthService.UsuarioActual?.NombreUsuario" disabled />
+                                }
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Prioridad</label>
+                                <select @bind="tareaActual.Prioridad" class="form-select">
+                                    <option value="Baja">Baja</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Alta">Alta</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Fecha de Vencimiento</label>
+                            <input type="date" @bind="tareaActual.FechaVencimiento" class="form-control" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Notas</label>
+                            <InputTextArea @bind-Value="tareaActual.Notas" class="form-control" rows="2" />
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" disabled="@guardando">
+                                @if (guardando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-save me-2"></i>Guardar
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Eliminar -->
+@if (mostrarModalEliminar)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalEliminar = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Estás seguro de que deseas eliminar esta tarea?</p>
+                    <p class="fw-bold">@tareaAEliminar?.Descripcion</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="() => mostrarModalEliminar = false">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="EliminarTarea" disabled="@guardando">
+                        @if (guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        <i class="bi bi-trash me-2"></i>Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool cargandoSesion = true;
+    private bool cargando = false;
+    private bool guardando = false;
+    private bool mostrarModal = false;
+    private bool mostrarModalEliminar = false;
+    private bool modoEdicion = false;
+
+    private List<TareaPendiente> tareas = new();
+    private List<TareaPendiente> tareasFiltradas = new();
+    private List<Usuario> usuarios = new();
+    private TareaPendiente tareaActual = new();
+    private TareaPendiente? tareaAEliminar;
+
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private string filtroEstado = "";
+    private int filtroUsuario = 0;
+    
+    // Ordenamiento
+    private string columnaOrden = "FechaVencimiento";
+    private bool ordenAscendente = true;
+    
+    // Paginación
+    private int paginaActual = 1;
+    private int elementosPorPagina = 10;
+    private int totalElementos = 0;
+    private int totalPaginas = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            cargandoSesion = false;
+
+            if (AuthService.EstaAutenticado)
+            {
+                await CargarDatos();
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        StateHasChanged();
+
+        try
+        {
+            if (AuthService.UsuarioActual?.Rol == "Administrador")
+            {
+                usuarios = await UsuarioService.ObtenerTodosAsync();
+                tareas = await TareaService.ObtenerTodasAsync(
+                    filtroUsuario > 0 ? filtroUsuario : null,
+                    !string.IsNullOrEmpty(filtroEstado) ? filtroEstado : null
+                );
+            }
+            else if (AuthService.UsuarioActual?.Id != null)
+            {
+                tareas = await TareaService.ObtenerTodasAsync(
+                    AuthService.UsuarioActual.Id,
+                    !string.IsNullOrEmpty(filtroEstado) ? filtroEstado : null
+                );
+            }
+            
+            AplicarOrdenamiento();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar tareas: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void OrdenarPor(string columna)
+    {
+        paginaActual = 1;
+        if (columnaOrden == columna)
+        {
+            ordenAscendente = !ordenAscendente;
+        }
+        else
+        {
+            columnaOrden = columna;
+            ordenAscendente = true;
+        }
+        
+        AplicarOrdenamiento();
+    }
+
+    private void AplicarOrdenamiento()
+    {
+        var tareasParaPaginar = columnaOrden switch
+        {
+            "Descripcion" => ordenAscendente
+                ? tareas.OrderBy(t => t.Descripcion).ToList()
+                : tareas.OrderByDescending(t => t.Descripcion).ToList(),
+            "UsuarioAsignado" => ordenAscendente
+                ? tareas.OrderBy(t => t.IdUsuarioAsignado).ToList()
+                : tareas.OrderByDescending(t => t.IdUsuarioAsignado).ToList(),
+            "Prioridad" => ordenAscendente
+                ? tareas.OrderBy(t => t.Prioridad).ToList()
+                : tareas.OrderByDescending(t => t.Prioridad).ToList(),
+            "FechaVencimiento" => ordenAscendente
+                ? tareas.OrderBy(t => t.FechaVencimiento).ToList()
+                : tareas.OrderByDescending(t => t.FechaVencimiento).ToList(),
+            "Estado" => ordenAscendente
+                ? tareas.OrderBy(t => t.Estado).ToList()
+                : tareas.OrderByDescending(t => t.Estado).ToList(),
+            _ => tareas
+        };
+        
+        totalElementos = tareasParaPaginar.Count;
+        totalPaginas = (int)Math.Ceiling((double)totalElementos / elementosPorPagina);
+        
+        tareasFiltradas = tareasParaPaginar
+            .Skip((paginaActual - 1) * elementosPorPagina)
+            .Take(elementosPorPagina)
+            .ToList();
+        
+        StateHasChanged();
+    }
+    
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+            AplicarOrdenamiento();
+        }
+    }
+
+    private async Task AplicarFiltros()
+    {
+        await CargarDatos();
+    }
+
+    private void MostrarModalCrear()
+    {
+        tareaActual = new TareaPendiente
+        {
+            IdUsuarioAsignado = AuthService.UsuarioActual?.Id ?? 0,
+            IdUsuarioCreador = AuthService.UsuarioActual?.Id,
+            Prioridad = "Media"
+        };
+        modoEdicion = false;
+        mostrarModal = true;
+    }
+
+    private void MostrarModalEditar(TareaPendiente tarea)
+    {
+        tareaActual = new TareaPendiente
+        {
+            Id = tarea.Id,
+            Descripcion = tarea.Descripcion,
+            IdUsuarioAsignado = tarea.IdUsuarioAsignado,
+            IdUsuarioCreador = tarea.IdUsuarioCreador,
+            FechaVencimiento = tarea.FechaVencimiento,
+            Prioridad = tarea.Prioridad,
+            Estado = tarea.Estado,
+            Notas = tarea.Notas
+        };
+        modoEdicion = true;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        tareaActual = new();
+    }
+
+    private async Task GuardarTarea()
+    {
+        guardando = true;
+        StateHasChanged();
+
+        try
+        {
+            bool exito;
+
+            if (modoEdicion)
+            {
+                exito = await TareaService.ActualizarAsync(tareaActual);
+                mensajeExito = exito ? "Tarea actualizada correctamente" : "Error al actualizar la tarea";
+            }
+            else
+            {
+                exito = await TareaService.CrearAsync(tareaActual);
+                mensajeExito = exito ? "Tarea creada correctamente" : "Error al crear la tarea";
+            }
+
+            if (exito)
+            {
+                CerrarModal();
+                await CargarDatos();
+            }
+            else
+            {
+                mensajeError = "Ocurrió un error al guardar la tarea";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CambiarEstadoTarea(TareaPendiente tarea)
+    {
+        try
+        {
+            var nuevoEstado = tarea.Estado == "Activa" ? "Cerrada" : "Activa";
+            var exito = await TareaService.CambiarEstadoAsync(tarea.Id, nuevoEstado);
+
+            if (exito)
+            {
+                mensajeExito = $"Tarea marcada como {nuevoEstado.ToLower()}";
+                await CargarDatos();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cambiar estado: {ex.Message}";
+        }
+    }
+
+    private void ConfirmarEliminar(TareaPendiente tarea)
+    {
+        tareaAEliminar = tarea;
+        mostrarModalEliminar = true;
+    }
+
+    private async Task EliminarTarea()
+    {
+        if (tareaAEliminar == null) return;
+
+        guardando = true;
+        StateHasChanged();
+
+        try
+        {
+            var exito = await TareaService.EliminarAsync(tareaAEliminar.Id);
+
+            if (exito)
+            {
+                mensajeExito = "Tarea eliminada correctamente";
+                mostrarModalEliminar = false;
+                await CargarDatos();
+            }
+            else
+            {
+                mensajeError = "Error al eliminar la tarea";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+            StateHasChanged();
+        }
+    }
+}

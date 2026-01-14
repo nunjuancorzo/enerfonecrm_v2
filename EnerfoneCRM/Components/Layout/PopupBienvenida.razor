@@ -1,0 +1,76 @@
+@using EnerfoneCRM.Models
+@inject IJSRuntime JSRuntime
+
+@if (MostrarPopup && MensajeActual != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-white border-bottom">
+                    <h5 class="modal-title text-dark">
+                        <i class="bi bi-info-circle me-2 text-dark"></i>@MensajeActual.Titulo
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarPopup"></button>
+                </div>
+                <div class="modal-body bg-white">
+                    @if (!string.IsNullOrEmpty(MensajeActual.ImagenUrl))
+                    {
+                        <div class="text-center mb-3">
+                            <img src="@MensajeActual.ImagenUrl" alt="Imagen mensaje" class="img-fluid rounded" style="max-height: 300px;" />
+                        </div>
+                    }
+                    <div class="mensaje-contenido">
+                        @((MarkupString)MensajeActual.Contenido.Replace("\n", "<br>"))
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CerrarPopup">
+                        Cerrar
+                    </button>
+                    <button type="button" class="btn btn-outline-dark" @onclick="NoVolverAMostrarHoy">
+                        No volver a mostrar hoy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public MensajeBienvenida? MensajeActual { get; set; }
+
+    [Parameter]
+    public EventCallback OnCerrar { get; set; }
+
+    private bool MostrarPopup => MensajeActual != null;
+
+    private async Task CerrarPopup()
+    {
+        await OnCerrar.InvokeAsync();
+    }
+
+    private async Task NoVolverAMostrarHoy()
+    {
+        if (MensajeActual != null)
+        {
+            // Guardar en localStorage que no se debe mostrar hoy
+            var fechaHoy = DateTime.Now.ToString("yyyy-MM-dd");
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", 
+                $"popup_visto_{MensajeActual.Id}", fechaHoy);
+        }
+        await CerrarPopup();
+    }
+}
+
+<style>
+    .mensaje-contenido {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #333;
+    }
+
+    .modal.show {
+        display: block;
+    }
+</style>

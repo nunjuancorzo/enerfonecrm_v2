@@ -1,0 +1,88 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/EnerfoneCRM.csproj": {}
+  },
+  "projects": {
+    "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/EnerfoneCRM.csproj": {
+      "version": "20260112.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/EnerfoneCRM.csproj",
+        "projectName": "EnerfoneCRM",
+        "projectPath": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/EnerfoneCRM.csproj",
+        "packagesPath": "/Users/juanmariacorzo/.nuget/packages/",
+        "outputPath": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/juanmariacorzo/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Blazored.LocalStorage": {
+              "target": "Package",
+              "version": "[4.5.0, )"
+            },
+            "Blazored.SessionStorage": {
+              "target": "Package",
+              "version": "[2.4.0, )"
+            },
+            "ClosedXML": {
+              "target": "Package",
+              "version": "[0.104.1, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[8.0.11, )"
+            },
+            "Pomelo.EntityFrameworkCore.MySql": {
+              "target": "Package",
+              "version": "[8.0.4, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/opt/homebrew/Cellar/dotnet@8/8.0.122/libexec/sdk/8.0.122/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

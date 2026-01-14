@@ -1,0 +1,571 @@
+@page "/tarifas/comercializadoras"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
+@rendermode InteractiveServer
+@inject ComercializadoraService ComercializadoraService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado || !AuthService.EsAdministrador)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Solo administradores.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid p-4">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <h2 class="mb-0">
+                        <i class="bi bi-building me-2 text-primary"></i>
+                        Gestor de Comercializadoras
+                    </h2>
+                    <p class="text-muted">Administra las comercializadoras de energía y sus logos</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeExito))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                    <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                </div>
+            }
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Comercializadoras</h5>
+                    <button class="btn btn-primary" @onclick="MostrarModalCrear">
+                        <i class="bi bi-plus-circle me-2"></i>Nueva Comercializadora
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    @if (cargando)
+                    {
+                        <div class="text-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 140px;">Logo</th>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("Nombre")'>
+                                            Nombre
+                                            @if (columnaOrden == "Nombre")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="width: 100px; cursor: pointer;" @onclick='() => OrdenarPor("Activa")'>
+                                            Estado
+                                            @if (columnaOrden == "Activa")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="width: 150px; cursor: pointer;" @onclick='() => OrdenarPor("FechaCreacion")'>
+                                            Fecha Creación
+                                            @if (columnaOrden == "FechaCreacion")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th class="text-end" style="width: 120px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (!comercializadoras.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="5" class="text-center text-muted py-4">
+                                                No hay comercializadoras registradas
+                                            </td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var comercializadora in comercializadoras)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    @if (comercializadora.LogoContenido != null && comercializadora.LogoContenido.Length > 0)
+                                                    {
+                                                        var base64 = Convert.ToBase64String(comercializadora.LogoContenido);
+                                                        var mimeType = ObtenerMimeType(comercializadora.LogoArchivo);
+                                                        <img src="data:@mimeType;base64,@base64" alt="@comercializadora.Nombre" 
+                                                             style="max-width: 120px; max-height: 80px; object-fit: contain;" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">Sin logo</span>
+                                                    }
+                                                </td>
+                                                <td>@comercializadora.Nombre</td>
+                                                <td>
+                                                    @if (comercializadora.Activo)
+                                                    {
+                                                        <span class="badge bg-success">Activo</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary">Inactivo</span>
+                                                    }
+                                                </td>
+                                                <td>@comercializadora.FechaCreacion?.ToString("dd/MM/yyyy")</td>
+                                                <td class="text-end">
+                                                    <button class="btn btn-sm btn-outline-primary me-1" 
+                                                            @onclick="() => MostrarModalEditar(comercializadora)" 
+                                                            title="Editar">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" 
+                                                            @onclick="() => ConfirmarEliminar(comercializadora)" 
+                                                            title="Eliminar">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* Modal Crear/Editar *@
+        @if (mostrarModal)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi @(esNuevo ? "bi-plus-circle" : "bi-pencil") me-2"></i>
+                                @(esNuevo ? "Nueva Comercializadora" : "Editar Comercializadora")
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal" disabled="@guardando"></button>
+                        </div>
+                        <EditForm Model="comercializadoraSeleccionada" OnValidSubmit="GuardarComercializadora">
+                            <DataAnnotationsValidator />
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="comercializadoraSeleccionada.Nombre" class="form-control" />
+                                    <ValidationMessage For="() => comercializadoraSeleccionada.Nombre" class="text-danger" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Logo</label>
+                                    <InputFile OnChange="OnFileSelected" class="form-control" accept="image/*" />
+                                    <small class="text-muted">Formatos: JPG, PNG, SVG, GIF (máx. 10MB)</small>
+                                </div>
+                                @if (!string.IsNullOrEmpty(previewUrl))
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Vista previa del nuevo logo</label>
+                                        <div class="border rounded p-3 text-center bg-light">
+                                            <img src="@previewUrl" alt="Preview" 
+                                                 style="max-width: 100%; width: auto; max-height: 200px; object-fit: scale-down;" />
+                                        </div>
+                                    </div>
+                                }
+                                else if (comercializadoraSeleccionada.LogoContenido != null && comercializadoraSeleccionada.LogoContenido.Length > 0)
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Logo actual</label>
+                                        <div class="border rounded p-3 text-center bg-light">
+                                            @{
+                                                var base64Actual = Convert.ToBase64String(comercializadoraSeleccionada.LogoContenido);
+                                                var mimeTypeActual = ObtenerMimeType(comercializadoraSeleccionada.LogoArchivo);
+                                            }
+                                            <img src="data:@mimeTypeActual;base64,@base64Actual" alt="Logo actual" 
+                                                 style="max-width: 100%; width: auto; max-height: 200px; object-fit: scale-down;" />
+                                        </div>
+                                    </div>
+                                }
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox @bind-Value="comercializadoraSeleccionada.Activo" class="form-check-input" id="checkActivo" />
+                                        <label class="form-check-label" for="checkActivo">
+                                            Activo
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CerrarModal" disabled="@guardando">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="btn btn-primary" disabled="@guardando">
+                                    @if (guardando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    Guardar
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* Modal Eliminar *@
+        @if (mostrarModalEliminar && comercializadoraAEliminar != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-trash me-2"></i>Confirmar Eliminación
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalEliminar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>¿Estás seguro de que deseas eliminar esta comercializadora?</p>
+                            <p class="text-muted mb-0">
+                                <strong>Comercializadora:</strong> @comercializadoraAEliminar.Nombre
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="CerrarModalEliminar">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="EliminarComercializadora" disabled="@eliminando">
+                                @if (eliminando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private List<Comercializadora> comercializadoras = new();
+    private Comercializadora comercializadoraSeleccionada = new();
+    private Comercializadora? comercializadoraAEliminar;
+    private IBrowserFile? archivoSeleccionado;
+    private string? previewUrl;
+    
+    // Ordenamiento
+    private string columnaOrden = "Nombre";
+    private bool ordenAscendente = true;
+    
+    private bool cargando = true;
+    private bool cargandoSesion = true;
+    private bool mostrarModal = false;
+    private bool mostrarModalEliminar = false;
+    private bool guardando = false;
+    private bool eliminando = false;
+    private bool esNuevo = true;
+    
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    
+    private const long MaxFileSize = 10 * 1024 * 1024; // 10MB
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            cargandoSesion = false;
+
+            if (AuthService.EstaAutenticado && AuthService.EsAdministrador)
+            {
+                await CargarComercializadoras();
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarComercializadoras()
+    {
+        cargando = true;
+        try
+        {
+            comercializadoras = await ComercializadoraService.ObtenerTodasAsync();
+            AplicarOrdenamiento();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar comercializadoras: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OrdenarPor(string columna)
+    {
+        if (columnaOrden == columna)
+        {
+            ordenAscendente = !ordenAscendente;
+        }
+        else
+        {
+            columnaOrden = columna;
+            ordenAscendente = true;
+        }
+        
+        AplicarOrdenamiento();
+    }
+
+    private void AplicarOrdenamiento()
+    {
+        comercializadoras = columnaOrden switch
+        {
+            "Nombre" => ordenAscendente
+                ? comercializadoras.OrderBy(c => c.Nombre).ToList()
+                : comercializadoras.OrderByDescending(c => c.Nombre).ToList(),
+            "Activa" => ordenAscendente
+                ? comercializadoras.OrderBy(c => c.Activo).ToList()
+                : comercializadoras.OrderByDescending(c => c.Activo).ToList(),
+            "FechaCreacion" => ordenAscendente
+                ? comercializadoras.OrderBy(c => c.FechaCreacion).ToList()
+                : comercializadoras.OrderByDescending(c => c.FechaCreacion).ToList(),
+            _ => comercializadoras
+        };
+        
+        StateHasChanged();
+    }
+
+    private void MostrarModalCrear()
+    {
+        esNuevo = true;
+        comercializadoraSeleccionada = new Comercializadora { Activo = true };
+        archivoSeleccionado = null;
+        previewUrl = null;
+        mostrarModal = true;
+    }
+
+    private void MostrarModalEditar(Comercializadora comercializadora)
+    {
+        esNuevo = false;
+        comercializadoraSeleccionada = new Comercializadora
+        {
+            Id = comercializadora.Id,
+            Nombre = comercializadora.Nombre,
+            LogoArchivo = comercializadora.LogoArchivo,
+            LogoContenido = comercializadora.LogoContenido,
+            Activo = comercializadora.Activo,
+            FechaCreacion = comercializadora.FechaCreacion
+        };
+        archivoSeleccionado = null;
+        previewUrl = null;
+        mostrarModal = true;
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        archivoSeleccionado = e.File;
+        
+        if (archivoSeleccionado != null)
+        {
+            if (archivoSeleccionado.Size > MaxFileSize)
+            {
+                mensajeError = "El archivo es demasiado grande. Tamaño máximo: 10MB";
+                archivoSeleccionado = null;
+                return;
+            }
+
+            // Crear preview
+            try
+            {
+                using var memoryStream = new MemoryStream();
+                await archivoSeleccionado.OpenReadStream(MaxFileSize).CopyToAsync(memoryStream);
+                var base64 = Convert.ToBase64String(memoryStream.ToArray());
+                var mimeType = archivoSeleccionado.ContentType;
+                previewUrl = $"data:{mimeType};base64,{base64}";
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                mensajeError = $"Error al cargar vista previa: {ex.Message}";
+                archivoSeleccionado = null;
+                previewUrl = string.Empty;
+            }
+        }
+    }
+
+    private async Task GuardarComercializadora()
+    {
+        guardando = true;
+        mensajeError = string.Empty;
+        try
+        {
+            // Guardar contenido del archivo si se seleccionó uno nuevo
+            if (archivoSeleccionado != null)
+            {
+                if (archivoSeleccionado.Size > MaxFileSize)
+                {
+                    mensajeError = $"El archivo es demasiado grande. Tamaño: {archivoSeleccionado.Size / 1024 / 1024:F2}MB, Máximo: 10MB";
+                    guardando = false;
+                    return;
+                }
+
+                try
+                {
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        await archivoSeleccionado.OpenReadStream(MaxFileSize).CopyToAsync(memoryStream);
+                        comercializadoraSeleccionada.LogoContenido = memoryStream.ToArray();
+                        comercializadoraSeleccionada.LogoArchivo = archivoSeleccionado.Name;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    mensajeError = $"Error al leer el archivo: {ex.Message}";
+                    guardando = false;
+                    return;
+                }
+            }
+
+            bool exito;
+            if (esNuevo)
+            {
+                comercializadoraSeleccionada.FechaCreacion = DateTime.Now;
+                exito = await ComercializadoraService.CrearAsync(comercializadoraSeleccionada);
+                if (exito)
+                {
+                    mensajeExito = "Comercializadora creada correctamente";
+                }
+                else
+                {
+                    mensajeError = "No se pudo crear la comercializadora. Verifica que el nombre no esté duplicado.";
+                }
+            }
+            else
+            {
+                exito = await ComercializadoraService.ActualizarAsync(comercializadoraSeleccionada);
+                if (exito)
+                {
+                    mensajeExito = "Comercializadora actualizada correctamente";
+                }
+                else
+                {
+                    mensajeError = "No se pudo actualizar la comercializadora.";
+                }
+            }
+
+            if (exito)
+            {
+                CerrarModal();
+                await CargarComercializadoras();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void ConfirmarEliminar(Comercializadora comercializadora)
+    {
+        comercializadoraAEliminar = comercializadora;
+        mostrarModalEliminar = true;
+    }
+
+    private async Task EliminarComercializadora()
+    {
+        if (comercializadoraAEliminar == null) return;
+
+        eliminando = true;
+        try
+        {
+            bool exito = await ComercializadoraService.EliminarAsync(comercializadoraAEliminar.Id);
+            if (exito)
+            {
+                mensajeExito = "Comercializadora eliminada correctamente";
+                CerrarModalEliminar();
+                await CargarComercializadoras();
+            }
+            else
+            {
+                mensajeError = "Error al eliminar la comercializadora";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            eliminando = false;
+        }
+    }
+
+    private string ObtenerMimeType(string? nombreArchivo)
+    {
+        if (string.IsNullOrEmpty(nombreArchivo)) return "image/png";
+        
+        var extension = Path.GetExtension(nombreArchivo).ToLower();
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".svg" => "image/svg+xml",
+            ".webp" => "image/webp",
+            _ => "image/png"
+        };
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        archivoSeleccionado = null;
+        previewUrl = null;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        comercializadoraAEliminar = null;
+    }
+}

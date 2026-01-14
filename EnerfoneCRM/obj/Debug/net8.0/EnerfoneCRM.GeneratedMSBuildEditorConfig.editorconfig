@@ -1,0 +1,163 @@
+is_global = true
+build_property.TargetFramework = net8.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = EnerfoneCRM
+build_property.RootNamespace = EnerfoneCRM
+build_property.ProjectDir = /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 8.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM
+build_property._RazorSourceGeneratorDebug = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/App.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9BcHAucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Layout/EmptyLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvRW1wdHlMYXlvdXQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Layout/Footer.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvRm9vdGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Layout/PopupBienvenida.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvUG9wdXBCaWVudmVuaWRhLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Clientes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9DbGllbnRlcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Comercializadoras.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db21lcmNpYWxpemFkb3Jhcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/ComparadorEnergia.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db21wYXJhZG9yRW5lcmdpYS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Configuracion.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db25maWd1cmFjaW9uLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/ContratosAlarmas.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db250cmF0b3NBbGFybWFzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/ContratosEnergia.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db250cmF0b3NFbmVyZ2lhLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/ContratosTelefonia.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db250cmF0b3NUZWxlZm9uaWEucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Counter.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Db3VudGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Error.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9FcnJvci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Ib21lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Index.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9JbmRleC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/LogActivaciones.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Mb2dBY3RpdmFjaW9uZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Mb2dpbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/MensajesBienvenida.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9NZW5zYWplc0JpZW52ZW5pZGEucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Operadoras.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9PcGVyYWRvcmFzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Registro.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9SZWdpc3Ryby5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Servicios.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9TZXJ2aWNpb3MucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Tareas.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXJlYXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Tarifas.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXJpZmFzLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/TarifasAlarmas.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXJpZmFzQWxhcm1hcy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/TarifasEnergia.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXJpZmFzRW5lcmdpYS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/TarifasTelefonia.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UYXJpZmFzVGVsZWZvbmlhLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/TestDB.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9UZXN0REIucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Usuarios/ListaUsuarios.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Vc3Vhcmlvcy9MaXN0YVVzdWFyaW9zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Usuarios/LogAccesos.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Vc3Vhcmlvcy9Mb2dBY2Nlc29zLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Usuarios/ModalCrearUsuario.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Vc3Vhcmlvcy9Nb2RhbENyZWFyVXN1YXJpby5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Usuarios/ModalEditarUsuario.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9Vc3Vhcmlvcy9Nb2RhbEVkaXRhclVzdWFyaW8ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Pages/Weather.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9QYWdlcy9XZWF0aGVyLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Routes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9Sb3V0ZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9fSW1wb3J0cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Layout/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvTWFpbkxheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-sltj9n1imx
+
+[/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/Components/Layout/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50cy9MYXlvdXQvTmF2TWVudS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-ts5a809sz3

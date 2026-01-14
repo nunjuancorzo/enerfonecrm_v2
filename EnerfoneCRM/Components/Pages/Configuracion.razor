@@ -1,0 +1,339 @@
+@page "/configuracion-empresa"
+@layout Layout.MainLayout
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject ConfiguracionService ConfiguracionService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    <div class="text-center mt-5">
+        <p>Redirigiendo al login...</p>
+    </div>
+}
+else if (!AuthService.EsAdministrador)
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Acceso Denegado</h4>
+            <p>No tienes permisos para acceder a esta sección. Solo los administradores pueden gestionar la configuración.</p>
+            <hr>
+            <a href="/" class="btn btn-primary">Volver al Inicio</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h2 class="fw-bold">Configuración de Empresa</h2>
+                <p class="text-muted">Gestiona los datos de tu empresa</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    <div class="card shadow-sm">
+                        <div class="card-body p-4">
+                            <EditForm Model="@configuracion" OnValidSubmit="GuardarConfiguracion">
+                                <DataAnnotationsValidator />
+
+                                <h5 class="mb-3"><i class="bi bi-building me-2"></i>Datos de la Empresa</h5>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label">Nombre de la Empresa *</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.NombreEmpresa" />
+                                        <ValidationMessage For="@(() => configuracion.NombreEmpresa)" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">CIF/NIF</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.Cif" />
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Dirección</label>
+                                    <InputText class="form-control" @bind-Value="configuracion.Direccion" />
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Código Postal</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.CodigoPostal" />
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">Ciudad</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.Ciudad" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.Provincia" />
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">País</label>
+                                    <InputText class="form-control" @bind-Value="configuracion.Pais" />
+                                </div>
+
+                                <hr class="my-4" />
+
+                                <h5 class="mb-3"><i class="bi bi-envelope me-2"></i>Datos de Contacto</h5>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Teléfono</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.Telefono" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email</label>
+                                        <InputText class="form-control" type="email" @bind-Value="configuracion.Email" />
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Sitio Web</label>
+                                    <InputText class="form-control" @bind-Value="configuracion.Web" placeholder="https://www.ejemplo.com" />
+                                </div>
+
+                                <hr class="my-4" />
+
+                                <h5 class="mb-3"><i class="bi bi-image me-2"></i>Imagen Corporativa</h5>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Logo de la Empresa</label>
+                                    <div class="input-group">
+                                        <label class="form-control" style="cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            <InputFile id="logoInput" OnChange="CargarImagen" accept="image/*" style="display: none;" />
+                                            @if (string.IsNullOrEmpty(nombreArchivoSeleccionado))
+                                            {
+                                                <span class="text-muted">Ningún archivo seleccionado</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@nombreArchivoSeleccionado</span>
+                                            }
+                                        </label>
+                                        <label for="logoInput" class="btn btn-outline-secondary" style="cursor: pointer;">
+                                            <i class="bi bi-upload me-1"></i>Seleccionar archivo
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">Selecciona una imagen (PNG, JPG, GIF). Tamaño máximo recomendado: 500KB</small>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(configuracion.LogoUrl))
+                                {
+                                    <div class="mb-3">
+                                        <label class="form-label">Vista previa del logo:</label>
+                                        <div class="border rounded p-3 bg-light text-center">
+                                            <img src="@configuracion.LogoUrl" alt="Logo" style="max-width: 300px; max-height: 150px;" class="img-fluid" />
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" @onclick="EliminarLogo">
+                                            <i class="bi bi-trash me-1"></i> Eliminar Logo
+                                        </button>
+                                    </div>
+                                }
+
+                                <div class="d-flex justify-content-between mt-4">
+                                    <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            <span>Guardando...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-save me-1"></i>
+                                            <span>Guardar Configuración</span>
+                                        }
+                                    </button>
+                                </div>
+                            </EditForm>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool cargandoSesion = true;
+    private bool cargando = true;
+    private bool guardando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private ConfiguracionEmpresa configuracion = new();
+    private string nombreArchivoSeleccionado = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+                return;
+            }
+            
+            if (!AuthService.EsAdministrador)
+            {
+                cargandoSesion = false;
+                StateHasChanged();
+                return;
+            }
+            
+            cargandoSesion = false;
+            await CargarConfiguracion();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarConfiguracion()
+    {
+        cargando = true;
+        try
+        {
+            var config = await ConfiguracionService.ObtenerConfiguracionAsync();
+            if (config != null)
+            {
+                configuracion = config;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar la configuración: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task GuardarConfiguracion()
+    {
+        guardando = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            var (exito, mensaje) = await ConfiguracionService.GuardarConfiguracionAsync(configuracion);
+            
+            if (exito)
+            {
+                mensajeExito = mensaje;
+            }
+            else
+            {
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancelar()
+    {
+        Navigation.NavigateTo("/home", false);
+    }
+
+    private async Task CargarImagen(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var archivo = e.File;
+            nombreArchivoSeleccionado = archivo.Name;
+            
+            // Validar tamaño (máximo 2MB)
+            if (archivo.Size > 2 * 1024 * 1024)
+            {
+                mensajeError = "El archivo es demasiado grande. Tamaño máximo: 2MB";
+                return;
+            }
+
+            // Validar tipo de archivo
+            if (!archivo.ContentType.StartsWith("image/"))
+            {
+                mensajeError = "Solo se permiten archivos de imagen";
+                return;
+            }
+
+            // Leer el archivo y convertir a Base64
+            using var stream = archivo.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var bytes = memoryStream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            
+            // Crear data URI con el tipo MIME correcto
+            configuracion.LogoUrl = $"data:{archivo.ContentType};base64,{base64}";
+            
+            mensajeError = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar la imagen: {ex.Message}";
+        }
+    }
+
+    private void EliminarLogo()
+    {
+        configuracion.LogoUrl = null;
+        nombreArchivoSeleccionado = string.Empty;
+        StateHasChanged();
+    }
+}

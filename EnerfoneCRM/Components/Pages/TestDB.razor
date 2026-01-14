@@ -1,0 +1,122 @@
+@page "/test-db"
+@using EnerfoneCRM.Data
+@using EnerfoneCRM.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Context
+@rendermode InteractiveServer
+
+<PageTitle>Test Base de Datos</PageTitle>
+
+<div class="container mt-4">
+    <h2>Diagnóstico de Base de Datos</h2>
+
+    <button class="btn btn-primary mb-3" @onclick="ProbarConexion">Probar Conexión</button>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert alert-info">
+            <pre>@mensaje</pre>
+        </div>
+    }
+
+    @if (usuarios.Any())
+    {
+        <h3>Usuarios en la Base de Datos:</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>NombreUsuario</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Activo</th>
+                    <th>PasswordHash (primeros 20 chars)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in usuarios)
+                {
+                    <tr>
+                        <td>@user.Id</td>
+                        <td><strong>@user.NombreUsuario</strong></td>
+                        <td>@user.Nombre @user.Apellidos</td>
+                        <td>@user.Email</td>
+                        <td>@user.Rol</td>
+                        <td>@(user.Activo ? "✓" : "✗")</td>
+                        <td>@(user.PasswordHash != null && user.PasswordHash.Length > 20 ? user.PasswordHash.Substring(0, 20) : user.PasswordHash)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="mt-3">
+            <h4>Probar Hash de Contraseña:</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <input type="text" class="form-control mb-2" @bind="testPassword" placeholder="Ingresa una contraseña para probar" />
+                    <button class="btn btn-secondary" @onclick="GenerarHash">Generar Hash SHA256</button>
+                    @if (!string.IsNullOrEmpty(hashGenerado))
+                    {
+                        <div class="mt-2">
+                            <strong>Hash generado:</strong>
+                            <pre class="bg-light p-2">@hashGenerado</pre>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger mt-3">
+            <strong>Error:</strong> @error
+        </div>
+    }
+</div>
+
+@code {
+    private List<Usuario> usuarios = new();
+    private string mensaje = string.Empty;
+    private string error = string.Empty;
+    private string testPassword = string.Empty;
+    private string hashGenerado = string.Empty;
+
+    private async Task ProbarConexion()
+    {
+        mensaje = string.Empty;
+        error = string.Empty;
+        usuarios.Clear();
+
+        try
+        {
+            // Verificar conexión
+            var canConnect = await Context.Database.CanConnectAsync();
+            mensaje = $"Conexión a la base de datos: {(canConnect ? "EXITOSA ✓" : "FALLIDA ✗")}\n";
+
+            if (canConnect)
+            {
+                // Obtener usuarios
+                usuarios = await Context.Usuarios.ToListAsync();
+                mensaje += $"\nTotal de usuarios encontrados: {usuarios.Count}\n";
+                mensaje += $"Usuarios activos: {usuarios.Count(u => u.Activo)}\n";
+                mensaje += $"Administradores: {usuarios.Count(u => u.Rol == "Administrador")}\n";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Error al conectar: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}";
+        }
+    }
+
+    private void GenerarHash()
+    {
+        if (!string.IsNullOrEmpty(testPassword))
+        {
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(testPassword));
+            hashGenerado = Convert.ToBase64String(hashedBytes);
+        }
+    }
+}

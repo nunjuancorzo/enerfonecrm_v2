@@ -1,0 +1,277 @@
+@page "/usuarios/log-accesos"
+@layout Layout.MainLayout
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject LogAccesoService LogAccesoService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Log de Accesos - Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    <div class="text-center mt-5">
+        <p>Redirigiendo al login...</p>
+    </div>
+}
+else if (!AuthService.EsAdministrador)
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Acceso Denegado</h4>
+            <p>No tienes permisos para acceder a esta sección. Solo los administradores pueden ver el log de accesos.</p>
+            <hr>
+            <a href="/" class="btn btn-primary">Volver al Inicio</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid mt-4">
+        <div class="row mb-3">
+            <div class="col">
+                <h2><i class="bi bi-clock-history me-2"></i>Log de Accesos de Usuarios</h2>
+            </div>
+            <div class="col text-end">
+                <button class="btn btn-secondary" @onclick="VolverAUsuarios">
+                    <i class="bi bi-arrow-left"></i> Volver a Usuarios
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Filtrar por Usuario</label>
+                        <input type="text" class="form-control" @bind="filtroUsuario" placeholder="Nombre de usuario..." />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input type="date" class="form-control" @bind="fechaInicio" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Fin</label>
+                        <input type="date" class="form-control" @bind="fechaFin" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" @onclick="AplicarFiltros">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(filtroUsuario) || fechaInicio.HasValue || fechaFin.HasValue)
+                {
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="LimpiarFiltros">
+                            <i class="bi bi-x-circle"></i> Limpiar Filtros
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Total de accesos:</strong> @logAccesos.Count
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("NombreUsuario")'>
+                                        Usuario
+                                        @if (columnaOrden == "NombreUsuario")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("Rol")'>
+                                        Rol
+                                        @if (columnaOrden == "Rol")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("FechaAcceso")'>
+                                        Fecha y Hora de Acceso
+                                        @if (columnaOrden == "FechaAcceso")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var log in logAccesos)
+                                {
+                                    <tr>
+                                        <td><strong>@log.NombreUsuario</strong></td>
+                                        <td>
+                                            <span class="badge bg-@ObtenerColorRol(log.Rol)">@log.Rol</span>
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-calendar3 me-1"></i>@log.FechaAcceso.ToString("dd/MM/yyyy")
+                                            <i class="bi bi-clock ms-2 me-1"></i>@log.FechaAcceso.ToString("HH:mm:ss")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<LogAcceso> logAccesos = new();
+    private string columnaOrden = "FechaAcceso";
+    private bool ordenAscendente = false;
+    private bool cargando = true;
+    private bool cargandoSesion = true;
+
+    // Filtros
+    private string? filtroUsuario;
+    private DateTime? fechaInicio;
+    private DateTime? fechaFin;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+                return;
+            }
+
+            if (!AuthService.EsAdministrador)
+            {
+                cargandoSesion = false;
+                StateHasChanged();
+                return;
+            }
+
+            cargandoSesion = false;
+            await CargarLogAccesos();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarLogAccesos()
+    {
+        cargando = true;
+        try
+        {
+            logAccesos = await LogAccesoService.ObtenerTodosAsync();
+            AplicarOrdenamiento();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar log de accesos: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AplicarFiltros()
+    {
+        cargando = true;
+        try
+        {
+            logAccesos = await LogAccesoService.ObtenerPorFiltrosAsync(filtroUsuario, fechaInicio, fechaFin);
+            AplicarOrdenamiento();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al aplicar filtros: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task LimpiarFiltros()
+    {
+        filtroUsuario = null;
+        fechaInicio = null;
+        fechaFin = null;
+        await CargarLogAccesos();
+    }
+
+    private void OrdenarPor(string columna)
+    {
+        if (columnaOrden == columna)
+        {
+            ordenAscendente = !ordenAscendente;
+        }
+        else
+        {
+            columnaOrden = columna;
+            ordenAscendente = true;
+        }
+
+        AplicarOrdenamiento();
+    }
+
+    private void AplicarOrdenamiento()
+    {
+        logAccesos = columnaOrden switch
+        {
+            "NombreUsuario" => ordenAscendente
+                ? logAccesos.OrderBy(l => l.NombreUsuario).ToList()
+                : logAccesos.OrderByDescending(l => l.NombreUsuario).ToList(),
+            "Rol" => ordenAscendente
+                ? logAccesos.OrderBy(l => l.Rol).ToList()
+                : logAccesos.OrderByDescending(l => l.Rol).ToList(),
+            "FechaAcceso" => ordenAscendente
+                ? logAccesos.OrderBy(l => l.FechaAcceso).ToList()
+                : logAccesos.OrderByDescending(l => l.FechaAcceso).ToList(),
+            _ => logAccesos
+        };
+
+        StateHasChanged();
+    }
+
+    private void VolverAUsuarios()
+    {
+        Navigation.NavigateTo("/usuarios");
+    }
+
+    private string ObtenerColorRol(string rol) => rol switch
+    {
+        "Administrador" => "danger",
+        "Gestor" => "warning",
+        "Comercializadora" => "info",
+        "Usuario" => "secondary",
+        _ => "secondary"
+    };
+}

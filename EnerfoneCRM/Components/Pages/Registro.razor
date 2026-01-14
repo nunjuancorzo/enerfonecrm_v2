@@ -1,0 +1,284 @@
+@page "/registro"
+@layout Layout.EmptyLayout
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject UsuarioService UsuarioService
+@inject ConfiguracionService ConfiguracionService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Registro - Enerfone CRM</PageTitle>
+
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-3">
+                        @if (!string.IsNullOrEmpty(logoUrl))
+                        {
+                            <img src="@logoUrl" alt="Logo" style="width: 200px; height: 200px; object-fit: contain;" />
+                        }
+                        <h3 class="mt-3">Registro de Usuario</h3>
+                        <p class="text-muted">Crea tu cuenta para acceder al sistema</p>
+                    </div>
+
+                    @if (registroExitoso)
+                    {
+                        <div class="alert alert-success" role="alert">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-check-circle me-2"></i>¡Registro exitoso!
+                            </h5>
+                            <p class="mb-0">Tu cuenta ha sido creada correctamente. Un administrador debe activarla antes de que puedas acceder al sistema.</p>
+                            <hr />
+                            <button class="btn btn-primary mt-2" @onclick='() => Navigation.NavigateTo("/login")'>
+                                Ir al Login
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="@usuario" OnValidSubmit="@HandleRegistro">
+                            <DataAnnotationsValidator />
+
+                            @if (!string.IsNullOrEmpty(mensajeError))
+                            {
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                                </div>
+                            }
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="nombreUsuario" class="form-label">Nombre de Usuario <span class="text-danger">*</span></label>
+                                    <InputText id="nombreUsuario" class="form-control" @bind-Value="usuario.NombreUsuario" placeholder="usuario" autocomplete="off" />
+                                    <ValidationMessage For="@(() => usuario.NombreUsuario)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                                    <InputText id="email" type="email" class="form-control" @bind-Value="usuario.Email" placeholder="usuario@ejemplo.com" autocomplete="off" />
+                                    <ValidationMessage For="@(() => usuario.Email)" />
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                                    <InputText id="nombre" class="form-control" @bind-Value="usuario.Nombre" placeholder="Juan" autocomplete="off" />
+                                    @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.Nombre))
+                                    {
+                                        <div class="text-danger small mt-1">El nombre es obligatorio</div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="apellidos" class="form-label">Apellidos <span class="text-danger">*</span></label>
+                                    <InputText id="apellidos" class="form-control" @bind-Value="usuario.Apellidos" placeholder="García López" autocomplete="off" />
+                                    @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.Apellidos))
+                                    {
+                                        <div class="text-danger small mt-1">Los apellidos son obligatorios</div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="direccion" class="form-label">Dirección <span class="text-danger">*</span></label>
+                                <InputText id="direccion" class="form-control" @bind-Value="usuario.Direccion" placeholder="Calle Principal, 123" autocomplete="off" />
+                                @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.Direccion))
+                                {
+                                    <div class="text-danger small mt-1">La dirección es obligatoria</div>
+                                }
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="codigoPostal" class="form-label">Código Postal <span class="text-danger">*</span></label>
+                                    <InputText id="codigoPostal" class="form-control" @bind-Value="usuario.CodigoPostal" placeholder="28001" autocomplete="off" />
+                                    @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.CodigoPostal))
+                                    {
+                                        <div class="text-danger small mt-1">El código postal es obligatorio</div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="localidad" class="form-label">Localidad <span class="text-danger">*</span></label>
+                                    <InputText id="localidad" class="form-control" @bind-Value="usuario.Localidad" placeholder="Madrid" autocomplete="off" />
+                                    @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.Localidad))
+                                    {
+                                        <div class="text-danger small mt-1">La localidad es obligatoria</div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="password" class="form-label">Contraseña <span class="text-danger">*</span></label>
+                                    <InputText id="password" type="password" class="form-control" @bind-Value="password" placeholder="••••••••" autocomplete="new-password" />
+                                    @if (intentoEnvio && string.IsNullOrWhiteSpace(password))
+                                    {
+                                        <div class="text-danger small mt-1">La contraseña es obligatoria</div>
+                                    }
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="confirmarPassword" class="form-label">Confirmar Contraseña <span class="text-danger">*</span></label>
+                                    <InputText id="confirmarPassword" type="password" class="form-control" @bind-Value="confirmarPassword" placeholder="••••••••" autocomplete="new-password" />
+                                    @if (intentoEnvio && !string.IsNullOrWhiteSpace(password) && !string.IsNullOrWhiteSpace(confirmarPassword) && password != confirmarPassword)
+                                    {
+                                        <div class="text-danger small mt-1">Las contraseñas no coinciden</div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info" role="alert">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <small>Tu cuenta será creada con permisos básicos y deberá ser activada por un administrador antes de poder acceder al sistema.</small>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 mb-3" disabled="@cargando">
+                                @if (cargando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Registrando...</span>
+                                }
+                                else
+                                {
+                                    <span><i class="bi bi-person-plus me-2"></i>Registrarse</span>
+                                }
+                            </button>
+
+                            <div class="text-center">
+                                <button type="button" class="btn btn-link" @onclick='() => Navigation.NavigateTo("/login")'>
+                                    <i class="bi bi-arrow-left me-2"></i>Volver al Login
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Usuario usuario = new() { Rol = "Usuario", Activo = false };
+    private string password = string.Empty;
+    private string confirmarPassword = string.Empty;
+    private string mensajeError = string.Empty;
+    private bool cargando = false;
+    private bool registroExitoso = false;
+    private bool intentoEnvio = false;
+    private string? logoUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarLogoAsync();
+    }
+
+    private async Task CargarLogoAsync()
+    {
+        try
+        {
+            var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+            logoUrl = configuracion?.LogoUrl;
+        }
+        catch (Exception)
+        {
+            logoUrl = null;
+        }
+    }
+
+    private async Task HandleRegistro()
+    {
+        intentoEnvio = true;
+        mensajeError = string.Empty;
+
+        // Validaciones
+        if (string.IsNullOrWhiteSpace(usuario.NombreUsuario))
+        {
+            mensajeError = "El nombre de usuario es obligatorio";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Email))
+        {
+            mensajeError = "El email es obligatorio";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Nombre))
+        {
+            mensajeError = "El nombre es obligatorio";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Apellidos))
+        {
+            mensajeError = "Los apellidos son obligatorios";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Direccion))
+        {
+            mensajeError = "La dirección es obligatoria";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.CodigoPostal))
+        {
+            mensajeError = "El código postal es obligatorio";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Localidad))
+        {
+            mensajeError = "La localidad es obligatoria";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            mensajeError = "La contraseña es obligatoria";
+            return;
+        }
+
+        if (password != confirmarPassword)
+        {
+            mensajeError = "Las contraseñas no coinciden";
+            return;
+        }
+
+        if (password.Length < 4)
+        {
+            mensajeError = "La contraseña debe tener al menos 4 caracteres";
+            return;
+        }
+
+        cargando = true;
+
+        try
+        {
+            // Asegurar que el rol sea Usuario y esté inactivo
+            usuario.Rol = "Usuario";
+            usuario.Activo = false;
+            usuario.Comision = 0;
+
+            var (exito, mensaje) = await UsuarioService.CrearAsync(usuario, password);
+
+            if (exito)
+            {
+                registroExitoso = true;
+            }
+            else
+            {
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al registrar: {ex.Message}";
+            Console.WriteLine($"[REGISTRO] Error: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

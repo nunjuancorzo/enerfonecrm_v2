@@ -1,0 +1,102 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject ConfiguracionService ConfiguracionService
+
+<footer class="app-footer">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-4 mb-3 mb-md-0">
+                <h6 class="fw-bold mb-2">
+                    <i class="bi bi-building me-2"></i>@(configuracion?.NombreEmpresa ?? "Enefone")
+                </h6>
+                @if (!string.IsNullOrEmpty(configuracion?.Cif))
+                {
+                    <p class="mb-1 small">CIF: @configuracion.Cif</p>
+                }
+                @if (!string.IsNullOrEmpty(configuracion?.Direccion))
+                {
+                    <p class="mb-1 small">
+                        <i class="bi bi-geo-alt me-1"></i>
+                        @configuracion.Direccion
+                        @if (!string.IsNullOrEmpty(configuracion.CodigoPostal) || !string.IsNullOrEmpty(configuracion.Ciudad))
+                        {
+                            <br />
+                            <span class="ms-3">@configuracion.CodigoPostal @configuracion.Ciudad</span>
+                        }
+                    </p>
+                }
+            </div>
+            
+            <div class="col-md-4 mb-3 mb-md-0">
+                <h6 class="fw-bold mb-2">
+                    <i class="bi bi-telephone me-2"></i>Contacto
+                </h6>
+                @if (!string.IsNullOrEmpty(configuracion?.Telefono))
+                {
+                    <p class="mb-1 small">
+                        <i class="bi bi-phone me-1"></i>
+                        <a href="tel:@configuracion.Telefono" class="text-white text-decoration-none">@configuracion.Telefono</a>
+                    </p>
+                }
+                @if (!string.IsNullOrEmpty(configuracion?.Email))
+                {
+                    <p class="mb-1 small">
+                        <i class="bi bi-envelope me-1"></i>
+                        <a href="mailto:@configuracion.Email" class="text-white text-decoration-none">@configuracion.Email</a>
+                    </p>
+                }
+                @if (!string.IsNullOrEmpty(configuracion?.Web))
+                {
+                    <p class="mb-1 small">
+                        <i class="bi bi-globe me-1"></i>
+                        <a href="@configuracion.Web" target="_blank" class="text-white text-decoration-none">@configuracion.Web</a>
+                    </p>
+                }
+            </div>
+            
+            <div class="col-md-4">
+                <h6 class="fw-bold mb-2">
+                    <i class="bi bi-shield-check me-2"></i>Protección de Datos
+                </h6>
+                <p class="mb-1 small">
+                    Los datos personales que nos facilites serán tratados conforme a lo establecido en el 
+                    Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD).
+                </p>
+                <p class="mb-0 small">
+                    <i class="bi bi-lock me-1"></i>
+                    Tus datos están protegidos y no serán cedidos a terceros sin tu consentimiento.
+                </p>
+            </div>
+        </div>
+        
+        <hr class="my-3 border-light opacity-25" />
+        
+        <div class="row">
+            <div class="col-12 text-center">
+                <p class="mb-0 small opacity-75">
+                    © @DateTime.Now.Year @(configuracion?.NombreEmpresa ?? "Enefone"). Todos los derechos reservados.
+                    <span class="mx-2">|</span>
+                    Sistema de Gestión CRM
+                    <span class="mx-2">|</span>
+                    <span class="badge bg-secondary">Versión 20260108</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+@code {
+    private ConfiguracionEmpresa? configuracion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+        }
+        catch
+        {
+            // Si hay error, se mostrará info por defecto
+        }
+    }
+}

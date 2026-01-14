@@ -1,0 +1,2665 @@
+@page "/contratos/energia"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.JSInterop
+@rendermode InteractiveServer
+@inject ContratoService ContratoService
+@inject ClienteService ClienteService
+@inject TarifaEnergiaService TarifaEnergiaService
+@inject ServicioService ServicioService
+@inject ComercializadoraService ComercializadoraService
+@inject FicheroClienteService FicheroClienteService
+@inject FicheroContratoService FicheroContratoService
+@inject ObservacionContratoService ObservacionContratoService
+@inject AuthService AuthService
+@inject UsuarioService UsuarioService
+@inject LogActivacionContratoService LogActivacionContratoService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid p-4" style="max-width: 2000px;">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-0">
+                                <i class="bi bi-lightning-charge-fill me-2 text-warning"></i>
+                                Contratos de Energía
+                            </h2>
+                            <p class="text-muted mb-0">Gestión de contratos de electricidad y gas</p>
+                        </div>
+                        <button class="btn btn-outline-success" @onclick="IrALogActivaciones">
+                            <i class="bi bi-clock-history me-2"></i>Log de Activaciones
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeExito))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                    <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                </div>
+            }
+
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Estado</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="dropdownEstado" data-bs-toggle="dropdown" aria-expanded="false">
+                                    @if (estadosSeleccionados.Count == 0)
+                                    {
+                                        <span>Todos</span>
+                                    }
+                                    else if (estadosSeleccionados.Count == 1)
+                                    {
+                                        <span>@estadosSeleccionados.First()</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@estadosSeleccionados.Count seleccionados</span>
+                                    }
+                                </button>
+                                <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownEstado" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                    <li class="px-2 py-1">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="estadoTodos" @onchange="SeleccionarTodosEstados" checked="@(estadosSeleccionados.Count == 0)">
+                                            <label class="form-check-label w-100" for="estadoTodos" style="cursor: pointer;">
+                                                <small><strong>Todos</strong></small>
+                                            </label>
+                                        </div>
+                                    </li>
+                                    <li><hr class="dropdown-divider my-1"></li>
+                                    @foreach (var estado in estadosDisponibles)
+                                    {
+                                        var estadoId = $"estado_{estado.Replace(" ", "_")}";
+                                        <li class="px-2 py-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="@estadoId" 
+                                                       checked="@estadosSeleccionados.Contains(estado)"
+                                                       @onchange="() => ToggleEstado(estado)">
+                                                <label class="form-check-label w-100" for="@estadoId" style="cursor: pointer;">
+                                                    <small>@estado</small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Tipo de Fecha</label>
+                            <select @bind="tipoFechaFiltro" class="form-select">
+                                <option value="Creacion">Creación</option>
+                                <option value="Modificacion">Modificación</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Fecha Desde</label>
+                            <input type="date" @bind="filtroFechaDesde" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Fecha Hasta</label>
+                            <input type="date" @bind="filtroFechaHasta" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Buscar en</label>
+                            <select @bind="campoBusqueda" class="form-select">
+                                <option value="">Todos los campos</option>
+                                <option value="Comercializadora">Comercializadora</option>
+                                <option value="Tarifa">Tarifa</option>
+                                <option value="Cliente">Cliente</option>
+                                <option value="DNI">DNI</option>
+                                <option value="Direccion">Dirección</option>
+                                <option value="CUPS">CUPS Luz</option>
+                                <option value="CUPSGas">CUPS Gas</option>
+                                <option value="IBAN">IBAN</option>
+                                <option value="Comercial">Comercial</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Texto a buscar</label>
+                            <input type="text" @bind="textoBusqueda" class="form-control" placeholder="Escriba el texto a buscar..." />
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button class="btn btn-primary flex-grow-1" @onclick="AplicarFiltros">
+                                <i class="bi bi-search me-1"></i>Filtrar
+                            </button>
+                            <button class="btn btn-secondary" @onclick="LimpiarFiltros">
+                                <i class="bi bi-x-circle me-1"></i>Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Contratos</h5>
+                    <div>
+                        @if (contratosSeleccionados.Any())
+                        {
+                            <button class="btn btn-warning me-2" @onclick="MostrarModalCambioEstadoMasivo">
+                                <i class="bi bi-arrow-repeat me-2"></i>Cambiar Estado (@contratosSeleccionados.Count)
+                            </button>
+                        }
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!contratosFiltrados.Any())">
+                                <i class="bi bi-download me-2"></i>Exportar
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" @onclick="ExportarCSV" style="cursor: pointer;"><i class="bi bi-filetype-csv me-2"></i>Exportar a CSV</a></li>
+                                <li><a class="dropdown-item" @onclick="ExportarExcel" style="cursor: pointer;"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel (XLSX)</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (cargando)
+                    {
+                        <div class="text-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando contratos...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Cargando contratos...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr style="font-size: 0.875rem;">
+                                        <th style="width: 40px;">
+                                            <input type="checkbox" class="form-check-input" 
+                                                   @onchange="SeleccionarTodosContratosVisibles" 
+                                                   checked="@(contratosFiltrados.Any() && contratosFiltrados.All(c => contratosSeleccionados.Contains(c.Id)))" />
+                                        </th>
+                                        <th style="cursor: pointer; width: 85px;" @onclick='() => OrdenarPor("FechaCreacion")'>
+                                            F. Creación
+                                            @if (columnaOrden == "FechaCreacion")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 85px;" @onclick='() => OrdenarPor("FechaModificacion")'>
+                                            F. Modificación
+                                            @if (columnaOrden == "FechaModificacion")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 100px;" @onclick='() => OrdenarPor("Estado")'>
+                                            Estado
+                                            @if (columnaOrden == "Estado")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="width: 85px; cursor: pointer;" @onclick='() => OrdenarPor("Comercial")'>
+                                            Comercial
+                                            @if (columnaOrden == "Comercial")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 120px;" @onclick='() => OrdenarPor("EnComercializadora")'>
+                                            Comercializadora
+                                            @if (columnaOrden == "EnComercializadora")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 180px;" @onclick='() => OrdenarPor("EnTarifa")'>
+                                            Tarifa
+                                            @if (columnaOrden == "EnTarifa")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 200px;" @onclick='() => OrdenarPor("NombreCliente")'>
+                                            Cliente
+                                            @if (columnaOrden == "NombreCliente")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 95px;" @onclick='() => OrdenarPor("Dni")'>
+                                            DNI/CIF
+                                            @if (columnaOrden == "Dni")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 80px;" @onclick='() => OrdenarPor("Comision")'>
+                                            Comisión
+                                            @if (columnaOrden == "Comision")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th class="text-end" style="width: 85px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (contratosFiltrados == null || !contratosFiltrados.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="11" class="text-center text-muted py-4">
+                                                <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                                                <p class="mb-0 mt-2">No hay contratos registrados</p>
+                                            </td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var contrato in contratosFiltrados)
+                                        {
+                                            <tr style="font-size: 0.875rem;">
+                                                <td>
+                                                    <input type="checkbox" class="form-check-input" 
+                                                           @onchange="() => ToggleSeleccionContrato(contrato.Id)" 
+                                                           checked="@contratosSeleccionados.Contains(contrato.Id)" />
+                                                </td>
+                                                <td><small>@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
+                                                <td><small class="text-muted">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
+                                                <td>
+                                                    <span class="badge @ObtenerColorEstado(contrato.Estado)" style="font-size: 0.75rem;">@contrato.Estado</span>
+                                                    @if (conteoObservacionesPorContrato.ContainsKey(contrato.Id) && conteoObservacionesPorContrato[contrato.Id] > 0)
+                                                    {
+                                                        <i class="bi bi-chat-left-text-fill text-primary ms-1" 
+                                                           style="cursor: pointer; font-size: 0.85rem;" 
+                                                           @onclick="() => MostrarHistoricoObservaciones(contrato.Id)"
+                                                           title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
+                                                    }
+                                                </td>
+                                                <td><small>@contrato.Comercial</small></td>
+                                                <td>
+                                                    @{
+                                                        var logoUrl = ObtenerLogoComercializadora(contrato.EnComercializadora);
+                                                        if (!string.IsNullOrEmpty(logoUrl))
+                                                        {
+                                                            <img src="@logoUrl" alt="@contrato.EnComercializadora" 
+                                                                 style="max-width: 120px; max-height: 50px; object-fit: contain;" 
+                                                                 title="@ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora)" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <small>@ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora)</small>
+                                                        }
+                                                    }
+                                                </td>
+                                                <td style="max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@contrato.EnTarifa</small></td>
+                                                <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@contrato.NombreCliente</small></td>
+                                                <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
+                                                <td><span class="badge bg-warning text-dark" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                <td class="text-end" style="white-space: nowrap;">
+                                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(contrato)" title="Editar">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    @if (AuthService.EsAdministrador)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(contrato)" title="Eliminar">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @* Paginación *@
+                        <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
+                            <div>
+                                <small class="text-muted">
+                                    Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos contratos
+                                </small>
+                            </div>
+                            @if (totalPaginas > 1)
+                            {
+                                <nav>
+                                    <ul class="pagination pagination-sm mb-0">
+                                        <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(1)" disabled="@(paginaActual == 1)">
+                                                <i class="bi bi-chevron-double-left"></i>
+                                            </button>
+                                        </li>
+                                        <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)" disabled="@(paginaActual == 1)">
+                                                <i class="bi bi-chevron-left"></i>
+                                            </button>
+                                        </li>
+                                        @for (int i = Math.Max(1, paginaActual - 2); i <= Math.Min(totalPaginas, paginaActual + 2); i++)
+                                        {
+                                            var pagina = i;
+                                            <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                                                <button class="page-link" @onclick="() => CambiarPagina(pagina)">@pagina</button>
+                                            </li>
+                                        }
+                                        <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)" disabled="@(paginaActual == totalPaginas)">
+                                                <i class="bi bi-chevron-right"></i>
+                                            </button>
+                                        </li>
+                                        <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(totalPaginas)" disabled="@(paginaActual == totalPaginas)">
+                                                <i class="bi bi-chevron-double-right"></i>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Editar -->
+        @if (mostrarModal && contratoSeleccionado != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
+                    <div class="modal-content border-0 shadow-lg">
+                        <EditForm Model="@contratoSeleccionado" OnSubmit="GuardarContrato">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-pencil-square me-2"></i>
+                                    Editar Contrato de Energía - ID: @contratoSeleccionado.Id
+                                </h5>
+                                <button type="button" class="btn-close" @onclick="CerrarModal" disabled="@guardando"></button>
+                            </div>
+                            <div class="modal-header bg-light border-bottom">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-warning" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-save me-2"></i>
+                                        }
+                                        Guardar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                                <DataAnnotationsValidator />
+                                <ValidationSummary class="alert alert-danger" />
+                                
+                                <!-- Fechas -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-plus me-1"></i>Fecha de Creación</label>
+                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-check me-1"></i>Fecha de Modificación</label>
+                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
+                                    </div>
+                                </div>
+
+                                <hr class="my-3" />
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Estado</label>
+                                            <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
+                                                <option value="Pte Carga">Pte Carga</option>
+                                                <option value="Pte Firma">Pte Firma</option>
+                                                <option value="En incidencia">En incidencia</option>
+                                                <option value="Pte Documentación">Pte Documentación</option>
+                                                <option value="Pte Validación">Pte Validación</option>
+                                                <option value="En Curso">En Curso</option>
+                                                <option value="Activo">Activo</option>
+                                                <option value="Act/Facturable">Act/Facturable</option>
+                                                <option value="Liquidado">Liquidado</option>
+                                                <option value="Baja">Baja</option>
+                                                <option value="Cancelado">Cancelado</option>
+                                                <option value="Scoring">Scoring</option>
+                                            </InputSelect>
+                                        </div>
+
+                                        @if (contratoSeleccionado.Estado == "Activo" && mostrarCampoFechaActivo)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Fecha de Activación <span class="text-danger">*</span></label>
+                                                <input type="date" 
+                                                       class="form-control" 
+                                                       @bind="fechaActivacion" 
+                                                       @bind:event="oninput"
+                                                       disabled="@(!PuedeEditarEstadoYObservaciones())" />
+                                                @if (mostrarErrorFechaActivo)
+                                                {
+                                                    <div class="text-danger small mt-1">La fecha de activación es obligatoria</div>
+                                                }
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Observaciones (Opcional)</label>
+                                                <textarea class="form-control" 
+                                                          rows="3" 
+                                                          @bind="observacionesActivacion" 
+                                                          placeholder="Añade observaciones sobre la activación del contrato..."
+                                                          disabled="@(!PuedeEditarEstadoYObservaciones())"></textarea>
+                                                <small class="text-muted">Estas observaciones se guardarán en el log de activaciones</small>
+                                            </div>
+                                        }
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Estado Servicio</label>
+                                            <InputSelect @bind-Value="contratoSeleccionado.EstadoServicio" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
+                                                <option value="Pte Carga">Pte Carga</option>
+                                                <option value="Pte Firma">Pte Firma</option>
+                                                <option value="En incidencia">En incidencia</option>
+                                                <option value="Pte Documentación">Pte Documentación</option>
+                                                <option value="Pte Validación">Pte Validación</option>
+                                                <option value="En Curso">En Curso</option>
+                                                <option value="Activo">Activo</option>
+                                                <option value="Act/Facturable">Act/Facturable</option>
+                                                <option value="Liquidado">Liquidado</option>
+                                                <option value="Baja">Baja</option>
+                                                <option value="Cancelado">Cancelado</option>
+                                                <option value="Scoring">Scoring</option>
+                                                <option value="No quiere">No quiere</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Tipo</label>
+                                            <InputText @bind-Value="contratoSeleccionado.Tipo" class="form-control" readonly />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Comercial</label>
+                                            @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                            {
+                                                <select @bind="contratoSeleccionado.Comercial" class="form-select">
+                                                    <option value="">Seleccionar comercial...</option>
+                                                    @foreach (var usuario in todosLosUsuarios)
+                                                    {
+                                                        <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                    }
+                                                </select>
+                                            }
+                                            else
+                                            {
+                                                <InputText @bind-Value="contratoSeleccionado.Comercial" class="form-control" readonly />
+                                            }
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Comercializadora</label>
+                                            <select @bind="contratoSeleccionado.EnComercializadora" 
+                                                    @bind:after="OnComercializadoraChanged"
+                                                    class="form-select" 
+                                                    disabled="@(!PuedeEditarCampo())">
+                                                <option value="">Seleccionar comercializadora...</option>
+                                                @foreach (var comercializadora in comercializadoras)
+                                                {
+                                                    <option value="@comercializadora">@comercializadora</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Tarifa</label>
+                                            <select @bind="contratoSeleccionado.EnTarifa" 
+                                                    class="form-select" 
+                                                    disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
+                                                <option value="">Seleccionar tarifa...</option>
+                                                @foreach (var tarifa in tarifasDisponibles)
+                                                {
+                                                    <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Usuario Comercializadora</label>
+                                            <select @bind="contratoSeleccionado.UsuarioComercializadoraId" 
+                                                    class="form-select"
+                                                    disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
+                                                <option value="">Sin asignar</option>
+                                                @foreach (var usuario in usuariosComercializadoraFiltrados)
+                                                {
+                                                    <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Tipo de Operación</label>
+                                            <InputSelect @bind-Value="contratoSeleccionado.TipoOperacion" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                <option value="Cambio comercializadora">Cambio comercializadora</option>
+                                                <option value="CC con cambio titularidad">CC con cambio titularidad</option>
+                                                <option value="Alta nueva">Alta nueva</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Potencia Contratada (kW)</label>
+                                            <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratada" class="form-control" step="0.01" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Consumo Anual (kWh)</label>
+                                            <InputNumber @bind-Value="contratoSeleccionado.ConsumoAnual" class="form-control" step="0.01" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">CUPS Luz</label>
+                                            <InputText @bind-Value="contratoSeleccionado.EnCups" class="form-control" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">CUPS Gas</label>
+                                            <InputText @bind-Value="contratoSeleccionado.EnCupsGas" class="form-control" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Servicio (opcional)</label>
+                                            <select @bind="contratoSeleccionado.ServicioId" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                <option value="">Sin servicio</option>
+                                                @foreach (var servicio in serviciosDisponibles)
+                                                {
+                                                    <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio€</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">DNI</label>
+                                            <InputText @bind-Value="contratoSeleccionado.Dni" class="form-control" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                        @* Campo Dirección oculto - se usa DireccionInstalacionAlarma en su lugar *@
+                                        @* <div class="mb-3">
+                                            <label class="form-label fw-bold">Dirección</label>
+                                            <InputText @bind-Value="contratoSeleccionado.Direccion" class="form-control" disabled="@(!PuedeEditarCampo())" />
+                                        </div> *@
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Cliente</label>
+                                            <select @bind="contratoSeleccionado.IdCliente" @bind:after="OnClienteChanged" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                <option value="">Seleccione un cliente...</option>
+                                                @foreach (var cliente in todosLosClientes)
+                                                {
+                                                    <option value="@cliente.Id">@cliente.Nombre @(cliente.FechaAlta.HasValue ? $"- {cliente.FechaAlta.Value:dd/MM/yyyy}" : "")</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        @if (clienteSeleccionadoInfo != null)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Teléfono</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" readonly />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Email</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" readonly />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">IBAN Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" readonly />
+                                            </div>
+                                        }
+                                        
+                                        @* Titular IBAN Diferente *@
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <InputCheckbox @bind-Value="contratoSeleccionado.TitularIbanDiferente" class="form-check-input" id="chkTitularIbanDiferenteEdicion" disabled="@(!PuedeEditarCampo())" />
+                                                <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicion">
+                                                    El titular del IBAN es diferente al cliente
+                                                </label>
+                                            </div>
+                                        </div>
+                                        @if (contratoSeleccionado.TitularIbanDiferente)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">DNI Titular IBAN</label>
+                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIF/CIF" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Nombre Titular IBAN</label>
+                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Número IBAN</label>
+                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                        }
+                                        
+                                        @if (contratoSeleccionado.Id > 0)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Comisión (€)</label>
+                                                <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                @* Dirección de Suministro *@
+                                <hr class="my-4" />
+                                <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label fw-bold">Dirección</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.DireccionInstalacionAlarma" placeholder="Nombre de la calle" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Número</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.NumeroInstalacion" placeholder="Nº" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Escalera <small class="text-muted">(opcional)</small></label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.EscaleraInstalacion" placeholder="Esc." disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PisoInstalacion" placeholder="Piso" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PuertaInstalacion" placeholder="Puerta" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-bold">Código Postal</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" placeholder="CP" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Localidad</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                </div>
+
+                                @* Sección de Contrato PDF *@
+                                <hr class="my-4" />
+                                <h6 class="border-bottom pb-2 mb-3">
+                                    <i class="bi bi-file-pdf me-2"></i>Contrato PDF
+                                </h6>
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        @if (!string.IsNullOrEmpty(contratoSeleccionado.PdfContratoUrl))
+                                        {
+                                            <div class="alert alert-success d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="bi bi-file-pdf-fill me-2"></i>
+                                                    <span>Contrato PDF cargado</span>
+                                                </div>
+                                                <div>
+                                                    <a href="@contratoSeleccionado.PdfContratoUrl" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Ver PDF">
+                                                        <i class="bi bi-eye"></i> Ver
+                                                    </a>
+                                                    @if (PuedeEditarCampo())
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="EliminarPdfContrato" title="Eliminar PDF">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted fst-italic">No hay contrato PDF cargado</p>
+                                        }
+
+                                        @if (PuedeEditarCampo())
+                                        {
+                                            <label class="form-label fw-bold">Cargar Contrato PDF</label>
+                                            <InputFile OnChange="CargarPdfContrato" class="form-control" accept=".pdf" id="inputPdfContrato" />
+                                            <small class="text-muted">Formato permitido: PDF (máx. 10MB)</small>
+                                        }
+                                    </div>
+                                </div>
+
+                                @* Sección de Archivos del Cliente (Solo lectura) *@
+                                @if (contratoSeleccionado.IdCliente.HasValue && contratoSeleccionado.IdCliente.Value > 0 && ficherosCliente.Any())
+                                {
+                                    <hr class="my-4" />
+                                    <h6 class="mb-3">
+                                        <i class="bi bi-paperclip me-2"></i>Archivos del Cliente
+                                    </h6>
+                                    <div class="row g-2">
+                                        @foreach (var tipo in new[] { "DNIParticular", "DNIPyme", "CIFPyme", "EscriturasPyme" })
+                                        {
+                                            var ficherosDelTipo = ficherosCliente.Where(f => f.TipoFichero == tipo).ToList();
+                                            @if (ficherosDelTipo.Any())
+                                            {
+                                                <div class="col-md-6">
+                                                    <div class="card">
+                                                        <div class="card-body p-2">
+                                                            <h6 class="card-title small mb-2">
+                                                                <i class="bi @FicheroClienteService.ObtenerIconoTipoFichero(tipo) me-1"></i>
+                                                                @FicheroClienteService.ObtenerEtiquetaTipoFichero(tipo)
+                                                            </h6>
+                                                            <div style="max-height: 120px; overflow-y: auto;">
+                                                                @foreach (var fichero in ficherosDelTipo)
+                                                                {
+                                                                    <div class="d-flex align-items-center justify-content-between border-bottom py-1">
+                                                                        <small class="text-truncate me-2" title="@fichero.NombreArchivo">
+                                                                            <i class="bi bi-file-earmark me-1"></i>@fichero.NombreArchivo
+                                                                        </small>
+                                                                        <button class="btn btn-sm btn-outline-success" @onclick="() => DescargarArchivo(fichero.Id)" title="Descargar">
+                                                                            <i class="bi bi-download"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                }
+
+                                <!-- Facturas del Contrato -->
+                                <hr />
+                                <h6 class="mb-3"><i class="bi bi-receipt me-2"></i>Facturas del Contrato</h6>
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        @if (contratoSeleccionado.Id > 0)
+                                        {
+                                            @* Facturas ya guardadas en BD *@
+                                            @if (facturasContrato.Any())
+                                            {
+                                                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                                                    <div class="list-group">
+                                                        @foreach (var factura in facturasContrato)
+                                                        {
+                                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <i class="bi bi-receipt text-success me-2"></i>
+                                                                    <span>@factura.NombreFichero</span>
+                                                                </div>
+                                                                <div>
+                                                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" title="Descargar">
+                                                                        <i class="bi bi-download"></i>
+                                                                    </button>
+                                                                    @if (PuedeEditar())
+                                                                    {
+                                                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="async () => await EliminarFactura(factura.Id)" title="Eliminar">
+                                                                            <i class="bi bi-trash"></i>
+                                                                        </button>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-muted fst-italic">No hay facturas adjuntas</p>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @* Facturas pendientes (contrato nuevo) *@
+                                            @if (facturasPendientes.Any())
+                                            {
+                                                <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                                                    <div class="list-group">
+                                                        @foreach (var factura in facturasPendientes.Select((f, i) => new { Factura = f, Index = i }))
+                                                        {
+                                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <i class="bi bi-receipt text-warning me-2"></i>
+                                                                    <span>@factura.Factura.nombreArchivo</span>
+                                                                    <small class="text-muted ms-2">(pendiente de guardar)</small>
+                                                                </div>
+                                                                <div>
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => EliminarFacturaPendiente(factura.Index)" title="Eliminar">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-muted fst-italic">No hay facturas pendientes</p>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (PuedeAdjuntarFacturas())
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold">Adjuntar Factura</label>
+                                            <InputFile OnChange="CargarFactura" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                            <small class="text-muted">Formatos permitidos: PDF, JPG, PNG, DOC, DOCX (máx. 10MB)</small>
+                                        </div>
+                                    </div>
+                                }
+
+                                <hr />
+
+                                <!-- Histórico de Observaciones -->
+                                <h6 class="mb-3">
+                                    <i class="bi bi-clock-history me-2"></i>Histórico de Observaciones
+                                    @if (PuedeEditar())
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="MostrarModalNuevaObservacion">
+                                            <i class="bi bi-plus-circle me-1"></i>Agregar Observación
+                                        </button>
+                                    }
+                                </h6>
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        @if (observacionesHistoricas.Any())
+                                        {
+                                            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                                                @foreach (var obs in observacionesHistoricas)
+                                                {
+                                                    <div class="card mb-2">
+                                                        <div class="card-body p-2">
+                                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                                <div>
+                                                                    <small class="text-muted">
+                                                                        <i class="bi bi-person-circle me-1"></i>
+                                                                        <strong>@obs.Usuario</strong>
+                                                                    </small>
+                                                                    @if (!string.IsNullOrEmpty(obs.EstadoContrato))
+                                                                    {
+                                                                        <span class="badge bg-secondary ms-2" style="font-size: 0.7rem;">@obs.EstadoContrato</span>
+                                                                    }
+                                                                </div>
+                                                                <div class="d-flex align-items-center gap-2">
+                                                                    <small class="text-muted">
+                                                                        <i class="bi bi-clock me-1"></i>
+                                                                        @obs.FechaHora.ToString("dd/MM/yyyy HH:mm")
+                                                                    </small>
+                                                                    @if (PuedeEditar() && AuthService.UsuarioActual?.NombreUsuario == obs.Usuario)
+                                                                    {
+                                                                        <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1" @onclick="() => EliminarObservacion(obs.Id)" title="Eliminar">
+                                                                            <i class="bi bi-trash" style="font-size: 0.8rem;"></i>
+                                                                        </button>
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                            <p class="mb-0" style="white-space: pre-wrap; font-size: 0.9rem;">@obs.Observacion</p>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted fst-italic">No hay observaciones registradas</p>
+                                        }
+                                    </div>
+                                </div>
+                        </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Modal Confirmar Eliminación -->
+        @if (mostrarModalEliminar && contratoAEliminar != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Confirmar Eliminación
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalEliminar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>¿Estás seguro de que deseas eliminar este contrato?</p>
+                            <p class="text-muted mb-0">
+                                <strong>Cliente:</strong> @contratoAEliminar.NombreCliente<br />
+                                <strong>Comercializadora:</strong> @ContratoService.ObtenerComercializadoraParaVisualizacion(contratoAEliminar.EnComercializadora)
+                            </p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="CerrarModalEliminar">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="EliminarContrato" disabled="@eliminando">
+                                @if (eliminando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* Modal para cambio de estado masivo *@
+        @if (mostrarModalCambioEstadoMasivo)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title">
+                                <i class="bi bi-arrow-repeat me-2"></i>Cambio de Estado Masivo
+                            </h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModalCambioEstadoMasivo"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-3">
+                                <strong>Contratos seleccionados:</strong> @contratosSeleccionados.Count
+                            </p>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nuevo Estado</label>
+                                <InputSelect @bind-Value="nuevoEstadoMasivo" class="form-select">
+                                    <option value="">Seleccionar estado...</option>
+                                    @foreach (var estado in estadosDisponibles)
+                                    {
+                                        <option value="@estado">@estado</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Se cambiará el estado de todos los contratos seleccionados.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="CerrarModalCambioEstadoMasivo">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-warning" @onclick="AplicarCambioEstadoMasivo" 
+                                    disabled="@(string.IsNullOrEmpty(nuevoEstadoMasivo) || guardando)">
+                                @if (guardando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Aplicar Cambio
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* Modal para mostrar observaciones *@
+        @if (mostrarModalObservaciones)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-chat-left-text me-2"></i>Histórico de Observaciones
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalObservaciones"></button>
+                        </div>
+                        <div class="modal-body">
+                            @if (observacionesHistoricasModal.Any())
+                            {
+                                <div class="list-group">
+                                    @foreach (var obs in observacionesHistoricasModal)
+                                    {
+                                        <div class="list-group-item">
+                                            <small class="text-muted">
+                                                <i class="bi bi-person me-1"></i>@obs.Usuario
+                                                <i class="bi bi-calendar ms-2 me-1"></i>@obs.FechaHora.ToString("dd/MM/yyyy HH:mm")
+                                                @if (!string.IsNullOrEmpty(obs.EstadoContrato))
+                                                {
+                                                    <span class="badge bg-secondary ms-2">@obs.EstadoContrato</span>
+                                                }
+                                            </small>
+                                            <p class="mb-0 mt-2">@obs.Observacion</p>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted mb-0"><i class="bi bi-info-circle me-1"></i>No hay observaciones registradas para este contrato</p>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModalObservaciones">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* Modal para nueva observación *@
+        @if (mostrarModalNuevaObservacion)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-plus-circle me-2"></i>Nueva Observación
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalNuevaObservacion = false"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Observación</label>
+                                <textarea @bind="nuevaObservacionTexto" class="form-control" rows="4" placeholder="Ingrese la observación..."></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => mostrarModalNuevaObservacion = false">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-primary" @onclick="GuardarNuevaObservacion" 
+                                    disabled="@(string.IsNullOrWhiteSpace(nuevaObservacionTexto) || guardandoObservacion)">
+                                @if (guardandoObservacion)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private List<Contrato> contratos = new();
+    private List<Contrato> contratosFiltrados = new();
+    private List<Contrato> contratosParaPaginar = new();
+    private List<FicheroCliente> ficherosCliente = new();
+    private List<FicheroContrato> facturasContrato = new();
+    
+    // Facturas temporales para contratos nuevos (antes de tener ID)
+    private List<(string nombreArchivo, byte[] contenido)> facturasPendientes = new();
+    
+    private Contrato? contratoSeleccionado;
+    private Contrato? contratoAEliminar;
+    private bool cargando = true;
+    private bool cargandoSesion = true;
+    private bool mostrarModal = false;
+    private bool mostrarModalEliminar = false;
+    private bool mostrarModalObservaciones = false;
+    private bool mostrarModalNuevaObservacion = false;
+    private bool guardando = false;
+    private bool eliminando = false;
+    private bool guardandoObservacion = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private string observacionesActuales = string.Empty;
+    private string nuevaObservacionTexto = string.Empty;
+    private List<ObservacionContrato> observacionesHistoricas = new();
+    private List<ObservacionContrato> observacionesHistoricasModal = new();
+    private Dictionary<int, int> conteoObservacionesPorContrato = new();
+
+    // Filtros
+    private HashSet<string> estadosSeleccionados = new();
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "Activo", "Act/Facturable", "Liquidado", "Baja", "Cancelado", "Scoring" };
+    private string tipoFechaFiltro = "Creacion";
+    private DateTime? filtroFechaDesde;
+    private DateTime? filtroFechaHasta;
+    private string campoBusqueda = "";
+    private string textoBusqueda = string.Empty;
+
+    // Ordenamiento
+    private string columnaOrden = "FechaCreacion";
+    private bool ordenAscendente = false;
+
+    // Paginación
+    private int paginaActual = 1;
+    private int elementosPorPagina = 10;
+    private int totalElementos = 0;
+    private int totalPaginas = 0;
+
+    // Listas para desplegables
+    private List<string> comercializadoras = new();
+    private List<Comercializadora> comercializadorasObjetos = new();
+    private List<TarifaEnergia> tarifasDisponibles = new();
+    private List<Usuario> usuariosComercializadoraFiltrados = new();
+    private List<Usuario> todosLosUsuarios = new();
+    private List<Servicio> serviciosDisponibles = new();
+    private List<Cliente> todosLosClientes = new();
+    private Cliente? clienteSeleccionadoInfo;
+    
+    // Selección múltiple
+    private HashSet<int> contratosSeleccionados = new();
+    private bool mostrarModalCambioEstadoMasivo = false;
+    private string nuevoEstadoMasivo = string.Empty;
+    
+    // Activación de contratos
+    private bool mostrarCampoFechaActivo = false;
+    private bool mostrarErrorFechaActivo = false;
+    private DateTime? fechaActivacion;
+    private string observacionesActivacion = string.Empty;
+    private string estadoAnterior = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            cargandoSesion = false;
+
+            if (AuthService.EstaAutenticado)
+            {
+                await CargarDatosIniciales();
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarDatosIniciales()
+    {
+        await Task.WhenAll(
+            CargarComercializadoras(),
+            CargarContratos(),
+            CargarUsuarios(),
+            CargarClientes()
+        );
+    }
+
+    private async Task CargarClientes()
+    {
+        try
+        {
+            todosLosClientes = await ClienteService.ObtenerTodosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar clientes: {ex.Message}";
+            todosLosClientes = new();
+        }
+    }
+
+    private async Task CargarUsuarios()
+    {
+        try
+        {
+            todosLosUsuarios = await UsuarioService.ObtenerTodosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar usuarios: {ex.Message}";
+            todosLosUsuarios = new();
+        }
+    }
+
+    private async Task CargarComercializadoras()
+    {
+        try
+        {
+            // Cargar comercializadoras de la base de datos
+            comercializadorasObjetos = await ComercializadoraService.ObtenerActivasAsync();
+            
+            // Obtener comercializadoras desde tarifas (método antiguo, mantener por compatibilidad)
+            var comercializadorasTarifas = await TarifaEnergiaService.ObtenerEmpresasAsync();
+            
+            // Obtener comercializadoras únicas desde los contratos existentes
+            var comercializadorasContratos = contratos
+                .Where(c => !string.IsNullOrWhiteSpace(c.EnComercializadora))
+                .Select(c => NormalizarComercializadora(c.EnComercializadora!))
+                .Distinct()
+                .ToList();
+            
+            // Combinar listas: primero las de BD, luego tarifas y contratos
+            var nombresDB = comercializadorasObjetos.Select(c => c.Nombre).ToList();
+            
+            comercializadoras = nombresDB
+                .Union(comercializadorasTarifas.Select(c => NormalizarComercializadora(c)), StringComparer.OrdinalIgnoreCase)
+                .Union(comercializadorasContratos, StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(c => c)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar comercializadoras: {ex.Message}";
+        }
+    }
+
+    private string NormalizarComercializadora(string comercializadora)
+    {
+        if (string.IsNullOrWhiteSpace(comercializadora))
+            return string.Empty;
+        
+        comercializadora = comercializadora.Trim();
+        
+        // Convertir primera letra a mayúscula y el resto a minúscula
+        if (comercializadora.Length > 0)
+        {
+            return char.ToUpper(comercializadora[0]) + comercializadora.Substring(1).ToLower();
+        }
+        
+        return comercializadora;
+    }
+
+    private string? ObtenerLogoComercializadora(string? nombreComercializadora)
+    {
+        if (string.IsNullOrWhiteSpace(nombreComercializadora))
+            return null;
+            
+        var comercializadora = comercializadorasObjetos.FirstOrDefault(c => 
+            c.Nombre.Equals(nombreComercializadora, StringComparison.OrdinalIgnoreCase));
+        
+        if (comercializadora?.LogoContenido != null && comercializadora.LogoContenido.Length > 0)
+        {
+            var base64 = Convert.ToBase64String(comercializadora.LogoContenido);
+            var mimeType = ObtenerMimeType(comercializadora.LogoArchivo);
+            return $"data:{mimeType};base64,{base64}";
+        }
+        
+        return null;
+    }
+
+    private string ObtenerMimeType(string? nombreArchivo)
+    {
+        if (string.IsNullOrEmpty(nombreArchivo)) return "application/octet-stream";
+        
+        var extension = Path.GetExtension(nombreArchivo).ToLower();
+        return extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".svg" => "image/svg+xml",
+            ".webp" => "image/webp",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private async Task OnComercializadoraChanged()
+    {
+        if (!string.IsNullOrEmpty(contratoSeleccionado?.EnComercializadora))
+        {
+            try
+            {
+                tarifasDisponibles = await TarifaEnergiaService.ObtenerPorEmpresaAsync(contratoSeleccionado.EnComercializadora);
+                
+                // Cargar usuarios comercializadora filtrados
+                var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+                usuariosComercializadoraFiltrados = todosUsuarios
+                    .Where(u => u.Rol == "Comercializadora" && u.Comercializadora == contratoSeleccionado.EnComercializadora)
+                    .ToList();
+                
+                // Recargar servicios según comercializadora y tipo de cliente
+                await CargarServiciosSegunCliente();
+                
+                // Limpiar la tarifa si no está en la lista de tarifas disponibles
+                if (!string.IsNullOrEmpty(contratoSeleccionado.EnTarifa))
+                {
+                    if (!tarifasDisponibles.Any(t => t.Nombre == contratoSeleccionado.EnTarifa))
+                    {
+                        contratoSeleccionado.EnTarifa = string.Empty;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                mensajeError = $"Error al cargar tarifas: {ex.Message}";
+                tarifasDisponibles = new();
+                usuariosComercializadoraFiltrados = new();
+            }
+        }
+        else
+        {
+            tarifasDisponibles = new();
+            serviciosDisponibles = new();
+            usuariosComercializadoraFiltrados = new();
+            if (contratoSeleccionado != null)
+            {
+                contratoSeleccionado.EnTarifa = string.Empty;
+            }
+        }
+    }
+
+    private async Task CargarContratos()
+    {
+        cargando = true;
+        try
+        {
+            contratos = await ContratoService.ObtenerTodosPorTipoAsync(
+                "energia",
+                AuthService.UsuarioActual?.Rol,
+                AuthService.UsuarioActual?.NombreUsuario,
+                AuthService.UsuarioActual?.Id
+            );
+            await CargarConteoObservaciones();
+            AplicarFiltros();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar contratos: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AplicarFiltros()
+    {
+        var listaTemp = contratos.ToList();
+
+        // Filtrar por estados
+        if (estadosSeleccionados.Count > 0)
+        {
+            listaTemp = listaTemp.Where(c => estadosSeleccionados.Contains(c.Estado)).ToList();
+        }
+
+        // Filtrar por rango de fechas según el tipo de fecha seleccionado
+        if (filtroFechaDesde.HasValue)
+        {
+            if (tipoFechaFiltro == "Creacion")
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaCreacion.HasValue && 
+                    c.FechaCreacion.Value.Date >= filtroFechaDesde.Value.Date
+                ).ToList();
+            }
+            else // Modificacion
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaModificacion.HasValue && 
+                    c.FechaModificacion.Value.Date >= filtroFechaDesde.Value.Date
+                ).ToList();
+            }
+        }
+
+        if (filtroFechaHasta.HasValue)
+        {
+            if (tipoFechaFiltro == "Creacion")
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaCreacion.HasValue && 
+                    c.FechaCreacion.Value.Date <= filtroFechaHasta.Value.Date
+                ).ToList();
+            }
+            else // Modificacion
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaModificacion.HasValue && 
+                    c.FechaModificacion.Value.Date <= filtroFechaHasta.Value.Date
+                ).ToList();
+            }
+        }
+
+        // Filtrar por búsqueda de texto según el campo seleccionado
+        if (!string.IsNullOrWhiteSpace(textoBusqueda))
+        {
+            listaTemp = campoBusqueda switch
+            {
+                "Comercializadora" => listaTemp.Where(c => 
+                    c.EnComercializadora != null && 
+                    c.EnComercializadora.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Tarifa" => listaTemp.Where(c => 
+                    c.EnTarifa != null && 
+                    c.EnTarifa.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Cliente" => listaTemp.Where(c => 
+                    c.NombreCliente != null && 
+                    c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "DNI" => listaTemp.Where(c => 
+                    c.Dni != null && 
+                    c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Direccion" => listaTemp.Where(c => 
+                    c.Direccion != null && 
+                    c.Direccion.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "CUPS" => listaTemp.Where(c => 
+                    c.EnCups != null && 
+                    c.EnCups.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "CUPSGas" => listaTemp.Where(c => 
+                    c.EnCupsGas != null && 
+                    c.EnCupsGas.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "IBAN" => listaTemp.Where(c => 
+                    c.EnIban != null && 
+                    c.EnIban.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Comercial" => listaTemp.Where(c => 
+                    c.Comercial != null && 
+                    c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                // Búsqueda en todos los campos
+                _ => listaTemp.Where(c =>
+                    (c.EnComercializadora != null && c.EnComercializadora.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.EnTarifa != null && c.EnTarifa.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.NombreCliente != null && c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Dni != null && c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Direccion != null && c.Direccion.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.EnCups != null && c.EnCups.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.EnCupsGas != null && c.EnCupsGas.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.EnIban != null && c.EnIban.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Comercial != null && c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase))
+                ).ToList()
+            };
+        }
+
+        // Guardar en contratosParaPaginar en lugar de contratosFiltrados
+        contratosParaPaginar = listaTemp;
+
+        // Aplicar ordenamiento y paginación
+        AplicarOrdenamiento();
+    }
+
+    private void LimpiarFiltros()
+    {
+        estadosSeleccionados.Clear();
+        tipoFechaFiltro = "Creacion";
+        filtroFechaDesde = null;
+        filtroFechaHasta = null;
+        campoBusqueda = "";
+        textoBusqueda = string.Empty;
+        AplicarFiltros();
+    }
+
+    private void OrdenarPor(string columna)
+    {
+        if (columnaOrden == columna)
+        {
+            ordenAscendente = !ordenAscendente;
+        }
+        else
+        {
+            columnaOrden = columna;
+            ordenAscendente = true;
+        }
+
+        paginaActual = 1; // Resetear a la primera página al ordenar
+        AplicarOrdenamiento();
+    }
+
+    private void AplicarOrdenamiento()
+    {
+        // Ordenar la lista completa filtrada
+        var listaOrdenada = columnaOrden switch
+        {
+            "FechaCreacion" => ordenAscendente 
+                ? contratosParaPaginar.OrderBy(c => c.FechaCreacion).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.FechaCreacion).ToList(),
+            "FechaModificacion" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.FechaModificacion).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.FechaModificacion).ToList(),
+            "Estado" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.Estado).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.Estado).ToList(),
+            "Comercial" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.Comercial).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.Comercial).ToList(),
+            "EnComercializadora" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.EnComercializadora).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.EnComercializadora).ToList(),
+            "EnTarifa" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.EnTarifa).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.EnTarifa).ToList(),
+            "NombreCliente" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.NombreCliente).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.NombreCliente).ToList(),
+            "Dni" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.Dni ?? c.Cliente?.DniCif).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.Dni ?? c.Cliente?.DniCif).ToList(),
+            "Comision" => ordenAscendente
+                ? contratosParaPaginar.OrderBy(c => c.Comision).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.Comision).ToList(),
+            _ => contratosParaPaginar.ToList()
+        };
+
+        // Actualizar la lista para paginar con la lista ordenada
+        contratosParaPaginar = listaOrdenada;
+
+        // Calcular paginación
+        totalElementos = contratosParaPaginar.Count;
+        totalPaginas = totalElementos > 0 ? (int)Math.Ceiling(totalElementos / (double)elementosPorPagina) : 0;
+        
+        // Asegurar que la página actual esté dentro del rango
+        if (totalPaginas == 0)
+            paginaActual = 1;
+        else if (paginaActual > totalPaginas)
+            paginaActual = totalPaginas;
+        else if (paginaActual < 1)
+            paginaActual = 1;
+
+        // Aplicar paginación a contratosFiltrados que es lo que se muestra en la UI
+        contratosFiltrados = contratosParaPaginar
+            .Skip((paginaActual - 1) * elementosPorPagina)
+            .Take(elementosPorPagina)
+            .ToList();
+    }
+
+    private void ToggleEstado(string estado)
+    {
+        if (estadosSeleccionados.Contains(estado))
+        {
+            estadosSeleccionados.Remove(estado);
+        }
+        else
+        {
+            estadosSeleccionados.Add(estado);
+        }
+    }
+
+    private void SeleccionarTodosEstados(ChangeEventArgs e)
+    {
+        if (e.Value is bool seleccionado && seleccionado)
+        {
+            estadosSeleccionados.Clear();
+        }
+    }
+
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+            AplicarOrdenamiento();
+            StateHasChanged();
+        }
+    }
+
+    private void ExportarCSV()
+    {
+        try
+        {
+            var csv = new System.Text.StringBuilder();
+            
+            // Encabezados
+            csv.AppendLine("Fecha Creación,Estado,Comercial,Comercializadora,Tarifa,DNI Cliente,Cliente,CUPS Luz,CUPS Gas,Comisión");
+            
+            // Datos - usar contratosParaPaginar que contiene todos los filtrados (sin paginación)
+            foreach (var contrato in contratosParaPaginar)
+            {
+                csv.AppendLine($"\"{contrato.FechaCreacion?.ToString("dd/MM/yyyy")}\"," +
+                    $"\"{contrato.Estado}\"," +
+                    $"\"{contrato.Comercial}\"," +
+                    $"\"{ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora)}\"," +
+                    $"\"{contrato.EnTarifa}\"," +
+                    $"\"{contrato.Dni}\"," +
+                    $"\"{contrato.NombreCliente}\"," +
+                    $"\"{contrato.EnCups}\"," +
+                    $"\"{contrato.EnCupsGas}\"," +
+                    $"\"{contrato.Comision?.ToString("N2")}\"");
+            }
+
+            // Crear archivo para descargar
+            var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            var fileName = $"contratos_energia_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            
+            // Descargar usando JavaScript
+            JS.InvokeVoidAsync("eval", $@"
+                const link = document.createElement('a');
+                link.href = 'data:text/csv;charset=utf-8;base64,{base64}';
+                link.download = '{fileName}';
+                link.click();
+            ");
+            
+            mensajeExito = $"Exportados {contratosParaPaginar.Count} contratos a CSV";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al exportar: {ex.Message}";
+        }
+    }
+
+    private void ExportarExcel()
+    {
+        try
+        {
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Contratos Energía");
+
+            // Encabezados
+            worksheet.Cell(1, 1).Value = "Fecha Creación";
+            worksheet.Cell(1, 2).Value = "Estado";
+            worksheet.Cell(1, 3).Value = "Comercial";
+            worksheet.Cell(1, 4).Value = "Comercializadora";
+            worksheet.Cell(1, 5).Value = "Tarifa";
+            worksheet.Cell(1, 6).Value = "DNI Cliente";
+            worksheet.Cell(1, 7).Value = "Cliente";
+            worksheet.Cell(1, 8).Value = "CUPS Luz";
+            worksheet.Cell(1, 9).Value = "CUPS Gas";
+            worksheet.Cell(1, 10).Value = "Comisión";
+
+            // Estilo de encabezados
+            var headerRange = worksheet.Range(1, 1, 1, 10);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+            headerRange.Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Center;
+
+            // Datos
+            int row = 2;
+            foreach (var contrato in contratosParaPaginar)
+            {
+                worksheet.Cell(row, 1).Value = contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "";
+                worksheet.Cell(row, 2).Value = contrato.Estado ?? "";
+                worksheet.Cell(row, 3).Value = contrato.Comercial ?? "";
+                worksheet.Cell(row, 4).Value = ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora) ?? "";
+                worksheet.Cell(row, 5).Value = contrato.EnTarifa ?? "";
+                worksheet.Cell(row, 6).Value = contrato.Dni ?? "";
+                worksheet.Cell(row, 7).Value = contrato.NombreCliente ?? "";
+                worksheet.Cell(row, 8).Value = contrato.EnCups ?? "";
+                worksheet.Cell(row, 9).Value = contrato.EnCupsGas ?? "";
+                worksheet.Cell(row, 10).Value = contrato.Comision?.ToString("N2") ?? "";
+                row++;
+            }
+
+            // Ajustar ancho de columnas
+            worksheet.Columns().AdjustToContents();
+
+            // Guardar en memoria y descargar
+            using var stream = new System.IO.MemoryStream();
+            workbook.SaveAs(stream);
+            var bytes = stream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            var fileName = $"contratos_energia_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+            // Descargar usando JavaScript
+            JS.InvokeVoidAsync("eval", $@"
+                const link = document.createElement('a');
+                link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{base64}';
+                link.download = '{fileName}';
+                link.click();
+            ");
+
+            mensajeExito = $"Exportados {contratosParaPaginar.Count} contratos a Excel (XLSX)";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al exportar: {ex.Message}";
+        }
+    }
+
+    private async void MostrarModalEditar(Contrato contrato)
+    {
+        // Guardar el estado anterior
+        estadoAnterior = contrato.Estado;
+        
+        // Inicializar fecha de activación si el contrato ya está activo
+        if (contrato.Estado == "Activo" && contrato.FechaActivo.HasValue)
+        {
+            fechaActivacion = contrato.FechaActivo.Value;
+            mostrarCampoFechaActivo = true;
+        }
+        else
+        {
+            fechaActivacion = null;
+            mostrarCampoFechaActivo = false;
+        }
+        mostrarErrorFechaActivo = false;
+
+        contratoSeleccionado = new Contrato
+        {
+            Id = contrato.Id,
+            Tipo = contrato.Tipo,
+            Estado = contrato.Estado,
+            EstadoServicio = contrato.EstadoServicio,
+            Comercial = contrato.Comercial,
+            FechaCreacion = contrato.FechaCreacion,
+            FechaModificacion = contrato.FechaModificacion,
+            FechaActivo = contrato.FechaActivo,
+            IdCliente = contrato.IdCliente,
+            NombreCliente = contrato.NombreCliente,
+            Dni = contrato.Dni,
+            Direccion = contrato.Direccion,
+            Iban = contrato.Iban,
+            Comision = contrato.Comision,
+            UsuarioComercializadoraId = contrato.UsuarioComercializadoraId,
+            ServicioId = contrato.ServicioId,
+            EnComercializadora = NormalizarComercializadora(contrato.EnComercializadora ?? ""),
+            EnTarifa = contrato.EnTarifa,
+            EnCups = contrato.EnCups,
+            EnCupsGas = contrato.EnCupsGas,
+            EnServicios = contrato.EnServicios,
+            EnIban = contrato.EnIban,
+            TipoOperacion = contrato.TipoOperacion,
+            PotenciaContratada = contrato.PotenciaContratada,
+            ConsumoAnual = contrato.ConsumoAnual,
+            DireccionInstalacionAlarma = contrato.DireccionInstalacionAlarma,
+            NumeroInstalacion = contrato.NumeroInstalacion,
+            EscaleraInstalacion = contrato.EscaleraInstalacion,
+            PisoInstalacion = contrato.PisoInstalacion,
+            PuertaInstalacion = contrato.PuertaInstalacion,
+            CodigoPostalInstalacion = contrato.CodigoPostalInstalacion,
+            ProvinciaInstalacion = contrato.ProvinciaInstalacion,
+            LocalidadInstalacion = contrato.LocalidadInstalacion,
+            AclaradorInstalacion = contrato.AclaradorInstalacion,
+            PdfContratoUrl = contrato.PdfContratoUrl
+        };
+        
+        // Asegurarse de que las comercializadoras están cargadas
+        if (!comercializadoras.Any())
+        {
+            await CargarComercializadoras();
+        }
+        
+        // Cargar las tarifas de la comercializadora actual si existe
+        if (!string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))
+        {
+            await OnComercializadoraChanged();
+        }
+        
+        // Cargar servicios según tipo de cliente
+        await CargarServiciosSegunCliente();
+        
+        // Cargar información del cliente
+        await CargarInfoCliente();
+        
+        // Cargar archivos del cliente
+        if (contratoSeleccionado.IdCliente.HasValue && contratoSeleccionado.IdCliente.Value > 0)
+        {
+            await CargarArchivosCliente(contratoSeleccionado.IdCliente.Value);
+        }
+        
+        // Cargar facturas del contrato
+        await CargarFacturasContrato();
+        
+        // Cargar observaciones históricas
+        await CargarObservacionesHistoricas();
+        
+        mostrarModal = true;
+        StateHasChanged();
+    }
+
+    private async Task CargarInfoCliente()
+    {
+        if (contratoSeleccionado?.IdCliente != null && contratoSeleccionado.IdCliente.Value > 0)
+        {
+            try
+            {
+                clienteSeleccionadoInfo = await ClienteService.ObtenerPorIdAsync(contratoSeleccionado.IdCliente.Value);
+            }
+            catch (Exception ex)
+            {
+                mensajeError = $"Error al cargar información del cliente: {ex.Message}";
+                clienteSeleccionadoInfo = null;
+            }
+        }
+        else
+        {
+            clienteSeleccionadoInfo = null;
+        }
+    }
+
+    private async Task OnClienteChanged()
+    {
+        await CargarInfoCliente();
+        await CargarServiciosSegunCliente();
+        
+        // Actualizar archivos del cliente
+        if (contratoSeleccionado?.IdCliente != null && contratoSeleccionado.IdCliente.Value > 0)
+        {
+            await CargarArchivosCliente(contratoSeleccionado.IdCliente.Value);
+        }
+        else
+        {
+            ficherosCliente = new List<FicheroCliente>();
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task CargarServiciosSegunCliente()
+    {
+        if (contratoSeleccionado?.IdCliente == null)
+        {
+            serviciosDisponibles = new List<Servicio>();
+            return;
+        }
+
+        try
+        {
+            // Obtener el cliente para saber su tipo
+            var cliente = await ClienteService.ObtenerPorIdAsync(contratoSeleccionado.IdCliente.Value);
+            
+            if (cliente != null && !string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))
+            {
+                // Si es Particular -> Residencial, si es Pyme -> Pyme
+                string tipoServicio = cliente.TipoCliente == "Particular" ? "Residencial" : "Pyme";
+                
+                // Filtrar por tipo de servicio Y comercializadora (usando campo Empresa)
+                serviciosDisponibles = await ServicioService.ObtenerPorTipoYComercializadoraAsync(tipoServicio, contratoSeleccionado.EnComercializadora);
+            }
+            else if (cliente != null)
+            {
+                // Si no hay comercializadora seleccionada, solo filtrar por tipo
+                string tipoServicio = cliente.TipoCliente == "Particular" ? "Residencial" : "Pyme";
+                serviciosDisponibles = await ServicioService.ObtenerPorTipoAsync(tipoServicio);
+            }
+            else
+            {
+                serviciosDisponibles = new List<Servicio>();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar servicios: {ex.Message}";
+            serviciosDisponibles = new List<Servicio>();
+        }
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        contratoSeleccionado = null;
+        tarifasDisponibles = new();
+        facturasPendientes = new();
+        facturasContrato = new();
+        fechaActivacion = null;
+        mostrarCampoFechaActivo = false;
+        mostrarErrorFechaActivo = false;
+        observacionesActivacion = string.Empty;
+        estadoAnterior = string.Empty;
+    }
+
+    private void OnEstadoChanged()
+    {
+        if (contratoSeleccionado == null) return;
+
+        // Si el estado cambió a "Activo" y no estaba activo antes
+        if (contratoSeleccionado.Estado == "Activo" && estadoAnterior != "Activo")
+        {
+            mostrarCampoFechaActivo = true;
+            // Si no hay fecha activo guardada, proponer la fecha de hoy
+            if (!contratoSeleccionado.FechaActivo.HasValue)
+            {
+                fechaActivacion = DateTime.Today;
+            }
+        }
+        // Si dejó de ser "Activo"
+        else if (contratoSeleccionado.Estado != "Activo")
+        {
+            mostrarCampoFechaActivo = false;
+            mostrarErrorFechaActivo = false;
+        }
+        // Si ya estaba activo y sigue activo, mantener el campo visible
+        else if (contratoSeleccionado.Estado == "Activo" && estadoAnterior == "Activo")
+        {
+            mostrarCampoFechaActivo = true;
+        }
+    }
+
+    private async Task GuardarContrato()
+    {
+        if (contratoSeleccionado == null) return;
+
+        // Validar fecha de activación si el estado es "Activo"
+        if (contratoSeleccionado.Estado == "Activo")
+        {
+            if (!fechaActivacion.HasValue)
+            {
+                mostrarErrorFechaActivo = true;
+                mensajeError = "La fecha de activación es obligatoria cuando el estado es Activo";
+                return;
+            }
+            mostrarErrorFechaActivo = false;
+        }
+
+        // Validar campos de titular IBAN si está marcado
+        if (contratoSeleccionado.TitularIbanDiferente)
+        {
+            if (string.IsNullOrWhiteSpace(contratoSeleccionado.TitularIbanDni))
+            {
+                mensajeError = "El DNI del titular IBAN es obligatorio";
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(contratoSeleccionado.TitularIbanNombre))
+            {
+                mensajeError = "El nombre del titular IBAN es obligatorio";
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(contratoSeleccionado.TitularIbanNumero))
+            {
+                mensajeError = "El número IBAN es obligatorio";
+                return;
+            }
+        }
+
+        guardando = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            // Si el estado cambió a "Activo", guardar la fecha
+            bool cambioAActivo = estadoAnterior != "Activo" && contratoSeleccionado.Estado == "Activo";
+            if (cambioAActivo && fechaActivacion.HasValue)
+            {
+                contratoSeleccionado.FechaActivo = fechaActivacion.Value;
+            }
+
+            var resultado = await ContratoService.ActualizarAsync(contratoSeleccionado);
+            if (resultado)
+            {
+                // Si cambió a activo, registrar en el log
+                if (cambioAActivo && fechaActivacion.HasValue)
+                {
+                    var observaciones = string.IsNullOrWhiteSpace(observacionesActivacion) 
+                        ? $"Contrato activado desde estado: {estadoAnterior}" 
+                        : observacionesActivacion;
+                    
+                    await LogActivacionContratoService.RegistrarActivacionAsync(
+                        contratoSeleccionado.Id,
+                        fechaActivacion.Value,
+                        AuthService.UsuarioActual?.NombreUsuario,
+                        observaciones
+                    );
+                }
+
+                // Si hay facturas pendientes, guardarlas ahora que el contrato tiene ID
+                if (facturasPendientes.Any())
+                {
+                    foreach (var factura in facturasPendientes)
+                    {
+                        await FicheroContratoService.GuardarFacturaAsync(
+                            contratoSeleccionado.Id,
+                            factura.nombreArchivo,
+                            factura.contenido
+                        );
+                    }
+                    facturasPendientes.Clear();
+                }
+
+                mensajeExito = "Contrato actualizado correctamente";
+                await CargarContratos();
+                CerrarModal();
+            }
+            else
+            {
+                mensajeError = "Error al actualizar el contrato";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void ConfirmarEliminar(Contrato contrato)
+    {
+        contratoAEliminar = contrato;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        contratoAEliminar = null;
+    }
+
+    private async Task EliminarContrato()
+    {
+        if (contratoAEliminar == null) return;
+
+        eliminando = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            var resultado = await ContratoService.EliminarAsync(contratoAEliminar.Id);
+            if (resultado)
+            {
+                mensajeExito = "Contrato eliminado correctamente";
+                await CargarContratos();
+                CerrarModalEliminar();
+            }
+            else
+            {
+                mensajeError = "Error al eliminar el contrato";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            eliminando = false;
+        }
+    }
+
+    private bool PuedeEditar()
+    {
+        return AuthService.EsAdministrador || AuthService.EsComercializadora;
+    }
+
+    private bool PuedeEditarCampo()
+    {
+        // Comercializadora solo puede editar Estado, Observaciones estado y Estado servicio
+        if (AuthService.UsuarioActual?.Rol == "Comercializadora")
+        {
+            return false;
+        }
+        // Usuario solo puede adjuntar facturas, no editar campos
+        if (AuthService.UsuarioActual?.Rol == "Usuario")
+        {
+            return false;
+        }
+        return PuedeEditar();
+    }
+
+    private bool PuedeEditarEstadoYObservaciones()
+    {
+        // Usuario no puede editar estos campos
+        if (AuthService.UsuarioActual?.Rol == "Usuario")
+        {
+            return false;
+        }
+        return PuedeEditar();
+    }
+
+    private void IrALogActivaciones()
+    {
+        Navigation.NavigateTo("/contratos/log-activaciones");
+    }
+
+    private bool PuedeAdjuntarFacturas()
+    {
+        // Todos los roles autenticados pueden adjuntar facturas
+        return AuthService.EstaAutenticado;
+    }
+
+    private string ObtenerColorEstado(string estado)
+    {
+        return estado?.ToLower() switch
+        {
+            "pte carga" => "bg-secondary",
+            "pte firma" => "bg-primary",
+            "en incidencia" => "bg-warning text-dark",
+            "pte documentación" => "bg-purple text-white",
+            "pte validación" => "bg-orange text-white",
+            "en curso" => "bg-info",
+            "activo" => "bg-success",
+            "act/facturable" => "bg-teal text-white",
+            "liquidado" => "bg-indigo text-white",
+            "baja" => "bg-danger",
+            "cancelado" => "bg-dark",
+            "scoring" => "bg-danger text-white",
+            _ => "bg-secondary"
+        };
+    }
+
+    // ============== Métodos para Archivos del Cliente ==============
+
+    private async Task CargarArchivosCliente(int idCliente)
+    {
+        try
+        {
+            ficherosCliente = await FicheroClienteService.ObtenerPorClienteAsync(idCliente);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar archivos: {ex.Message}";
+        }
+    }
+
+    private async Task DescargarArchivo(int idFichero)
+    {
+        try
+        {
+            var resultado = await FicheroClienteService.DescargarArchivoAsync(idFichero);
+
+            if (resultado.exito && resultado.contenido != null && resultado.nombreArchivo != null)
+            {
+                var base64 = Convert.ToBase64String(resultado.contenido);
+                var extension = Path.GetExtension(resultado.nombreArchivo);
+                var mimeType = extension.ToLower() switch
+                {
+                    ".pdf" => "application/pdf",
+                    ".jpg" => "image/jpeg",
+                    ".jpeg" => "image/jpeg",
+                    ".png" => "image/png",
+                    _ => "application/octet-stream"
+                };
+
+                await JS.InvokeVoidAsync("downloadFile", 
+                    resultado.nombreArchivo, 
+                    $"data:{mimeType};base64,{base64}");
+            }
+            else
+            {
+                mensajeError = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al descargar archivo: {ex.Message}";
+        }
+    }
+
+    private async Task CargarFacturasContrato()
+    {
+        if (contratoSeleccionado == null) return;
+
+        try
+        {
+            facturasContrato = await FicheroContratoService.ObtenerFacturasContratoAsync(contratoSeleccionado.Id);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar facturas: {ex.Message}";
+        }
+    }
+
+    private async Task CargarFactura(InputFileChangeEventArgs e)
+    {
+        if (contratoSeleccionado == null) return;
+
+        try
+        {
+            var archivo = e.File;
+            if (archivo.Size > 10 * 1024 * 1024)
+            {
+                mensajeError = "El archivo no debe superar los 10MB";
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+            var contenido = ms.ToArray();
+
+            // Si el contrato es nuevo (no tiene ID), guardar en lista temporal
+            if (contratoSeleccionado.Id == 0)
+            {
+                facturasPendientes.Add((archivo.Name, contenido));
+                mensajeExito = $"Factura '{archivo.Name}' lista para guardar con el contrato";
+                StateHasChanged();
+                return;
+            }
+
+            // Si el contrato ya existe, guardar directamente
+            var resultado = await FicheroContratoService.GuardarFacturaAsync(
+                contratoSeleccionado.Id,
+                archivo.Name,
+                contenido
+            );
+
+            if (resultado.exito)
+            {
+                mensajeExito = resultado.mensaje;
+                await CargarFacturasContrato();
+                StateHasChanged();
+            }
+            else
+            {
+                mensajeError = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el archivo: {ex.Message}";
+        }
+    }
+
+    private async Task DescargarFactura(int facturaId)
+    {
+        try
+        {
+            var factura = await FicheroContratoService.DescargarFacturaAsync(facturaId);
+            if (factura != null && factura.Fichero != null)
+            {
+                var base64 = Convert.ToBase64String(factura.Fichero);
+                var mimeType = ObtenerMimeType(factura.NombreFichero ?? "archivo");
+                await JS.InvokeVoidAsync("downloadFile", factura.NombreFichero, $"data:{mimeType};base64,{base64}");
+            }
+            else
+            {
+                mensajeError = "No se pudo descargar el archivo";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al descargar: {ex.Message}";
+        }
+    }
+
+    private async Task EliminarFactura(int facturaId)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar esta factura?"))
+            return;
+
+        try
+        {
+            var resultado = await FicheroContratoService.EliminarFacturaAsync(facturaId);
+            if (resultado.exito)
+            {
+                mensajeExito = resultado.mensaje;
+                await CargarFacturasContrato();
+                StateHasChanged();
+            }
+            else
+            {
+                mensajeError = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar: {ex.Message}";
+        }
+    }
+
+    private void EliminarFacturaPendiente(int index)
+    {
+        if (index >= 0 && index < facturasPendientes.Count)
+        {
+            var nombreArchivo = facturasPendientes[index].nombreArchivo;
+            facturasPendientes.RemoveAt(index);
+            mensajeExito = $"Factura '{nombreArchivo}' eliminada de la lista";
+            StateHasChanged();
+        }
+    }
+
+    // Métodos para observaciones históricas
+    private async Task CargarObservacionesHistoricas()
+    {
+        if (contratoSeleccionado == null) return;
+        
+        try
+        {
+            observacionesHistoricas = await ObservacionContratoService.ObtenerPorContratoAsync(contratoSeleccionado.Id);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar observaciones: {ex.Message}";
+        }
+    }
+
+    private async Task MostrarHistoricoObservaciones(int contratoId)
+    {
+        try
+        {
+            observacionesHistoricasModal = await ObservacionContratoService.ObtenerPorContratoAsync(contratoId);
+            mostrarModalObservaciones = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar observaciones: {ex.Message}";
+        }
+    }
+
+    private void MostrarModalNuevaObservacion()
+    {
+        nuevaObservacionTexto = string.Empty;
+        mostrarModalNuevaObservacion = true;
+    }
+
+    private async Task GuardarNuevaObservacion()
+    {
+        if (string.IsNullOrWhiteSpace(nuevaObservacionTexto) || contratoSeleccionado == null)
+            return;
+
+        guardandoObservacion = true;
+        try
+        {
+            var nuevaObservacion = new ObservacionContrato
+            {
+                IdContrato = contratoSeleccionado.Id,
+                Observacion = nuevaObservacionTexto.Trim(),
+                Usuario = AuthService.UsuarioActual?.NombreUsuario ?? "Sistema",
+                FechaHora = DateTime.Now,
+                EstadoContrato = contratoSeleccionado.Estado
+            };
+
+            await ObservacionContratoService.CrearAsync(nuevaObservacion);
+            await CargarObservacionesHistoricas();
+            await CargarConteoObservaciones();
+            
+            nuevaObservacionTexto = string.Empty;
+            mostrarModalNuevaObservacion = false;
+            mensajeExito = "Observación añadida correctamente";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar observación: {ex.Message}";
+        }
+        finally
+        {
+            guardandoObservacion = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task EliminarObservacion(int observacionId)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar esta observación?"))
+            return;
+
+        try
+        {
+            await ObservacionContratoService.EliminarAsync(observacionId);
+            await CargarObservacionesHistoricas();
+            await CargarConteoObservaciones();
+            mensajeExito = "Observación eliminada correctamente";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar observación: {ex.Message}";
+        }
+    }
+
+    private void MostrarObservaciones(string observaciones)
+    {
+        observacionesActuales = observaciones;
+        mostrarModalObservaciones = true;
+    }
+
+    private void CerrarModalObservaciones()
+    {
+        mostrarModalObservaciones = false;
+        observacionesActuales = string.Empty;
+        observacionesHistoricasModal.Clear();
+    }
+
+    // Métodos para selección múltiple
+    private void ToggleSeleccionContrato(int contratoId)
+    {
+        if (contratosSeleccionados.Contains(contratoId))
+        {
+            contratosSeleccionados.Remove(contratoId);
+        }
+        else
+        {
+            contratosSeleccionados.Add(contratoId);
+        }
+    }
+
+    private void SeleccionarTodosContratosVisibles(ChangeEventArgs e)
+    {
+        if (e.Value is bool seleccionado)
+        {
+            if (seleccionado)
+            {
+                foreach (var contrato in contratosFiltrados)
+                {
+                    contratosSeleccionados.Add(contrato.Id);
+                }
+            }
+            else
+            {
+                foreach (var contrato in contratosFiltrados)
+                {
+                    contratosSeleccionados.Remove(contrato.Id);
+                }
+            }
+        }
+    }
+
+    private void MostrarModalCambioEstadoMasivo()
+    {
+        nuevoEstadoMasivo = string.Empty;
+        mostrarModalCambioEstadoMasivo = true;
+    }
+
+    private void CerrarModalCambioEstadoMasivo()
+    {
+        mostrarModalCambioEstadoMasivo = false;
+        nuevoEstadoMasivo = string.Empty;
+    }
+
+    private async Task AplicarCambioEstadoMasivo()
+    {
+        if (string.IsNullOrEmpty(nuevoEstadoMasivo) || !contratosSeleccionados.Any())
+        {
+            mensajeError = "Debe seleccionar un estado y al menos un contrato";
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            int actualizados = 0;
+            int errores = 0;
+
+            foreach (var contratoId in contratosSeleccionados)
+            {
+                try
+                {
+                    var contrato = await ContratoService.ObtenerPorIdAsync(contratoId);
+                    if (contrato != null)
+                    {
+                        contrato.Estado = nuevoEstadoMasivo;
+                        contrato.FechaModificacion = DateTime.Now;
+                        await ContratoService.ActualizarAsync(contrato);
+                        actualizados++;
+                    }
+                }
+                catch
+                {
+                    errores++;
+                }
+            }
+
+            if (actualizados > 0)
+            {
+                mensajeExito = $"Se actualizaron {actualizados} contratos al estado '{nuevoEstadoMasivo}'";
+                if (errores > 0)
+                {
+                    mensajeExito += $" ({errores} con errores)";
+                }
+
+                contratosSeleccionados.Clear();
+                await CargarContratos();
+                CerrarModalCambioEstadoMasivo();
+            }
+            else
+            {
+                mensajeError = "No se pudo actualizar ningún contrato";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al actualizar contratos: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task CargarConteoObservaciones()
+    {
+        try
+        {
+            conteoObservacionesPorContrato.Clear();
+            
+            foreach (var contrato in contratos)
+            {
+                var observaciones = await ObservacionContratoService.ObtenerPorContratoAsync(contrato.Id);
+                conteoObservacionesPorContrato[contrato.Id] = observaciones.Count;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Error silencioso para no interrumpir la carga de contratos
+            Console.WriteLine($"Error al cargar conteo de observaciones: {ex.Message}");
+        }
+    }
+
+    // Métodos para gestión de PDF del contrato
+    private async Task CargarPdfContrato(InputFileChangeEventArgs e)
+    {
+        if (contratoSeleccionado == null) return;
+
+        try
+        {
+            var archivo = e.File;
+            
+            // Validar tamaño (máximo 10MB)
+            if (archivo.Size > 10 * 1024 * 1024)
+            {
+                mensajeError = "El archivo PDF no debe superar los 10MB";
+                return;
+            }
+
+            // Validar formato PDF
+            if (!archivo.Name.ToLower().EndsWith(".pdf"))
+            {
+                mensajeError = "Solo se permiten archivos PDF";
+                return;
+            }
+
+            // Leer el archivo
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+            var contenido = ms.ToArray();
+
+            // Guardar el archivo en el servidor
+            var resultado = await GuardarPdfContratoAsync(archivo.Name, contenido);
+            
+            if (resultado.exito)
+            {
+                contratoSeleccionado.PdfContratoUrl = resultado.rutaArchivo;
+                mensajeExito = "PDF del contrato cargado correctamente";
+                StateHasChanged();
+            }
+            else
+            {
+                mensajeError = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el PDF: {ex.Message}";
+        }
+    }
+
+    private async Task<(bool exito, string mensaje, string rutaArchivo)> GuardarPdfContratoAsync(string nombreArchivo, byte[] contenido)
+    {
+        try
+        {
+            // Crear directorio si no existe
+            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "contratos");
+            if (!Directory.Exists(uploadsPath))
+            {
+                Directory.CreateDirectory(uploadsPath);
+            }
+
+            // Generar nombre único para el archivo
+            var extension = Path.GetExtension(nombreArchivo);
+            var nombreUnico = $"{Guid.NewGuid()}{extension}";
+            var rutaCompleta = Path.Combine(uploadsPath, nombreUnico);
+
+            // Guardar archivo
+            await File.WriteAllBytesAsync(rutaCompleta, contenido);
+
+            // Retornar la ruta relativa para guardar en la BD
+            var rutaRelativa = $"/uploads/contratos/{nombreUnico}";
+            
+            return (true, "PDF guardado correctamente", rutaRelativa);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error al guardar el PDF: {ex.Message}", string.Empty);
+        }
+    }
+
+    private async Task EliminarPdfContrato()
+    {
+        if (contratoSeleccionado == null || string.IsNullOrEmpty(contratoSeleccionado.PdfContratoUrl))
+            return;
+
+        if (!await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar el PDF del contrato?"))
+            return;
+
+        try
+        {
+            // Eliminar archivo físico del servidor
+            var rutaCompleta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", contratoSeleccionado.PdfContratoUrl.TrimStart('/'));
+            if (File.Exists(rutaCompleta))
+            {
+                File.Delete(rutaCompleta);
+            }
+
+            // Limpiar la URL en el objeto
+            contratoSeleccionado.PdfContratoUrl = null;
+            mensajeExito = "PDF del contrato eliminado correctamente";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar el PDF: {ex.Message}";
+        }
+    }
+}

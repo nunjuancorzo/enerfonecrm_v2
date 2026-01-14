@@ -1,0 +1,376 @@
+@page "/contratos/log-activaciones"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@rendermode InteractiveServer
+@inject LogActivacionContratoService LogActivacionContratoService
+@inject ContratoService ContratoService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Log de Activaciones - Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    <div class="alert alert-warning m-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        No tienes acceso a esta página. Por favor, inicia sesión.
+    </div>
+}
+else
+{
+    <div class="container-fluid p-4">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-0">
+                            <i class="bi bi-clock-history me-2 text-success"></i>
+                            Log de Activaciones de Contratos
+                        </h2>
+                        <p class="text-muted">Historial de contratos activados</p>
+                    </div>
+                    <button class="btn btn-outline-secondary" @onclick="Volver">
+                        <i class="bi bi-arrow-left me-2"></i>Volver a Contratos
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Registros de Activación</h5>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <input type="date" class="form-control form-control-sm" placeholder="Desde" @bind="filtroFechaDesde" @bind:event="oninput" @onchange="AplicarFiltros" />
+                            </div>
+                            <div class="col-md-6">
+                                <input type="date" class="form-control form-control-sm" placeholder="Hasta" @bind="filtroFechaHasta" @bind:event="oninput" @onchange="AplicarFiltros" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                @if (cargando)
+                {
+                    <div class="text-center p-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                    </div>
+                }
+                else if (!activacionesFiltradas.Any())
+                {
+                    <div class="text-center p-5 text-muted">
+                        <i class="bi bi-inbox fs-1"></i>
+                        <p class="mt-3">No hay activaciones registradas</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("ContratoId")'>
+                                        ID Contrato
+                                        @if (columnaOrden == "ContratoId")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th>Cliente</th>
+                                    <th>Tipo</th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("FechaActivacion")'>
+                                        Fecha Activación
+                                        @if (columnaOrden == "FechaActivacion")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("FechaRegistro")'>
+                                        Fecha Registro
+                                        @if (columnaOrden == "FechaRegistro")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th>Usuario</th>
+                                    <th>Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var activacion in activacionesPaginadas)
+                                {
+                                    var contrato = ObtenerContrato(activacion.ContratoId);
+                                    <tr>
+                                        <td><strong>#@activacion.ContratoId</strong></td>
+                                        <td>
+                                            @if (contrato != null)
+                                            {
+                                                <span>@contrato.NombreCliente</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (contrato != null)
+                                            {
+                                                <span class="badge bg-@ObtenerColorTipo(contrato.Tipo)">@contrato.Tipo</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-calendar-check text-success me-1"></i>
+                                            @activacion.FechaActivacion.ToString("dd/MM/yyyy")
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                @activacion.FechaRegistro.ToString("dd/MM/yyyy HH:mm")
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <i class="bi bi-person-circle me-1"></i>
+                                            @(activacion.Usuario ?? "Sistema")
+                                        </td>
+                                        <td>
+                                            <small>@(activacion.Observaciones ?? "-")</small>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (totalPaginas > 1)
+                    {
+                        <div class="card-footer bg-white">
+                            <nav aria-label="Paginación">
+                                <ul class="pagination pagination-sm mb-0 justify-content-center">
+                                    <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(1)" disabled="@(paginaActual == 1)">
+                                            <i class="bi bi-chevron-double-left"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)" disabled="@(paginaActual == 1)">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </button>
+                                    </li>
+                                    
+                                    @for (int i = Math.Max(1, paginaActual - 2); i <= Math.Min(totalPaginas, paginaActual + 2); i++)
+                                    {
+                                        var paginaLocal = i;
+                                        <li class="page-item @(paginaActual == paginaLocal ? "active" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(paginaLocal)">@paginaLocal</button>
+                                        </li>
+                                    }
+
+                                    <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)" disabled="@(paginaActual == totalPaginas)">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </li>
+                                    <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(totalPaginas)" disabled="@(paginaActual == totalPaginas)">
+                                            <i class="bi bi-chevron-double-right"></i>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </nav>
+                            <div class="text-center mt-2">
+                                <small class="text-muted">
+                                    Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @Math.Min(paginaActual * elementosPorPagina, totalElementos) de @totalElementos registros
+                                </small>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<LogActivacionContrato> activaciones = new();
+    private List<LogActivacionContrato> activacionesFiltradas = new();
+    private List<LogActivacionContrato> activacionesPaginadas = new();
+    private Dictionary<int, Contrato> contratosCache = new();
+    
+    private bool cargando = true;
+    private bool cargandoSesion = true;
+    private string mensajeError = string.Empty;
+    
+    // Filtros
+    private DateTime? filtroFechaDesde;
+    private DateTime? filtroFechaHasta;
+    
+    // Ordenamiento
+    private string columnaOrden = "FechaRegistro";
+    private bool ordenAscendente = false;
+    
+    // Paginación
+    private int paginaActual = 1;
+    private int elementosPorPagina = 20;
+    private int totalElementos = 0;
+    private int totalPaginas = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            cargandoSesion = false;
+
+            if (AuthService.EstaAutenticado)
+            {
+                await CargarDatos();
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        try
+        {
+            // Cargar todas las activaciones
+            activaciones = await LogActivacionContratoService.ObtenerTodasActivacionesAsync();
+
+            // Cargar contratos relacionados
+            var contratoIds = activaciones.Select(a => a.ContratoId).Distinct().ToList();
+            foreach (var contratoId in contratoIds)
+            {
+                var contrato = await ContratoService.ObtenerPorIdAsync(contratoId);
+                if (contrato != null)
+                {
+                    contratosCache[contratoId] = contrato;
+                }
+            }
+
+            AplicarFiltros();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar activaciones: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AplicarFiltros()
+    {
+        activacionesFiltradas = activaciones;
+
+        // Filtro por fecha
+        if (filtroFechaDesde.HasValue)
+        {
+            activacionesFiltradas = activacionesFiltradas.Where(a => a.FechaActivacion >= filtroFechaDesde.Value).ToList();
+        }
+        if (filtroFechaHasta.HasValue)
+        {
+            activacionesFiltradas = activacionesFiltradas.Where(a => a.FechaActivacion <= filtroFechaHasta.Value).ToList();
+        }
+
+        AplicarOrdenamiento();
+    }
+
+    private void OrdenarPor(string columna)
+    {
+        if (columnaOrden == columna)
+        {
+            ordenAscendente = !ordenAscendente;
+        }
+        else
+        {
+            columnaOrden = columna;
+            ordenAscendente = true;
+        }
+        
+        AplicarOrdenamiento();
+    }
+
+    private void AplicarOrdenamiento()
+    {
+        var activacionesOrdenadas = columnaOrden switch
+        {
+            "ContratoId" => ordenAscendente
+                ? activacionesFiltradas.OrderBy(a => a.ContratoId).ToList()
+                : activacionesFiltradas.OrderByDescending(a => a.ContratoId).ToList(),
+            "FechaActivacion" => ordenAscendente
+                ? activacionesFiltradas.OrderBy(a => a.FechaActivacion).ToList()
+                : activacionesFiltradas.OrderByDescending(a => a.FechaActivacion).ToList(),
+            "FechaRegistro" => ordenAscendente
+                ? activacionesFiltradas.OrderBy(a => a.FechaRegistro).ToList()
+                : activacionesFiltradas.OrderByDescending(a => a.FechaRegistro).ToList(),
+            _ => activacionesFiltradas.OrderByDescending(a => a.FechaRegistro).ToList()
+        };
+
+        totalElementos = activacionesOrdenadas.Count;
+        totalPaginas = (int)Math.Ceiling((double)totalElementos / elementosPorPagina);
+        
+        activacionesPaginadas = activacionesOrdenadas
+            .Skip((paginaActual - 1) * elementosPorPagina)
+            .Take(elementosPorPagina)
+            .ToList();
+        
+        StateHasChanged();
+    }
+
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+            AplicarOrdenamiento();
+        }
+    }
+
+    private Contrato? ObtenerContrato(int contratoId)
+    {
+        contratosCache.TryGetValue(contratoId, out var contrato);
+        return contrato;
+    }
+
+    private string ObtenerColorTipo(string tipo) => tipo?.ToLower() switch
+    {
+        "energia" => "warning",
+        "telefonia" => "info",
+        "alarma" => "danger",
+        _ => "secondary"
+    };
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/contratos/energia", forceLoad: true);
+    }
+}

@@ -1,0 +1,157 @@
+@page "/tarifas"
+@using EnerfoneCRM.Services
+@rendermode InteractiveServer
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid p-5">
+            <div class="text-center mb-5">
+                <h1 class="display-4 mb-3">
+                    <i class="bi bi-currency-dollar text-success"></i>
+                    Gestión de Tarifas
+                </h1>
+                <p class="lead text-muted">Selecciona el tipo de tarifas que deseas gestionar</p>
+            </div>
+
+            <div class="row justify-content-center g-4">
+                <!-- Tarjeta Tarifas Energía -->
+                <div class="col-md-5">
+                    <div class="card shadow-lg border-0 h-100 hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="IrAEnergia">
+                        <div class="card-body text-center p-5">
+                            <div class="mb-4">
+                                <i class="bi bi-lightning-charge-fill text-warning" style="font-size: 5rem;"></i>
+                            </div>
+                            <h3 class="card-title mb-3">Tarifas de Energía</h3>
+                            <p class="card-text text-muted mb-4">
+                                Gestiona las tarifas de electricidad y gas. Controla potencias, precios de energía y comisiones.
+                            </p>
+                            <button class="btn btn-warning btn-lg px-5">
+                                <i class="bi bi-arrow-right-circle me-2"></i>
+                                Acceder
+                            </button>
+                        </div>
+                        <div class="card-footer bg-light border-0 py-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Gestión de potencias y precios de energía
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta Tarifas Telefonía -->
+                <div class="col-md-5">
+                    <div class="card shadow-lg border-0 h-100 hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="IrATelefonia">
+                        <div class="card-body text-center p-5">
+                            <div class="mb-4">
+                                <i class="bi bi-telephone-fill text-primary" style="font-size: 5rem;"></i>
+                            </div>
+                            <h3 class="card-title mb-3">Tarifas de Telefonía</h3>
+                            <p class="card-text text-muted mb-4">
+                                Gestiona las tarifas de fibra, móvil y TV. Controla compañías, tipos de servicio y comisiones.
+                            </p>
+                            <button class="btn btn-primary btn-lg px-5">
+                                <i class="bi bi-arrow-right-circle me-2"></i>
+                                Acceder
+                            </button>
+                        </div>
+                        <div class="card-footer bg-light border-0 py-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Gestión de fibra, móvil y televisión
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-10">
+                    <div class="alert alert-info border-0 shadow-sm">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-lightbulb-fill me-3" style="font-size: 2rem;"></i>
+                            <div>
+                                <h5 class="alert-heading mb-2">Consejo</h5>
+                                <p class="mb-0">
+                                    Puedes crear, editar y eliminar tarifas desde cada módulo. Los cambios se reflejarán inmediatamente en el sistema.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<style>
+    .hover-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 1rem 3rem rgba(0,0,0,.175) !important;
+    }
+
+    .hover-card:hover .btn {
+        transform: scale(1.05);
+    }
+
+    .card {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .card-body {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    }
+</style>
+
+@code {
+    private bool cargandoSesion = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+                return;
+            }
+
+            cargandoSesion = false;
+            StateHasChanged();
+        }
+    }
+
+    private void IrAEnergia()
+    {
+        Navigation.NavigateTo("/tarifas/energia", false);
+    }
+
+    private void IrATelefonia()
+    {
+        Navigation.NavigateTo("/tarifas/telefonia", false);
+    }
+}

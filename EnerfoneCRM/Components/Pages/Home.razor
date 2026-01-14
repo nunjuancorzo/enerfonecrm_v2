@@ -1,0 +1,523 @@
+﻿@page "/home"
+@layout Layout.MainLayout
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Components.Layout
+@inject AuthService AuthService
+@inject ClienteService ClienteService
+@inject ContratoService ContratoService
+@inject TareaPendienteService TareaService
+@inject MensajeBienvenidaService MensajeBienvenidaService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p>Verificando sesión...</p>
+    </div>
+}
+else if (AuthService.EstaAutenticado)
+{
+    <div class="container-fluid mt-4">
+        <!-- Encabezado con saludo -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="fw-bold">Bienvenido, @AuthService.UsuarioActual?.NombreUsuario</h2>
+                <p class="text-muted">Resumen de tu actividad y métricas principales</p>
+            </div>
+        </div>
+
+        <!-- Acceso rápido al Comparador -->
+        @if (AuthService.UsuarioActual?.Rol == "Administrador")
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%) !important;">
+                        <div class="card-body py-4">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-3 p-3 me-3" style="background: rgba(255, 255, 255, 0.25);">
+                                            <i class="bi bi-lightning-charge-fill fs-2" style="color: white;"></i>
+                                        </div>
+                                        <div style="color: white;">
+                                            <h5 class="mb-1 fw-bold" style="color: white;">Comparador de Tarifas de Energía</h5>
+                                            <p class="mb-0 small" style="color: rgba(255, 255, 255, 0.85);">Encuentra la mejor tarifa para tus clientes en segundos</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                    <a href="/comparador/energia" class="btn btn-light btn-lg fw-bold" style="color: #ea580c;">
+                                        <i class="bi bi-search me-2"></i>Comparar Tarifas
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Tarjetas de métricas principales -->
+        <div class="row g-4 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Total Clientes</p>
+                                <h3 class="fw-bold mb-0">@totalClientes</h3>
+                                @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                {
+                                    <small class="text-muted"><i class="bi bi-people"></i> Sistema completo</small>
+                                }
+                                else
+                                {
+                                    <small class="text-muted"><i class="bi bi-person"></i> Tus clientes</small>
+                                }
+                            </div>
+                            <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-people-fill fs-3 text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Contratos Activos</p>
+                                <h3 class="fw-bold mb-0">@contratosActivos</h3>
+                                <small class="text-muted"><i class="bi bi-check-circle"></i> En el sistema</small>
+                            </div>
+                            <div class="bg-success bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-file-text-fill fs-3 text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Comisión Total</p>
+                                <h3 class="fw-bold mb-0">@comisionTotal.ToString("N2") €</h3>
+                                <small class="text-muted"><i class="bi bi-cash-coin"></i> Suma de comisiones</small>
+                            </div>
+                            <div class="bg-warning bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-currency-euro fs-3 text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Contratos Pendientes</p>
+                                <h3 class="fw-bold mb-0">@contratosPendientes</h3>
+                                <small class="text-info"><i class="bi bi-clock"></i> Requieren atención</small>
+                            </div>
+                            <div class="bg-danger bg-opacity-10 rounded-3 p-3">
+                                <i class="bi bi-exclamation-triangle-fill fs-3 text-danger"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fila inferior con gráficos y actividad -->
+        <div class="row g-4">
+            <!-- Distribución de contratos por tipo -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <h5 class="card-title fw-bold mb-0">Distribución de Contratos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="mb-3">
+                                    <i class="bi bi-lightning-charge-fill fs-1 text-warning"></i>
+                                    <h4 class="fw-bold mt-2">@contratosEnergia</h4>
+                                    <p class="text-muted small mb-0">Energía</p>
+                                    <div class="progress mt-2" style="height: 8px;">
+                                        <div class="progress-bar bg-warning" style="width: @(contratosActivos > 0 ? (contratosEnergia * 100 / contratosActivos) : 0)%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="mb-3">
+                                    <i class="bi bi-telephone-fill fs-1 text-primary"></i>
+                                    <h4 class="fw-bold mt-2">@contratosTelefonia</h4>
+                                    <p class="text-muted small mb-0">Telefonía</p>
+                                    <div class="progress mt-2" style="height: 8px;">
+                                        <div class="progress-bar bg-primary" style="width: @(contratosActivos > 0 ? (contratosTelefonia * 100 / contratosActivos) : 0)%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="mb-3">
+                                    <i class="bi bi-shield-fill-check fs-1 text-danger"></i>
+                                    <h4 class="fw-bold mt-2">@contratosAlarmas</h4>
+                                    <p class="text-muted small mb-0">Alarmas</p>
+                                    <div class="progress mt-2" style="height: 8px;">
+                                        <div class="progress-bar bg-danger" style="width: @(contratosActivos > 0 ? (contratosAlarmas * 100 / contratosActivos) : 0)%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="row">
+                            <div class="col-6">
+                                <h6 class="text-muted mb-3">Actividad Reciente</h6>
+                                @if (actividadesRecientes.Any())
+                                {
+                                    @foreach (var actividad in actividadesRecientes)
+                                    {
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="bg-@actividad.Color bg-opacity-10 rounded-circle p-2 me-3">
+                                                <i class="bi bi-@actividad.Icono text-@actividad.Color"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <p class="mb-0 small">@actividad.Descripcion</p>
+                                                <small class="text-muted">@actividad.Tiempo</small>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted small text-center py-3">
+                                        <i class="bi bi-inbox"></i><br />
+                                        No hay actividad reciente
+                                    </p>
+                                }
+                            </div>
+                            <div class="col-6">
+                                <h6 class="text-muted mb-3">Top Comercializadoras</h6>
+                                @if (topComercializadoras.Any())
+                                {
+                                    @foreach (var comercializadora in topComercializadoras)
+                                    {
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small">@comercializadora.Nombre</span>
+                                                <span class="small fw-bold">@comercializadora.Contratos contratos</span>
+                                            </div>
+                                            <div class="progress" style="height: 6px;">
+                                                <div class="progress-bar bg-@comercializadora.Color" style="width: @comercializadora.Porcentaje%"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="text-muted small text-center py-3">
+                                        <i class="bi bi-building"></i><br />
+                                        No hay datos de comercializadoras
+                                    </p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tareas pendientes -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <h5 class="card-title fw-bold mb-0">Tareas Pendientes</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (tareasPendientes.Any())
+                        {
+                            @foreach (var tarea in tareasPendientes)
+                            {
+                                <div class="d-flex align-items-start mb-3 pb-3 border-bottom">
+                                    <input type="checkbox" class="form-check-input me-3 mt-1" disabled />
+                                    <div class="flex-grow-1">
+                                        <p class="mb-1 small fw-bold">@tarea.Descripcion</p>
+                                        @if (!string.IsNullOrEmpty(tarea.NombreUsuarioAsignado))
+                                        {
+                                            <small class="text-muted d-block mb-1">
+                                                <i class="bi bi-person"></i> @tarea.NombreUsuarioAsignado
+                                            </small>
+                                        }
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-@(tarea.Prioridad == "Alta" ? "danger" : tarea.Prioridad == "Media" ? "warning" : "info") bg-opacity-10 text-@(tarea.Prioridad == "Alta" ? "danger" : tarea.Prioridad == "Media" ? "warning" : "info") me-2">
+                                                @tarea.Prioridad
+                                            </span>
+                                            @if (tarea.FechaVencimiento.HasValue)
+                                            {
+                                                <small class="text-muted">
+                                                    <i class="bi bi-calendar-event"></i> @tarea.FechaVencimiento.Value.ToString("dd/MM/yyyy")
+                                                </small>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            <div class="text-center mt-3">
+                                <a href="/tareas" class="btn btn-sm btn-outline-primary">
+                                    Ver todas las tareas
+                                </a>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted small text-center py-5">
+                                <i class="bi bi-check-circle" style="font-size: 2rem;"></i><br />
+                                ¡Todo al día! No hay tareas pendientes
+                            </p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<PopupBienvenida MensajeActual="@mensajeActual" OnCerrar="@CerrarPopup" />
+
+@code {
+    private bool cargandoSesion = true;
+    private MensajeBienvenida? mensajeActual;
+
+    // Datos reales del dashboard
+    private int totalClientes = 0;
+    private int contratosActivos = 0;
+    private decimal comisionTotal = 0;
+    private int contratosPendientes = 0;
+    private int contratosEnergia = 0;
+    private int contratosTelefonia = 0;
+    private int contratosAlarmas = 0;
+
+    private List<Actividad> actividadesRecientes = new();
+    private List<Comercializadora> topComercializadoras = new();
+    private List<TareaPendiente> tareasPendientes = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+            }
+            else
+            {
+                cargandoSesion = false;
+                await CargarDatosDashboard();
+                await CargarMensajeBienvenida();
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task CargarMensajeBienvenida()
+    {
+        try
+        {
+            var mensaje = await MensajeBienvenidaService.ObtenerMensajeActivoAsync();
+            if (mensaje != null)
+            {
+                Console.WriteLine($"[BIENVENIDA] Mensaje encontrado: {mensaje.Titulo}");
+                // Verificar si ya fue visto hoy
+                var yaVisto = await MensajeBienvenidaService.MensajeVistoHoyAsync(mensaje.Id);
+                Console.WriteLine($"[BIENVENIDA] Ya visto hoy: {yaVisto}");
+                if (!yaVisto)
+                {
+                    mensajeActual = mensaje;
+                    Console.WriteLine($"[BIENVENIDA] Mostrando popup");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"[BIENVENIDA] No hay mensaje activo");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[BIENVENIDA] Error al cargar mensaje: {ex.Message}");
+            Console.WriteLine($"[BIENVENIDA] Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    private void CerrarPopup()
+    {
+        mensajeActual = null;
+        StateHasChanged();
+    }
+
+    private async Task CargarDatosDashboard()
+    {
+        try
+        {
+            var rol = AuthService.UsuarioActual?.Rol;
+            var usuarioId = AuthService.UsuarioActual?.Id;
+            var nombreUsuario = AuthService.UsuarioActual?.NombreUsuario;
+
+            // Cargar clientes
+            List<Cliente> clientes;
+            if (rol == "Administrador")
+            {
+                clientes = await ClienteService.ObtenerTodosAsync();
+            }
+            else if (usuarioId.HasValue)
+            {
+                clientes = await ClienteService.ObtenerPorUsuarioAsync(usuarioId.Value);
+            }
+            else
+            {
+                clientes = new List<Cliente>();
+            }
+
+            totalClientes = clientes.Count;
+
+            // Cargar todos los contratos con filtrado por rol
+            var contratos = await ContratoService.ObtenerTodosPorTipoAsync("", rol, nombreUsuario, usuarioId);
+
+            contratosActivos = contratos.Count;
+            contratosEnergia = contratos.Count(c => c.Tipo == "energia");
+            contratosTelefonia = contratos.Count(c => c.Tipo == "telefonia");
+            contratosAlarmas = contratos.Count(c => c.Tipo == "alarma");
+            contratosPendientes = contratos.Count(c => c.Estado == "Pte Carga");
+            
+            // Calcular comisión total (solo contratos Act/Facturable)
+            comisionTotal = contratos
+                .Where(c => c.Comision.HasValue && c.Estado == "Act/Facturable")
+                .Sum(c => c.Comision.Value);
+
+            // Cargar actividades recientes (últimos 5 contratos)
+            actividadesRecientes = contratos
+                .OrderByDescending(c => c.FechaCreacion ?? DateTime.MinValue)
+                .Take(5)
+                .Select(c => new Actividad
+                {
+                    Descripcion = $"Contrato {c.Tipo} - {c.NombreCliente}",
+                    Tiempo = ObtenerTiempoTranscurrido(c.FechaCreacion),
+                    Icono = c.Tipo == "energia" ? "lightning-charge-fill" : c.Tipo == "telefonia" ? "telephone-fill" : "shield-check",
+                    Color = c.Tipo == "energia" ? "warning" : c.Tipo == "telefonia" ? "primary" : "danger"
+                })
+                .ToList();
+
+            // Top comercializadoras (solo para energía)
+            var contratosEnergiaPorCom = contratos
+                .Where(c => c.Tipo == "energia" && !string.IsNullOrEmpty(c.EnComercializadora))
+                .GroupBy(c => c.EnComercializadora)
+                .Select(g => new { Comercializadora = g.Key!, Cantidad = g.Count() })
+                .OrderByDescending(x => x.Cantidad)
+                .Take(4)
+                .ToList();
+
+            var maxContratos = contratosEnergiaPorCom.FirstOrDefault()?.Cantidad ?? 1;
+            var colores = new[] { "primary", "success", "info", "warning" };
+
+            topComercializadoras = contratosEnergiaPorCom
+                .Select((c, index) => new Comercializadora
+                {
+                    Nombre = c.Comercializadora,
+                    Contratos = c.Cantidad,
+                    Porcentaje = (c.Cantidad * 100) / maxContratos,
+                    Color = colores[index % colores.Length]
+                })
+                .ToList();
+
+            // Tareas pendientes reales (solo activas, ordenadas por prioridad y fecha de vencimiento)
+            if (rol == "Administrador")
+            {
+                tareasPendientes = await TareaService.ObtenerTodasAsync(null, "Activa");
+            }
+            else if (usuarioId.HasValue)
+            {
+                tareasPendientes = await TareaService.ObtenerTodasAsync(usuarioId.Value, "Activa");
+            }
+
+            // Ordenar tareas: primero por prioridad (Alta, Media, Baja), luego por fecha de vencimiento
+            tareasPendientes = tareasPendientes
+                .OrderByDescending(t => t.Prioridad == "Alta" ? 3 : t.Prioridad == "Media" ? 2 : 1)
+                .ThenBy(t => t.FechaVencimiento.HasValue ? t.FechaVencimiento.Value : DateTime.MaxValue)
+                .Take(5)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar dashboard: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                Console.WriteLine($"Inner stack trace: {ex.InnerException.StackTrace}");
+            }
+        }
+    }
+
+    private string ObtenerTiempoTranscurrido(DateTime? fecha)
+    {
+        if (!fecha.HasValue) return "Fecha desconocida";
+
+        var diferencia = DateTime.Now - fecha.Value;
+
+        if (diferencia.TotalMinutes < 60)
+            return $"Hace {(int)diferencia.TotalMinutes} min";
+        if (diferencia.TotalHours < 24)
+            return $"Hace {(int)diferencia.TotalHours}h";
+        if (diferencia.TotalDays < 30)
+            return $"Hace {(int)diferencia.TotalDays}d";
+        
+        return fecha.Value.ToString("dd/MM/yyyy");
+    }
+
+    private string ObtenerColorRol() => AuthService.UsuarioActual?.Rol switch
+    {
+        "Administrador" => "danger",
+        "Gestor" => "warning",
+        "Comercializadora" => "info",
+        "Usuario" => "secondary",
+        _ => "secondary"
+    };
+
+    // Clases auxiliares para visualización
+    private class Actividad
+    {
+        public string Descripcion { get; set; } = "";
+        public string Tiempo { get; set; } = "";
+        public string Icono { get; set; } = "";
+        public string Color { get; set; } = "";
+    }
+
+    private class Comercializadora
+    {
+        public string Nombre { get; set; } = "";
+        public int Contratos { get; set; }
+        public int Porcentaje { get; set; }
+        public string Color { get; set; } = "";
+    }
+}
+
+
+
+
+

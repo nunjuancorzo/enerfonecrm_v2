@@ -1,0 +1,561 @@
+@page "/mensajes-bienvenida"
+@layout Layout.MainLayout
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject AuthService AuthService
+@inject MensajeBienvenidaService MensajeBienvenidaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Mensajes de Bienvenida - Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    <div class="text-center mt-5">
+        <p>Redirigiendo al login...</p>
+    </div>
+}
+else if (!AuthService.EsAdministrador)
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Acceso Denegado</h4>
+            <p>No tienes permisos para acceder a esta sección. Solo los administradores pueden gestionar los mensajes de bienvenida.</p>
+            <hr>
+            <a href="/" class="btn btn-primary">Volver al Inicio</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h2 class="fw-bold">
+                    <i class="bi bi-info-circle me-2"></i>Mensajes de Bienvenida
+                </h2>
+                <p class="text-muted">Gestiona los mensajes que se muestran a los usuarios al iniciar la aplicación</p>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" @onclick="NuevoMensaje">
+                    <i class="bi bi-plus-circle me-2"></i>Nuevo Mensaje
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @if (mensajes == null || !mensajes.Any())
+                    {
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <p class="text-muted mt-3">No hay mensajes de bienvenida configurados</p>
+                            <button class="btn btn-primary" @onclick="NuevoMensaje">
+                                <i class="bi bi-plus-circle me-2"></i>Crear Primer Mensaje
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Título</th>
+                                        <th>Fecha Inicio</th>
+                                        <th>Fecha Fin</th>
+                                        <th>Prioridad</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var mensaje in mensajes)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@mensaje.Titulo</strong>
+                                                @if (!string.IsNullOrEmpty(mensaje.ImagenUrl))
+                                                {
+                                                    <i class="bi bi-image ms-2 text-muted"></i>
+                                                }
+                                            </td>
+                                            <td>@mensaje.FechaInicio.ToString("dd/MM/yyyy")</td>
+                                            <td>@(mensaje.FechaFin?.ToString("dd/MM/yyyy") ?? "Sin límite")</td>
+                                            <td>
+                                                <span class="badge bg-secondary">@mensaje.Prioridad</span>
+                                            </td>
+                                            <td>
+                                                @if (mensaje.Activo)
+                                                {
+                                                    <span class="badge bg-success">Activo</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactivo</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button class="btn btn-outline-primary" @onclick="() => EditarMensaje(mensaje.Id)" title="Editar">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-warning" @onclick="() => CambiarEstado(mensaje.Id, !mensaje.Activo)" title="@(mensaje.Activo ? "Desactivar" : "Activar")">
+                                                        <i class="bi bi-@(mensaje.Activo ? "toggle-on" : "toggle-off")"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" @onclick="() => ConfirmarEliminar(mensaje.Id)" title="Eliminar">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    @* Modal para crear/editar mensaje *@
+    @if (mostrarModal && mensajeEditando != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            @if (mensajeEditando.Id == 0)
+                            {
+                                <text>Nuevo Mensaje de Bienvenida</text>
+                            }
+                            else
+                            {
+                                <text>Editar Mensaje de Bienvenida</text>
+                            }
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                    </div>
+                    <EditForm Model="@mensajeEditando" OnValidSubmit="GuardarMensaje">
+                        <DataAnnotationsValidator />
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Título *</label>
+                                <InputText class="form-control" @bind-Value="mensajeEditando.Titulo" />
+                                <ValidationMessage For="@(() => mensajeEditando.Titulo)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Contenido *</label>
+                                <InputTextArea class="form-control" rows="6" @bind-Value="mensajeEditando.Contenido" />
+                                <ValidationMessage For="@(() => mensajeEditando.Contenido)" />
+                                <small class="text-muted">Usa saltos de línea para separar párrafos</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Imagen (opcional)</label>
+                                <div class="input-group">
+                                    <label class="form-control" style="cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        <InputFile id="imagenInput" OnChange="CargarImagen" accept="image/*" style="display: none;" />
+                                        @if (string.IsNullOrEmpty(nombreArchivoImagen))
+                                        {
+                                            <span class="text-muted">Ningún archivo seleccionado</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@nombreArchivoImagen</span>
+                                        }
+                                    </label>
+                                    <label for="imagenInput" class="btn btn-outline-secondary" style="cursor: pointer;">
+                                        <i class="bi bi-upload me-1"></i>Seleccionar imagen
+                                    </label>
+                                </div>
+                                @if (!string.IsNullOrEmpty(mensajeEditando.ImagenUrl))
+                                {
+                                    <div class="mt-2 border rounded p-2 bg-light text-center">
+                                        <img src="@mensajeEditando.ImagenUrl" alt="Vista previa" class="img-fluid rounded" style="max-height: 200px;" />
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="EliminarImagen">
+                                                <i class="bi bi-trash me-1"></i>Eliminar imagen
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                                <small class="text-muted">Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 2MB</small>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Fecha de Inicio *</label>
+                                    <InputDate class="form-control" @bind-Value="mensajeEditando.FechaInicio" />
+                                    <ValidationMessage For="@(() => mensajeEditando.FechaInicio)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Fecha de Fin</label>
+                                    <InputDate class="form-control" @bind-Value="mensajeEditando.FechaFin" />
+                                    <small class="text-muted">Dejar vacío para sin límite</small>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Prioridad</label>
+                                    <InputNumber class="form-control" @bind-Value="mensajeEditando.Prioridad" />
+                                    <small class="text-muted">Mayor número = mayor prioridad</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mt-4">
+                                        <InputCheckbox class="form-check-input" @bind-Value="mensajeEditando.Activo" id="chkActivo" />
+                                        <label class="form-check-label" for="chkActivo">
+                                            Mensaje activo
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-2"></i>Guardar
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Modal de confirmación de eliminación *@
+    @if (mostrarModalEliminar)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Confirmar Eliminación</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalEliminar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Estás seguro de que deseas eliminar este mensaje de bienvenida?</p>
+                        <p class="text-danger mb-0">Esta acción no se puede deshacer.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar">Cancelar</button>
+                        <button type="button" class="btn btn-danger" @onclick="EliminarMensaje">
+                            <i class="bi bi-trash me-2"></i>Eliminar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool cargandoSesion = true;
+    private bool cargando = true;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private List<MensajeBienvenida> mensajes = new();
+    private MensajeBienvenida mensajeEditando = new();
+    private bool mostrarModal = false;
+    private bool mostrarModalEliminar = false;
+    private int mensajeEliminarId = 0;
+    private string nombreArchivoImagen = string.Empty;
+    private IBrowserFile? archivoImagen;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+                return;
+            }
+            
+            if (!AuthService.EsAdministrador)
+            {
+                cargandoSesion = false;
+                StateHasChanged();
+                return;
+            }
+            
+            cargandoSesion = false;
+            await CargarMensajes();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarMensajes()
+    {
+        try
+        {
+            cargando = true;
+            mensajes = await MensajeBienvenidaService.ObtenerTodosLosAsAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar los mensajes: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void NuevoMensaje()
+    {
+        mensajeEditando = new MensajeBienvenida
+        {
+            FechaInicio = DateTime.Now,
+            Activo = true,
+            Prioridad = 0,
+            UsuarioCreacionId = AuthService.UsuarioActual?.Id
+        };
+        nombreArchivoImagen = string.Empty;
+        archivoImagen = null;
+        mostrarModal = true;
+    }
+
+    private async Task EditarMensaje(int id)
+    {
+        try
+        {
+            var mensaje = await MensajeBienvenidaService.ObtenerMensajePorIdAsync(id);
+            if (mensaje != null)
+            {
+                mensajeEditando = mensaje;
+                nombreArchivoImagen = string.Empty;
+                archivoImagen = null;
+                mostrarModal = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el mensaje: {ex.Message}";
+        }
+    }
+
+    private Task CargarImagen(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            archivoImagen = e.File;
+            nombreArchivoImagen = archivoImagen.Name;
+
+            // Validar tamaño (2MB máximo)
+            if (archivoImagen.Size > 2097152)
+            {
+                mensajeError = "La imagen no puede superar los 2MB";
+                archivoImagen = null;
+                nombreArchivoImagen = string.Empty;
+                return Task.CompletedTask;
+            }
+
+            // Validar tipo de archivo
+            var tiposPermitidos = new[] { "image/jpeg", "image/jpg", "image/png", "image/gif" };
+            if (!tiposPermitidos.Contains(archivoImagen.ContentType))
+            {
+                mensajeError = "Solo se permiten archivos JPG, PNG o GIF";
+                archivoImagen = null;
+                nombreArchivoImagen = string.Empty;
+                return Task.CompletedTask;
+            }
+
+            mensajeError = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar la imagen: {ex.Message}";
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    private void EliminarImagen()
+    {
+        mensajeEditando.ImagenUrl = null;
+        nombreArchivoImagen = string.Empty;
+        archivoImagen = null;
+        StateHasChanged();
+    }
+
+    private async Task GuardarMensaje()
+    {
+        try
+        {
+            // Si hay una imagen seleccionada, subirla primero
+            if (archivoImagen != null)
+            {
+                var rutaImagen = await GuardarImagenAsync(archivoImagen);
+                if (!string.IsNullOrEmpty(rutaImagen))
+                {
+                    mensajeEditando.ImagenUrl = rutaImagen;
+                }
+            }
+
+            bool exito;
+            if (mensajeEditando.Id == 0)
+            {
+                exito = await MensajeBienvenidaService.CrearMensajeAsync(mensajeEditando);
+                mensajeExito = exito ? "Mensaje creado correctamente" : "Error al crear el mensaje";
+            }
+            else
+            {
+                exito = await MensajeBienvenidaService.ActualizarMensajeAsync(mensajeEditando);
+                mensajeExito = exito ? "Mensaje actualizado correctamente" : "Error al actualizar el mensaje";
+            }
+
+            if (exito)
+            {
+                CerrarModal();
+                await CargarMensajes();
+            }
+            else
+            {
+                mensajeError = "Error al guardar el mensaje";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        mensajeEditando = new();
+        nombreArchivoImagen = string.Empty;
+        archivoImagen = null;
+    }
+
+    private async Task<string?> GuardarImagenAsync(IBrowserFile archivo)
+    {
+        try
+        {
+            // Crear directorio si no existe
+            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "mensajes");
+            if (!Directory.Exists(uploadsPath))
+            {
+                Directory.CreateDirectory(uploadsPath);
+            }
+
+            // Generar nombre único para el archivo
+            var extension = Path.GetExtension(archivo.Name);
+            var nombreArchivo = $"{Guid.NewGuid()}{extension}";
+            var rutaCompleta = Path.Combine(uploadsPath, nombreArchivo);
+
+            // Guardar el archivo
+            await using var fileStream = new FileStream(rutaCompleta, FileMode.Create);
+            await archivo.OpenReadStream(maxAllowedSize: 2097152).CopyToAsync(fileStream);
+
+            // Retornar la ruta relativa
+            return $"/uploads/mensajes/{nombreArchivo}";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar la imagen: {ex.Message}";
+            return null;
+        }
+    }
+
+    private async Task CambiarEstado(int id, bool nuevoEstado)
+    {
+        try
+        {
+            var exito = await MensajeBienvenidaService.CambiarEstadoMensajeAsync(id, nuevoEstado);
+            if (exito)
+            {
+                mensajeExito = nuevoEstado ? "Mensaje activado" : "Mensaje desactivado";
+                await CargarMensajes();
+            }
+            else
+            {
+                mensajeError = "Error al cambiar el estado del mensaje";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+    }
+
+    private void ConfirmarEliminar(int id)
+    {
+        mensajeEliminarId = id;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModalEliminar()
+    {
+        mostrarModalEliminar = false;
+        mensajeEliminarId = 0;
+    }
+
+    private async Task EliminarMensaje()
+    {
+        try
+        {
+            var exito = await MensajeBienvenidaService.EliminarMensajeAsync(mensajeEliminarId);
+            if (exito)
+            {
+                mensajeExito = "Mensaje eliminado correctamente";
+                await CargarMensajes();
+            }
+            else
+            {
+                mensajeError = "Error al eliminar el mensaje";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            CerrarModalEliminar();
+        }
+    }
+}

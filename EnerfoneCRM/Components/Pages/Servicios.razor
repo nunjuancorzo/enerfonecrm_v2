@@ -1,0 +1,481 @@
+@page "/tarifas/servicios"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@rendermode InteractiveServer
+@inject ServicioService ServicioService
+@inject ComercializadoraService ComercializadoraService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Servicios - Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else if (AuthService.UsuarioActual?.Rol != "Administrador")
+    {
+        <div class="alert alert-danger m-4">
+            <i class="bi bi-shield-exclamation me-2"></i>
+            No tienes permisos para acceder a esta página. Solo los administradores pueden gestionar servicios.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid p-4">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <h2 class="mb-0">
+                        <i class="bi bi-gear-fill me-2 text-primary"></i>
+                        Gestión de Servicios
+                    </h2>
+                    <p class="text-muted">Administra los servicios disponibles para contratos de energía</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeExito))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                    <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                </div>
+            }
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Servicios</h5>
+                    <button class="btn btn-primary" @onclick="MostrarModalCrear">
+                        <i class="bi bi-plus-circle me-2"></i>Nuevo Servicio
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    @if (cargando)
+                    {
+                        <div class="text-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando servicios...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Cargando servicios...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("Tipo")'>
+                                            Tipo
+                                            @if (columnaOrden == "Tipo")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("NombreServicio")'>
+                                            Nombre del Servicio
+                                            @if (columnaOrden == "NombreServicio")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("Precio")'>
+                                            Precio
+                                            @if (columnaOrden == "Precio")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("Empresa")'>
+                                            Comercializadora
+                                            @if (columnaOrden == "Empresa")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th class="text-end">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var servicio in serviciosFiltrados)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-@(servicio.Tipo == "Residencial" ? "info" : "success")">
+                                                    @servicio.Tipo
+                                                </span>
+                                            </td>
+                                            <td><strong>@servicio.NombreServicio</strong></td>
+                                            <td>@servicio.Precio</td>
+                                            <td>@(servicio.Empresa ?? "-")</td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(servicio)">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(servicio)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Paginación -->
+                        @if (servicios.Any() && totalPaginas > 1)
+                        {
+                            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                                <div class="text-muted">
+                                    Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos servicios
+                                </div>
+                                <nav>
+                                    <ul class="pagination mb-0">
+                                        <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(1)" disabled="@(paginaActual == 1)">
+                                                <i class="bi bi-chevron-double-left"></i>
+                                            </button>
+                                        </li>
+                                        <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)" disabled="@(paginaActual == 1)">
+                                                <i class="bi bi-chevron-left"></i>
+                                            </button>
+                                        </li>
+                                        @for (int i = Math.Max(1, paginaActual - 2); i <= Math.Min(totalPaginas, paginaActual + 2); i++)
+                                        {
+                                            var pagina = i;
+                                            <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                                                <button class="page-link" @onclick="() => CambiarPagina(pagina)">@pagina</button>
+                                            </li>
+                                        }
+                                        <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)" disabled="@(paginaActual == totalPaginas)">
+                                                <i class="bi bi-chevron-right"></i>
+                                            </button>
+                                        </li>
+                                        <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(totalPaginas)" disabled="@(paginaActual == totalPaginas)">
+                                                <i class="bi bi-chevron-double-right"></i>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Crear/Editar -->
+        @if (mostrarModal)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi @(esNuevo ? "bi-plus-circle" : "bi-pencil") me-2"></i>
+                                @(esNuevo ? "Nuevo Servicio" : "Editar Servicio")
+                            </h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                        </div>
+                        <EditForm Model="servicioSeleccionado" OnValidSubmit="GuardarServicio">
+                            <DataAnnotationsValidator />
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Tipo <span class="text-danger">*</span></label>
+                                    <InputSelect @bind-Value="servicioSeleccionado.Tipo" class="form-select">
+                                        <option value="">Seleccionar tipo...</option>
+                                        <option value="Residencial">Residencial</option>
+                                        <option value="Pyme">Pyme</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="() => servicioSeleccionado.Tipo" class="text-danger" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Nombre del Servicio <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="servicioSeleccionado.NombreServicio" class="form-control" placeholder="Ej: Mantenimiento Anual" />
+                                    <ValidationMessage For="() => servicioSeleccionado.NombreServicio" class="text-danger" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Precio <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="servicioSeleccionado.Precio" class="form-control" placeholder="Ej: 50€/mes" />
+                                    <ValidationMessage For="() => servicioSeleccionado.Precio" class="text-danger" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Comercializadora <span class="text-danger">*</span></label>
+                                    <select @bind="servicioSeleccionado.Empresa" class="form-select">
+                                        <option value="">Seleccionar comercializadora...</option>
+                                        @foreach (var comercializadora in comercializadoras)
+                                        {
+                                            <option value="@comercializadora.Nombre">@comercializadora.Nombre</option>
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save me-2"></i>Guardar
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Modal Confirmar Eliminar -->
+        @if (mostrarModalEliminar)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>¿Estás seguro de que deseas eliminar el servicio <strong>@servicioSeleccionado?.NombreServicio</strong>?</p>
+                            <p class="text-danger mb-0"><i class="bi bi-info-circle me-2"></i>Esta acción no se puede deshacer.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                            <button type="button" class="btn btn-danger" @onclick="EliminarServicio">
+                                <i class="bi bi-trash me-2"></i>Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private List<Servicio> servicios = new();
+    private List<Servicio> serviciosFiltrados = new();
+    private List<Comercializadora> comercializadoras = new();
+    private Servicio servicioSeleccionado = new();
+    private bool mostrarModal = false;
+    private bool mostrarModalEliminar = false;
+    private bool esNuevo = true;
+    private bool cargando = true;
+    private bool cargandoSesion = true;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    
+    // Ordenamiento
+    private string columnaOrden = "NombreServicio";
+    private bool ordenAscendente = true;
+    
+    // Paginación
+    private int paginaActual = 1;
+    private int elementosPorPagina = 10;
+    private int totalElementos = 0;
+    private int totalPaginas = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.CargarSesionAsync();
+        cargandoSesion = false;
+
+        if (AuthService.EstaAutenticado && AuthService.EsAdministrador)
+        {
+            await CargarComercializadoras();
+            await CargarServicios();
+        }
+    }
+
+    private async Task CargarComercializadoras()
+    {
+        try
+        {
+            comercializadoras = await ComercializadoraService.ObtenerActivasAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar comercializadoras: {ex.Message}";
+        }
+    }
+
+    private async Task CargarServicios()
+    {
+        cargando = true;
+        try
+        {
+            servicios = await ServicioService.ObtenerTodosAsync();
+            AplicarOrdenamiento();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar servicios: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void OrdenarPor(string columna)
+    {
+        paginaActual = 1;
+        if (columnaOrden == columna)
+        {
+            ordenAscendente = !ordenAscendente;
+        }
+        else
+        {
+            columnaOrden = columna;
+            ordenAscendente = true;
+        }
+        
+        AplicarOrdenamiento();
+    }
+
+    private void AplicarOrdenamiento()
+    {
+        var serviciosParaPaginar = columnaOrden switch
+        {
+            "Tipo" => ordenAscendente
+                ? servicios.OrderBy(s => s.Tipo).ToList()
+                : servicios.OrderByDescending(s => s.Tipo).ToList(),
+            "NombreServicio" => ordenAscendente
+                ? servicios.OrderBy(s => s.NombreServicio).ToList()
+                : servicios.OrderByDescending(s => s.NombreServicio).ToList(),
+            "Precio" => ordenAscendente
+                ? servicios.OrderBy(s => s.Precio).ToList()
+                : servicios.OrderByDescending(s => s.Precio).ToList(),
+            "Empresa" => ordenAscendente
+                ? servicios.OrderBy(s => s.Empresa).ToList()
+                : servicios.OrderByDescending(s => s.Empresa).ToList(),
+            _ => servicios
+        };
+        
+        totalElementos = serviciosParaPaginar.Count;
+        totalPaginas = (int)Math.Ceiling((double)totalElementos / elementosPorPagina);
+        
+        serviciosFiltrados = serviciosParaPaginar
+            .Skip((paginaActual - 1) * elementosPorPagina)
+            .Take(elementosPorPagina)
+            .ToList();
+        
+        StateHasChanged();
+    }
+    
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+            AplicarOrdenamiento();
+        }
+    }
+
+    private void MostrarModalCrear()
+    {
+        servicioSeleccionado = new Servicio();
+        esNuevo = true;
+        mostrarModal = true;
+    }
+
+    private void MostrarModalEditar(Servicio servicio)
+    {
+        servicioSeleccionado = new Servicio
+        {
+            Id = servicio.Id,
+            Tipo = servicio.Tipo,
+            NombreServicio = servicio.NombreServicio,
+            Precio = servicio.Precio,
+            Empresa = servicio.Empresa
+        };
+        esNuevo = false;
+        mostrarModal = true;
+    }
+
+    private void ConfirmarEliminar(Servicio servicio)
+    {
+        servicioSeleccionado = servicio;
+        mostrarModalEliminar = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        mostrarModalEliminar = false;
+        servicioSeleccionado = new Servicio();
+        mensajeError = string.Empty;
+    }
+
+    private async Task GuardarServicio()
+    {
+        try
+        {
+            var (exito, mensaje) = esNuevo
+                ? await ServicioService.CrearAsync(servicioSeleccionado)
+                : await ServicioService.ActualizarAsync(servicioSeleccionado);
+
+            if (exito)
+            {
+                mensajeExito = mensaje;
+                await CargarServicios();
+                CerrarModal();
+            }
+            else
+            {
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private async Task EliminarServicio()
+    {
+        try
+        {
+            var (exito, mensaje) = await ServicioService.EliminarAsync(servicioSeleccionado.Id);
+
+            if (exito)
+            {
+                mensajeExito = mensaje;
+                await CargarServicios();
+            }
+            else
+            {
+                mensajeError = mensaje;
+            }
+
+            CerrarModal();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar: {ex.Message}";
+            CerrarModal();
+        }
+    }
+}

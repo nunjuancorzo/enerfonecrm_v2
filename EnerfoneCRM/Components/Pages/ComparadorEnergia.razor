@@ -1,0 +1,655 @@
+@page "/comparador/energia"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@rendermode InteractiveServer
+@inject TarifaEnergiaService TarifaEnergiaService
+@inject ComercializadoraService ComercializadoraService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Comparador de Tarifas de Energía - Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid p-4">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <h2 class="mb-0">
+                        <i class="bi bi-calculator me-2 text-warning"></i>
+                        Comparador de Tarifas de Energía
+                    </h2>
+                    <p class="text-muted">Introduce los datos de tu contrato actual y descubre las tarifas más económicas</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeExito))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                    <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                </div>
+            }
+
+            @if (!resultadosCalculados)
+            {
+                <!-- Formulario de entrada de datos -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-input-cursor me-2"></i>Datos del Contrato Actual</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <!-- Tipo de tarifa -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tipo de Tarifa</label>
+                                <select class="form-select" @bind="tipoTarifa" @bind:after="OnTipoTarifaChanged">
+                                    <option value="">-- Seleccionar --</option>
+                                <option value="2.0TD">2.0TD (≤ 10 kW)</option>
+                                <option value="3.0TD">3.0TD (10-15 kW)</option>
+                                <option value="6.1TD">6.1TD (> 15 kW)</option>
+                            </select>
+                            <small class="text-muted">Selecciona el tipo según tu potencia contratada</small>
+                        </div>
+
+                        <!-- Suministro -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Tipo de Suministro</label>
+                            <select class="form-select" @bind="tipoSuministro">
+                                <option value="Luz">Solo Luz</option>
+                                <option value="Luz+Gas">Luz + Gas</option>
+                            </select>
+                        </div>
+
+                        <!-- Potencias contratadas -->
+                        @if (!string.IsNullOrEmpty(tipoTarifa))
+                        {
+                            <div class="col-12">
+                                <h6 class="border-bottom pb-2 mb-3 mt-3"><i class="bi bi-speedometer me-2"></i>Potencias Contratadas (kW)</h6>
+                            </div>
+
+                            @if (tipoTarifa == "2.0TD")
+                            {
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Periodo 1 (Punta)</label>
+                                    <input type="number" class="form-control" @bind="potenciaP1" step="0.01" min="0" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Periodo 2 (Valle)</label>
+                                    <input type="number" class="form-control" @bind="potenciaP2" step="0.01" min="0" />
+                                </div>
+                            }
+                            else if (tipoTarifa == "3.0TD" || tipoTarifa == "6.1TD")
+                            {
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Periodo 1 (Punta)</label>
+                                    <input type="number" class="form-control" @bind="potenciaP1" step="0.01" min="0" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Periodo 2 (Llano)</label>
+                                    <input type="number" class="form-control" @bind="potenciaP2" step="0.01" min="0" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Periodo 3 (Valle)</label>
+                                    <input type="number" class="form-control" @bind="potenciaP3" step="0.01" min="0" />
+                                </div>
+                            }
+
+                            <!-- Consumos anuales -->
+                            <div class="col-12">
+                                <h6 class="border-bottom pb-2 mb-3 mt-3"><i class="bi bi-lightning-charge me-2"></i>Consumo Anual Estimado (kWh/año)</h6>
+                            </div>
+
+                            @if (tipoTarifa == "2.0TD")
+                            {
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Periodo 1 (Punta)</label>
+                                    <input type="number" class="form-control" @bind="consumoP1" step="1" min="0" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Periodo 2 (Valle)</label>
+                                    <input type="number" class="form-control" @bind="consumoP2" step="1" min="0" />
+                                </div>
+                            }
+                            else if (tipoTarifa == "3.0TD" || tipoTarifa == "6.1TD")
+                            {
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Periodo 1 (Punta)</label>
+                                    <input type="number" class="form-control" @bind="consumoP1" step="1" min="0" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Periodo 2 (Llano)</label>
+                                    <input type="number" class="form-control" @bind="consumoP2" step="1" min="0" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Periodo 3 (Valle)</label>
+                                    <input type="number" class="form-control" @bind="consumoP3" step="1" min="0" />
+                                </div>
+                            }
+
+                            <div class="col-12 mt-3">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Si no conoces tu consumo por periodos, puedes usar el consumo total anual y distribuirlo proporcionalmente
+                                </small>
+                            </div>
+
+                            <!-- Precio actual (opcional) -->
+                            <div class="col-12">
+                                <h6 class="border-bottom pb-2 mb-3 mt-3"><i class="bi bi-currency-euro me-2"></i>Coste Actual (Opcional)</h6>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Factura mensual actual (€/mes)</label>
+                                <input type="number" class="form-control" @bind="facturaActual" step="0.01" min="0" placeholder="Ej: 85.50" />
+                                <small class="text-muted">Para comparar tu ahorro potencial</small>
+                            </div>
+
+                            <!-- Botón comparar -->
+                            <div class="col-12 mt-4">
+                                <button class="btn btn-warning btn-lg" @onclick="CompararTarifas" disabled="@calculando">
+                                    @if (calculando)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-search me-2"></i>
+                                    }
+                                    Comparar Tarifas
+                                </button>
+                            </div>
+                        }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (resultadosCalculados)
+            {
+                <!-- Resultados de la comparativa -->
+                <div class="card shadow-sm" id="resultados-comparativa">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>Resultados de la Comparativa</h5>
+                        <div>
+                            <button class="btn btn-warning btn-sm me-2" @onclick="ImprimirResultados">
+                                <i class="bi bi-printer-fill me-2"></i>Imprimir PDF
+                            </button>
+                            <button class="btn btn-light btn-sm" @onclick="NuevaComparacion">
+                                <i class="bi bi-arrow-left me-2"></i>Nueva Comparación
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (comercializadoras.Any())
+                        {
+                            <div class="alert alert-info mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Se encontraron @comercializadoras.Count tarifas disponibles</strong> para tu tipo de contrato.
+                                @if (facturaActual > 0)
+                                {
+                                    <br />
+                                    <span>Tu factura actual es de <strong>@facturaActual.ToString("N2")€/mes</strong></span>
+                                }
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Posición</th>
+                                            <th>Comercializadora</th>
+                                            <th>Tarifa</th>
+                                            <th>Coste Anual</th>
+                                            <th>Coste Mensual</th>
+                                            @if (facturaActual > 0)
+                                            {
+                                                <th>Ahorro Mensual</th>
+                                                <th>Ahorro Anual</th>
+                                            }
+                                            <th>Desglose</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @{
+                                            int posicion = 1;
+                                        }
+                                        @foreach (var comercializadora in comercializadoras.OrderBy(c => c.CosteTotal))
+                                        {
+                                            var costeMensual = comercializadora.CosteTotal / 12;
+                                            var ahorro = facturaActual > 0 ? (facturaActual - costeMensual) : 0;
+                                            var ahorroAnual = ahorro * 12;
+                                            var esLaMasBarata = posicion == 1;
+
+                                            <tr class="@(esLaMasBarata ? "table-success" : "")">
+                                                <td>
+                                                    @if (esLaMasBarata)
+                                                    {
+                                                        <span class="badge bg-success">
+                                                            <i class="bi bi-trophy-fill me-1"></i>#@posicion
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary">#@posicion</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @{
+                                                        var logoUrl = ObtenerLogoComercializadora(comercializadora.Empresa);
+                                                        if (!string.IsNullOrEmpty(logoUrl))
+                                                        {
+                                                            <img src="@logoUrl" alt="@comercializadora.Empresa" 
+                                                                 style="max-width: 120px; max-height: 50px; object-fit: contain;" 
+                                                                 title="@comercializadora.Empresa" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <strong>@comercializadora.Empresa</strong>
+                                                        }
+                                                    }
+                                                </td>
+                                                <td>@comercializadora.NombreTarifa</td>
+                                                <td><strong>@comercializadora.CosteTotal.ToString("N2")€</strong></td>
+                                                <td><strong>@costeMensual.ToString("N2")€</strong></td>
+                                                @if (facturaActual > 0)
+                                                {
+                                                    <td>
+                                                        @if (ahorro > 0)
+                                                        {
+                                                            <span class="text-success">
+                                                                <i class="bi bi-arrow-down-circle-fill me-1"></i>
+                                                                @ahorro.ToString("N2")€
+                                                            </span>
+                                                        }
+                                                        else if (ahorro < 0)
+                                                        {
+                                                            <span class="text-danger">
+                                                                <i class="bi bi-arrow-up-circle-fill me-1"></i>
+                                                                @Math.Abs(ahorro).ToString("N2")€
+                                                            </span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>-</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (ahorroAnual > 0)
+                                                        {
+                                                            <span class="badge bg-success">@ahorroAnual.ToString("N2")€</span>
+                                                        }
+                                                        else if (ahorroAnual < 0)
+                                                        {
+                                                            <span class="badge bg-danger">@Math.Abs(ahorroAnual).ToString("N2")€</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>-</span>
+                                                        }
+                                                    </td>
+                                                }
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => MostrarDetalles(comercializadora)">
+                                                        <i class="bi bi-eye"></i> Ver
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            posicion++;
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                No se encontraron tarifas disponibles para los parámetros introducidos.
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- Modal de detalles -->
+        @if (mostrarModalDetalles && comercializadoraSeleccionada != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Detalles de la Tarifa - @comercializadoraSeleccionada.Empresa
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalDetalles"></button>
+                        </div>
+                        <div class="modal-body">
+                            <h6 class="mb-3">@comercializadoraSeleccionada.NombreTarifa</h6>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr class="table-light">
+                                            <th colspan="2"><strong>Desglose de Costes Anuales</strong></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Término fijo</td>
+                                            <td class="text-end"><strong>@comercializadoraSeleccionada.CosteTerminoFijo.ToString("N2")€</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Coste de potencia</td>
+                                            <td class="text-end"><strong>@comercializadoraSeleccionada.CostePotencia.ToString("N2")€</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>Coste de energía</td>
+                                            <td class="text-end"><strong>@comercializadoraSeleccionada.CosteEnergia.ToString("N2")€</strong></td>
+                                        </tr>
+                                        <tr class="table-success">
+                                            <td><strong>TOTAL ANUAL (sin impuestos)</strong></td>
+                                            <td class="text-end"><strong>@comercializadoraSeleccionada.CosteTotal.ToString("N2")€</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>TOTAL MENSUAL (sin impuestos)</strong></td>
+                                            <td class="text-end"><strong>@(comercializadoraSeleccionada.CosteTotal / 12).ToString("N2")€</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="alert alert-info mt-3">
+                                <small>
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    <strong>Nota:</strong> Los precios mostrados no incluyen impuestos (IVA 21% e impuesto eléctrico 5.11%). 
+                                    El coste real será aproximadamente un 26% superior.
+                                </small>
+                            </div>
+
+                            @if (facturaActual > 0)
+                            {
+                                var costeMensual = comercializadoraSeleccionada.CosteTotal / 12;
+                                var ahorro = facturaActual - costeMensual;
+                                <div class="alert @(ahorro > 0 ? "alert-success" : "alert-warning") mt-3">
+                                    <strong>Comparativa con tu tarifa actual:</strong><br />
+                                    @if (ahorro > 0)
+                                    {
+                                        <span>
+                                            Ahorrarías <strong>@ahorro.ToString("N2")€/mes</strong> 
+                                            (<strong>@(ahorro * 12).ToString("N2")€/año</strong>)
+                                        </span>
+                                    }
+                                    else if (ahorro < 0)
+                                    {
+                                        <span>
+                                            Esta tarifa sería <strong>@Math.Abs(ahorro).ToString("N2")€/mes</strong> más cara 
+                                            (<strong>@(Math.Abs(ahorro) * 12).ToString("N2")€/año</strong>)
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span>El coste sería similar al actual</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModalDetalles">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        </div>
+    }
+}
+
+@code {
+    private bool cargandoSesion = true;
+    private bool calculando = false;
+    private bool resultadosCalculados = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+
+    // Datos de entrada
+    private string tipoTarifa = string.Empty;
+    private string tipoSuministro = "Luz";
+    private decimal potenciaP1 = 0;
+    private decimal potenciaP2 = 0;
+    private decimal potenciaP3 = 0;
+    private decimal consumoP1 = 0;
+    private decimal consumoP2 = 0;
+    private decimal consumoP3 = 0;
+    private decimal facturaActual = 0;
+
+    // Resultados
+    private List<ResultadoComparativa> comercializadoras = new();
+    private bool mostrarModalDetalles = false;
+    private ResultadoComparativa? comercializadoraSeleccionada;
+
+    private void OnTipoTarifaChanged()
+    {
+        // Resetear valores cuando cambia el tipo de tarifa
+        potenciaP1 = 0;
+        potenciaP2 = 0;
+        potenciaP3 = 0;
+        consumoP1 = 0;
+        consumoP2 = 0;
+        consumoP3 = 0;
+        resultadosCalculados = false;
+        comercializadoras.Clear();
+    }
+
+    private async Task CompararTarifas()
+    {
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        // Validaciones
+        if (string.IsNullOrEmpty(tipoTarifa))
+        {
+            mensajeError = "Debe seleccionar un tipo de tarifa";
+            return;
+        }
+
+        if (potenciaP1 <= 0)
+        {
+            mensajeError = "Debe introducir al menos la potencia del periodo 1";
+            return;
+        }
+
+        if (consumoP1 <= 0 && consumoP2 <= 0 && consumoP3 <= 0)
+        {
+            mensajeError = "Debe introducir al menos un consumo estimado";
+            return;
+        }
+
+        calculando = true;
+        StateHasChanged();
+
+        try
+        {
+            // Obtener todas las tarifas de energía de la base de datos
+            var todasLasTarifas = await TarifaEnergiaService.ObtenerTodasAsync();
+            
+            comercializadoras.Clear();
+
+            foreach (var tarifa in todasLasTarifas)
+            {
+                // Solo incluir tarifas que tengan los precios configurados
+                if (tarifa.TerminoFijoDiario == null || tarifa.TerminoFijoDiario <= 0 ||
+                    tarifa.PrecioPotenciaP1 == null || tarifa.PrecioPotenciaP1 <= 0 ||
+                    tarifa.PrecioEnergiaP1 == null || tarifa.PrecioEnergiaP1 <= 0)
+                {
+                    continue; // Saltar tarifas sin precios configurados
+                }
+
+                // Calcular costes anuales
+                decimal costeTerminoFijo = tarifa.TerminoFijoDiario.Value * 365;
+                
+                decimal costePotencia = (tarifa.PrecioPotenciaP1.Value * potenciaP1 + 
+                                        (tarifa.PrecioPotenciaP2 ?? 0) * potenciaP2 + 
+                                        (tarifa.PrecioPotenciaP3 ?? 0) * potenciaP3) * 365;
+                
+                decimal costeEnergia = (tarifa.PrecioEnergiaP1.Value * consumoP1 + 
+                                       (tarifa.PrecioEnergiaP2 ?? 0) * consumoP2 + 
+                                       (tarifa.PrecioEnergiaP3 ?? 0) * consumoP3);
+                
+                decimal costeTotal = costeTerminoFijo + costePotencia + costeEnergia;
+
+                comercializadoras.Add(new ResultadoComparativa
+                {
+                    Empresa = tarifa.Empresa,
+                    NombreTarifa = tarifa.Nombre,
+                    CosteTerminoFijo = costeTerminoFijo,
+                    CostePotencia = costePotencia,
+                    CosteEnergia = costeEnergia,
+                    CosteTotal = costeTotal
+                });
+            }
+
+            resultadosCalculados = true;
+            
+            if (comercializadoras.Count == 0)
+            {
+                mensajeError = "No se encontraron tarifas con precios configurados. Por favor, configure los precios en las tarifas de energía.";
+            }
+            else
+            {
+                mensajeExito = $"Comparativa realizada con éxito. Se encontraron {comercializadoras.Count} tarifas.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al realizar la comparativa: {ex.Message}";
+        }
+        finally
+        {
+            calculando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void MostrarDetalles(ResultadoComparativa comercializadora)
+    {
+        comercializadoraSeleccionada = comercializadora;
+        mostrarModalDetalles = true;
+    }
+
+    private void CerrarModalDetalles()
+    {
+        mostrarModalDetalles = false;
+        comercializadoraSeleccionada = null;
+    }
+
+    private void NuevaComparacion()
+    {
+        resultadosCalculados = false;
+        comercializadoras.Clear();
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+    }
+
+    private List<Comercializadora> comercializadorasObjetos = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            comercializadorasObjetos = await ComercializadoraService.ObtenerTodasAsync();
+            cargandoSesion = false;
+            StateHasChanged();
+        }
+    }
+
+    private string? ObtenerLogoComercializadora(string? nombreComercializadora)
+    {
+        if (string.IsNullOrWhiteSpace(nombreComercializadora))
+            return null;
+            
+        var comercializadora = comercializadorasObjetos.FirstOrDefault(c => 
+            c.Nombre.Equals(nombreComercializadora, StringComparison.OrdinalIgnoreCase));
+        
+        if (comercializadora?.LogoContenido != null && comercializadora.LogoContenido.Length > 0)
+        {
+            var base64 = Convert.ToBase64String(comercializadora.LogoContenido);
+            var mimeType = ObtenerMimeType(comercializadora.LogoArchivo);
+            return $"data:{mimeType};base64,{base64}";
+        }
+        
+        return null;
+    }
+
+    private string ObtenerMimeType(string? nombreArchivo)
+    {
+        if (string.IsNullOrEmpty(nombreArchivo)) return "application/octet-stream";
+        
+        var extension = Path.GetExtension(nombreArchivo).ToLower();
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".svg" => "image/svg+xml",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private async Task ImprimirResultados()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", 
+            "const contenido = document.getElementById('resultados-comparativa').cloneNode(true);" +
+            "const botones = contenido.querySelectorAll('button');" +
+            "botones.forEach(btn => btn.remove());" +
+            "const ventana = window.open('', '', 'width=800,height=600');" +
+            "ventana.document.write('<html><head><title>Comparativa de Tarifas</title>');" +
+            "ventana.document.write('<link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css\" rel=\"stylesheet\">');" +
+            "ventana.document.write('<link href=\"https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css\" rel=\"stylesheet\">');" +
+            "ventana.document.write('<style>@media print { @page { size: landscape; } }</style>');" +
+            "ventana.document.write('</head><body class=\"p-4\">');" +
+            "ventana.document.write('<h2 class=\"text-center mb-4\">Comparativa de Tarifas de Energía</h2>');" +
+            "ventana.document.write(contenido.innerHTML);" +
+            "ventana.document.write('</body></html>');" +
+            "ventana.document.close();" +
+            "setTimeout(() => { ventana.print(); ventana.close(); }, 500);"
+        );
+    }
+
+    private class ResultadoComparativa
+    {
+        public string Empresa { get; set; } = string.Empty;
+        public string NombreTarifa { get; set; } = string.Empty;
+        public decimal CosteTerminoFijo { get; set; }
+        public decimal CostePotencia { get; set; }
+        public decimal CosteEnergia { get; set; }
+        public decimal CosteTotal { get; set; }
+    }
+}

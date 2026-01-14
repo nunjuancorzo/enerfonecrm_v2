@@ -1,0 +1,184 @@
+@page "/login"
+@layout Layout.EmptyLayout
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject ConfiguracionService ConfiguracionService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Enerfone CRM</PageTitle>
+
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <div class="text-center mb-1">
+                        @if (!string.IsNullOrEmpty(logoUrl))
+                        {
+                            <img src="@logoUrl" alt="Login" style="width: 280px; height: 280px; object-fit: contain;" />
+                        }
+                        else
+                        {
+                            <div style="width: 280px; height: 280px; display: flex; align-items: center; justify-content: center; color: #6c757d; font-size: 1rem; margin: 0 auto;">
+                                Cargar logo empresa
+                            </div>
+                        }
+                    </div>
+
+                    <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
+                        <DataAnnotationsValidator />
+
+                        @if (!string.IsNullOrEmpty(mensajeError))
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                @mensajeError
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label for="usuario" class="form-label">Nombre de Usuario</label>
+                            <InputText id="usuario" class="form-control" @bind-Value="loginModel.Usuario" placeholder="usuario" />
+                            <ValidationMessage For="@(() => loginModel.Usuario)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contraseña</label>
+                            <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password" placeholder="••••••••" />
+                            <ValidationMessage For="@(() => loginModel.Password)" />
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <InputCheckbox id="recordarme" class="form-check-input" @bind-Value="loginModel.RecordarMe" />
+                            <label class="form-check-label" for="recordarme">
+                                Recordarme
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 mb-3" disabled="@cargando">
+                            @if (cargando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Iniciando sesión...</span>
+                            }
+                            else
+                            {
+                                <span>Iniciar Sesión</span>
+                            }
+                        </button>
+
+                        <button type="button" class="btn btn-outline-secondary w-100" @onclick='() => Navigation.NavigateTo("/registro")'>
+                            <i class="bi bi-person-plus me-2"></i>Registrarse
+                        </button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private string mensajeError = string.Empty;
+    private bool cargando = false;
+    private string? logoUrl;
+
+    [Inject]
+    private Blazored.LocalStorage.ILocalStorageService LocalStorage { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarLogoAsync();
+        await CargarCredencialesGuardadasAsync();
+    }
+
+    private async Task CargarCredencialesGuardadasAsync()
+    {
+        try
+        {
+            var usuarioGuardado = await LocalStorage.GetItemAsync<string>("recordar_usuario");
+            var passwordGuardada = await LocalStorage.GetItemAsync<string>("recordar_password");
+            
+            if (!string.IsNullOrEmpty(usuarioGuardado) && !string.IsNullOrEmpty(passwordGuardada))
+            {
+                loginModel.Usuario = usuarioGuardado;
+                loginModel.Password = passwordGuardada;
+                loginModel.RecordarMe = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LOGIN] Error al cargar credenciales: {ex.Message}");
+        }
+    }
+
+    private async Task CargarLogoAsync()
+    {
+        try
+        {
+            var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+            logoUrl = configuracion?.LogoUrl;
+        }
+        catch (Exception)
+        {
+            logoUrl = null;
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        mensajeError = string.Empty;
+        cargando = true;
+
+        try
+        {
+            var (exito, mensaje) = await AuthService.Login(loginModel.Usuario, loginModel.Password);
+
+            if (exito)
+            {
+                // Guardar la sesión con la opción de recordar
+                await AuthService.GuardarSesionAsync(loginModel.RecordarMe);
+                
+                // Si marcó "Recordarme", guardar las credenciales
+                if (loginModel.RecordarMe)
+                {
+                    await LocalStorage.SetItemAsync("recordar_usuario", loginModel.Usuario);
+                    await LocalStorage.SetItemAsync("recordar_password", loginModel.Password);
+                    Console.WriteLine("[LOGIN] Credenciales guardadas para recordar");
+                }
+                else
+                {
+                    // Si no marcó "Recordarme", limpiar credenciales guardadas
+                    await LocalStorage.RemoveItemAsync("recordar_usuario");
+                    await LocalStorage.RemoveItemAsync("recordar_password");
+                    Console.WriteLine("[LOGIN] Credenciales eliminadas");
+                }
+                
+                Console.WriteLine("[LOGIN] Navegando a home...");
+                Navigation.NavigateTo("/home", false);
+            }
+            else
+            {
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+            Console.WriteLine($"[LOGIN] Error en HandleLogin: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}
+
+<style>
+    .login-logo {
+        width: 200px;
+        height: 200px;
+        object-fit: contain;
+    }
+</style>

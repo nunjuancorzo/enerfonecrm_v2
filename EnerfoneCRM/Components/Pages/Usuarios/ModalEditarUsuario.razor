@@ -1,0 +1,267 @@
+@using EnerfoneCRM.Models
+@inject EnerfoneCRM.Services.TarifaEnergiaService TarifaEnergiaService
+@inject EnerfoneCRM.Services.UsuarioService UsuarioService
+@inject EnerfoneCRM.Services.ComercializadoraService ComercializadoraService
+
+<div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Usuario</h5>
+                <button type="button" class="btn-close" @onclick="OnCancelar"></button>
+            </div>
+            <EditForm Model="@usuario" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger">@mensajeError</div>
+                    }
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre de Usuario</label>
+                            <InputText class="form-control" @bind-Value="usuario.NombreUsuario" />
+                            <ValidationMessage For="@(() => usuario.NombreUsuario)" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <InputText class="form-control" @bind-Value="usuario.Email" />
+                            <ValidationMessage For="@(() => usuario.Email)" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre</label>
+                            <InputText class="form-control" @bind-Value="usuario.Nombre" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Apellidos</label>
+                            <InputText class="form-control" @bind-Value="usuario.Apellidos" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <InputText class="form-control" @bind-Value="usuario.Direccion" />
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Código Postal</label>
+                            <InputText class="form-control" @bind-Value="usuario.CodigoPostal" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Localidad</label>
+                            <InputText class="form-control" @bind-Value="usuario.Localidad" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <InputSelect class="form-select" @bind-Value="usuario.Rol" @bind-Value:after="OnRolChanged">
+                            <option value="Usuario">Usuario</option>
+                            <option value="Administrador">Administrador</option>
+                            <option value="Gestor">Gestor</option>
+                            <option value="Comercializadora">Comercializadora</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Comercializadora @(usuario.Rol == "Comercializadora" ? "*" : "(opcional)")</label>
+                        <InputSelect class="form-select" @bind-Value="usuario.Comercializadora">
+                            <option value="">Seleccionar comercializadora...</option>
+                            @foreach (var comercializadora in comercializadoras)
+                            {
+                                <option value="@comercializadora">@comercializadora</option>
+                            }
+                        </InputSelect>
+                        @if (usuario.Rol == "Comercializadora" && string.IsNullOrEmpty(usuario.Comercializadora))
+                        {
+                            <div class="text-danger small mt-1">La comercializadora es obligatoria para este rol</div>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Comisión (%)</label>
+                        <InputNumber class="form-control" @bind-Value="usuario.Comision" />
+                    </div>
+
+                    <div class="mb-3">
+                        <hr />
+                        <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras Permitidas</h6>
+                        <p class="text-muted small">Selecciona las comercializadoras que este usuario podrá visualizar. Si no seleccionas ninguna, podrá ver todas.</p>
+                        
+                        <div class="row">
+                            @foreach (var comercializadora in todasComercializadoras)
+                            {
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        <input type="checkbox" 
+                                               class="form-check-input" 
+                                               id="com_@comercializadora.Id" 
+                                               checked="@comercializadorasSeleccionadas.Contains(comercializadora.Id)"
+                                               @onchange="@((e) => OnComercializadoraToggle(comercializadora.Id, (bool)e.Value!))" />
+                                        <label class="form-check-label" for="com_@comercializadora.Id">
+                                            @comercializadora.Nombre
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        @if (!todasComercializadoras.Any())
+                        {
+                            <div class="alert alert-info">No hay comercializadoras registradas en el sistema.</div>
+                        }
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <InputCheckbox id="activo" class="form-check-input" @bind-Value="usuario.Activo" />
+                            <label class="form-check-label" for="activo">
+                                Usuario Activo
+                            </label>
+                            <div class="form-text">Los usuarios inactivos no podrán acceder al sistema</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Fecha de Creación</label>
+                        <input type="text" class="form-control" value="@usuario.FechaCreacion.ToString("dd/MM/yyyy HH:mm")" disabled />
+                        <div class="form-text">Fecha de registro del usuario en el sistema</div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Contraseña Actual</label>
+                            <input type="text" class="form-control" value="@usuario.PasswordHash" disabled />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nueva Contraseña</label>
+                            <InputText type="password" class="form-control" @bind-Value="nuevaPassword" placeholder="Dejar en blanco para no cambiar" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="OnCancelar">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Usuario? Usuario { get; set; }
+    [Parameter] public EventCallback<Usuario> OnGuardar { get; set; }
+    [Parameter] public EventCallback OnCancelar { get; set; }
+
+    private Usuario usuario = new();
+    private string mensajeError = string.Empty;
+    private string nuevaPassword = string.Empty;
+    private List<string> comercializadoras = new();
+    private List<Comercializadora> todasComercializadoras = new();
+    private HashSet<int> comercializadorasSeleccionadas = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarComercializadoras();
+        await CargarTodasComercializadoras();
+    }
+
+    private async Task CargarComercializadoras()
+    {
+        try
+        {
+            comercializadoras = await TarifaEnergiaService.ObtenerEmpresasAsync();
+        }
+        catch
+        {
+            comercializadoras = new List<string>();
+        }
+    }
+
+    private async Task CargarTodasComercializadoras()
+    {
+        try
+        {
+            todasComercializadoras = await ComercializadoraService.ObtenerTodasAsync();
+        }
+        catch
+        {
+            todasComercializadoras = new List<Comercializadora>();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Usuario != null)
+        {
+            usuario = new Usuario
+            {
+                Id = Usuario.Id,
+                NombreUsuario = Usuario.NombreUsuario,
+                Email = Usuario.Email,
+                Nombre = Usuario.Nombre,
+                Apellidos = Usuario.Apellidos,
+                Direccion = Usuario.Direccion,
+                CodigoPostal = Usuario.CodigoPostal,
+                Localidad = Usuario.Localidad,
+                Rol = Usuario.Rol,
+                Comercializadora = Usuario.Comercializadora,
+                Comision = Usuario.Comision,
+                PasswordHash = Usuario.PasswordHash,
+                Activo = Usuario.Activo,
+                FechaCreacion = Usuario.FechaCreacion
+            };
+            nuevaPassword = string.Empty;
+            
+            // Cargar comercializadoras permitidas
+            var comercializadorasPermitidas = await UsuarioService.ObtenerComercializadorasPermitidasAsync(usuario.Id);
+            comercializadorasSeleccionadas = new HashSet<int>(comercializadorasPermitidas);
+        }
+    }
+
+    private void OnComercializadoraToggle(int comercializadoraId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            comercializadorasSeleccionadas.Add(comercializadoraId);
+        }
+        else
+        {
+            comercializadorasSeleccionadas.Remove(comercializadoraId);
+        }
+    }
+
+    private void OnRolChanged()
+    {
+        // Limpiar comercializadora si cambia el rol y no es Comercializadora
+        if (usuario.Rol != "Comercializadora")
+        {
+            usuario.Comercializadora = null;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        // Validar comercializadora obligatoria para rol Comercializadora
+        if (usuario.Rol == "Comercializadora" && string.IsNullOrEmpty(usuario.Comercializadora))
+        {
+            return; // No enviar si falta comercializadora
+        }
+
+        // Si se proporcionó una nueva contraseña, actualizarla
+        if (!string.IsNullOrWhiteSpace(nuevaPassword))
+        {
+            usuario.PasswordHash = nuevaPassword;
+        }
+        
+        // Guardar el usuario
+        await OnGuardar.InvokeAsync(usuario);
+        
+        // Guardar las comercializadoras permitidas
+        await UsuarioService.ActualizarComercializadorasPermitidasAsync(usuario.Id, comercializadorasSeleccionadas.ToList());
+    }
+}

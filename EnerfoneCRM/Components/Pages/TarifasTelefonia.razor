@@ -1,0 +1,608 @@
+@page "/tarifas/telefonia"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@rendermode InteractiveServer
+@inject TarifaTelefoniaService TarifaService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Enerfone CRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else if (AuthService.UsuarioActual?.Rol != "Administrador")
+    {
+        <div class="alert alert-danger m-4">
+            <i class="bi bi-shield-exclamation me-2"></i>
+            No tienes permisos para acceder a esta página. Solo los administradores pueden gestionar tarifas.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid p-4">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <h2 class="mb-0">
+                        <i class="bi bi-telephone-fill me-2 text-primary"></i>
+                        Gestión de Tarifas de Telefonía
+                    </h2>
+                    <p class="text-muted">Administra las tarifas de fibra, móvil y TV</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeExito))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                    <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                </div>
+            }
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Tarifas</h5>
+                    <button class="btn btn-primary" @onclick="MostrarModalCrear">
+                        <i class="bi bi-plus-circle me-2"></i>Nueva Tarifa
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    @if (cargando)
+                    {
+                        <div class="text-center p-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando tarifas...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Cargando tarifas...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("Compania")'>
+                                            Compañía
+                                            @if (columnaOrden == "Compania")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("Tipo")'>
+                                            Tipo
+                                            @if (columnaOrden == "Tipo")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th>Fibra</th>
+                                        <th>GB Móvil</th>
+                                        <th>TV</th>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("PrecioNew")'>
+                                            Precio
+                                            @if (columnaOrden == "PrecioNew")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("ComisionNew")'>
+                                            Comisión
+                                            @if (columnaOrden == "ComisionNew")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th class="text-end">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (tarifas == null || !tarifas.Any())
+                                    {
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">
+                                                <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                                                <p class="mb-0 mt-2">No hay tarifas registradas</p>
+                                            </td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var tarifa in tarifasFiltradas)
+                                        {
+                                            <tr>
+                                                <td><strong>@tarifa.Compania</strong></td>
+                                                <td><span class="badge @ObtenerColorTipo(tarifa.Tipo)">@tarifa.Tipo</span></td>
+                                                <td>@tarifa.Fibra</td>
+                                                <td>@tarifa.GbMovil</td>
+                                                <td>@tarifa.TV</td>
+                                                <td><strong>@tarifa.PrecioNew.ToString("N2")€</strong></td>
+                                                <td><span class="badge bg-success">@tarifa.ComisionNew.ToString("N2")%</span></td>
+                                                <td class="text-end" style="white-space: nowrap;">
+                                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(tarifa)" title="Editar">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info me-1" @onclick="() => MostrarModalDuplicar(tarifa)" title="Duplicar">
+                                                        <i class="bi bi-files"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(tarifa)" title="Eliminar">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Paginación -->
+                        @if (tarifas != null && tarifas.Any() && totalPaginas > 1)
+                        {
+                            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                                <div class="text-muted">
+                                    Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos tarifas
+                                </div>
+                                <nav>
+                                    <ul class="pagination mb-0">
+                                        <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(1)" disabled="@(paginaActual == 1)">
+                                                <i class="bi bi-chevron-double-left"></i>
+                                            </button>
+                                        </li>
+                                        <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)" disabled="@(paginaActual == 1)">
+                                                <i class="bi bi-chevron-left"></i>
+                                            </button>
+                                        </li>
+                                        @for (int i = Math.Max(1, paginaActual - 2); i <= Math.Min(totalPaginas, paginaActual + 2); i++)
+                                        {
+                                            var pagina = i;
+                                            <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                                                <button class="page-link" @onclick="() => CambiarPagina(pagina)">@pagina</button>
+                                            </li>
+                                        }
+                                        <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)" disabled="@(paginaActual == totalPaginas)">
+                                                <i class="bi bi-chevron-right"></i>
+                                            </button>
+                                        </li>
+                                        <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                            <button class="page-link" @onclick="() => CambiarPagina(totalPaginas)" disabled="@(paginaActual == totalPaginas)">
+                                                <i class="bi bi-chevron-double-right"></i>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Crear/Editar -->
+        @if (mostrarModal)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
+                                @(modoEdicion ? "Editar" : "Nueva") Tarifa de Telefonía
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <EditForm Model="tarifaActual" OnValidSubmit="GuardarTarifa">
+                                <DataAnnotationsValidator />
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Compañía <span class="text-danger">*</span></label>
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.Compania">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="O2">O2</option>
+                                            <option value="Jazztel">Jazztel</option>
+                                            <option value="Lowi">Lowi</option>
+                                            <option value="Simyo">Simyo</option>
+                                            <option value="Masmovil">Masmovil</option>
+                                            <option value="Pepephone">Pepephone</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="() => tarifaActual.Compania" class="text-danger" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Tipo <span class="text-danger">*</span></label>
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.Tipo">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="FibraMovil">Fibra y Móvil</option>
+                                            <option value="Fibra">Fibra</option>
+                                            <option value="Movil">Móvil</option>
+                                            <option value="FibraMovilTV">Fibra, Móvil y TV</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="() => tarifaActual.Tipo" class="text-danger" />
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold"><i class="bi bi-wifi me-2"></i>Fibra (Mbps)</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.Fibra" placeholder="Ej: 600 Mb" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold"><i class="bi bi-phone me-2"></i>GB Móvil</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.GbMovil" placeholder="Ej: 80 GB" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold"><i class="bi bi-tv me-2"></i>TV</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.TV" placeholder="Ej: Movistar+" />
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Precio (€)</label>
+                                        <div class="input-group">
+                                            <InputNumber class="form-control" @bind-Value="tarifaActual.PrecioNew" step="0.01" />
+                                            <span class="input-group-text">€/mes</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Comisión (%)</label>
+                                        <div class="input-group">
+                                            <InputNumber class="form-control" @bind-Value="tarifaActual.ComisionNew" step="0.01" />
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer border-0 mt-4">
+                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal">
+                                        <i class="bi bi-x-circle me-2"></i>Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            <span>Guardando...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-check-circle me-2"></i>
+                                            <span>Guardar Tarifa</span>
+                                        }
+                                    </button>
+                                </div>
+                            </EditForm>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Modal Confirmar Eliminación -->
+        @if (mostrarModalEliminar)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Eliminación
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalEliminar = false"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <p class="mb-3">¿Estás seguro de que deseas eliminar esta tarifa?</p>
+                            <div class="alert alert-warning mb-0">
+                                <strong><i class="bi bi-telephone-fill me-2"></i>@tarifaAEliminar?.Compania - @tarifaAEliminar?.Tipo</strong>
+                                <br />
+                                <small>Esta acción no se puede deshacer</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-0">
+                            <button type="button" class="btn btn-secondary" @onclick="() => mostrarModalEliminar = false">
+                                <i class="bi bi-x-circle me-2"></i>Cancelar
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="EliminarTarifa" disabled="@eliminando">
+                                @if (eliminando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Eliminando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-trash me-2"></i>
+                                    <span>Eliminar Tarifa</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private bool cargandoSesion = true;
+    private bool cargando = true;
+    private bool guardando = false;
+    private bool eliminando = false;
+    private bool mostrarModal = false;
+    private bool mostrarModalEliminar = false;
+    private bool modoEdicion = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+
+    private List<TarifaTelefonia> tarifas = new();
+    private List<TarifaTelefonia> tarifasFiltradas = new();
+    private TarifaTelefonia tarifaActual = new();
+    private TarifaTelefonia? tarifaAEliminar;
+    
+    // Ordenamiento
+    private string columnaOrden = "Compania";
+    private bool ordenAscendente = true;
+    
+    // Paginación
+    private int paginaActual = 1;
+    private int elementosPorPagina = 10;
+    private int totalElementos = 0;
+    private int totalPaginas = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+                return;
+            }
+
+            cargandoSesion = false;
+            await CargarTarifas();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarTarifas()
+    {
+        cargando = true;
+        try
+        {
+            tarifas = await TarifaService.ObtenerTodasAsync();
+            AplicarOrdenamiento();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar tarifas: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void OrdenarPor(string columna)
+    {
+        paginaActual = 1;
+        if (columnaOrden == columna)
+        {
+            ordenAscendente = !ordenAscendente;
+        }
+        else
+        {
+            columnaOrden = columna;
+            ordenAscendente = true;
+        }
+        
+        AplicarOrdenamiento();
+    }
+
+    private void AplicarOrdenamiento()
+    {
+        var tarifasParaPaginar = columnaOrden switch
+        {
+            "Compania" => ordenAscendente
+                ? tarifas.OrderBy(t => t.Compania).ToList()
+                : tarifas.OrderByDescending(t => t.Compania).ToList(),
+            "Tipo" => ordenAscendente
+                ? tarifas.OrderBy(t => t.Tipo).ToList()
+                : tarifas.OrderByDescending(t => t.Tipo).ToList(),
+            "PrecioNew" => ordenAscendente
+                ? tarifas.OrderBy(t => t.PrecioNew).ToList()
+                : tarifas.OrderByDescending(t => t.PrecioNew).ToList(),
+            "ComisionNew" => ordenAscendente
+                ? tarifas.OrderBy(t => t.ComisionNew).ToList()
+                : tarifas.OrderByDescending(t => t.ComisionNew).ToList(),
+            _ => tarifas
+        };
+        
+        totalElementos = tarifasParaPaginar.Count;
+        totalPaginas = (int)Math.Ceiling((double)totalElementos / elementosPorPagina);
+        
+        tarifasFiltradas = tarifasParaPaginar
+            .Skip((paginaActual - 1) * elementosPorPagina)
+            .Take(elementosPorPagina)
+            .ToList();
+        
+        StateHasChanged();
+    }
+    
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+            AplicarOrdenamiento();
+        }
+    }
+
+    private void MostrarModalCrear()
+    {
+        modoEdicion = false;
+        tarifaActual = new TarifaTelefonia();
+        mostrarModal = true;
+    }
+
+    private void MostrarModalEditar(TarifaTelefonia tarifa)
+    {
+        modoEdicion = true;
+        tarifaActual = new TarifaTelefonia
+            {
+                Id = tarifa.Id,
+                Compania = tarifa.Compania,
+                Tipo = tarifa.Tipo,
+                Fibra = tarifa.Fibra,
+                GbMovil = tarifa.GbMovil,
+                TV = tarifa.TV,
+                Precio = tarifa.Precio,
+                PrecioNew = tarifa.PrecioNew,
+                Comision = tarifa.Comision,
+                ComisionNew = tarifa.ComisionNew
+            };
+        mostrarModal = true;
+    }
+
+    private void MostrarModalDuplicar(TarifaTelefonia tarifa)
+    {
+        modoEdicion = false;
+        tarifaActual = new TarifaTelefonia
+            {
+                Compania = tarifa.Compania,
+                Tipo = tarifa.Tipo,
+                Fibra = tarifa.Fibra,
+                GbMovil = tarifa.GbMovil,
+                TV = tarifa.TV,
+                Precio = tarifa.Precio,
+                PrecioNew = tarifa.PrecioNew,
+                Comision = tarifa.Comision,
+                ComisionNew = tarifa.ComisionNew
+            };
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        tarifaActual = new();
+    }
+
+    private async Task GuardarTarifa()
+    {
+        guardando = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            var (exito, mensaje) = modoEdicion
+                ? await TarifaService.ActualizarAsync(tarifaActual)
+                : await TarifaService.CrearAsync(tarifaActual);
+
+            if (exito)
+            {
+                mensajeExito = mensaje;
+                CerrarModal();
+                await CargarTarifas();
+            }
+            else
+            {
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ConfirmarEliminar(TarifaTelefonia tarifa)
+    {
+        tarifaAEliminar = tarifa;
+        mostrarModalEliminar = true;
+    }
+
+    private async Task EliminarTarifa()
+    {
+        if (tarifaAEliminar == null) return;
+
+        eliminando = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            var (exito, mensaje) = await TarifaService.EliminarAsync(tarifaAEliminar.Id);
+
+            if (exito)
+            {
+                mensajeExito = mensaje;
+                mostrarModalEliminar = false;
+                await CargarTarifas();
+            }
+            else
+            {
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            eliminando = false;
+            tarifaAEliminar = null;
+            StateHasChanged();
+        }
+    }
+
+    private string ObtenerColorTipo(string tipo)
+    {
+        return tipo?.ToLower() switch
+        {
+            "fibramovil" => "bg-primary",
+            "fibra" => "bg-success",
+            "movil" => "bg-warning",
+            "fibraMovilTV" => "bg-info",
+            "fibramoviltv" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+}
