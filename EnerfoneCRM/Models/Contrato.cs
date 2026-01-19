@@ -65,12 +65,10 @@ namespace EnerfoneCRM.Models
         [MaxLength(100)]
         public string? EstadoServicio { get; set; }
 
-        [Required(ErrorMessage = "La comercializadora es obligatoria")]
         [Column("en_Comercializadora")]
         [MaxLength(100)]
         public string? EnComercializadora { get; set; }
 
-        [Required(ErrorMessage = "La tarifa es obligatoria")]
         [Column("en_Tarifa")]
         [MaxLength(255)]
         public string? EnTarifa { get; set; }
@@ -102,12 +100,10 @@ namespace EnerfoneCRM.Models
         public decimal? ConsumoAnual { get; set; }
 
         // Campos específicos de TELEFONÍA
-        [Required(ErrorMessage = "La operadora es obligatoria")]
         [Column("operadora_tel")]
         [MaxLength(100)]
         public string? OperadoraTel { get; set; }
 
-        [Required(ErrorMessage = "La tarifa es obligatoria")]
         [Column("Tarifa_tel")]
         [MaxLength(255)]
         public string? TarifaTel { get; set; }
@@ -268,7 +264,6 @@ namespace EnerfoneCRM.Models
         [MaxLength(255)]
         public string? CampanaAlarma { get; set; }
 
-        [Required(ErrorMessage = "La dirección es obligatoria")]
         [Column("direccion_instalacion_alarma")]
         [MaxLength(500)]
         public string? DireccionInstalacionAlarma { get; set; }

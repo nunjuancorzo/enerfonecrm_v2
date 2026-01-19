@@ -213,6 +213,42 @@
       "PackagePath": "staticwebassets/login-icon.png"
     },
     {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/0e20c995-4244-4a89-b6ab-24e2f34afdc4.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/0e20c995-4244-4a89-b6ab-24e2f34afdc4.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/21ef7476-ddd9-4db5-9967-aa4518ad153c.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/21ef7476-ddd9-4db5-9967-aa4518ad153c.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/244409ca-c152-40ca-be5f-7a0d79313e21.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/244409ca-c152-40ca-be5f-7a0d79313e21.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/3ab36e23-f1ab-4103-bd66-a0b8a13eb0dd.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/3ab36e23-f1ab-4103-bd66-a0b8a13eb0dd.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/3fef1c36-9a07-40c1-8df2-1649cc00d893.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/3fef1c36-9a07-40c1-8df2-1649cc00d893.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/52e1f423-f725-4673-a1bc-e51beca4e592.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/52e1f423-f725-4673-a1bc-e51beca4e592.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/88ad4207-9565-44d2-8dee-a1d95bd1d6a5.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/88ad4207-9565-44d2-8dee-a1d95bd1d6a5.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/contratos/f844bf58-63a6-49b2-98a5-29f638647e85.pdf",
+      "PackagePath": "staticwebassets/uploads/contratos/f844bf58-63a6-49b2-98a5-29f638647e85.pdf"
+    },
+    {
+      "Id": "/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/wwwroot/uploads/mensajes/2ab3f987-5ca5-429a-824a-9cf85b3ce572.jpeg",
+      "PackagePath": "staticwebassets/uploads/mensajes/2ab3f987-5ca5-429a-824a-9cf85b3ce572.jpeg"
+    },
+    {
       "Id": "obj/Release/net8.0/staticwebassets/msbuild.EnerfoneCRM.Microsoft.AspNetCore.StaticWebAssets.props",
       "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
     },

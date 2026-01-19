@@ -50,7 +50,7 @@ else
                             <p class="text-muted mb-0">Gestión de contratos de electricidad y gas</p>
                         </div>
                         <button class="btn btn-outline-success" @onclick="IrALogActivaciones">
-                            <i class="bi bi-clock-history me-2"></i>Log de Activaciones
+                            <i class="bi bi-clock-history me-2"></i>Activaciones
                         </button>
                     </div>
                 </div>
@@ -486,7 +486,7 @@ else
                                                           @bind="observacionesActivacion" 
                                                           placeholder="Añade observaciones sobre la activación del contrato..."
                                                           disabled="@(!PuedeEditarEstadoYObservaciones())"></textarea>
-                                                <small class="text-muted">Estas observaciones se guardarán en el log de activaciones</small>
+                                                <small class="text-muted">Estas observaciones se guardarán en las activaciones</small>
                                             </div>
                                         }
 
@@ -1956,6 +1956,19 @@ else
     private async Task GuardarContrato()
     {
         if (contratoSeleccionado == null) return;
+
+        // Validar campos obligatorios para contratos de energía
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.EnComercializadora))
+        {
+            mensajeError = "La comercializadora es obligatoria";
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa))
+        {
+            mensajeError = "La tarifa es obligatoria";
+            return;
+        }
 
         // Validar fecha de activación si el estado es "Activo"
         if (contratoSeleccionado.Estado == "Activo")

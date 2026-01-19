@@ -343,16 +343,19 @@ else
                 <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content border-0 shadow-lg">
                         <EditForm Model="contratoActual" OnValidSubmit="GuardarContrato">
-                            <div class="modal-header bg-danger text-white sticky-top" style="z-index: 1050;">
+                            <div class="modal-header bg-danger text-white">
                                 <h5 class="modal-title">
                                     <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
                                     @(modoEdicion ? "Editar" : "Nuevo") Contrato de Alarma
                                 </h5>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-outline-light btn-sm" @onclick="CerrarModal">
-                                        <i class="bi bi-x-circle me-2"></i>Cancelar
+                                <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal" disabled="@guardando"></button>
+                            </div>
+                            <div class="modal-header bg-light border-bottom">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
+                                        Cancelar
                                     </button>
-                                    <button type="submit" class="btn btn-light text-danger btn-sm" disabled="@guardando">
+                                    <button type="submit" class="btn btn-danger" disabled="@guardando">
                                         @if (guardando)
                                         {
                                             <span class="spinner-border spinner-border-sm me-2"></span>
@@ -1303,6 +1306,14 @@ else
 
     private async Task GuardarContrato()
     {
+        // Validar campos obligatorios para contratos de alarmas
+        if (string.IsNullOrWhiteSpace(contratoActual.DireccionInstalacionAlarma))
+        {
+            mensajeError = "La dirección de instalación es obligatoria";
+            guardando = false;
+            return;
+        }
+
         // Validar campos de titular IBAN si está marcado
         if (contratoActual.TitularIbanDiferente)
         {

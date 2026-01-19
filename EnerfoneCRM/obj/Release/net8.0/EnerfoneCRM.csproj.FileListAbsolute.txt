@@ -117,3 +117,8 @@
 /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/bin/Release/net8.0/RBush.dll
 /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/bin/Release/net8.0/SixLabors.Fonts.dll
 /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/bin/Release/net8.0/System.IO.Packaging.dll
+/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/bin/Release/net8.0/Microsoft.Extensions.Caching.Abstractions.dll
+/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/bin/Release/net8.0/Microsoft.Extensions.Configuration.Abstractions.dll
+/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/bin/Release/net8.0/Microsoft.Extensions.Primitives.dll
+/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/bin/Release/net8.0/System.Diagnostics.DiagnosticSource.dll
+/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/obj/Release/net8.0/EnerfoneCRM.sourcelink.json

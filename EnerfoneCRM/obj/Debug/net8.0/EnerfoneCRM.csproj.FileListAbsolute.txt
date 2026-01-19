@@ -121,3 +121,4 @@
 /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/obj/Debug/net8.0/EnerfoneCRM.pdb
 /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/obj/Debug/net8.0/EnerfoneCRM.genruntimeconfig.cache
 /Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/obj/Debug/net8.0/ref/EnerfoneCRM.dll
+/Users/juanmariacorzo/Documents/EnerfoneCRMv2/EnerfoneCRM/obj/Debug/net8.0/EnerfoneCRM.sourcelink.json

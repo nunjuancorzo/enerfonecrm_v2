@@ -224,15 +224,33 @@ else
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                 <div class="modal-dialog modal-xl modal-dialog-centered">
                     <div class="modal-content border-0 shadow-lg">
-                        <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title">
-                                <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
-                                @(modoEdicion ? "Editar" : "Nueva") Tarifa de Energía
-                            </h5>
-                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
-                        </div>
-                        <div class="modal-body p-4">
-                            <EditForm Model="tarifaActual" OnValidSubmit="GuardarTarifa">
+                        <EditForm Model="tarifaActual" OnValidSubmit="GuardarTarifa">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
+                                    @(modoEdicion ? "Editar" : "Nueva") Tarifa de Energía
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                            </div>
+                            <div class="modal-header bg-light border-bottom">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-save me-2"></i>
+                                        }
+                                        Guardar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="modal-body p-4">
                                 <DataAnnotationsValidator />
                                 
                                 <div class="row mb-3">
@@ -410,26 +428,8 @@ else
                                         <small class="text-muted">Ej: 0.065</small>
                                     </div>
                                 </div>
-
-                                <div class="modal-footer border-0 mt-4">
-                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal">
-                                        <i class="bi bi-x-circle me-2"></i>Cancelar
-                                    </button>
-                                    <button type="submit" class="btn btn-primary" disabled="@guardando">
-                                        @if (guardando)
-                                        {
-                                            <span class="spinner-border spinner-border-sm me-2"></span>
-                                            <span>Guardando...</span>
-                                        }
-                                        else
-                                        {
-                                            <i class="bi bi-check-circle me-2"></i>
-                                            <span>Guardar Tarifa</span>
-                                        }
-                                    </button>
-                                </div>
-                            </EditForm>
-                        </div>
+                            </div>
+                        </EditForm>
                     </div>
                 </div>
             </div>

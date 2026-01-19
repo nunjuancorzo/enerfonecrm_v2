@@ -405,9 +405,9 @@ else if (AuthService.EstaAutenticado)
             contratosAlarmas = contratos.Count(c => c.Tipo == "alarma");
             contratosPendientes = contratos.Count(c => c.Estado == "Pte Carga");
             
-            // Calcular comisión total (solo contratos Act/Facturable)
+            // Calcular comisión total (solo contratos Activos y Act/Facturable)
             comisionTotal = contratos
-                .Where(c => c.Comision.HasValue && c.Estado == "Act/Facturable")
+                .Where(c => c.Comision.HasValue && (c.Estado == "Activo" || c.Estado == "Act/Facturable"))
                 .Sum(c => c.Comision.Value);
 
             // Cargar actividades recientes (últimos 5 contratos)

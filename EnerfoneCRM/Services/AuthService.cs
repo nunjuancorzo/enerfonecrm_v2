@@ -110,8 +110,11 @@ public class AuthService
             _usuarioActual = usuario;
             Console.WriteLine($"[AUTH] Login exitoso. Usuario autenticado: {_usuarioActual.NombreUsuario}");
             
-            // Registrar el acceso en el log
-            await _logAccesoService.RegistrarAccesoAsync(_usuarioActual.Id, _usuarioActual.NombreUsuario, _usuarioActual.Rol);
+            // Registrar el acceso en el log (solo si no está excluido)
+            if (!usuario.ExcluirLogAcceso)
+            {
+                await _logAccesoService.RegistrarAccesoAsync(_usuarioActual.Id, _usuarioActual.NombreUsuario, _usuarioActual.Rol);
+            }
             
             NotificarCambioAutenticacion();
 

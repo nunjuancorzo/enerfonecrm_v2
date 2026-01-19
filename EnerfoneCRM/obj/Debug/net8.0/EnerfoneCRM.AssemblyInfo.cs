@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("EnerfoneCRM")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("2026.01.12.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("20260112")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("20260112+5b63fbd69b649ffc0206d55fb5f321fa353229a6")]
 [assembly: System.Reflection.AssemblyProductAttribute("EnerfoneCRM")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EnerfoneCRM")]
 [assembly: System.Reflection.AssemblyVersionAttribute("2026.01.12.0")]

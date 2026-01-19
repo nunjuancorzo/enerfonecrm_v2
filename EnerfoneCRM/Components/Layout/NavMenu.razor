@@ -27,17 +27,21 @@
             {
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-4">
                     <li class="nav-item">
-                        <a class="nav-link text-white px-3 py-2 rounded transition" href="home" style="transition: all 0.3s ease;">🏠 Inicio</a>
+                        <a class="nav-link text-white px-3 py-2 rounded transition" href="home" style="transition: all 0.3s ease;">
+                            <i class="bi bi-house-heart-fill me-2" style="font-size: 1.4rem; vertical-align: middle; color: #4FC3F7;"></i>Inicio
+                        </a>
                     </li>
                     @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
                     {
                         <li class="nav-item">
-                            <a class="nav-link text-white px-3 py-2 rounded transition" href="clientes" style="transition: all 0.3s ease;">👥 Clientes</a>
+                            <a class="nav-link text-white px-3 py-2 rounded transition" href="clientes" style="transition: all 0.3s ease;">
+                                <i class="bi bi-person-vcard-fill me-2" style="font-size: 1.4rem; vertical-align: middle; color: #66BB6A;"></i>Clientes
+                            </a>
                         </li>
                     }
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContratos" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                            📄 Contratos
+                            <i class="bi bi-folder2-open me-2" style="font-size: 1.4rem; vertical-align: middle; color: #FFA726;"></i>Contratos
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownContratos">
                             <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
@@ -52,7 +56,7 @@
                     {
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownTarifas" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                                💰 Tarifas
+                                <i class="bi bi-receipt-cutoff me-2" style="font-size: 1.4rem; vertical-align: middle; color: #AB47BC;"></i>Tarifas
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownTarifas">
                                 <li><a class="dropdown-item" href="tarifas/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
@@ -61,13 +65,13 @@
                                 <li><hr class="dropdown-divider" style="border-color: rgba(255, 255, 255, 0.1);"></li>
                                 <li><a class="dropdown-item" href="tarifas/servicios"><i class="bi bi-gear-fill text-primary me-2"></i>Servicios</a></li>
                                 <li><a class="dropdown-item" href="tarifas/comercializadoras"><i class="bi bi-building text-success me-2"></i>Comercializadoras</a></li>
-                                <li><a class="dropdown-item" href="tarifas/operadoras"><i class="bi bi-telephone text-info me-2"></i>Operadoras</a></li>
+                                <li><a class="dropdown-item" href="tarifas/operadoras"><i class="bi bi-broadcast text-info me-2"></i>Operadoras</a></li>
                             </ul>
                         </li>
                     }
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownUsuarios" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                            👤 Usuarios
+                            <i class="bi bi-person-badge-fill me-2" style="font-size: 1.4rem; vertical-align: middle; color: #42A5F5;"></i>Usuarios
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownUsuarios">
                             @if (AuthService.EsAdministrador)
@@ -82,11 +86,11 @@
                     {
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownConfiguracion" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                                ⚙️ Configuración
+                                <i class="bi bi-sliders me-2" style="font-size: 1.4rem; vertical-align: middle; color: #BDBDBD;"></i>Configuración
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfiguracion">
                                 <li><a class="dropdown-item" href="configuracion-empresa"><i class="bi bi-building me-2"></i>Datos de Empresa</a></li>
-                                <li><a class="dropdown-item" href="mensajes-bienvenida"><i class="bi bi-info-circle me-2"></i>Mensajes de Bienvenida</a></li>
+                                <li><a class="dropdown-item" href="mensajes-bienvenida"><i class="bi bi-chat-left-text me-2"></i>Mensajes de Bienvenida</a></li>
                             </ul>
                         </li>
                     }

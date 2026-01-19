@@ -110,6 +110,13 @@ else
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr>
+                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("FechaAlta")'>
+                                            Fecha creación
+                                            @if (columnaOrden == "FechaAlta")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
                                         <th style="cursor: pointer;" @onclick='() => OrdenarPor("TipoCliente")'>
                                             Tipo
                                             @if (columnaOrden == "TipoCliente")
@@ -131,14 +138,6 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer;" @onclick='() => OrdenarPor("Email")'>
-                                            Email
-                                            @if (columnaOrden == "Email")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
-                                        <th>Teléfono</th>
                                         <th style="cursor: pointer;" @onclick='() => OrdenarPor("NombreUsuario")'>
                                             Usuario
                                             @if (columnaOrden == "NombreUsuario")
@@ -160,7 +159,7 @@ else
                                     @if (clientesFiltrados == null || !clientesFiltrados.Any())
                                     {
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted py-4">
+                                            <td colspan="6" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay clientes registrados</p>
                                             </td>
@@ -171,6 +170,7 @@ else
                                         @foreach (var cliente in clientesFiltrados)
                                         {
                                             <tr>
+                                                <td><small>@(cliente.FechaAlta?.ToString("dd/MM/yyyy") ?? "-")</small></td>
                                                 <td>
                                                     @if (cliente.TipoCliente == "Pyme")
                                                     {
@@ -183,8 +183,6 @@ else
                                                 </td>
                                                 <td><strong>@cliente.Nombre</strong></td>
                                                 <td><small>@cliente.DniCif</small></td>
-                                                <td><small>@cliente.Email</small></td>
-                                                <td><small>@cliente.Telefono</small></td>
                                                 <td>@cliente.NombreUsuario</td>
                                                 <td>
                                                     <span class="badge bg-info">@contratoPorCliente.GetValueOrDefault(cliente.Id, 0)</span>
@@ -263,14 +261,32 @@ else
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">
-                                <i class="bi @(esNuevo ? "bi-plus-circle" : "bi-pencil") me-2"></i>
-                                @(esNuevo ? "Nuevo Cliente" : $"Editar Cliente - ID: {clienteSeleccionado.Id}")
-                            </h5>
-                            <button type="button" class="btn-close" @onclick="CerrarModal" disabled="@guardando"></button>
-                        </div>
                         <EditForm Model="clienteSeleccionado" OnValidSubmit="GuardarCliente">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="bi @(esNuevo ? "bi-plus-circle" : "bi-pencil") me-2"></i>
+                                    @(esNuevo ? "Nuevo Cliente" : $"Editar Cliente - ID: {clienteSeleccionado.Id}")
+                                </h5>
+                                <button type="button" class="btn-close" @onclick="CerrarModal" disabled="@guardando"></button>
+                            </div>
+                            <div class="modal-header bg-light border-bottom">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-save me-2"></i>
+                                        }
+                                        Guardar
+                                    </button>
+                                </div>
+                            </div>
                             <DataAnnotationsValidator />
                             <div class="modal-body">
                                 <div class="row g-3">
@@ -307,6 +323,10 @@ else
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Teléfono</label>
                                         <InputText @bind-Value="clienteSeleccionado.Telefono" class="form-control" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Fecha creación</label>
+                                        <input type="text" class="form-control" value="@(clienteSeleccionado.FechaAlta?.ToString("dd/MM/yyyy HH:mm") ?? "-")" disabled />
                                     </div>
                                     @if (clienteSeleccionado.TipoCliente == "Pyme")
                                     {
@@ -2013,9 +2033,9 @@ else
             "DniCif" => ordenAscendente
                 ? clientesParaPaginar.OrderBy(c => c.DniCif).ToList()
                 : clientesParaPaginar.OrderByDescending(c => c.DniCif).ToList(),
-            "Email" => ordenAscendente
-                ? clientesParaPaginar.OrderBy(c => c.Email).ToList()
-                : clientesParaPaginar.OrderByDescending(c => c.Email).ToList(),
+            "FechaAlta" => ordenAscendente
+                ? clientesParaPaginar.OrderBy(c => c.FechaAlta).ToList()
+                : clientesParaPaginar.OrderByDescending(c => c.FechaAlta).ToList(),
             "NombreUsuario" => ordenAscendente
                 ? clientesParaPaginar.OrderBy(c => c.NombreUsuario).ToList()
                 : clientesParaPaginar.OrderByDescending(c => c.NombreUsuario).ToList(),

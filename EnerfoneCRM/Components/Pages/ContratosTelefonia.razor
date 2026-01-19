@@ -362,29 +362,29 @@ else
                 <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content border-0 shadow-lg">
                         <EditForm Model="@contratoSeleccionado" OnValidSubmit="GuardarContrato">
-                            <div class="modal-header bg-primary text-white sticky-top" style="z-index: 1050;">
+                            <div class="modal-header bg-primary text-white">
                                 <h5 class="modal-title">
                                     <i class="bi bi-pencil-square me-2"></i>
                                     Editar Contrato de Telefonía - ID: @contratoSeleccionado.Id
                                 </h5>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-outline-light btn-sm" @onclick="CerrarModal">
-                                        <i class="bi bi-x-circle me-2"></i>Cancelar
+                                <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal" disabled="@guardando"></button>
+                            </div>
+                            <div class="modal-header bg-light border-bottom">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
+                                        Cancelar
                                     </button>
-                                    @if (PuedeEditar())
-                                    {
-                                        <button type="submit" class="btn btn-light text-primary btn-sm" disabled="@guardando">
-                                            @if (guardando)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                            }
-                                            else
-                                            {
-                                                <i class="bi bi-save me-2"></i>
-                                            }
-                                            Guardar
-                                        </button>
-                                    }
+                                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-save me-2"></i>
+                                        }
+                                        Guardar
+                                    </button>
                                 </div>
                             </div>
                         <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
@@ -1510,6 +1510,19 @@ else
     private async Task GuardarContrato()
     {
         if (contratoSeleccionado == null) return;
+
+        // Validar campos obligatorios para contratos de telefonía
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.OperadoraTel))
+        {
+            mensajeError = "La operadora es obligatoria";
+            return;
+        }
+        
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.TarifaTel))
+        {
+            mensajeError = "La tarifa es obligatoria";
+            return;
+        }
 
         // Validar campos de titular IBAN si está marcado
         if (contratoSeleccionado.TitularIbanDiferente)

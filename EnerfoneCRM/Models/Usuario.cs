@@ -56,6 +56,9 @@ public class Usuario
     [Column("activo")]
     public bool Activo { get; set; } = false;
 
+    [Column("excluir_log_acceso")]
+    public bool ExcluirLogAcceso { get; set; } = false;
+
     [Column("fecha_creacion")]
     public DateTime FechaCreacion { get; set; } = DateTime.Now;
 
