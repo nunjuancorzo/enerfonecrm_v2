@@ -64,14 +64,6 @@ else
                 </div>
             }
 
-            @if (!string.IsNullOrEmpty(mensajeError))
-            {
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
-                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
-                </div>
-            }
-
             <div class="card shadow-sm">
                 <div class="card-header bg-white py-3">
                     <div class="row align-items-center">
@@ -614,6 +606,13 @@ else
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                                 <ValidationSummary class="alert alert-danger" />
+                                @if (!string.IsNullOrEmpty(mensajeError))
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                                        <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                                    </div>
+                                }
                                 <div class="row g-3">
                                     <!-- Datos del Contrato -->
                                     <div class="col-12">
@@ -846,6 +845,13 @@ else
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                                 <ValidationSummary class="alert alert-danger" />
+                                @if (!string.IsNullOrEmpty(mensajeError))
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                                        <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                                    </div>
+                                }
                                 <div class="row g-3">
                                     <!-- Datos del Contrato -->
                                     <div class="col-12">
@@ -1212,6 +1218,13 @@ else
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                                 <ValidationSummary class="alert alert-danger" />
+                                @if (!string.IsNullOrEmpty(mensajeError))
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                                        <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                                    </div>
+                                }
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Empresa de Alarma <span class="text-danger">*</span></label>
@@ -2589,6 +2602,48 @@ else
     {
         if (nuevoContrato == null) return;
 
+        // Validar campos obligatorios para contratos de energía
+        if (string.IsNullOrWhiteSpace(nuevoContrato.EnComercializadora))
+        {
+            mensajeError = "La comercializadora es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
+        {
+            mensajeError = "La tarifa es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.TipoOperacion))
+        {
+            mensajeError = "El tipo de operación es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.DireccionInstalacionAlarma))
+        {
+            mensajeError = "La dirección es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.NumeroInstalacion))
+        {
+            mensajeError = "El número de la dirección es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.CodigoPostalInstalacion))
+        {
+            mensajeError = "El código postal es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.ProvinciaInstalacion))
+        {
+            mensajeError = "La provincia es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.LocalidadInstalacion))
+        {
+            mensajeError = "La localidad es obligatoria";
+            return;
+        }
+
         // Validar campos de titular IBAN si está marcado
         if (nuevoContrato.TitularIbanDiferente)
         {
@@ -2663,6 +2718,48 @@ else
     private async Task GuardarContratoTelefonia(bool crearOtro = false)
     {
         if (nuevoContrato == null) return;
+
+        // Validar campos obligatorios para contratos de telefonía
+        if (string.IsNullOrWhiteSpace(nuevoContrato.OperadoraTel))
+        {
+            mensajeError = "La operadora es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.TarifaTel))
+        {
+            mensajeError = "La tarifa principal es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.TipoTarifaTel))
+        {
+            mensajeError = "El tipo de tarifa es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.DireccionInstalacionAlarma))
+        {
+            mensajeError = "La dirección es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.NumeroInstalacion))
+        {
+            mensajeError = "El número de la dirección es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.CodigoPostalInstalacion))
+        {
+            mensajeError = "El código postal es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.ProvinciaInstalacion))
+        {
+            mensajeError = "La provincia es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.LocalidadInstalacion))
+        {
+            mensajeError = "La localidad es obligatoria";
+            return;
+        }
 
         // Validar campos de titular IBAN si está marcado
         if (nuevoContrato.TitularIbanDiferente)
@@ -2785,7 +2882,54 @@ else
     {
         if (nuevoContrato == null) return;
 
-        // Validar campos de titular IBAN si está marcado
+        // Validar campos obligatorios para contratos de alarmas
+        if (string.IsNullOrWhiteSpace(nuevoContrato.EmpresaAlarma))
+        {
+            mensajeError = "La empresa de alarma es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.TipoAlarma))
+        {
+            mensajeError = "El tipo de inmueble es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.SubtipoInmueble))
+        {
+            mensajeError = "El subtipo es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.KitAlarma))
+        {
+            mensajeError = "El kit es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.DireccionInstalacionAlarma))
+        {
+            mensajeError = "La dirección de instalación es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.NumeroInstalacion))
+        {
+            mensajeError = "El número de la dirección es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.CodigoPostalInstalacion))
+        {
+            mensajeError = "El código postal es obligatorio";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.ProvinciaInstalacion))
+        {
+            mensajeError = "La provincia es obligatoria";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(nuevoContrato.LocalidadInstalacion))
+        {
+            mensajeError = "La localidad es obligatoria";
+            return;
+        }
+
+        // Validar campos de titular IBAN solo si está marcado
         if (nuevoContrato.TitularIbanDiferente)
         {
             if (string.IsNullOrWhiteSpace(nuevoContrato.TitularIbanDni))

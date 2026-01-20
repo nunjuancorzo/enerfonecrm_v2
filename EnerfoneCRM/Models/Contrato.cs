@@ -67,12 +67,10 @@ namespace EnerfoneCRM.Models
 
         [Column("en_Comercializadora")]
         [MaxLength(100)]
-        [Required(ErrorMessage = "La comercializadora es obligatoria")]
         public string? EnComercializadora { get; set; }
 
         [Column("en_Tarifa")]
         [MaxLength(255)]
-        [Required(ErrorMessage = "La tarifa es obligatoria")]
         public string? EnTarifa { get; set; }
 
         [Column("en_CUPS")]
@@ -93,7 +91,6 @@ namespace EnerfoneCRM.Models
 
         [Column("tipoOperacion")]
         [MaxLength(100)]
-        [Required(ErrorMessage = "El tipo de operación es obligatorio")]
         public string? TipoOperacion { get; set; }
 
         [Column("potencia_contratada_p1")]
@@ -105,17 +102,14 @@ namespace EnerfoneCRM.Models
         // Campos específicos de TELEFONÍA
         [Column("operadora_tel")]
         [MaxLength(100)]
-        [Required(ErrorMessage = "La operadora es obligatoria")]
         public string? OperadoraTel { get; set; }
 
         [Column("Tarifa_tel")]
         [MaxLength(255)]
-        [Required(ErrorMessage = "La tarifa principal es obligatoria")]
         public string? TarifaTel { get; set; }
 
         [Column("TipoTarifa_tel")]
         [MaxLength(100)]
-        [Required(ErrorMessage = "El tipo de tarifa es obligatorio")]
         public string? TipoTarifaTel { get; set; }
 
         [Column("fijo_tel")]
@@ -238,12 +232,10 @@ namespace EnerfoneCRM.Models
         // Campos específicos de ALARMAS
         [Column("tipo_alarma")]
         [MaxLength(50)]
-        [Required(ErrorMessage = "El tipo de inmueble es obligatorio")]
         public string? TipoAlarma { get; set; } // Hogar, Negocio
 
         [Column("subtipo_inmueble")]
         [MaxLength(100)]
-        [Required(ErrorMessage = "El subtipo es obligatorio")]
         public string? SubtipoInmueble { get; set; } // Piso, Bajo, Chalet, etc.
 
         [Column("tiene_contrato_anterior")]
@@ -262,7 +254,6 @@ namespace EnerfoneCRM.Models
 
         [Column("kit_alarma")]
         [MaxLength(255)]
-        [Required(ErrorMessage = "El kit es obligatorio")]
         public string? KitAlarma { get; set; }
 
         [Column("opcionales_alarma")]
@@ -271,22 +262,18 @@ namespace EnerfoneCRM.Models
 
         [Column("campana_alarma")]
         [MaxLength(255)]
-        [Required(ErrorMessage = "La campaña es obligatoria")]
         public string? CampanaAlarma { get; set; }
 
         [Column("empresa_alarma")]
         [MaxLength(255)]
-        [Required(ErrorMessage = "La empresa es obligatoria")]
         public string? EmpresaAlarma { get; set; }
 
         [Column("direccion_instalacion_alarma")]
         [MaxLength(500)]
-        [Required(ErrorMessage = "La dirección es obligatoria")]
         public string? DireccionInstalacionAlarma { get; set; }
 
         [Column("numero_instalacion")]
         [MaxLength(20)]
-        [Required(ErrorMessage = "El número es obligatorio")]
         public string? NumeroInstalacion { get; set; }
 
         [Column("escalera_instalacion")]
@@ -303,17 +290,14 @@ namespace EnerfoneCRM.Models
 
         [Column("codigo_postal_instalacion")]
         [MaxLength(10)]
-        [Required(ErrorMessage = "El código postal es obligatorio")]
         public string? CodigoPostalInstalacion { get; set; }
 
         [Column("provincia_instalacion")]
         [MaxLength(100)]
-        [Required(ErrorMessage = "La provincia es obligatoria")]
         public string? ProvinciaInstalacion { get; set; }
 
         [Column("localidad_instalacion")]
         [MaxLength(100)]
-        [Required(ErrorMessage = "La localidad es obligatoria")]
         public string? LocalidadInstalacion { get; set; }
 
         [Column("aclarador_instalacion")]

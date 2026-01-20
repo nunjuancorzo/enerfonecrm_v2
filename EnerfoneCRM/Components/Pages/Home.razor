@@ -3,12 +3,15 @@
 @using EnerfoneCRM.Services
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Components.Layout
+@using Microsoft.JSInterop
+@using System.Text.Json
 @inject AuthService AuthService
 @inject ClienteService ClienteService
 @inject ContratoService ContratoService
 @inject TareaPendienteService TareaService
 @inject MensajeBienvenidaService MensajeBienvenidaService
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
 
 <PageTitle>Enerfone CRM</PageTitle>
@@ -29,7 +32,6 @@ else if (AuthService.EstaAutenticado)
         <div class="row mb-4">
             <div class="col-12">
                 <h2 class="fw-bold">Bienvenido, @AuthService.UsuarioActual?.NombreUsuario</h2>
-                <p class="text-muted">Resumen de tu actividad y métricas principales</p>
             </div>
         </div>
 
@@ -294,6 +296,82 @@ else if (AuthService.EstaAutenticado)
                 </div>
             </div>
         </div>
+
+        <!-- Mapa de Contratos por Provincia -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 pt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title fw-bold mb-0">
+                                <i class="bi bi-geo-alt-fill me-2"></i>Mapa de Contratos por Provincia
+                            </h5>
+                            <div class="d-flex gap-3">
+                                <span class="badge bg-warning bg-opacity-10 text-warning">
+                                    <i class="bi bi-lightning-charge-fill me-1"></i>@contratosMapaEnergia Energía
+                                </span>
+                                <span class="badge bg-primary bg-opacity-10 text-primary">
+                                    <i class="bi bi-telephone-fill me-1"></i>@contratosMapaTelefonia Telefonía
+                                </span>
+                                <span class="badge bg-danger bg-opacity-10 text-danger">
+                                    <i class="bi bi-shield-fill-check me-1"></i>@contratosMapaAlarmas Alarmas
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        @if (contratosPorProvincia.Any())
+                        {
+                            <div class="row">
+                                <div class="col-md-9">
+                                    <!-- Mapa interactivo -->
+                                    <div id="mapaContratos" style="height: 500px; border-radius: 8px; border: 1px solid #dee2e6;"></div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Haz clic en los puntos para ver el detalle de cada contrato.
+                                            <span class="ms-3"><span style="display:inline-block; width:10px; height:10px; background-color:#ffc107; border-radius:50%; border:1px solid white;"></span> Energía</span>
+                                            <span class="ms-2"><span style="display:inline-block; width:10px; height:10px; background-color:#0d6efd; border-radius:50%; border:1px solid white;"></span> Telefonía</span>
+                                            <span class="ms-2"><span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; border:1px solid white;"></span> Alarmas</span>
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <h6 class="text-muted mb-3">Top 5 Provincias</h6>
+                                    @foreach (var top in contratosPorProvincia.OrderByDescending(p => p.Total).Take(5))
+                                    {
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="small fw-bold">@top.Nombre</span>
+                                                <span class="small text-muted">@top.Total</span>
+                                            </div>
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-info" role="progressbar" style="width: 100%" 
+                                                     title="Energía: @top.Energia | Telefonía: @top.Telefonia | Alarmas: @top.Alarmas"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                    
+                                    <hr class="my-3" />
+                                    
+                                    <div class="text-center">
+                                        <p class="text-muted small mb-2">Provincias con contratos</p>
+                                        <h3 class="fw-bold mb-0">@contratosPorProvincia.Count</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5">
+                                <i class="bi bi-geo-alt text-muted" style="font-size: 3rem;"></i>
+                                <p class="text-muted mt-3">No hay contratos con ubicación registrada</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 }
 
@@ -311,6 +389,13 @@ else if (AuthService.EstaAutenticado)
     private int contratosEnergia = 0;
     private int contratosTelefonia = 0;
     private int contratosAlarmas = 0;
+
+    // Datos del mapa de contratos
+    private int contratosMapaEnergia = 0;
+    private int contratosMapaTelefonia = 0;
+    private int contratosMapaAlarmas = 0;
+    private List<ProvinciaContrato> contratosPorProvincia = new();
+    private List<Contrato> contratosParaMapa = new();
 
     private List<Actividad> actividadesRecientes = new();
     private List<Comercializadora> topComercializadoras = new();
@@ -332,6 +417,9 @@ else if (AuthService.EstaAutenticado)
                 await CargarDatosDashboard();
                 await CargarMensajeBienvenida();
                 StateHasChanged();
+                
+                // Renderizar mapa después de cargar los datos
+                await RenderizarMapa();
             }
         }
     }
@@ -405,10 +493,36 @@ else if (AuthService.EstaAutenticado)
             contratosAlarmas = contratos.Count(c => c.Tipo == "alarma");
             contratosPendientes = contratos.Count(c => c.Estado == "Pte Carga");
             
-            // Calcular comisión total (solo contratos Activos, Act/Facturable y Liquidado)
+            // Calcular comisión total (solo contratos Act/Facturable)
             comisionTotal = contratos
-                .Where(c => c.Comision.HasValue && (c.Estado == "Activo" || c.Estado == "Act/Facturable" || c.Estado == "Liquidado"))
+                .Where(c => c.Comision.HasValue && c.Estado == "Act/Facturable")
                 .Sum(c => c.Comision.Value);
+
+            // Procesar contratos por provincia basándose en el código postal
+            var contratosConCP = contratos.Where(c => !string.IsNullOrEmpty(c.CodigoPostalInstalacion)).ToList();
+            
+            // Guardar contratos para el mapa
+            contratosParaMapa = contratosConCP;
+            
+            contratosPorProvincia = contratosConCP
+                .GroupBy(c => new { 
+                    CP = c.CodigoPostalInstalacion!.Substring(0, Math.Min(2, c.CodigoPostalInstalacion!.Length)),
+                    Provincia = ObtenerProvinciaPorCP(c.CodigoPostalInstalacion!)
+                })
+                .Select(g => new ProvinciaContrato
+                {
+                    CodigoPostal = g.Key.CP,
+                    Nombre = g.Key.Provincia,
+                    Energia = g.Count(c => c.Tipo == "energia"),
+                    Telefonia = g.Count(c => c.Tipo == "telefonia"),
+                    Alarmas = g.Count(c => c.Tipo == "alarma"),
+                    Total = g.Count()
+                })
+                .ToList();
+
+            contratosMapaEnergia = contratosPorProvincia.Sum(p => p.Energia);
+            contratosMapaTelefonia = contratosPorProvincia.Sum(p => p.Telefonia);
+            contratosMapaAlarmas = contratosPorProvincia.Sum(p => p.Alarmas);
 
             // Cargar actividades recientes (últimos 5 contratos)
             actividadesRecientes = contratos
@@ -499,6 +613,118 @@ else if (AuthService.EstaAutenticado)
         _ => "secondary"
     };
 
+    private string ObtenerProvinciaPorCP(string codigoPostal)
+    {
+        if (string.IsNullOrEmpty(codigoPostal) || codigoPostal.Length < 2)
+            return "Desconocida";
+
+        var prefijo = codigoPostal.Substring(0, 2);
+        
+        return prefijo switch
+        {
+            "01" => "Álava",
+            "02" => "Albacete",
+            "03" => "Alicante",
+            "04" => "Almería",
+            "05" => "Ávila",
+            "06" => "Badajoz",
+            "07" => "Baleares",
+            "08" => "Barcelona",
+            "09" => "Burgos",
+            "10" => "Cáceres",
+            "11" => "Cádiz",
+            "12" => "Castellón",
+            "13" => "Ciudad Real",
+            "14" => "Córdoba",
+            "15" => "A Coruña",
+            "16" => "Cuenca",
+            "17" => "Girona",
+            "18" => "Granada",
+            "19" => "Guadalajara",
+            "20" => "Gipuzkoa",
+            "21" => "Huelva",
+            "22" => "Huesca",
+            "23" => "Jaén",
+            "24" => "León",
+            "25" => "Lleida",
+            "26" => "La Rioja",
+            "27" => "Lugo",
+            "28" => "Madrid",
+            "29" => "Málaga",
+            "30" => "Murcia",
+            "31" => "Navarra",
+            "32" => "Ourense",
+            "33" => "Asturias",
+            "34" => "Palencia",
+            "35" => "Las Palmas",
+            "36" => "Pontevedra",
+            "37" => "Salamanca",
+            "38" => "Santa Cruz de Tenerife",
+            "39" => "Cantabria",
+            "40" => "Segovia",
+            "41" => "Sevilla",
+            "42" => "Soria",
+            "43" => "Tarragona",
+            "44" => "Teruel",
+            "45" => "Toledo",
+            "46" => "Valencia",
+            "47" => "Valladolid",
+            "48" => "Bizkaia",
+            "49" => "Zamora",
+            "50" => "Zaragoza",
+            "51" => "Ceuta",
+            "52" => "Melilla",
+            _ => $"CP-{prefijo}"
+        };
+    }
+
+    private async Task RenderizarMapa()
+    {
+        try
+        {
+            Console.WriteLine($"[MAPA] Total contratos para mapa: {contratosParaMapa.Count}");
+            
+            if (contratosParaMapa.Any())
+            {
+                // Inicializar el mapa
+                await JSRuntime.InvokeVoidAsync("mapaContratos.inicializar", "mapaContratos");
+                
+                // Preparar datos de contratos individuales para JavaScript
+                var contratosParaJS = contratosParaMapa.Select(c => new
+                {
+                    id = c.Id,
+                    tipo = c.Tipo,
+                    cliente = c.NombreCliente ?? "Sin nombre",
+                    direccion = c.DireccionInstalacionAlarma ?? "",
+                    codigoPostal = c.CodigoPostalInstalacion ?? "",
+                    localidad = c.LocalidadInstalacion ?? "",
+                    provincia = c.ProvinciaInstalacion ?? "",
+                    estado = c.Estado ?? "Sin estado",
+                    fecha = c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "Sin fecha"
+                }).ToList();
+                
+                Console.WriteLine($"[MAPA] Contratos preparados para JS: {contratosParaJS.Count}");
+                foreach(var c in contratosParaJS)
+                {
+                    Console.WriteLine($"[MAPA] - {c.tipo} | Dirección: {c.direccion} | CP: {c.codigoPostal} | Localidad: {c.localidad} | Provincia: {c.provincia} | Cliente: {c.cliente}");
+                }
+                
+                // Convertir a JSON y luego pasar
+                var jsonContratos = JsonSerializer.Serialize(contratosParaJS);
+                await JSRuntime.InvokeVoidAsync("eval", $"window.mapaContratos.agregarMarcadoresIndividuales({jsonContratos})");
+            }
+            else
+            {
+                Console.WriteLine($"[MAPA] No hay contratos para mostrar en el mapa");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al renderizar mapa: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+    }
+
     // Clases auxiliares para visualización
     private class Actividad
     {
@@ -514,6 +740,16 @@ else if (AuthService.EstaAutenticado)
         public int Contratos { get; set; }
         public int Porcentaje { get; set; }
         public string Color { get; set; } = "";
+    }
+
+    private class ProvinciaContrato
+    {
+        public string CodigoPostal { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public int Energia { get; set; }
+        public int Telefonia { get; set; }
+        public int Alarmas { get; set; }
+        public int Total { get; set; }
     }
 }
 
