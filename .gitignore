@@ -1,0 +1,28 @@
+## Ignorar archivos de compilación y temporales
+
+# Archivos de compilación .NET
+bin/
+obj/
+
+# Archivos de backup
+*.bak
+*.bak[0-9]
+*.bak[0-9][0-9]
+
+# Archivos de usuario
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Archivos de configuración local
+appsettings.Development.json
+
+# Archivos generados
+MANUAL_USUARIO.docx
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
