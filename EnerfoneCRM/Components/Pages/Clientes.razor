@@ -7,6 +7,7 @@
 @inject TarifaEnergiaService TarifaEnergiaService
 @inject TarifaTelefoniaService TarifaTelefoniaService
 @inject TarifaAlarmaService TarifaAlarmaService
+@inject EmpresaAlarmaService EmpresaAlarmaService
 @inject ServicioService ServicioService
 @inject UsuarioService UsuarioService
 @inject AuthService AuthService
@@ -259,16 +260,17 @@ else
         @if (mostrarModal && clienteSeleccionado != null)
         {
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi @(esNuevo ? "bi-plus-circle" : "bi-pencil") me-2"></i>
+                                @(esNuevo ? "Nuevo Cliente" : $"Editar Cliente - ID: {clienteSeleccionado.Id}")
+                            </h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModal" disabled="@guardando"></button>
+                        </div>
                         <EditForm Model="clienteSeleccionado" OnValidSubmit="GuardarCliente">
-                            <div class="modal-header">
-                                <h5 class="modal-title">
-                                    <i class="bi @(esNuevo ? "bi-plus-circle" : "bi-pencil") me-2"></i>
-                                    @(esNuevo ? "Nuevo Cliente" : $"Editar Cliente - ID: {clienteSeleccionado.Id}")
-                                </h5>
-                                <button type="button" class="btn-close" @onclick="CerrarModal" disabled="@guardando"></button>
-                            </div>
+                            <DataAnnotationsValidator />
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
@@ -287,8 +289,7 @@ else
                                     </button>
                                 </div>
                             </div>
-                            <DataAnnotationsValidator />
-                            <div class="modal-body">
+                            <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo Cliente <span class="text-danger">*</span></label>
@@ -399,7 +400,19 @@ else
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Copia Recibo Bancario</label>
                                         <small class="text-muted d-block mb-1">(Obligatorio para contratos de Alarmas)</small>
-                                        <InputText @bind-Value="clienteSeleccionado.CopiaReciboBancario" class="form-control" placeholder="Ruta o referencia del archivo" />
+                                        <InputFile OnChange="CargarReciboBancario" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                        <small class="text-muted">PDF, JPG o PNG (máx. 10MB)</small>
+                                        @if (archivosPendientesCliente.ContainsKey("ReciboBancario") && archivosPendientesCliente["ReciboBancario"].Any())
+                                        {
+                                            <div class="mt-2">
+                                                @foreach (var archivo in archivosPendientesCliente["ReciboBancario"])
+                                                {
+                                                    <div class="badge bg-success me-1">
+                                                        <i class="bi bi-file-earmark-check me-1"></i>@archivo.Item1
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
                                     </div>
                                     
                                     @if (AuthService.UsuarioActual?.Rol == "Administrador")
@@ -466,10 +479,10 @@ else
                                                                             </div>
                                                                         </div>
                                                                         <div class="btn-group btn-group-sm ms-2">
-                                                                            <button class="btn btn-outline-success" @onclick="() => DescargarArchivo(fichero.Id)" title="Descargar">
+                                                                            <button type="button" class="btn btn-outline-success" @onclick="() => DescargarArchivo(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                                 <i class="bi bi-download"></i>
                                                                             </button>
-                                                                            <button class="btn btn-outline-danger" @onclick="() => EliminarArchivo(fichero.Id)" title="Eliminar">
+                                                                            <button type="button" class="btn btn-outline-danger" @onclick="() => EliminarArchivo(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
                                                                                 <i class="bi bi-trash"></i>
                                                                             </button>
                                                                         </div>
@@ -575,6 +588,7 @@ else
                             <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalContratoEnergia" disabled="@guardando"></button>
                         </div>
                         <EditForm Model="nuevoContrato" OnValidSubmit="GuardarContratoEnergiaYCerrar">
+                            <DataAnnotationsValidator />
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModalContratoEnergia" disabled="@guardando">
@@ -599,6 +613,7 @@ else
                                 </div>
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                                <ValidationSummary class="alert alert-danger" />
                                 <div class="row g-3">
                                     <!-- Datos del Contrato -->
                                     <div class="col-12">
@@ -805,6 +820,7 @@ else
                             <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalContratoTelefonia" disabled="@guardando"></button>
                         </div>
                         <EditForm Model="nuevoContrato" OnValidSubmit="GuardarContratoTelefoniaYCerrar">
+                            <DataAnnotationsValidator />
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModalContratoTelefonia" disabled="@guardando">
@@ -829,6 +845,7 @@ else
                                 </div>
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                                <ValidationSummary class="alert alert-danger" />
                                 <div class="row g-3">
                                     <!-- Datos del Contrato -->
                                     <div class="col-12">
@@ -1159,41 +1176,53 @@ else
         @if (mostrarModalContratoAlarmas && nuevoContrato != null)
         {
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content">
                         <div class="modal-header bg-danger text-white">
                             <h5 class="modal-title">
                                 <i class="bi bi-shield-check me-2"></i>
                                 Crear Contrato de Alarmas para @clienteParaContrato?.Nombre
                             </h5>
-                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalContratoAlarmas"></button>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalContratoAlarmas" disabled="@guardando"></button>
                         </div>
-                        <div class="modal-body" style="background-color: #e9ecef;">
-                            <EditForm Model="nuevoContrato" OnValidSubmit="GuardarContratoAlarmasYCerrar">
-                                <div class="modal-header bg-light border-bottom mb-3">
-                                    <div class="d-flex gap-2 w-100">
-                                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalContratoAlarmas" disabled="@guardando">
-                                            Cancelar
-                                        </button>
-                                        <button type="button" class="btn btn-outline-danger" @onclick="() => GuardarContratoAlarmas(true)" disabled="@guardando">
-                                            @if (guardando)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                            }
-                                            <i class="bi bi-save me-2"></i>
-                                            Guardar y Crear Otro
-                                        </button>
-                                        <button type="submit" class="btn btn-danger" disabled="@guardando">
-                                            @if (guardando)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                            }
-                                            <i class="bi bi-save me-2"></i>
-                                            Guardar y Cerrar
-                                        </button>
-                                    </div>
+                        <EditForm Model="nuevoContrato" OnValidSubmit="GuardarContratoAlarmasYCerrar">
+                            <DataAnnotationsValidator />
+                            <div class="modal-header bg-light border-bottom">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalContratoAlarmas" disabled="@guardando">
+                                        Cancelar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" @onclick="() => GuardarContratoAlarmas(true)" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        }
+                                        <i class="bi bi-save me-2"></i>
+                                        Guardar y Crear Otro
+                                    </button>
+                                    <button type="submit" class="btn btn-danger" disabled="@guardando">
+                                        @if (guardando)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        }
+                                        <i class="bi bi-save me-2"></i>
+                                        Guardar y Cerrar
+                                    </button>
                                 </div>
+                            </div>
+                            <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                                <ValidationSummary class="alert alert-danger" />
                                 <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Empresa de Alarma <span class="text-danger">*</span></label>
+                                        <InputSelect class="form-select" @bind-Value="nuevoContrato.EmpresaAlarma" @bind-Value:after="FiltrarTarifasPorEmpresa">
+                                            <option value="">-- Seleccionar empresa --</option>
+                                            @foreach (var empresa in empresasAlarmas)
+                                            {
+                                                <option value="@empresa.Nombre">@empresa.Nombre</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Estado</label>
                                         <InputSelect class="form-select" @bind-Value="nuevoContrato.Estado">
@@ -1426,8 +1455,8 @@ else
                                         <small class="text-muted">Formatos: PDF, JPG, PNG, DOC, DOCX (Máx. 10MB)</small>
                                     </div>
                                 </div>
-                            </EditForm>
-                        </div>
+                            </div>
+                        </EditForm>
                     </div>
                 </div>
             </div>
@@ -1509,6 +1538,7 @@ else
     private List<TarifaTelefonia> tarifasMovilSoloTelefonia = new();
     private List<TarifaAlarma> tarifasAlarmaKit = new();
     private List<TarifaAlarma> tarifasAlarmaCampana = new();
+    private List<EmpresaAlarma> empresasAlarmas = new();
     private int numeroLineasActivasTelefonia = 0;
 
     private string filtroNombre = string.Empty;
@@ -2358,10 +2388,24 @@ else
         };
 
         // Cargar tarifas de alarmas
+        await CargarEmpresasAlarmas();
         await CargarTarifasAlarmas();
 
         mostrarModalTipoContrato = false;
         mostrarModalContratoAlarmas = true;
+    }
+
+    private async Task CargarEmpresasAlarmas()
+    {
+        try
+        {
+            empresasAlarmas = await EmpresaAlarmaService.ObtenerActivasAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar empresas de alarmas: {ex.Message}";
+            empresasAlarmas = new();
+        }
     }
 
     private async Task CargarTarifasAlarmas()
@@ -2369,14 +2413,38 @@ else
         try
         {
             var todasTarifas = await TarifaAlarmaService.ObtenerTodasAsync();
-            tarifasAlarmaKit = todasTarifas.Where(t => t.Tipo == "Kit").ToList();
-            tarifasAlarmaCampana = todasTarifas.Where(t => t.Tipo == "Campaña").ToList();
+            // Inicialmente no mostramos tarifas hasta que se seleccione empresa
+            tarifasAlarmaKit = new();
+            tarifasAlarmaCampana = new();
         }
         catch (Exception ex)
         {
             mensajeError = $"Error al cargar tarifas de alarmas: {ex.Message}";
             tarifasAlarmaKit = new();
             tarifasAlarmaCampana = new();
+        }
+    }
+
+    private async Task FiltrarTarifasPorEmpresa()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(nuevoContrato?.EmpresaAlarma))
+            {
+                tarifasAlarmaKit = new();
+                tarifasAlarmaCampana = new();
+                return;
+            }
+
+            var todasTarifas = await TarifaAlarmaService.ObtenerTodasAsync();
+            var tarifasFiltradas = todasTarifas.Where(t => t.Empresa == nuevoContrato.EmpresaAlarma).ToList();
+            
+            tarifasAlarmaKit = tarifasFiltradas.Where(t => t.Tipo == "Kit").ToList();
+            tarifasAlarmaCampana = tarifasFiltradas.Where(t => t.Tipo == "Campaña").ToList();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al filtrar tarifas: {ex.Message}";
         }
     }
 
@@ -2858,6 +2926,11 @@ else
         {
             mensajeError = $"Error al subir archivo: {ex.Message}";
         }
+    }
+
+    private async Task CargarReciboBancario(InputFileChangeEventArgs e)
+    {
+        await SubirArchivo(e, "ReciboBancario");
     }
 
     private async Task DescargarArchivo(int idFichero)

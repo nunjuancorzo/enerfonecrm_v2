@@ -55,6 +55,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(kit_alarma, '') as kit_alarma,
                     COALESCE(opcionales_alarma, '') as opcionales_alarma,
                     COALESCE(campana_alarma, '') as campana_alarma,
+                    COALESCE(empresa_alarma, '') as empresa_alarma,
                     COALESCE(direccion_instalacion_alarma, '') as direccion_instalacion_alarma,
                     tiene_contrato_anterior,
                     COALESCE(numero_contrato_anterior, '') as numero_contrato_anterior,
@@ -168,7 +169,87 @@ namespace EnerfoneCRM.Services
         public async Task<Contrato?> ObtenerPorIdAsync(int id)
         {
             await using var context = _dbContextProvider.CreateDbContext();
-            return await context.Contratos.FindAsync(id);
+            
+            // Cargar el contrato de forma raw y luego manejar nulls en memoria
+            var query = context.Contratos.Where(c => c.Id == id);
+            var contratos = await query.ToListAsync();
+            
+            if (!contratos.Any())
+                return null;
+            
+            var contrato = contratos.First();
+            
+            // Normalizar todos los campos string NULL a cadena vacía
+            contrato.Tipo ??= string.Empty;
+            contrato.Estado ??= string.Empty;
+            contrato.Comercial ??= string.Empty;
+            contrato.NombreCliente ??= string.Empty;
+            contrato.Dni ??= string.Empty;
+            contrato.Direccion ??= string.Empty;
+            contrato.Iban ??= string.Empty;
+            contrato.EstadoServicio ??= string.Empty;
+            contrato.EnComercializadora ??= string.Empty;
+            contrato.EnTarifa ??= string.Empty;
+            contrato.EnCups ??= string.Empty;
+            contrato.EnCupsGas ??= string.Empty;
+            contrato.EnServicios ??= string.Empty;
+            contrato.EnIban ??= string.Empty;
+            contrato.TipoOperacion ??= string.Empty;
+            contrato.OperadoraTel ??= string.Empty;
+            contrato.TarifaTel ??= string.Empty;
+            contrato.TipoTarifaTel ??= string.Empty;
+            contrato.FijoTel ??= string.Empty;
+            contrato.LineaMovilPrincipal ??= string.Empty;
+            contrato.TipoLineaMovilPrincipal ??= string.Empty;
+            contrato.CodigoIccPrincipal ??= string.Empty;
+            contrato.TelefonoLinea1Tel ??= string.Empty;
+            contrato.TarifaLinea1Tel ??= string.Empty;
+            contrato.TipoLinea1Tel ??= string.Empty;
+            contrato.CodigoIccLinea1Tel ??= string.Empty;
+            contrato.TelefonoLinea2Tel ??= string.Empty;
+            contrato.TarifaLinea2Tel ??= string.Empty;
+            contrato.TipoLinea2Tel ??= string.Empty;
+            contrato.CodigoIccLinea2Tel ??= string.Empty;
+            contrato.TelefonoLinea3Tel ??= string.Empty;
+            contrato.TarifaLinea3Tel ??= string.Empty;
+            contrato.TipoLinea3Tel ??= string.Empty;
+            contrato.CodigoIccLinea3Tel ??= string.Empty;
+            contrato.TelefonoLinea4Tel ??= string.Empty;
+            contrato.TarifaLinea4Tel ??= string.Empty;
+            contrato.TipoLinea4Tel ??= string.Empty;
+            contrato.CodigoIccLinea4Tel ??= string.Empty;
+            contrato.TelefonoLinea5Tel ??= string.Empty;
+            contrato.TarifaLinea5Tel ??= string.Empty;
+            contrato.TipoLinea5Tel ??= string.Empty;
+            contrato.CodigoIccLinea5Tel ??= string.Empty;
+            contrato.HorarioInstalacionTel ??= string.Empty;
+            contrato.Contratar ??= string.Empty;
+            contrato.Tv ??= string.Empty;
+            contrato.TipoAlarma ??= string.Empty;
+            contrato.SubtipoInmueble ??= string.Empty;
+            contrato.CompaniaAnterior ??= string.Empty;
+            contrato.NumeroContratoAnterior ??= string.Empty;
+            contrato.KitAlarma ??= string.Empty;
+            contrato.OpcionalesAlarma ??= string.Empty;
+            contrato.CampanaAlarma ??= string.Empty;
+            contrato.EmpresaAlarma ??= string.Empty;
+            contrato.DireccionInstalacionAlarma ??= string.Empty;
+            contrato.NumeroInstalacion ??= string.Empty;
+            contrato.EscaleraInstalacion ??= string.Empty;
+            contrato.PisoInstalacion ??= string.Empty;
+            contrato.PuertaInstalacion ??= string.Empty;
+            contrato.CodigoPostalInstalacion ??= string.Empty;
+            contrato.ProvinciaInstalacion ??= string.Empty;
+            contrato.LocalidadInstalacion ??= string.Empty;
+            contrato.AclaradorInstalacion ??= string.Empty;
+            contrato.ObservacionesAlarma ??= string.Empty;
+            contrato.ObservacionesEstado ??= string.Empty;
+            contrato.TitularIbanDni ??= string.Empty;
+            contrato.TitularIbanNombre ??= string.Empty;
+            contrato.TitularIbanNumero ??= string.Empty;
+            contrato.PdfContratoUrl ??= string.Empty;
+            
+            return contrato;
         }
 
         public async Task<bool> ActualizarAsync(Contrato contrato)

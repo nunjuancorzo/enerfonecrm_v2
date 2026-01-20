@@ -99,8 +99,6 @@ else
                                             <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                         }
                                     </th>
-                                    <th>Cliente</th>
-                                    <th>Tipo</th>
                                     <th style="cursor: pointer;" @onclick='() => OrdenarPor("FechaActivacion")'>
                                         Fecha Activación
                                         @if (columnaOrden == "FechaActivacion")
@@ -122,29 +120,8 @@ else
                             <tbody>
                                 @foreach (var activacion in activacionesPaginadas)
                                 {
-                                    var contrato = ObtenerContrato(activacion.ContratoId);
                                     <tr>
                                         <td><strong>#@activacion.ContratoId</strong></td>
-                                        <td>
-                                            @if (contrato != null)
-                                            {
-                                                <span>@contrato.NombreCliente</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @if (contrato != null)
-                                            {
-                                                <span class="badge bg-@ObtenerColorTipo(contrato.Tipo)">@contrato.Tipo</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted">-</span>
-                                            }
-                                        </td>
                                         <td>
                                             <i class="bi bi-calendar-check text-success me-1"></i>
                                             @activacion.FechaActivacion.ToString("dd/MM/yyyy")
@@ -264,14 +241,23 @@ else
             // Cargar todas las activaciones
             activaciones = await LogActivacionContratoService.ObtenerTodasActivacionesAsync();
 
-            // Cargar contratos relacionados
+            // Cargar contratos relacionados de forma segura
             var contratoIds = activaciones.Select(a => a.ContratoId).Distinct().ToList();
             foreach (var contratoId in contratoIds)
             {
-                var contrato = await ContratoService.ObtenerPorIdAsync(contratoId);
-                if (contrato != null)
+                try
                 {
-                    contratosCache[contratoId] = contrato;
+                    var contrato = await ContratoService.ObtenerPorIdAsync(contratoId);
+                    if (contrato != null)
+                    {
+                        contratosCache[contratoId] = contrato;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Si falla cargar un contrato, continuar con los demás
+                    // El contrato simplemente no aparecerá en el cache
+                    continue;
                 }
             }
 

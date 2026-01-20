@@ -399,15 +399,15 @@ else if (AuthService.EstaAutenticado)
             // Cargar todos los contratos con filtrado por rol
             var contratos = await ContratoService.ObtenerTodosPorTipoAsync("", rol, nombreUsuario, usuarioId);
 
-            contratosActivos = contratos.Count;
+            contratosActivos = contratos.Count(c => c.Estado == "Activo" || c.Estado == "Act/Facturable" || c.Estado == "Liquidado");
             contratosEnergia = contratos.Count(c => c.Tipo == "energia");
             contratosTelefonia = contratos.Count(c => c.Tipo == "telefonia");
             contratosAlarmas = contratos.Count(c => c.Tipo == "alarma");
             contratosPendientes = contratos.Count(c => c.Estado == "Pte Carga");
             
-            // Calcular comisión total (solo contratos Activos y Act/Facturable)
+            // Calcular comisión total (solo contratos Activos, Act/Facturable y Liquidado)
             comisionTotal = contratos
-                .Where(c => c.Comision.HasValue && (c.Estado == "Activo" || c.Estado == "Act/Facturable"))
+                .Where(c => c.Comision.HasValue && (c.Estado == "Activo" || c.Estado == "Act/Facturable" || c.Estado == "Liquidado"))
                 .Sum(c => c.Comision.Value);
 
             // Cargar actividades recientes (últimos 5 contratos)

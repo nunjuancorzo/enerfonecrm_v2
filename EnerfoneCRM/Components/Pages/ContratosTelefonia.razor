@@ -361,14 +361,15 @@ else
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                 <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content border-0 shadow-lg">
-                        <EditForm Model="@contratoSeleccionado" OnValidSubmit="GuardarContrato">
-                            <div class="modal-header bg-primary text-white">
-                                <h5 class="modal-title">
-                                    <i class="bi bi-pencil-square me-2"></i>
-                                    Editar Contrato de Telefonía - ID: @contratoSeleccionado.Id
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal" disabled="@guardando"></button>
-                            </div>
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-pencil-square me-2"></i>
+                                Editar Contrato de Telefonía - ID: @contratoSeleccionado.Id
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal" disabled="@guardando"></button>
+                        </div>
+                        <EditForm Model="contratoSeleccionado" OnValidSubmit="GuardarContrato">
+                            <DataAnnotationsValidator />
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
@@ -388,7 +389,6 @@ else
                                 </div>
                             </div>
                         <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
-                            <DataAnnotationsValidator />
                                 
                                 <!-- Fechas -->
                                 <div class="row mb-3">
@@ -717,12 +717,12 @@ else
                                                                 <span>@factura.NombreFichero</span>
                                                             </div>
                                                             <div>
-                                                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" title="Descargar">
+                                                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                     <i class="bi bi-download"></i>
                                                                 </button>
                                                                 @if (PuedeEditar())
                                                                 {
-                                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="async () => await EliminarFactura(factura.Id)" title="Eliminar">
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="async () => await EliminarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
                                                                         <i class="bi bi-trash"></i>
                                                                     </button>
                                                                 }
@@ -856,7 +856,7 @@ else
                                         }
                                     </div>
                                 </div>
-                        </div>
+                            </div>
                         </EditForm>
                     </div>
                 </div>

@@ -66,6 +66,7 @@ builder.Services.AddScoped<TarifaAlarmaService>();
 builder.Services.AddScoped<ServicioService>();
 builder.Services.AddScoped<ComercializadoraService>();
 builder.Services.AddScoped<OperadoraService>();
+builder.Services.AddScoped<EmpresaAlarmaService>();
 builder.Services.AddScoped<ContratoService>();
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<TareaPendienteService>();

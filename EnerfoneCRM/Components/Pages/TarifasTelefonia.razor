@@ -207,16 +207,16 @@ else
         @if (mostrarModal)
         {
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
+                                @(modoEdicion ? "Editar" : "Nueva") Tarifa de Telefonía
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                        </div>
                         <EditForm Model="tarifaActual" OnValidSubmit="GuardarTarifa">
-                            <div class="modal-header bg-primary text-white">
-                                <h5 class="modal-title">
-                                    <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
-                                    @(modoEdicion ? "Editar" : "Nueva") Tarifa de Telefonía
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
-                            </div>
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
@@ -235,7 +235,7 @@ else
                                     </button>
                                 </div>
                             </div>
-                            <div class="modal-body p-4">
+                            <div class="modal-body p-4" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                                 <DataAnnotationsValidator />
                                 
                                 <div class="row mb-3">

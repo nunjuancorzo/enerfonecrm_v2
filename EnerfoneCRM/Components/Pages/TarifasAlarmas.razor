@@ -3,6 +3,7 @@
 @using EnerfoneCRM.Services
 @rendermode InteractiveServer
 @inject TarifaAlarmaService TarifaService
+@inject EmpresaAlarmaService EmpresaAlarmaService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
@@ -224,16 +225,16 @@ else
         @if (mostrarModal)
         {
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content border-0 shadow-lg">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
+                                @(modoEdicion ? "Editar" : "Nueva") Tarifa de Alarma
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                        </div>
                         <EditForm Model="tarifaActual" OnValidSubmit="GuardarTarifa">
-                            <div class="modal-header bg-primary text-white">
-                                <h5 class="modal-title">
-                                    <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
-                                    @(modoEdicion ? "Editar" : "Nueva") Tarifa de Alarma
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal"></button>
-                            </div>
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
@@ -252,7 +253,7 @@ else
                                     </button>
                                 </div>
                             </div>
-                            <div class="modal-body p-4">
+                            <div class="modal-body p-4" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                                 <DataAnnotationsValidator />
                                 
                                 <div class="row mb-3">
@@ -285,7 +286,13 @@ else
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Empresa</label>
-                                        <InputText class="form-control" @bind-Value="tarifaActual.Empresa" placeholder="Ej: Securitas Direct" />
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.Empresa">
+                                            <option value="">-- Seleccionar empresa --</option>
+                                            @foreach (var empresa in empresasAlarmas)
+                                            {
+                                                <option value="@empresa.Nombre">@empresa.Nombre</option>
+                                            }
+                                        </InputSelect>
                                     </div>
                                 </div>
 
@@ -393,6 +400,7 @@ else
     private List<TarifaAlarma> tarifasFiltradas = new();
     private TarifaAlarma tarifaActual = new();
     private TarifaAlarma? tarifaAEliminar;
+    private List<EmpresaAlarma> empresasAlarmas = new();
     
     // Ordenamiento
     private string columnaOrden = "NombreTarifa";
@@ -424,8 +432,21 @@ else
             
             if (AuthService.EstaAutenticado)
             {
+                await CargarEmpresasAlarmas();
                 await CargarTarifas();
             }
+        }
+    }
+
+    private async Task CargarEmpresasAlarmas()
+    {
+        try
+        {
+            empresasAlarmas = await EmpresaAlarmaService.ObtenerActivasAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar empresas de alarmas: {ex.Message}";
         }
     }
 

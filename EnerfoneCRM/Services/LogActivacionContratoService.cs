@@ -42,26 +42,59 @@ public class LogActivacionContratoService
     public async Task<List<LogActivacionContrato>> ObtenerActivacionesPorContratoAsync(int contratoId)
     {
         await using var context = _dbContextProvider.CreateDbContext();
-        return await context.LogActivacionesContratos
+        var activaciones = await context.LogActivacionesContratos
             .Where(l => l.ContratoId == contratoId)
             .OrderByDescending(l => l.FechaRegistro)
+            .Select(l => new LogActivacionContrato
+            {
+                Id = l.Id,
+                ContratoId = l.ContratoId,
+                FechaActivacion = l.FechaActivacion,
+                FechaRegistro = l.FechaRegistro,
+                Usuario = l.Usuario ?? string.Empty,
+                Observaciones = l.Observaciones ?? string.Empty
+            })
             .ToListAsync();
+        
+        return activaciones;
     }
 
     public async Task<LogActivacionContrato?> ObtenerUltimaActivacionAsync(int contratoId)
     {
         await using var context = _dbContextProvider.CreateDbContext();
-        return await context.LogActivacionesContratos
+        var activacion = await context.LogActivacionesContratos
             .Where(l => l.ContratoId == contratoId)
             .OrderByDescending(l => l.FechaRegistro)
+            .Select(l => new LogActivacionContrato
+            {
+                Id = l.Id,
+                ContratoId = l.ContratoId,
+                FechaActivacion = l.FechaActivacion,
+                FechaRegistro = l.FechaRegistro,
+                Usuario = l.Usuario ?? string.Empty,
+                Observaciones = l.Observaciones ?? string.Empty
+            })
             .FirstOrDefaultAsync();
+        
+        return activacion;
     }
 
     public async Task<List<LogActivacionContrato>> ObtenerTodasActivacionesAsync()
     {
         await using var context = _dbContextProvider.CreateDbContext();
-        return await context.LogActivacionesContratos
+        var activaciones = await context.LogActivacionesContratos
             .OrderByDescending(l => l.FechaRegistro)
+            .Select(l => new LogActivacionContrato
+            {
+                Id = l.Id,
+                ContratoId = l.ContratoId,
+                FechaActivacion = l.FechaActivacion,
+                FechaRegistro = l.FechaRegistro,
+                Usuario = l.Usuario ?? string.Empty,
+                Observaciones = l.Observaciones ?? string.Empty
+            })
             .ToListAsync();
+        
+        return activaciones;
     }
 }

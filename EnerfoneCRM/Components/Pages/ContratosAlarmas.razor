@@ -6,12 +6,15 @@
 @rendermode InteractiveServer
 @inject ContratoService ContratoService
 @inject TarifaAlarmaService TarifaAlarmaService
+@inject EmpresaAlarmaService EmpresaAlarmaService
 @inject ClienteService ClienteService
 @inject FicheroClienteService FicheroClienteService
 @inject FicheroContratoService FicheroContratoService
 @inject ObservacionContratoService ObservacionContratoService
 @inject AuthService AuthService
+@inject UsuarioService UsuarioService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @inject IJSRuntime JS
 
 <PageTitle>Enerfone CRM - Contratos de Alarmas</PageTitle>
@@ -210,6 +213,7 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
+                                        <th style="width: 140px;">Empresa</th>
                                         <th style="cursor: pointer; width: 95px;" @onclick='() => OrdenarPor("TipoAlarma")'>
                                             Tipo Alarma
                                             @if (columnaOrden == "TipoAlarma")
@@ -245,7 +249,7 @@ else
                                     @if (!contratos.Any())
                                     {
                                         <tr>
-                                            <td colspan="10" class="text-center text-muted py-5">
+                                            <td colspan="11" class="text-center text-muted py-5">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay contratos registrados</p>
                                             </td>
@@ -270,6 +274,27 @@ else
                                                 </td>
                                                 <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small><strong>@contrato.NombreCliente</strong></small></td>
                                                 <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(contrato.EmpresaAlarma))
+                                                    {
+                                                        var empresa = empresasAlarmas.FirstOrDefault(e => e.Nombre == contrato.EmpresaAlarma);
+                                                        if (empresa?.LogoContenido != null && empresa.LogoContenido.Length > 0)
+                                                        {
+                                                            var base64 = Convert.ToBase64String(empresa.LogoContenido);
+                                                            var mimeType = ObtenerMimeType(empresa.LogoArchivo);
+                                                            <img src="data:@mimeType;base64,@base64" alt="@empresa.Nombre" 
+                                                                 style="max-width: 120px; max-height: 40px; object-fit: contain;" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <small>@contrato.EmpresaAlarma</small>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <small class="text-muted">-</small>
+                                                    }
+                                                </td>
                                                 <td><span class="badge bg-secondary" style="font-size: 0.75rem;">@contrato.TipoAlarma</span></td>
                                                 <td><small>@contrato.KitAlarma @contrato.CampanaAlarma</small></td>
                                                 <td><small>@contrato.Comercial</small></td>
@@ -336,20 +361,21 @@ else
             </div>
         </div>
 
-        <!-- Modal Crear/Editar (Simplificado) -->
-        @if (mostrarModal)
+        <!-- Modal Editar -->
+        @if (mostrarModal && contratoSeleccionado != null)
         {
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content border-0 shadow-lg">
-                        <EditForm Model="contratoActual" OnValidSubmit="GuardarContrato">
-                            <div class="modal-header bg-danger text-white">
-                                <h5 class="modal-title">
-                                    <i class="bi bi-@(modoEdicion ? "pencil-square" : "plus-circle-fill") me-2"></i>
-                                    @(modoEdicion ? "Editar" : "Nuevo") Contrato de Alarma
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal" disabled="@guardando"></button>
-                            </div>
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-pencil-square me-2"></i>
+                                Editar Contrato de Alarma - ID: @contratoSeleccionado.Id
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModal" disabled="@guardando"></button>
+                        </div>
+                        <EditForm Model="contratoSeleccionado" OnValidSubmit="GuardarContrato">
+                            <DataAnnotationsValidator />
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
@@ -368,18 +394,17 @@ else
                                     </button>
                                 </div>
                             </div>
-                            <div class="modal-body p-4" style="background-color: #e9ecef;">
-                            <DataAnnotationsValidator />
+                            <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                                 
                                 <!-- Fechas -->
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-plus me-1"></i>Fecha de Creación</label>
-                                        <input type="text" class="form-control" value="@contratoActual.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
+                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-check me-1"></i>Fecha de Modificación</label>
-                                        <input type="text" class="form-control" value="@contratoActual.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
+                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
                                     </div>
                                 </div>
 
@@ -390,7 +415,7 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Cliente</label>
-                                        <InputSelect class="form-select" @bind-Value="contratoActual.IdCliente">
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.IdCliente">
                                             <option value="">-- Seleccionar Cliente --</option>
                                             @foreach (var cliente in clientes)
                                             {
@@ -400,7 +425,7 @@ else
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Estado</label>
-                                        <InputSelect class="form-select" @bind-Value="contratoActual.Estado">
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.Estado">
                                             <option value="Pte Carga">Pte Carga</option>
                                             <option value="Pte Firma">Pte Firma</option>
                                             <option value="Activo">Activo</option>
@@ -409,26 +434,35 @@ else
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Comercial</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.Comercial" />
+                                        @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                        {
+                                            <InputSelect class="form-select" @bind-Value="contratoSeleccionado.Comercial">
+                                                <option value="">-- Seleccionar Comercial --</option>
+                                                @foreach (var usuario in usuarios)
+                                                {
+                                                    <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                }
+                                            </InputSelect>
+                                        }
+                                        else
+                                        {
+                                            <InputText class="form-control" @bind-Value="contratoSeleccionado.Comercial" readonly />
+                                        }
                                     </div>
                                 </div>
                                 
                                 <div class="row mb-3">
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">DNI</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.Dni" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Email</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.Cliente!.Email" disabled="true" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.Dni" />
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Dirección</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.Direccion" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.Direccion" />
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">IBAN Cliente</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.Iban" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.Iban" />
                                     </div>
                                 </div>
                                 
@@ -436,7 +470,7 @@ else
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionAlarma" @bind="contratoActual.TitularIbanDiferente">
+                                            <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionAlarma" @bind="contratoSeleccionado.TitularIbanDiferente">
                                             <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicionAlarma">
                                                 Titular IBAN Diferente
                                             </label>
@@ -444,20 +478,20 @@ else
                                     </div>
                                 </div>
                                 
-                                @if (contratoActual.TitularIbanDiferente)
+                                @if (contratoSeleccionado.TitularIbanDiferente)
                                 {
                                     <div class="row mb-3">
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">DNI Titular IBAN <span class="text-danger">*</span></label>
-                                            <InputText @bind-Value="contratoActual.TitularIbanDni" class="form-control" placeholder="DNI/NIE" />
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIE" />
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Nombre Titular IBAN <span class="text-danger">*</span></label>
-                                            <InputText @bind-Value="contratoActual.TitularIbanNombre" class="form-control" placeholder="Nombre completo" />
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" />
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Número IBAN <span class="text-danger">*</span></label>
-                                            <InputText @bind-Value="contratoActual.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
                                         </div>
                                     </div>
                                 }
@@ -466,8 +500,18 @@ else
                                 <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-shield-check me-2"></i>Tipo de Alarma</h6>
                                 <div class="row mb-3">
                                     <div class="col-md-6">
+                                        <label class="form-label fw-bold">Empresa de Alarma <span class="text-danger">*</span></label>
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.EmpresaAlarma" @bind-Value:after="FiltrarTarifasPorEmpresa">
+                                            <option value="">-- Seleccionar empresa --</option>
+                                            @foreach (var empresa in empresasAlarmas)
+                                            {
+                                                <option value="@empresa.Nombre">@empresa.Nombre</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo de Inmueble</label>
-                                        <InputSelect class="form-select" @bind-Value="contratoActual.TipoAlarma">
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.TipoAlarma">
                                             <option value="">-- Seleccionar --</option>
                                             <option value="Hogar">Hogar</option>
                                             <option value="Negocio">Negocio</option>
@@ -475,9 +519,9 @@ else
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Subtipo</label>
-                                        @if (contratoActual.TipoAlarma == "Hogar")
+                                        @if (contratoSeleccionado.TipoAlarma == "Hogar")
                                         {
-                                            <InputSelect class="form-select" @bind-Value="contratoActual.SubtipoInmueble">
+                                            <InputSelect class="form-select" @bind-Value="contratoSeleccionado.SubtipoInmueble">
                                                 <option value="">-- Seleccionar --</option>
                                                 <option value="Piso">Piso</option>
                                                 <option value="Bajo">Bajo</option>
@@ -486,9 +530,9 @@ else
                                                 <option value="Chalet">Chalet</option>
                                             </InputSelect>
                                         }
-                                        else if (contratoActual.TipoAlarma == "Negocio")
+                                        else if (contratoSeleccionado.TipoAlarma == "Negocio")
                                         {
-                                            <InputSelect class="form-select" @bind-Value="contratoActual.SubtipoInmueble">
+                                            <InputSelect class="form-select" @bind-Value="contratoSeleccionado.SubtipoInmueble">
                                                 <option value="">-- Seleccionar --</option>
                                                 <option value="Comercio">Comercio</option>
                                                 <option value="Bar">Bar</option>
@@ -514,7 +558,7 @@ else
                                         }
                                         else
                                         {
-                                            <InputText class="form-control" @bind-Value="contratoActual.SubtipoInmueble" placeholder="Seleccione primero el tipo" disabled />
+                                            <InputText class="form-control" @bind-Value="contratoSeleccionado.SubtipoInmueble" placeholder="Seleccione primero el tipo" disabled />
                                         }
                                     </div>
                                 </div>
@@ -525,26 +569,26 @@ else
                                     <div class="col-md-4">
                                         <div class="form-check mt-4">
                                             <input type="checkbox" class="form-check-input" id="tieneContratoAnterior" 
-                                                   checked="@(contratoActual.TieneContratoAnterior ?? false)"
-                                                   @onchange="@((e) => contratoActual.TieneContratoAnterior = (bool?)((bool)e.Value!))" />
+                                                   checked="@(contratoSeleccionado.TieneContratoAnterior ?? false)"
+                                                   @onchange="@((e) => contratoSeleccionado.TieneContratoAnterior = (bool?)((bool)e.Value!))" />
                                             <label class="form-check-label" for="tieneContratoAnterior">
                                                 ¿Tiene contrato anterior?
                                             </label>
                                         </div>
                                     </div>
-                                    @if (contratoActual.TieneContratoAnterior == true)
+                                    @if (contratoSeleccionado.TieneContratoAnterior == true)
                                     {
                                         <div class="col-md-3">
                                             <label class="form-label fw-bold">Compañía Anterior</label>
-                                            <InputText class="form-control" @bind-Value="contratoActual.CompaniaAnterior" placeholder="Nombre de la compañía" />
+                                            <InputText class="form-control" @bind-Value="contratoSeleccionado.CompaniaAnterior" placeholder="Nombre de la compañía" />
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label fw-bold">Nº Contrato Anterior</label>
-                                            <InputText class="form-control" @bind-Value="contratoActual.NumeroContratoAnterior" placeholder="Número de contrato" />
+                                            <InputText class="form-control" @bind-Value="contratoSeleccionado.NumeroContratoAnterior" placeholder="Número de contrato" />
                                         </div>
                                         <div class="col-md-2">
                                             <label class="form-label fw-bold">Fecha Permanencia</label>
-                                            <InputDate Type="InputDateType.Date" class="form-control" @bind-Value="contratoActual.FechaPermanenciaAnterior" />
+                                            <InputDate Type="InputDateType.Date" class="form-control" @bind-Value="contratoSeleccionado.FechaPermanenciaAnterior" />
                                         </div>
                                     }
                                 </div>
@@ -554,7 +598,7 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Kit</label>
-                                        <InputSelect class="form-select" @bind-Value="contratoActual.KitAlarma">
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.KitAlarma">
                                             <option value="">-- Seleccionar Kit --</option>
                                             @foreach (var tarifa in tarifasKit)
                                             {
@@ -564,11 +608,11 @@ else
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Opcionales</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.OpcionalesAlarma" placeholder="Ej: Cámara adicional, Detector de humo" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.OpcionalesAlarma" placeholder="Ej: Cámara adicional, Detector de humo" />
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Campaña</label>
-                                        <InputSelect class="form-select" @bind-Value="contratoActual.CampanaAlarma">
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.CampanaAlarma">
                                             <option value="">-- Sin Campaña --</option>
                                             @foreach (var tarifa in tarifasCampana)
                                             {
@@ -583,53 +627,53 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-8">
                                         <label class="form-label fw-bold">Dirección</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.DireccionInstalacionAlarma" placeholder="Nombre de la calle" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.DireccionInstalacionAlarma" placeholder="Nombre de la calle" />
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Número</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.NumeroInstalacion" placeholder="Nº" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.NumeroInstalacion" placeholder="Nº" />
                                     </div>
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Escalera <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.EscaleraInstalacion" placeholder="Esc." />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.EscaleraInstalacion" placeholder="Esc." />
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.PisoInstalacion" placeholder="Piso" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PisoInstalacion" placeholder="Piso" />
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.PuertaInstalacion" placeholder="Puerta" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PuertaInstalacion" placeholder="Puerta" />
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.CodigoPostalInstalacion" placeholder="CP" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" placeholder="CP" />
                                     </div>
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-md-12">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.AclaradorInstalacion" placeholder="Información adicional de la dirección" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" />
                                     </div>
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.ProvinciaInstalacion" placeholder="Provincia" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Localidad</label>
-                                        <InputText class="form-control" @bind-Value="contratoActual.LocalidadInstalacion" placeholder="Localidad" />
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" />
                                     </div>
                                 </div>
                                 <div class="row mb-3">
-                                    @if (contratoActual.Id > 0)
+                                    @if (contratoSeleccionado.Id > 0)
                                     {
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Comisión (€)</label>
-                                            <InputNumber class="form-control" @bind-Value="contratoActual.Comision" step="0.01" />
+                                            <InputNumber class="form-control" @bind-Value="contratoSeleccionado.Comision" step="0.01" />
                                         </div>
                                     }
                                 </div>
@@ -637,7 +681,7 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-12">
                                         <label class="form-label fw-bold">Observaciones</label>
-                                        <InputTextArea class="form-control" @bind-Value="contratoActual.ObservacionesAlarma" rows="3" />
+                                        <InputTextArea class="form-control" @bind-Value="contratoSeleccionado.ObservacionesAlarma" rows="3" />
                                     </div>
                                 </div>
 
@@ -658,10 +702,10 @@ else
                                                                 <span>@factura.NombreFichero</span>
                                                             </div>
                                                             <div>
-                                                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" title="Descargar">
+                                                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                     <i class="bi bi-download"></i>
                                                                 </button>
-                                                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="async () => await EliminarFactura(factura.Id)" title="Eliminar">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="async () => await EliminarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
                                                                     <i class="bi bi-trash"></i>
                                                                 </button>
                                                             </div>
@@ -743,7 +787,7 @@ else
                                     </div>
                                 </div>
                             </div>
-                            </EditForm>
+                        </EditForm>
                     </div>
                 </div>
             </div>
@@ -882,14 +926,16 @@ else
     private List<Contrato> contratosFiltrados = new();
     private List<Contrato> contratosParaPaginar = new();
     private List<Cliente> clientes = new();
+    private List<Usuario> usuarios = new();
     private List<TarifaAlarma> tarifasKit = new();
     private List<TarifaAlarma> tarifasCampana = new();
+    private List<EmpresaAlarma> empresasAlarmas = new();
     private List<FicheroContrato> facturasContrato = new();
     
     // Facturas temporales para contratos nuevos (antes de tener ID)
     private List<(string nombreArchivo, byte[] contenido)> facturasPendientes = new();
     
-    private Contrato contratoActual = new();
+    private Contrato? contratoSeleccionado;
     private Contrato? contratoAEliminar;
     
     private bool cargandoSesion = true;
@@ -905,7 +951,6 @@ else
     private List<ObservacionContrato> observacionesHistoricas = new();
     private List<ObservacionContrato> observacionesHistoricasModal = new();
     private Dictionary<int, int> conteoObservacionesPorContrato = new();
-    private bool modoEdicion = false;
     
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
@@ -959,6 +1004,8 @@ else
             
             contratos = await ContratoService.ObtenerTodosPorTipoAsync("alarma", rol, usuario, usuarioId);
             clientes = await ClienteService.ObtenerTodosAsync();
+            usuarios = await UsuarioService.ObtenerTodosAsync();
+            empresasAlarmas = await EmpresaAlarmaService.ObtenerActivasAsync();
             tarifasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
             tarifasCampana = await TarifaAlarmaService.ObtenerPorTipoAsync("Campaña");
             
@@ -973,6 +1020,31 @@ else
         {
             cargando = false;
             StateHasChanged();
+        }
+    }
+    
+    private async Task FiltrarTarifasPorEmpresa()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(contratoSeleccionado?.EmpresaAlarma))
+            {
+                tarifasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
+                tarifasCampana = await TarifaAlarmaService.ObtenerPorTipoAsync("Campaña");
+                return;
+            }
+
+            var todasTarifas = await TarifaAlarmaService.ObtenerTodasAsync();
+            var tarifasFiltradas = todasTarifas.Where(t => t.Empresa == contratoSeleccionado.EmpresaAlarma).ToList();
+            
+            tarifasKit = tarifasFiltradas.Where(t => t.Tipo == "Kit").ToList();
+            tarifasCampana = tarifasFiltradas.Where(t => t.Tipo == "Campaña").ToList();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al filtrar tarifas: {ex.Message}";
+            tarifasKit = new();
+            tarifasCampana = new();
         }
     }
     
@@ -1247,9 +1319,9 @@ else
         }
     }
 
-    private void MostrarModalEditar(Contrato contrato)
+    private async Task MostrarModalEditar(Contrato contrato)
     {
-        contratoActual = new Contrato
+        contratoSeleccionado = new Contrato
         {
             Id = contrato.Id,
             Tipo = "alarma",
@@ -1271,6 +1343,7 @@ else
             CompaniaAnterior = contrato.CompaniaAnterior,
             NumeroContratoAnterior = contrato.NumeroContratoAnterior,
             FechaPermanenciaAnterior = contrato.FechaPermanenciaAnterior,
+            EmpresaAlarma = contrato.EmpresaAlarma,
             KitAlarma = contrato.KitAlarma,
             OpcionalesAlarma = contrato.OpcionalesAlarma,
             CampanaAlarma = contrato.CampanaAlarma,
@@ -1283,31 +1356,33 @@ else
             ProvinciaInstalacion = contrato.ProvinciaInstalacion,
             LocalidadInstalacion = contrato.LocalidadInstalacion,
             AclaradorInstalacion = contrato.AclaradorInstalacion,
-            ObservacionesAlarma = contrato.ObservacionesAlarma
+            ObservacionesAlarma = contrato.ObservacionesAlarma,
+            FechaCreacion = contrato.FechaCreacion,
+            FechaModificacion = contrato.FechaModificacion
         };
-        modoEdicion = true;
+        
+        // Cargar y filtrar tarifas por empresa
+        await FiltrarTarifasPorEmpresa();
         
         // Cargar facturas del contrato
-        CargarFacturasContrato();
+        await CargarFacturasContrato();
         
         // Cargar observaciones históricas
-        _ = CargarObservacionesHistoricas();
+        await CargarObservacionesHistoricas();
         
         mostrarModal = true;
-        mensajeError = string.Empty;
-        mensajeExito = string.Empty;
     }
 
     private void CerrarModal()
     {
         mostrarModal = false;
-        contratoActual = new();
+        contratoSeleccionado = null;
     }
 
     private async Task GuardarContrato()
     {
         // Validar campos obligatorios para contratos de alarmas
-        if (string.IsNullOrWhiteSpace(contratoActual.DireccionInstalacionAlarma))
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.DireccionInstalacionAlarma))
         {
             mensajeError = "La dirección de instalación es obligatoria";
             guardando = false;
@@ -1315,21 +1390,21 @@ else
         }
 
         // Validar campos de titular IBAN si está marcado
-        if (contratoActual.TitularIbanDiferente)
+        if (contratoSeleccionado.TitularIbanDiferente)
         {
-            if (string.IsNullOrWhiteSpace(contratoActual.TitularIbanDni))
+            if (string.IsNullOrWhiteSpace(contratoSeleccionado.TitularIbanDni))
             {
                 mensajeError = "El DNI del titular IBAN es obligatorio";
                 guardando = false;
                 return;
             }
-            if (string.IsNullOrWhiteSpace(contratoActual.TitularIbanNombre))
+            if (string.IsNullOrWhiteSpace(contratoSeleccionado.TitularIbanNombre))
             {
                 mensajeError = "El nombre del titular IBAN es obligatorio";
                 guardando = false;
                 return;
             }
-            if (string.IsNullOrWhiteSpace(contratoActual.TitularIbanNumero))
+            if (string.IsNullOrWhiteSpace(contratoSeleccionado.TitularIbanNumero))
             {
                 mensajeError = "El número IBAN es obligatorio";
                 guardando = false;
@@ -1343,24 +1418,24 @@ else
         try
         {
             // Obtener datos del cliente seleccionado
-            if (contratoActual.IdCliente.HasValue)
+            if (contratoSeleccionado.IdCliente.HasValue)
             {
-                var cliente = clientes.FirstOrDefault(c => c.Id == contratoActual.IdCliente.Value);
+                var cliente = clientes.FirstOrDefault(c => c.Id == contratoSeleccionado.IdCliente.Value);
                 if (cliente != null)
                 {
-                    contratoActual.NombreCliente = cliente.Nombre;
-                    contratoActual.Dni = cliente.DniCif;
-                    contratoActual.Direccion = cliente.Direccion;
+                    contratoSeleccionado.NombreCliente = cliente.Nombre;
+                    contratoSeleccionado.Dni = cliente.DniCif;
+                    contratoSeleccionado.Direccion = cliente.Direccion;
                 }
             }
 
-            bool exito = modoEdicion 
-                ? await ContratoService.ActualizarAsync(contratoActual)
-                : await ContratoService.CrearAsync(contratoActual);
+            bool exito = contratoSeleccionado.Id > 0
+                ? await ContratoService.ActualizarAsync(contratoSeleccionado)
+                : await ContratoService.CrearAsync(contratoSeleccionado);
 
             if (exito)
             {
-                mensajeExito = modoEdicion ? "Contrato actualizado exitosamente" : "Contrato creado exitosamente";
+                mensajeExito = contratoSeleccionado.Id > 0 ? "Contrato actualizado exitosamente" : "Contrato creado exitosamente";
                 CerrarModal();
                 await CargarDatos();
             }
@@ -1421,13 +1496,13 @@ else
         }
     }
 
-    private async void CargarFacturasContrato()
+    private async Task CargarFacturasContrato()
     {
-        if (contratoActual == null) return;
+        if (contratoSeleccionado == null) return;
 
         try
         {
-            facturasContrato = await FicheroContratoService.ObtenerFacturasContratoAsync(contratoActual.Id);
+            facturasContrato = await FicheroContratoService.ObtenerFacturasContratoAsync(contratoSeleccionado.Id);
             StateHasChanged();
         }
         catch (Exception ex)
@@ -1438,7 +1513,7 @@ else
 
     private async Task CargarFactura(InputFileChangeEventArgs e)
     {
-        if (contratoActual == null) return;
+        if (contratoSeleccionado == null) return;
 
         try
         {
@@ -1454,7 +1529,7 @@ else
             var contenido = ms.ToArray();
 
             var resultado = await FicheroContratoService.GuardarFacturaAsync(
-                contratoActual.Id,
+                contratoSeleccionado.Id,
                 archivo.Name,
                 contenido
             );
@@ -1538,11 +1613,11 @@ else
     // Métodos para observaciones históricas
     private async Task CargarObservacionesHistoricas()
     {
-        if (contratoActual == null || contratoActual.Id == 0) return;
+        if (contratoSeleccionado == null || contratoSeleccionado.Id == 0) return;
         
         try
         {
-            observacionesHistoricas = await ObservacionContratoService.ObtenerPorContratoAsync(contratoActual.Id);
+            observacionesHistoricas = await ObservacionContratoService.ObtenerPorContratoAsync(contratoSeleccionado.Id);
             StateHasChanged();
         }
         catch (Exception ex)
@@ -1573,7 +1648,7 @@ else
 
     private async Task GuardarNuevaObservacion()
     {
-        if (string.IsNullOrWhiteSpace(nuevaObservacionTexto) || contratoActual == null || contratoActual.Id == 0)
+        if (string.IsNullOrWhiteSpace(nuevaObservacionTexto) || contratoSeleccionado == null || contratoSeleccionado.Id == 0)
             return;
 
         guardandoObservacion = true;
@@ -1581,11 +1656,11 @@ else
         {
             var nuevaObservacion = new ObservacionContrato
             {
-                IdContrato = contratoActual.Id,
+                IdContrato = contratoSeleccionado.Id,
                 Observacion = nuevaObservacionTexto.Trim(),
                 Usuario = AuthService.UsuarioActual?.NombreUsuario ?? "Sistema",
                 FechaHora = DateTime.Now,
-                EstadoContrato = contratoActual.Estado
+                EstadoContrato = contratoSeleccionado.Estado
             };
 
             await ObservacionContratoService.CrearAsync(nuevaObservacion);

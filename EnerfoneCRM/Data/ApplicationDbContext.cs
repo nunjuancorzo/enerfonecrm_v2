@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Servicio> Servicios { get; set; }
     public DbSet<Comercializadora> Comercializadoras { get; set; }
     public DbSet<Operadora> Operadoras { get; set; }
+    public DbSet<EmpresaAlarma> EmpresasAlarmas { get; set; }
     public DbSet<Contrato> Contratos { get; set; }
     public DbSet<Cliente> Clientes { get; set; }
     public DbSet<TareaPendiente> TareasPendientes { get; set; }
