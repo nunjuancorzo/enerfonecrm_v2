@@ -41,45 +41,40 @@
                     }
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContratos" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                            <i class="bi bi-folder2-open me-2" style="font-size: 1.4rem; vertical-align: middle; color: #FFA726;"></i>Contratos
+                            <i class="bi bi-folder2-open me-2" style="font-size: 1.4rem; vertical-align: middle; color: #FFA726;"></i>Contrataciones
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownContratos">
-                            <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
-                            @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                            <li class="dropdown-submenu">
+                                <a class="dropdown-item dropdown-toggle" href="#" id="navbarDropdownContratos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-file-earmark-text me-2" style="color: #4FC3F7;"></i>Contratos
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownContratos">
+                                    <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
+                                    @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                                    {
+                                        <li><a class="dropdown-item" href="contratos/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
+                                        <li><a class="dropdown-item" href="contratos/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
+                                    }
+                                </ul>
+                            </li>
+                            @if (AuthService.UsuarioActual?.Rol == "Administrador")
                             {
-                                <li><a class="dropdown-item" href="contratos/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
-                                <li><a class="dropdown-item" href="contratos/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="#" id="navbarDropdownTarifas" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-receipt-cutoff me-2" style="color: #AB47BC;"></i>Tarifas
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownTarifas">
+                                        <li><a class="dropdown-item" href="tarifas/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255, 255, 255, 0.1);"></li>
+                                        <li><a class="dropdown-item" href="tarifas/servicios"><i class="bi bi-gear-fill text-success me-2"></i>Servicios</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/comercializadoras"><i class="bi bi-building text-warning me-2"></i>Comercializadoras</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/operadoras"><i class="bi bi-broadcast text-primary me-2"></i>Operadoras</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/empresas-alarmas"><i class="bi bi-shield-fill-check text-danger me-2"></i>Empresas Alarmas</a></li>
+                                    </ul>
+                                </li>
                             }
-                        </ul>
-                    </li>
-                    @if (AuthService.UsuarioActual?.Rol == "Administrador")
-                    {
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownTarifas" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                                <i class="bi bi-receipt-cutoff me-2" style="font-size: 1.4rem; vertical-align: middle; color: #AB47BC;"></i>Tarifas
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownTarifas">
-                                <li><a class="dropdown-item" href="tarifas/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
-                                <li><a class="dropdown-item" href="tarifas/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
-                                <li><a class="dropdown-item" href="tarifas/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
-                                <li><hr class="dropdown-divider" style="border-color: rgba(255, 255, 255, 0.1);"></li>
-                                <li><a class="dropdown-item" href="tarifas/servicios"><i class="bi bi-gear-fill text-success me-2"></i>Servicios</a></li>
-                                <li><a class="dropdown-item" href="tarifas/comercializadoras"><i class="bi bi-building text-warning me-2"></i>Comercializadoras</a></li>
-                                <li><a class="dropdown-item" href="tarifas/operadoras"><i class="bi bi-broadcast text-primary me-2"></i>Operadoras</a></li>
-                                <li><a class="dropdown-item" href="tarifas/empresas-alarmas"><i class="bi bi-shield-fill-check text-danger me-2"></i>Empresas Alarmas</a></li>
-                            </ul>
-                        </li>
-                    }
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownUsuarios" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                            <i class="bi bi-person-badge-fill me-2" style="font-size: 1.4rem; vertical-align: middle; color: #42A5F5;"></i>Usuarios
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownUsuarios">
-                            @if (AuthService.EsAdministrador)
-                            {
-                                <li><a class="dropdown-item" href="usuarios"><i class="bi bi-people-fill text-primary me-2"></i>Gestión Usuarios</a></li>
-                            }
-                            <li><a class="dropdown-item" href="tareas"><i class="bi bi-list-check text-success me-2"></i>Tareas</a></li>
                         </ul>
                     </li>
                     
@@ -90,9 +85,26 @@
                                 <i class="bi bi-sliders me-2" style="font-size: 1.4rem; vertical-align: middle; color: #BDBDBD;"></i>Configuración
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfiguracion">
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="#" id="navbarDropdownUsuarios" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-person-badge-fill me-2" style="color: #42A5F5;"></i>Usuarios
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownUsuarios">
+                                        <li><a class="dropdown-item" href="usuarios"><i class="bi bi-people-fill text-primary me-2"></i>Gestión Usuarios</a></li>
+                                        <li><a class="dropdown-item" href="tareas"><i class="bi bi-list-check text-success me-2"></i>Tareas</a></li>
+                                    </ul>
+                                </li>
                                 <li><a class="dropdown-item" href="configuracion-empresa"><i class="bi bi-building me-2"></i>Datos de Empresa</a></li>
                                 <li><a class="dropdown-item" href="mensajes-bienvenida"><i class="bi bi-chat-left-text me-2"></i>Mensajes de Bienvenida</a></li>
                             </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link text-white px-3 py-2 rounded transition" href="tareas" style="transition: all 0.3s ease;">
+                                <i class="bi bi-list-check me-2" style="font-size: 1.4rem; vertical-align: middle; color: #66BB6A;"></i>Tareas
+                            </a>
                         </li>
                     }
                 </ul>
@@ -121,19 +133,81 @@
 
     .dropdown-menu {
         background-color: #2d2d2d;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: none !important;
     }
 
     .dropdown-item {
         color: #fff;
         transition: all 0.3s ease;
+        border: none !important;
+        border-top: none !important;
+        border-bottom: none !important;
     }
 
     .dropdown-item:hover {
         background-color: rgba(255, 255, 255, 0.1);
         color: #fff;
     }
+
+    /* Eliminar separadores entre elementos */
+    .dropdown-divider {
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Estilos para submenús multinivel */
+    .dropdown-submenu {
+        position: relative;
+        border: none !important;
+    }
+
+    .dropdown-submenu .dropdown-menu {
+        top: 0;
+        left: 100%;
+        margin-top: -1px;
+        margin-left: 0;
+        border: none !important;
+    }
+
+    .dropdown-submenu:hover > .dropdown-menu {
+        display: block;
+    }
+
+    .dropdown-submenu > .dropdown-item::after {
+        content: "\f285";
+        font-family: "bootstrap-icons";
+        float: right;
+        margin-left: 10px;
+        border: none !important;
+    }
+
+    /* Eliminar cualquier borde en los items de lista */
+    .dropdown-menu li {
+        border: none !important;
+        border-top: none !important;
+        border-bottom: none !important;
+    }
 </style>
+
+<script>
+    // Manejar submenús en dispositivos móviles
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropdownSubmenus = document.querySelectorAll('.dropdown-submenu > .dropdown-toggle');
+        
+        dropdownSubmenus.forEach(function(element) {
+            element.addEventListener('click', function(e) {
+                const nextEl = this.nextElementSibling;
+                if(nextEl && nextEl.classList.contains('dropdown-menu')) {
+                    e.preventDefault();
+                    if(nextEl.style.display === 'block') {
+                        nextEl.style.display = 'none';
+                    } else {
+                        nextEl.style.display = 'block';
+                    }
+                }
+            });
+        });
+    });
+</script>
 
 @code {
     private bool cargado = false;
