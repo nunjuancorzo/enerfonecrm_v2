@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A + Y - Alonso y Yani</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Montserrat:wght@300;400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navegación -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">A + Y</div>
+            <ul class="nav-menu">
+                <li><a href="#bienvenidos">¡BIENVENIDOS!</a></li>
+                <li><a href="#confirma">CONFIRMA TU ASISTENCIA</a></li>
+                <li><a href="#contacto">CONTÁCTANOS</a></li>
+                <li><a href="#libro">LIBRO DE VISITAS</a></li>
+                <li><a href="#ceremonia">CEREMONIA, BANQUETE Y MÁS</a></li>
+                <li><a href="#alojamiento">ALOJAMIENTO</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="bienvenidos">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1 class="couple-names">ALONSO LOPEZ & YANI PEREZ</h1>
+            <div class="wedding-date">9 de mayo de 2026</div>
+            <div class="wedding-location">Bodegas Paiva, Almendralejo</div>
+        </div>
+    </section>
+
+    <!-- Sección de Bienvenida -->
+    <section class="welcome-section">
+        <div class="container">
+            <h2>¡Nos Casamos!</h2>
+            <div class="couple-image-container">
+                <img src="image1.jpeg" alt="Alonso y Yani" class="couple-image">
+            </div>
+            <p class="intro-text">
+                Queridos familiares y amigos, es un honor para nosotros invitarlos a celebrar 
+                uno de los días más importantes de nuestras vidas. Queremos compartir con ustedes 
+                la alegría de nuestro matrimonio.
+            </p>
+            <div class="separator"></div>
+        </div>
+    </section>
+
+    <!-- Confirma tu Asistencia -->
+    <section class="confirmation-section" id="confirma">
+        <div class="container">
+            <h2>Confirma tu Asistencia</h2>
+            <p>Por favor, confirma tu asistencia antes del 15 de abril de 2026</p>
+            <form class="rsvp-form">
+                <div class="form-group">
+                    <input type="text" placeholder="Nombre completo" required>
+                </div>
+                <div class="form-group">
+                    <input type="email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <input type="tel" placeholder="Teléfono">
+                </div>
+                <div class="form-group">
+                    <select required>
+                        <option value="">¿Asistirás?</option>
+                        <option value="si">Sí, asistiré</option>
+                        <option value="no">No podré asistir</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="number" placeholder="Número de acompañantes" min="0" max="5">
+                </div>
+                <div class="form-group">
+                    <textarea placeholder="Alergias o necesidades alimentarias"></textarea>
+                </div>
+                <button type="submit" class="btn-submit">Confirmar Asistencia</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Imagen de los novios 2 -->
+    <section class="image-section">
+        <div class="container">
+            <div class="couple-image-container">
+                <img src="image2.jpeg" alt="Alonso y Yani" class="couple-image">
+            </div>
+        </div>
+    </section>
+
+    <!-- Ceremonia y Banquete -->
+    <section class="ceremony-section" id="ceremonia">
+        <div class="container">
+            <h2>Ceremonia, Banquete y Más</h2>
+            
+            <div class="event-timeline">
+                <div class="event-item">
+                    <div class="event-time">17:00</div>
+                    <div class="event-details">
+                        <h3>Ceremonia</h3>
+                        <p>Bodegas Paiva</p>
+                        <p>Ctra. de Don Benito, km 1</p>
+                        <p>06200 Almendralejo, Badajoz</p>
+                        <a href="https://maps.google.com" target="_blank" class="btn-map">Ver en el mapa</a>
+                    </div>
+                </div>
+                
+                <div class="event-item">
+                    <div class="event-time">18:30</div>
+                    <div class="event-details">
+                        <h3>Cóctel de Bienvenida</h3>
+                        <p>Jardines de Bodegas Paiva</p>
+                    </div>
+                </div>
+                
+                <div class="event-item">
+                    <div class="event-time">20:00</div>
+                    <div class="event-details">
+                        <h3>Banquete</h3>
+                        <p>Salón principal de Bodegas Paiva</p>
+                    </div>
+                </div>
+                
+                <div class="event-item">
+                    <div class="event-time">23:00</div>
+                    <div class="event-details">
+                        <h3>Fiesta y Baile</h3>
+                        <p>¡A bailar toda la noche!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Alojamiento -->
+    <section class="accommodation-section" id="alojamiento">
+        <div class="container">
+            <h2>Alojamiento</h2>
+            <p class="section-intro">Hemos reservado habitaciones en los siguientes hoteles para vuestra comodidad:</p>
+            
+            <div class="hotels-grid">
+                <div class="hotel-card">
+                    <h3>Hotel Acosta Centro</h3>
+                    <p>Plaza de la Constitución, 10</p>
+                    <p>06200 Almendralejo</p>
+                    <p class="hotel-phone">Tel: 924 66 16 00</p>
+                    <p class="hotel-note">Menciona "Boda Alonso y Yani" para tarifa especial</p>
+                </div>
+                
+                <div class="hotel-card">
+                    <h3>Hotel Vegas Altas</h3>
+                    <p>Avda. de Extremadura, 47</p>
+                    <p>06200 Almendralejo</p>
+                    <p class="hotel-phone">Tel: 924 67 11 00</p>
+                    <p class="hotel-note">Menciona "Boda Alonso y Yani" para tarifa especial</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Libro de Visitas -->
+    <section class="guestbook-section" id="libro">
+        <div class="container">
+            <h2>Libro de Visitas</h2>
+            <p>Déjanos tus mejores deseos</p>
+            
+            <form class="guestbook-form">
+                <div class="form-group">
+                    <input type="text" placeholder="Tu nombre" required>
+                </div>
+                <div class="form-group">
+                    <textarea placeholder="Escribe tu mensaje para los novios..." rows="5" required></textarea>
+                </div>
+                <button type="submit" class="btn-submit">Enviar Mensaje</button>
+            </form>
+            
+            <div class="messages-container">
+                <h3>Mensajes de nuestros invitados</h3>
+                <div class="message-item">
+                    <p class="message-author">María y Juan</p>
+                    <p class="message-text">"¡Felicidades! Nos hace mucha ilusión acompañaros en este día tan especial."</p>
+                    <p class="message-date">15 de marzo de 2026</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contacto -->
+    <section class="contact-section" id="contacto">
+        <div class="container">
+            <h2>Contáctanos</h2>
+            <p>Si tienes alguna pregunta, no dudes en contactarnos:</p>
+            
+            <div class="contact-info">
+                <div class="contact-item">
+                    <h3>Alonso</h3>
+                    <p>Tel: 600 000 000</p>
+                    <p>Email: alonso.lopez@email.com</p>
+                </div>
+                
+                <div class="contact-item">
+                    <h3>Yani</h3>
+                    <p>Tel: 600 000 001</p>
+                    <p>Email: yani.perez@email.com</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 Alonso & Yani | Con todo nuestro amor</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
