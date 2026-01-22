@@ -25,17 +25,23 @@
                         <i class="bi bi-folder-fill me-2" style="color: #EF5350;"></i>
                         Repositorio de Archivos
                     </h2>
-                    @if (AuthService.EsAdministrador)
-                    {
-                        <div>
-                            <button class="btn btn-primary me-2" @onclick="MostrarModalNuevaCarpeta">
+                    <div class="d-flex gap-2">
+                        @if (!string.IsNullOrEmpty(rutaActual))
+                        {
+                            <button class="btn btn-secondary" @onclick="VolverCarpetaAnterior">
+                                <i class="bi bi-arrow-left me-2"></i>Volver
+                            </button>
+                        }
+                        @if (AuthService.EsAdministrador)
+                        {
+                            <button class="btn btn-primary" @onclick="MostrarModalNuevaCarpeta">
                                 <i class="bi bi-folder-plus me-2"></i>Nueva Carpeta
                             </button>
                             <button class="btn btn-success" @onclick="MostrarModalSubirArchivo">
                                 <i class="bi bi-upload me-2"></i>Subir Archivo
                             </button>
-                        </div>
-                    }
+                        }
+                    </div>
                 </div>
             </div>
         </div>
@@ -121,7 +127,7 @@
                                             <tr style="cursor: pointer;" @onclick="@(() => NavegarACarpeta(carpeta.Nombre))">
                                                 <td><i class="bi bi-folder-fill text-warning" style="font-size: 1.5rem;"></i></td>
                                                 <td><strong>@carpeta.Nombre</strong></td>
-                                                <td>
+                                                <td class="text-center">
                                                     @if (!string.IsNullOrEmpty(carpeta.LogoBase64))
                                                     {
                                                         <img src="data:@carpeta.LogoMimeType;base64,@carpeta.LogoBase64" alt="Logo" style="max-height: 40px; max-width: 60px; object-fit: contain;" />
@@ -361,6 +367,31 @@
                 ? nombreCarpeta 
                 : Path.Combine(rutaActual, nombreCarpeta);
             
+            var rutaUrl = rutaActual.Replace(Path.DirectorySeparatorChar.ToString(), "/");
+            Navigation.NavigateTo($"/repositorio/{rutaUrl}", false);
+        }
+        
+        _ = CargarContenido();
+    }
+    
+    private void VolverCarpetaAnterior()
+    {
+        if (string.IsNullOrEmpty(rutaActual))
+            return;
+            
+        var partesRuta = rutaActual.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (partesRuta.Length == 1)
+        {
+            // Estamos en el primer nivel, volver a la raíz
+            rutaActual = "";
+            Navigation.NavigateTo("/repositorio", false);
+        }
+        else
+        {
+            // Eliminar la última parte de la ruta
+            var nuevaRuta = string.Join(Path.DirectorySeparatorChar.ToString(), partesRuta.Take(partesRuta.Length - 1));
+            rutaActual = nuevaRuta;
             var rutaUrl = rutaActual.Replace(Path.DirectorySeparatorChar.ToString(), "/");
             Navigation.NavigateTo($"/repositorio/{rutaUrl}", false);
         }
