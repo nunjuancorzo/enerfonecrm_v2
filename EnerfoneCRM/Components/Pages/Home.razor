@@ -84,7 +84,7 @@ else if (AuthService.EstaAutenticado)
                                     <small class="text-muted"><i class="bi bi-person"></i> Tus clientes</small>
                                 }
                             </div>
-                            <div class="bg-primary bg-opacity-10 rounded-3 p-3">
+                            <div class="bg-primary bg-opacity-10 rounded-3 p-3 d-flex align-items-center justify-content-center">
                                 <i class="bi bi-people-fill fs-3 text-primary"></i>
                             </div>
                         </div>
@@ -101,7 +101,7 @@ else if (AuthService.EstaAutenticado)
                                 <h3 class="fw-bold mb-0">@contratosActivos</h3>
                                 <small class="text-muted"><i class="bi bi-check-circle"></i> En el sistema</small>
                             </div>
-                            <div class="bg-success bg-opacity-10 rounded-3 p-3">
+                            <div class="bg-success bg-opacity-10 rounded-3 p-3 d-flex align-items-center justify-content-center">
                                 <i class="bi bi-file-text-fill fs-3 text-success"></i>
                             </div>
                         </div>
@@ -118,7 +118,7 @@ else if (AuthService.EstaAutenticado)
                                 <h3 class="fw-bold mb-0">@comisionTotal.ToString("N2") €</h3>
                                 <small class="text-muted"><i class="bi bi-cash-coin"></i> Suma de comisiones</small>
                             </div>
-                            <div class="bg-warning bg-opacity-10 rounded-3 p-3">
+                            <div class="bg-warning bg-opacity-10 rounded-3 p-3 d-flex align-items-center justify-content-center">
                                 <i class="bi bi-currency-euro fs-3 text-warning"></i>
                             </div>
                         </div>
@@ -135,7 +135,7 @@ else if (AuthService.EstaAutenticado)
                                 <h3 class="fw-bold mb-0">@contratosPendientes</h3>
                                 <small class="text-info"><i class="bi bi-clock"></i> Requieren atención</small>
                             </div>
-                            <div class="bg-danger bg-opacity-10 rounded-3 p-3">
+                            <div class="bg-danger bg-opacity-10 rounded-3 p-3 d-flex align-items-center justify-content-center">
                                 <i class="bi bi-exclamation-triangle-fill fs-3 text-danger"></i>
                             </div>
                         </div>
@@ -156,7 +156,9 @@ else if (AuthService.EstaAutenticado)
                         <div class="row text-center">
                             <div class="col-4">
                                 <div class="mb-3">
-                                    <i class="bi bi-lightning-charge-fill fs-1 text-warning"></i>
+                                    <div class="d-flex justify-content-center">
+                                        <i class="bi bi-lightning-charge-fill fs-1 text-warning"></i>
+                                    </div>
                                     <h4 class="fw-bold mt-2">@contratosEnergia</h4>
                                     <p class="text-muted small mb-0">Energía</p>
                                     <div class="progress mt-2" style="height: 8px;">
@@ -166,7 +168,9 @@ else if (AuthService.EstaAutenticado)
                             </div>
                             <div class="col-4">
                                 <div class="mb-3">
-                                    <i class="bi bi-telephone-fill fs-1 text-primary"></i>
+                                    <div class="d-flex justify-content-center">
+                                        <i class="bi bi-telephone-fill fs-1 text-primary"></i>
+                                    </div>
                                     <h4 class="fw-bold mt-2">@contratosTelefonia</h4>
                                     <p class="text-muted small mb-0">Telefonía</p>
                                     <div class="progress mt-2" style="height: 8px;">
@@ -176,7 +180,9 @@ else if (AuthService.EstaAutenticado)
                             </div>
                             <div class="col-4">
                                 <div class="mb-3">
-                                    <i class="bi bi-shield-fill-check fs-1 text-danger"></i>
+                                    <div class="d-flex justify-content-center">
+                                        <i class="bi bi-shield-fill-check fs-1 text-danger"></i>
+                                    </div>
                                     <h4 class="fw-bold mt-2">@contratosAlarmas</h4>
                                     <p class="text-muted small mb-0">Alarmas</p>
                                     <div class="progress mt-2" style="height: 8px;">
@@ -196,7 +202,7 @@ else if (AuthService.EstaAutenticado)
                                     @foreach (var actividad in actividadesRecientes)
                                     {
                                         <div class="d-flex align-items-center mb-3">
-                                            <div class="bg-@actividad.Color bg-opacity-10 rounded-circle p-2 me-3">
+                                            <div class="bg-@actividad.Color bg-opacity-10 rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
                                                 <i class="bi bi-@actividad.Icono text-@actividad.Color"></i>
                                             </div>
                                             <div class="flex-grow-1">

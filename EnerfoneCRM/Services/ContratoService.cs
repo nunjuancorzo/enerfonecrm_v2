@@ -163,6 +163,31 @@ namespace EnerfoneCRM.Services
                 .AsNoTracking()
                 .ToListAsync();
             
+            // Cargar los nombres de cliente para los que tengan IdCliente pero nombre_cliente vacío
+            var idsClientes = contratos
+                .Where(c => c.IdCliente.HasValue && string.IsNullOrEmpty(c.NombreCliente))
+                .Select(c => c.IdCliente!.Value)
+                .Distinct()
+                .ToList();
+            
+            if (idsClientes.Any())
+            {
+                var clientes = await context.Clientes
+                    .Where(c => idsClientes.Contains(c.Id))
+                    .Select(c => new { c.Id, c.Nombre })
+                    .ToListAsync();
+                
+                var diccionarioClientes = clientes.ToDictionary(c => c.Id, c => c.Nombre);
+                
+                foreach (var contrato in contratos.Where(c => c.IdCliente.HasValue && string.IsNullOrEmpty(c.NombreCliente)))
+                {
+                    if (diccionarioClientes.TryGetValue(contrato.IdCliente!.Value, out var nombreCliente))
+                    {
+                        contrato.NombreCliente = nombreCliente;
+                    }
+                }
+            }
+            
             return contratos;
         }
 

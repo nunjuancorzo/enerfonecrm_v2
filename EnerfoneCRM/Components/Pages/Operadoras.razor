@@ -6,6 +6,7 @@
 @inject OperadoraService OperadoraService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject RepositorioService RepositorioService
 
 <PageTitle>Enerfone CRM</PageTitle>
 
@@ -534,6 +535,11 @@ else
                 exito = await OperadoraService.CrearAsync(operadoraSeleccionada);
                 if (exito)
                 {
+                    // Crear carpeta en el repositorio con logo
+                    RepositorioService.CrearCarpetaOperadora(
+                        operadoraSeleccionada.Nombre, 
+                        operadoraSeleccionada.LogoContenido, 
+                        operadoraSeleccionada.LogoArchivo);
                     mensajeExito = "Operadora creada correctamente";
                 }
                 else

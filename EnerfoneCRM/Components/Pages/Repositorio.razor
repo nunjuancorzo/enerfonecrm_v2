@@ -1,0 +1,688 @@
+@page "/repositorio"
+@page "/repositorio/{*RutaCarpeta}"
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Repositorio de Archivos</PageTitle>
+
+<div class="container-fluid mt-4">
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Debe iniciar sesión para acceder al repositorio.
+        </div>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2>
+                        <i class="bi bi-folder-fill me-2" style="color: #EF5350;"></i>
+                        Repositorio de Archivos
+                    </h2>
+                    <div class="d-flex gap-2">
+                        @if (!string.IsNullOrEmpty(rutaActual))
+                        {
+                            <button class="btn btn-secondary" @onclick="VolverCarpetaAnterior">
+                                <i class="bi bi-arrow-left me-2"></i>Volver
+                            </button>
+                        }
+                        @if (AuthService.EsAdministrador)
+                        {
+                            <button class="btn btn-primary" @onclick="MostrarModalNuevaCarpeta">
+                                <i class="bi bi-folder-plus me-2"></i>Nueva Carpeta
+                            </button>
+                            <button class="btn btn-success" @onclick="MostrarModalSubirArchivo">
+                                <i class="bi bi-upload me-2"></i>Subir Archivo
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Breadcrumb de navegación -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a href="javascript:void(0)" @onclick="@(() => NavegarACarpeta(""))" style="cursor: pointer;">
+                                <i class="bi bi-house-fill"></i> Raíz
+                            </a>
+                        </li>
+                        @{
+                            var partesRuta = ObtenerRutaBreadcrumb();
+                            for (int i = 0; i < partesRuta.Count; i++)
+                            {
+                                var parte = partesRuta[i];
+                                var esUltimo = i == partesRuta.Count - 1;
+                                var rutaHasta = string.Join(Path.DirectorySeparatorChar.ToString(), partesRuta.Take(i + 1));
+                                
+                                if (esUltimo)
+                                {
+                                    <li class="breadcrumb-item active" aria-current="page">@parte</li>
+                                }
+                                else
+                                {
+                                    <li class="breadcrumb-item">
+                                        <a href="javascript:void(0)" @onclick="@(() => NavegarARuta(rutaHasta))" style="cursor: pointer;">
+                                            @parte
+                                        </a>
+                                    </li>
+                                }
+                            }
+                        }
+                    </ol>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Lista de carpetas y archivos -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-body">
+                        @if (cargando)
+                        {
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                            </div>
+                        }
+                        else if (!carpetas.Any() && !archivos.Any())
+                        {
+                            <div class="text-center py-5 text-muted">
+                                <i class="bi bi-folder-x" style="font-size: 3rem;"></i>
+                                <p class="mt-3">No hay carpetas ni archivos en este directorio</p>
+                                @if (AuthService.EsAdministrador)
+                                {
+                                    <p>Utilice los botones de arriba para crear carpetas o subir archivos</p>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 50px;"><i class="bi bi-file-earmark"></i></th>
+                                            <th>Nombre</th>
+                                            <th style="width: 80px;"></th>
+                                            <th>Tamaño</th>
+                                            <th>Fecha de modificación</th>
+                                            <th style="width: 150px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var carpeta in carpetas)
+                                        {
+                                            <tr style="cursor: pointer;" @onclick="@(() => NavegarACarpeta(carpeta.Nombre))">
+                                                <td><i class="bi bi-folder-fill text-warning" style="font-size: 1.5rem;"></i></td>
+                                                <td><strong>@carpeta.Nombre</strong></td>
+                                                <td class="text-center">
+                                                    @if (!string.IsNullOrEmpty(carpeta.LogoBase64))
+                                                    {
+                                                        <img src="data:@carpeta.LogoMimeType;base64,@carpeta.LogoBase64" alt="Logo" style="max-height: 40px; max-width: 60px; object-fit: contain;" />
+                                                    }
+                                                </td>
+                                                <td>-</td>
+                                                <td>@carpeta.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                                <td>
+                                                    @if (AuthService.EsAdministrador)
+                                                    {
+                                                        <button class="btn btn-sm btn-danger" @onclick:stopPropagation="true" @onclick="@(() => EliminarCarpeta(carpeta.Nombre))">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                        @foreach (var archivo in archivos)
+                                        {
+                                            <tr>
+                                                <td><i class="@ObtenerIconoArchivo(archivo.Nombre)" style="font-size: 1.5rem;"></i></td>
+                                                <td>@archivo.Nombre</td>
+                                                <td>-</td>
+                                                <td>@FormatearTamano(archivo.Tamano)</td>
+                                                <td>@archivo.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary me-1" @onclick="@(() => DescargarArchivo(archivo.Nombre))">
+                                                        <i class="bi bi-download"></i>
+                                                    </button>
+                                                    @if (AuthService.EsAdministrador)
+                                                    {
+                                                        <button class="btn btn-sm btn-danger" @onclick="@(() => EliminarArchivo(archivo.Nombre))">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Nueva Carpeta -->
+@if (mostrarModalNuevaCarpeta)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nueva Carpeta</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalNuevaCarpeta"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la carpeta</label>
+                        <input type="text" class="form-control" @bind="nombreNuevaCarpeta" placeholder="Nombre de la carpeta" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalNuevaCarpeta">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="CrearCarpeta">Crear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Subir Archivo -->
+@if (mostrarModalSubirArchivo)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Subir Archivo</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalSubirArchivo"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Seleccione archivo</label>
+                        <InputFile class="form-control" OnChange="SeleccionarArchivo" multiple />
+                    </div>
+                    @if (!string.IsNullOrEmpty(mensajeSubida))
+                    {
+                        <div class="alert alert-info">@mensajeSubida</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalSubirArchivo">Cancelar</button>
+                    <button type="button" class="btn btn-success" @onclick="SubirArchivos" disabled="@(archivosSeleccionados.Count == 0)">
+                        Subir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+    function downloadFile(fileName, mimeType, base64String) {
+        const linkSource = `data:${mimeType};base64,${base64String}`;
+        const downloadLink = document.createElement('a');
+        downloadLink.href = linkSource;
+        downloadLink.download = fileName;
+        downloadLink.click();
+    }
+</script>
+
+@code {
+    [Parameter]
+    public string? RutaCarpeta { get; set; }
+
+    private bool cargando = true;
+    private string rutaActual = "";
+    private List<ElementoRepositorio> carpetas = new();
+    private List<ElementoRepositorio> archivos = new();
+    
+    private bool mostrarModalNuevaCarpeta = false;
+    private string nombreNuevaCarpeta = "";
+    
+    private bool mostrarModalSubirArchivo = false;
+    private List<IBrowserFile> archivosSeleccionados = new();
+    private string mensajeSubida = "";
+
+    private string directorioBase = "";
+    private bool inicializado = false;
+
+    protected override void OnInitialized()
+    {
+        // Directorio base para el repositorio
+        directorioBase = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "repositorio");
+        
+        // Crear directorio si no existe
+        if (!Directory.Exists(directorioBase))
+        {
+            Directory.CreateDirectory(directorioBase);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !inicializado)
+        {
+            await AuthService.CargarSesionAsync();
+            
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            // Establecer ruta actual desde el parámetro de URL
+            rutaActual = string.IsNullOrEmpty(RutaCarpeta) ? "" : RutaCarpeta.Replace("/", Path.DirectorySeparatorChar.ToString());
+
+            inicializado = true;
+            await CargarContenido();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarContenido()
+    {
+        cargando = true;
+        carpetas.Clear();
+        archivos.Clear();
+
+        try
+        {
+            var rutaCompleta = Path.Combine(directorioBase, rutaActual);
+
+            if (Directory.Exists(rutaCompleta))
+            {
+                // Cargar carpetas
+                var directorios = Directory.GetDirectories(rutaCompleta);
+                foreach (var dir in directorios)
+                {
+                    var dirInfo = new DirectoryInfo(dir);
+                    var (logoBase64, logoMimeType) = ObtenerLogoComoBase64(dir);
+                    
+                    carpetas.Add(new ElementoRepositorio
+                    {
+                        Nombre = dirInfo.Name,
+                        EsCarpeta = true,
+                        FechaModificacion = dirInfo.LastWriteTime,
+                        LogoBase64 = logoBase64,
+                        LogoMimeType = logoMimeType
+                    });
+                }
+
+                // Cargar archivos (excluyendo logos en carpetas de entidades)
+                var files = Directory.GetFiles(rutaCompleta);
+                foreach (var file in files)
+                {
+                    var fileInfo = new FileInfo(file);
+                    
+                    // Excluir archivos de logo en carpetas de entidades
+                    if (EsArchivoLogoDeEntidad(fileInfo.Name))
+                        continue;
+                        
+                    archivos.Add(new ElementoRepositorio
+                    {
+                        Nombre = fileInfo.Name,
+                        EsCarpeta = false,
+                        Tamano = fileInfo.Length,
+                        FechaModificacion = fileInfo.LastWriteTime
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al cargar contenido: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void NavegarACarpeta(string nombreCarpeta)
+    {
+        if (string.IsNullOrEmpty(nombreCarpeta))
+        {
+            rutaActual = "";
+            Navigation.NavigateTo("/repositorio", false);
+        }
+        else
+        {
+            rutaActual = string.IsNullOrEmpty(rutaActual) 
+                ? nombreCarpeta 
+                : Path.Combine(rutaActual, nombreCarpeta);
+            
+            var rutaUrl = rutaActual.Replace(Path.DirectorySeparatorChar.ToString(), "/");
+            Navigation.NavigateTo($"/repositorio/{rutaUrl}", false);
+        }
+        
+        _ = CargarContenido();
+    }
+    
+    private void VolverCarpetaAnterior()
+    {
+        if (string.IsNullOrEmpty(rutaActual))
+            return;
+            
+        var partesRuta = rutaActual.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (partesRuta.Length == 1)
+        {
+            // Estamos en el primer nivel, volver a la raíz
+            rutaActual = "";
+            Navigation.NavigateTo("/repositorio", false);
+        }
+        else
+        {
+            // Eliminar la última parte de la ruta
+            var nuevaRuta = string.Join(Path.DirectorySeparatorChar.ToString(), partesRuta.Take(partesRuta.Length - 1));
+            rutaActual = nuevaRuta;
+            var rutaUrl = rutaActual.Replace(Path.DirectorySeparatorChar.ToString(), "/");
+            Navigation.NavigateTo($"/repositorio/{rutaUrl}", false);
+        }
+        
+        _ = CargarContenido();
+    }
+    
+    private void NavegarARuta(string ruta)
+    {
+        if (string.IsNullOrEmpty(ruta))
+        {
+            rutaActual = "";
+            Navigation.NavigateTo("/repositorio", false);
+        }
+        else
+        {
+            rutaActual = ruta;
+            var rutaUrl = rutaActual.Replace(Path.DirectorySeparatorChar.ToString(), "/");
+            Navigation.NavigateTo($"/repositorio/{rutaUrl}", false);
+        }
+        
+        _ = CargarContenido();
+    }
+
+    private List<string> ObtenerRutaBreadcrumb()
+    {
+        if (string.IsNullOrEmpty(rutaActual))
+            return new List<string>();
+
+        return rutaActual.Split(Path.DirectorySeparatorChar).ToList();
+    }
+
+    private void MostrarModalNuevaCarpeta()
+    {
+        nombreNuevaCarpeta = "";
+        mostrarModalNuevaCarpeta = true;
+    }
+
+    private void CerrarModalNuevaCarpeta()
+    {
+        mostrarModalNuevaCarpeta = false;
+        nombreNuevaCarpeta = "";
+    }
+
+    private async Task CrearCarpeta()
+    {
+        if (string.IsNullOrWhiteSpace(nombreNuevaCarpeta))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Por favor, ingrese un nombre para la carpeta");
+            return;
+        }
+
+        try
+        {
+            var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreNuevaCarpeta);
+            Directory.CreateDirectory(rutaCompleta);
+            
+            CerrarModalNuevaCarpeta();
+            await CargarContenido();
+            await JSRuntime.InvokeVoidAsync("alert", "Carpeta creada exitosamente");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al crear carpeta: {ex.Message}");
+        }
+    }
+
+    private void MostrarModalSubirArchivo()
+    {
+        archivosSeleccionados.Clear();
+        mensajeSubida = "";
+        mostrarModalSubirArchivo = true;
+    }
+
+    private void CerrarModalSubirArchivo()
+    {
+        mostrarModalSubirArchivo = false;
+        archivosSeleccionados.Clear();
+        mensajeSubida = "";
+    }
+
+    private void SeleccionarArchivo(InputFileChangeEventArgs e)
+    {
+        archivosSeleccionados = e.GetMultipleFiles().ToList();
+        mensajeSubida = $"{archivosSeleccionados.Count} archivo(s) seleccionado(s)";
+    }
+
+    private async Task SubirArchivos()
+    {
+        if (archivosSeleccionados.Count == 0)
+            return;
+
+        try
+        {
+            foreach (var archivo in archivosSeleccionados)
+            {
+                var rutaCompleta = Path.Combine(directorioBase, rutaActual, archivo.Name);
+                
+                using var stream = archivo.OpenReadStream(maxAllowedSize: 52428800); // 50MB máximo
+                using var fileStream = File.Create(rutaCompleta);
+                await stream.CopyToAsync(fileStream);
+            }
+
+            CerrarModalSubirArchivo();
+            await CargarContenido();
+            await JSRuntime.InvokeVoidAsync("alert", $"{archivosSeleccionados.Count} archivo(s) subido(s) exitosamente");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al subir archivos: {ex.Message}");
+        }
+    }
+
+    private async Task DescargarArchivo(string nombreArchivo)
+    {
+        try
+        {
+            var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            
+            if (!File.Exists(rutaCompleta))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "El archivo no existe");
+                return;
+            }
+
+            var bytes = await File.ReadAllBytesAsync(rutaCompleta);
+            var base64 = Convert.ToBase64String(bytes);
+            var mimeType = ObtenerMimeType(nombreArchivo);
+            
+            await JSRuntime.InvokeVoidAsync("downloadFile", nombreArchivo, mimeType, base64);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al descargar archivo: {ex.Message}");
+        }
+    }
+
+    private string ObtenerMimeType(string nombreArchivo)
+    {
+        var extension = Path.GetExtension(nombreArchivo).ToLower();
+        return extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xls" => "application/vnd.ms-excel",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".zip" => "application/zip",
+            ".rar" => "application/x-rar-compressed",
+            ".txt" => "text/plain",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private async Task EliminarCarpeta(string nombreCarpeta)
+    {
+        var confirmar = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de eliminar la carpeta '{nombreCarpeta}' y todo su contenido?");
+        
+        if (confirmar)
+        {
+            try
+            {
+                var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreCarpeta);
+                Directory.Delete(rutaCompleta, true);
+                await CargarContenido();
+                await JSRuntime.InvokeVoidAsync("alert", "Carpeta eliminada exitosamente");
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error al eliminar carpeta: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task EliminarArchivo(string nombreArchivo)
+    {
+        var confirmar = await JSRuntime.InvokeAsync<bool>("confirm", $"¿Está seguro de eliminar el archivo '{nombreArchivo}'?");
+        
+        if (confirmar)
+        {
+            try
+            {
+                var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+                File.Delete(rutaCompleta);
+                await CargarContenido();
+                await JSRuntime.InvokeVoidAsync("alert", "Archivo eliminado exitosamente");
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Error al eliminar archivo: {ex.Message}");
+            }
+        }
+    }
+
+    private string ObtenerIconoArchivo(string nombreArchivo)
+    {
+        var extension = Path.GetExtension(nombreArchivo).ToLower();
+        return extension switch
+        {
+            ".pdf" => "bi bi-file-pdf-fill text-danger",
+            ".doc" or ".docx" => "bi bi-file-word-fill text-primary",
+            ".xls" or ".xlsx" => "bi bi-file-excel-fill text-success",
+            ".jpg" or ".jpeg" or ".png" or ".gif" => "bi bi-file-image-fill text-info",
+            ".zip" or ".rar" => "bi bi-file-zip-fill text-warning",
+            ".txt" => "bi bi-file-text-fill text-secondary",
+            _ => "bi bi-file-earmark-fill text-muted"
+        };
+    }
+
+    private string FormatearTamano(long bytes)
+    {
+        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+        int counter = 0;
+        decimal number = bytes;
+        
+        while (Math.Round(number / 1024) >= 1)
+        {
+            number /= 1024;
+            counter++;
+        }
+        
+        return $"{number:n2} {suffixes[counter]}";
+    }
+
+    private (string? base64, string? mimeType) ObtenerLogoComoBase64(string rutaCarpeta)
+    {
+        try
+        {
+            // Buscar archivos de imagen en la carpeta
+            var extensionesLogo = new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg" };
+            var archivosEnCarpeta = Directory.GetFiles(rutaCarpeta);
+            
+            foreach (var archivo in archivosEnCarpeta)
+            {
+                var extension = Path.GetExtension(archivo).ToLower();
+                if (extensionesLogo.Contains(extension))
+                {
+                    // Leer el archivo y convertirlo a base64
+                    var bytes = File.ReadAllBytes(archivo);
+                    var base64 = Convert.ToBase64String(bytes);
+                    var mimeType = extension switch
+                    {
+                        ".png" => "image/png",
+                        ".jpg" or ".jpeg" => "image/jpeg",
+                        ".gif" => "image/gif",
+                        ".svg" => "image/svg+xml",
+                        _ => "image/png"
+                    };
+                    
+                    return (base64, mimeType);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Error al cargar logo en {rutaCarpeta}: {ex.Message}");
+        }
+        
+        return (null, null);
+    }
+    
+    private bool EsArchivoLogoDeEntidad(string nombreArchivo)
+    {
+        // Verificar si estamos en una subcarpeta de Energía, Telefonía o Alarmas
+        var partesRuta = rutaActual.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (partesRuta.Length >= 2)
+        {
+            var carpetaPrincipal = partesRuta[0];
+            if (carpetaPrincipal == "Energía" || carpetaPrincipal == "Telefonía" || carpetaPrincipal == "Alarmas")
+            {
+                // Está en una subcarpeta de entidad, verificar si es una imagen
+                var extension = Path.GetExtension(nombreArchivo).ToLower();
+                var extensionesLogo = new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg" };
+                return extensionesLogo.Contains(extension);
+            }
+        }
+        
+        return false;
+    }
+
+    private class ElementoRepositorio
+    {
+        public string Nombre { get; set; } = "";
+        public bool EsCarpeta { get; set; }
+        public long Tamano { get; set; }
+        public DateTime FechaModificacion { get; set; }
+        public string? LogoBase64 { get; set; }
+        public string? LogoMimeType { get; set; }
+    }
+}
