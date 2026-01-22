@@ -6,6 +6,7 @@
 @inject ComercializadoraService ComercializadoraService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject RepositorioService RepositorioService
 
 <PageTitle>Enerfone CRM</PageTitle>
 
@@ -469,6 +470,11 @@ else
                 exito = await ComercializadoraService.CrearAsync(comercializadoraSeleccionada);
                 if (exito)
                 {
+                    // Crear carpeta en el repositorio con logo
+                    RepositorioService.CrearCarpetaComercializadora(
+                        comercializadoraSeleccionada.Nombre, 
+                        comercializadoraSeleccionada.LogoContenido, 
+                        comercializadoraSeleccionada.LogoArchivo);
                     mensajeExito = "Comercializadora creada correctamente";
                 }
                 else

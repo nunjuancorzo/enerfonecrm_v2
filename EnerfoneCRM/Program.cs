@@ -75,6 +75,7 @@ builder.Services.AddScoped<FicheroContratoService>();
 builder.Services.AddScoped<ObservacionContratoService>();
 builder.Services.AddScoped<LogActivacionContratoService>();
 builder.Services.AddScoped<MensajeBienvenidaService>();
+builder.Services.AddSingleton<RepositorioService>();
 
 // Configurar tamaño máximo de formularios y archivos
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
@@ -113,5 +114,12 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+// Sincronizar entidades existentes en el repositorio
+using (var scope = app.Services.CreateScope())
+{
+    var repositorioService = scope.ServiceProvider.GetRequiredService<RepositorioService>();
+    await repositorioService.SincronizarEntidadesExistentes();
+}
 
 app.Run();

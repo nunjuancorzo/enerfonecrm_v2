@@ -6,6 +6,7 @@
 @inject EmpresaAlarmaService EmpresaAlarmaService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject RepositorioService RepositorioService
 
 <PageTitle>Enerfone CRM</PageTitle>
 
@@ -534,6 +535,11 @@ else
                 exito = await EmpresaAlarmaService.CrearAsync(empresaAlarmaSeleccionada);
                 if (exito)
                 {
+                    // Crear carpeta en el repositorio con logo
+                    RepositorioService.CrearCarpetaEmpresaAlarma(
+                        empresaAlarmaSeleccionada.Nombre, 
+                        empresaAlarmaSeleccionada.LogoContenido, 
+                        empresaAlarmaSeleccionada.LogoArchivo);
                     mensajeExito = "Empresa de alarma creada correctamente";
                 }
                 else

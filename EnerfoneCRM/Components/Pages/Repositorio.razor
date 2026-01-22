@@ -1,4 +1,5 @@
 @page "/repositorio"
+@page "/repositorio/{*RutaCarpeta}"
 @using EnerfoneCRM.Services
 @inject AuthService AuthService
 @inject NavigationManager Navigation
@@ -26,8 +27,8 @@
                     </h2>
                     @if (AuthService.EsAdministrador)
                     {
-                        <div class="btn-group">
-                            <button class="btn btn-primary" @onclick="MostrarModalNuevaCarpeta">
+                        <div>
+                            <button class="btn btn-primary me-2" @onclick="MostrarModalNuevaCarpeta">
                                 <i class="bi bi-folder-plus me-2"></i>Nueva Carpeta
                             </button>
                             <button class="btn btn-success" @onclick="MostrarModalSubirArchivo">
@@ -45,13 +46,31 @@
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item">
-                            <a href="#" @onclick="@(() => NavegarACarpeta(""))">
+                            <a href="javascript:void(0)" @onclick="@(() => NavegarACarpeta(""))" style="cursor: pointer;">
                                 <i class="bi bi-house-fill"></i> Raíz
                             </a>
                         </li>
-                        @foreach (var parte in ObtenerRutaBreadcrumb())
-                        {
-                            <li class="breadcrumb-item active" aria-current="page">@parte</li>
+                        @{
+                            var partesRuta = ObtenerRutaBreadcrumb();
+                            for (int i = 0; i < partesRuta.Count; i++)
+                            {
+                                var parte = partesRuta[i];
+                                var esUltimo = i == partesRuta.Count - 1;
+                                var rutaHasta = string.Join(Path.DirectorySeparatorChar.ToString(), partesRuta.Take(i + 1));
+                                
+                                if (esUltimo)
+                                {
+                                    <li class="breadcrumb-item active" aria-current="page">@parte</li>
+                                }
+                                else
+                                {
+                                    <li class="breadcrumb-item">
+                                        <a href="javascript:void(0)" @onclick="@(() => NavegarARuta(rutaHasta))" style="cursor: pointer;">
+                                            @parte
+                                        </a>
+                                    </li>
+                                }
+                            }
                         }
                     </ol>
                 </nav>
@@ -90,12 +109,10 @@
                                         <tr>
                                             <th style="width: 50px;"><i class="bi bi-file-earmark"></i></th>
                                             <th>Nombre</th>
+                                            <th style="width: 80px;"></th>
                                             <th>Tamaño</th>
                                             <th>Fecha de modificación</th>
-                                            @if (AuthService.EsAdministrador)
-                                            {
-                                                <th style="width: 150px;">Acciones</th>
-                                            }
+                                            <th style="width: 150px;">Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -104,16 +121,22 @@
                                             <tr style="cursor: pointer;" @onclick="@(() => NavegarACarpeta(carpeta.Nombre))">
                                                 <td><i class="bi bi-folder-fill text-warning" style="font-size: 1.5rem;"></i></td>
                                                 <td><strong>@carpeta.Nombre</strong></td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(carpeta.LogoBase64))
+                                                    {
+                                                        <img src="data:@carpeta.LogoMimeType;base64,@carpeta.LogoBase64" alt="Logo" style="max-height: 40px; max-width: 60px; object-fit: contain;" />
+                                                    }
+                                                </td>
                                                 <td>-</td>
                                                 <td>@carpeta.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
-                                                @if (AuthService.EsAdministrador)
-                                                {
-                                                    <td>
+                                                <td>
+                                                    @if (AuthService.EsAdministrador)
+                                                    {
                                                         <button class="btn btn-sm btn-danger" @onclick:stopPropagation="true" @onclick="@(() => EliminarCarpeta(carpeta.Nombre))">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
-                                                    </td>
-                                                }
+                                                    }
+                                                </td>
                                             </tr>
                                         }
                                         @foreach (var archivo in archivos)
@@ -121,27 +144,20 @@
                                             <tr>
                                                 <td><i class="@ObtenerIconoArchivo(archivo.Nombre)" style="font-size: 1.5rem;"></i></td>
                                                 <td>@archivo.Nombre</td>
+                                                <td>-</td>
                                                 <td>@FormatearTamano(archivo.Tamano)</td>
                                                 <td>@archivo.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
-                                                @if (AuthService.EsAdministrador)
-                                                {
-                                                    <td>
-                                                        <button class="btn btn-sm btn-primary me-1" @onclick="@(() => DescargarArchivo(archivo.Nombre))">
-                                                            <i class="bi bi-download"></i>
-                                                        </button>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary me-1" @onclick="@(() => DescargarArchivo(archivo.Nombre))">
+                                                        <i class="bi bi-download"></i>
+                                                    </button>
+                                                    @if (AuthService.EsAdministrador)
+                                                    {
                                                         <button class="btn btn-sm btn-danger" @onclick="@(() => EliminarArchivo(archivo.Nombre))">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
-                                                    </td>
-                                                }
-                                                else
-                                                {
-                                                    <td>
-                                                        <button class="btn btn-sm btn-primary" @onclick="@(() => DescargarArchivo(archivo.Nombre))">
-                                                            <i class="bi bi-download"></i>
-                                                        </button>
-                                                    </td>
-                                                }
+                                                    }
+                                                </td>
                                             </tr>
                                         }
                                     </tbody>
@@ -211,7 +227,20 @@
     </div>
 }
 
+<script>
+    function downloadFile(fileName, mimeType, base64String) {
+        const linkSource = `data:${mimeType};base64,${base64String}`;
+        const downloadLink = document.createElement('a');
+        downloadLink.href = linkSource;
+        downloadLink.download = fileName;
+        downloadLink.click();
+    }
+</script>
+
 @code {
+    [Parameter]
+    public string? RutaCarpeta { get; set; }
+
     private bool cargando = true;
     private string rutaActual = "";
     private List<ElementoRepositorio> carpetas = new();
@@ -251,6 +280,9 @@
                 return;
             }
 
+            // Establecer ruta actual desde el parámetro de URL
+            rutaActual = string.IsNullOrEmpty(RutaCarpeta) ? "" : RutaCarpeta.Replace("/", Path.DirectorySeparatorChar.ToString());
+
             inicializado = true;
             await CargarContenido();
             StateHasChanged();
@@ -274,19 +306,28 @@
                 foreach (var dir in directorios)
                 {
                     var dirInfo = new DirectoryInfo(dir);
+                    var (logoBase64, logoMimeType) = ObtenerLogoComoBase64(dir);
+                    
                     carpetas.Add(new ElementoRepositorio
                     {
                         Nombre = dirInfo.Name,
                         EsCarpeta = true,
-                        FechaModificacion = dirInfo.LastWriteTime
+                        FechaModificacion = dirInfo.LastWriteTime,
+                        LogoBase64 = logoBase64,
+                        LogoMimeType = logoMimeType
                     });
                 }
 
-                // Cargar archivos
+                // Cargar archivos (excluyendo logos en carpetas de entidades)
                 var files = Directory.GetFiles(rutaCompleta);
                 foreach (var file in files)
                 {
                     var fileInfo = new FileInfo(file);
+                    
+                    // Excluir archivos de logo en carpetas de entidades
+                    if (EsArchivoLogoDeEntidad(fileInfo.Name))
+                        continue;
+                        
                     archivos.Add(new ElementoRepositorio
                     {
                         Nombre = fileInfo.Name,
@@ -312,12 +353,33 @@
         if (string.IsNullOrEmpty(nombreCarpeta))
         {
             rutaActual = "";
+            Navigation.NavigateTo("/repositorio", false);
         }
         else
         {
             rutaActual = string.IsNullOrEmpty(rutaActual) 
                 ? nombreCarpeta 
                 : Path.Combine(rutaActual, nombreCarpeta);
+            
+            var rutaUrl = rutaActual.Replace(Path.DirectorySeparatorChar.ToString(), "/");
+            Navigation.NavigateTo($"/repositorio/{rutaUrl}", false);
+        }
+        
+        _ = CargarContenido();
+    }
+    
+    private void NavegarARuta(string ruta)
+    {
+        if (string.IsNullOrEmpty(ruta))
+        {
+            rutaActual = "";
+            Navigation.NavigateTo("/repositorio", false);
+        }
+        else
+        {
+            rutaActual = ruta;
+            var rutaUrl = rutaActual.Replace(Path.DirectorySeparatorChar.ToString(), "/");
+            Navigation.NavigateTo($"/repositorio/{rutaUrl}", false);
         }
         
         _ = CargarContenido();
@@ -414,10 +476,46 @@
 
     private async Task DescargarArchivo(string nombreArchivo)
     {
-        var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
-        var rutaRelativa = Path.Combine("repositorio", rutaActual, nombreArchivo).Replace("\\", "/");
-        
-        await JSRuntime.InvokeVoidAsync("open", $"/{rutaRelativa}", "_blank");
+        try
+        {
+            var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            
+            if (!File.Exists(rutaCompleta))
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "El archivo no existe");
+                return;
+            }
+
+            var bytes = await File.ReadAllBytesAsync(rutaCompleta);
+            var base64 = Convert.ToBase64String(bytes);
+            var mimeType = ObtenerMimeType(nombreArchivo);
+            
+            await JSRuntime.InvokeVoidAsync("downloadFile", nombreArchivo, mimeType, base64);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al descargar archivo: {ex.Message}");
+        }
+    }
+
+    private string ObtenerMimeType(string nombreArchivo)
+    {
+        var extension = Path.GetExtension(nombreArchivo).ToLower();
+        return extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xls" => "application/vnd.ms-excel",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".zip" => "application/zip",
+            ".rar" => "application/x-rar-compressed",
+            ".txt" => "text/plain",
+            _ => "application/octet-stream"
+        };
     }
 
     private async Task EliminarCarpeta(string nombreCarpeta)
@@ -490,11 +588,70 @@
         return $"{number:n2} {suffixes[counter]}";
     }
 
+    private (string? base64, string? mimeType) ObtenerLogoComoBase64(string rutaCarpeta)
+    {
+        try
+        {
+            // Buscar archivos de imagen en la carpeta
+            var extensionesLogo = new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg" };
+            var archivosEnCarpeta = Directory.GetFiles(rutaCarpeta);
+            
+            foreach (var archivo in archivosEnCarpeta)
+            {
+                var extension = Path.GetExtension(archivo).ToLower();
+                if (extensionesLogo.Contains(extension))
+                {
+                    // Leer el archivo y convertirlo a base64
+                    var bytes = File.ReadAllBytes(archivo);
+                    var base64 = Convert.ToBase64String(bytes);
+                    var mimeType = extension switch
+                    {
+                        ".png" => "image/png",
+                        ".jpg" or ".jpeg" => "image/jpeg",
+                        ".gif" => "image/gif",
+                        ".svg" => "image/svg+xml",
+                        _ => "image/png"
+                    };
+                    
+                    return (base64, mimeType);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Error al cargar logo en {rutaCarpeta}: {ex.Message}");
+        }
+        
+        return (null, null);
+    }
+    
+    private bool EsArchivoLogoDeEntidad(string nombreArchivo)
+    {
+        // Verificar si estamos en una subcarpeta de Energía, Telefonía o Alarmas
+        var partesRuta = rutaActual.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (partesRuta.Length >= 2)
+        {
+            var carpetaPrincipal = partesRuta[0];
+            if (carpetaPrincipal == "Energía" || carpetaPrincipal == "Telefonía" || carpetaPrincipal == "Alarmas")
+            {
+                // Está en una subcarpeta de entidad, verificar si es una imagen
+                var extension = Path.GetExtension(nombreArchivo).ToLower();
+                var extensionesLogo = new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg" };
+                return extensionesLogo.Contains(extension);
+            }
+        }
+        
+        return false;
+    }
+
     private class ElementoRepositorio
     {
         public string Nombre { get; set; } = "";
         public bool EsCarpeta { get; set; }
         public long Tamano { get; set; }
         public DateTime FechaModificacion { get; set; }
+        public string? LogoBase64 { get; set; }
+        public string? LogoMimeType { get; set; }
     }
 }
