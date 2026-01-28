@@ -1,0 +1,134 @@
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+@if (isAuthorized)
+{
+    @ChildContent
+}
+else if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool isAuthorized = false;
+    private bool isLoading = true;
+    private System.Timers.Timer? inactivityTimer;
+    private DateTime lastActivity = DateTime.Now;
+    private const int InactivityTimeoutMinutes = 30;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await VerificarAutenticacion();
+        AuthService.OnAuthStateChanged += OnAuthStateChanged;
+        
+        // Configurar timer de inactividad
+        ConfigurarTimerInactividad();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && isAuthorized)
+        {
+            // Registrar actividad del usuario en eventos de mouse y teclado
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                document.addEventListener('mousemove', function() {
+                    window.lastUserActivity = new Date().getTime();
+                });
+                document.addEventListener('keydown', function() {
+                    window.lastUserActivity = new Date().getTime();
+                });
+                document.addEventListener('click', function() {
+                    window.lastUserActivity = new Date().getTime();
+                });
+                window.lastUserActivity = new Date().getTime();
+            ");
+        }
+    }
+
+    private void ConfigurarTimerInactividad()
+    {
+        inactivityTimer = new System.Timers.Timer(60000); // Verificar cada minuto
+        inactivityTimer.Elapsed += async (sender, e) => await VerificarInactividad();
+        inactivityTimer.Start();
+    }
+
+    private async Task VerificarInactividad()
+    {
+        try
+        {
+            if (isAuthorized)
+            {
+                // Obtener última actividad desde JavaScript
+                var lastActivityTimestamp = await JSRuntime.InvokeAsync<long>("eval", "window.lastUserActivity || 0");
+                
+                if (lastActivityTimestamp > 0)
+                {
+                    var lastActivityTime = DateTimeOffset.FromUnixTimeMilliseconds(lastActivityTimestamp).DateTime;
+                    var minutosInactivo = (DateTime.Now - lastActivityTime).TotalMinutes;
+
+                    if (minutosInactivo >= InactivityTimeoutMinutes)
+                    {
+                        Console.WriteLine($"[AUTH] Sesión expirada por inactividad ({minutosInactivo:F1} minutos)");
+                        await AuthService.Logout();
+                        await InvokeAsync(() =>
+                        {
+                            Navigation.NavigateTo("/login?expired=true", true);
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AUTH] Error al verificar inactividad: {ex.Message}");
+        }
+    }
+
+    private async Task VerificarAutenticacion()
+    {
+        isLoading = true;
+        
+        // Intentar cargar sesión existente
+        await AuthService.CargarSesionAsync();
+        
+        isAuthorized = AuthService.EstaAutenticado;
+        isLoading = false;
+
+        if (!isAuthorized)
+        {
+            var uri = new Uri(Navigation.Uri);
+            var returnUrl = uri.PathAndQuery;
+            
+            // No redirigir si ya está en login
+            if (!returnUrl.Contains("/login"))
+            {
+                Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(returnUrl)}", true);
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async void OnAuthStateChanged()
+    {
+        await VerificarAutenticacion();
+    }
+
+    public void Dispose()
+    {
+        AuthService.OnAuthStateChanged -= OnAuthStateChanged;
+        inactivityTimer?.Stop();
+        inactivityTimer?.Dispose();
+    }
+}

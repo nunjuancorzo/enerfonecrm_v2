@@ -1,5 +1,9 @@
 ﻿@inherits LayoutComponentBase
+@using EnerfoneCRM.Services
 @inject EnerfoneCRM.Services.EnvironmentService EnvService
+@inject EnerfoneCRM.Services.AuthService AuthService
+@inject NavigationManager NavigationManager
+@implements IDisposable
 
 <div class="page">
     <NavMenu />
@@ -24,8 +28,39 @@
     <span class="dismiss">🗙</span>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+@code {
+    private bool verificado = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !verificado)
+        {
+            verificado = true;
+            
+            // Obtener la URL actual
+            var uri = new Uri(NavigationManager.Uri);
+            var rutaActual = uri.AbsolutePath.ToLower();
+            
+            // Páginas que NO requieren autenticación
+            var paginasPublicas = new[] { "/login", "/registro", "/" };
+            
+            // Si no es una página pública, verificar autenticación
+            if (!paginasPublicas.Contains(rutaActual))
+            {
+                // Cargar sesión si no está cargada
+                await AuthService.CargarSesionAsync();
+                
+                if (!AuthService.EstaAutenticado)
+                {
+                    // No autenticado, redirigir a login
+                    NavigationManager.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(uri.PathAndQuery)}", true);
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        // Limpieza si es necesaria
+    }
+}

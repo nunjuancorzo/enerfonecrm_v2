@@ -25,25 +25,21 @@
         <div class="collapse navbar-collapse" id="navbarMain">
             @if (cargado && AuthService.EstaAutenticado)
             {
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-4">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-4 align-items-center">
                     <li class="nav-item">
-                        <a class="nav-link text-white px-3 py-2 rounded transition" href="home" style="transition: all 0.3s ease;">
-                            <i class="bi bi-house-heart-fill me-2" style="font-size: 1.4rem; vertical-align: middle; color: #4FC3F7;"></i>Inicio
+                        <a class="nav-link text-white px-3 py-2 rounded transition d-flex align-items-center" href="home" style="transition: all 0.3s ease;" title="Inicio">
+                            <i class="bi bi-house-heart-fill" style="font-size: 2rem; vertical-align: middle; color: #4FC3F7;"></i>
                         </a>
                     </li>
-                    @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
-                    {
-                        <li class="nav-item">
-                            <a class="nav-link text-white px-3 py-2 rounded transition" href="clientes" style="transition: all 0.3s ease;">
-                                <i class="bi bi-person-vcard-fill me-2" style="font-size: 1.4rem; vertical-align: middle; color: #66BB6A;"></i>Clientes
-                            </a>
-                        </li>
-                    }
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContratos" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
                             <i class="bi bi-folder2-open me-2" style="font-size: 1.4rem; vertical-align: middle; color: #FFA726;"></i>Contrataciones
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownContratos">
+                            @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                            {
+                                <li><a class="dropdown-item" href="clientes"><i class="bi bi-person-vcard-fill me-2" style="color: #66BB6A;"></i>Clientes</a></li>
+                            }
                             <li class="dropdown-submenu">
                                 <a class="dropdown-item dropdown-toggle" href="#" id="navbarDropdownContratos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="bi bi-file-earmark-text me-2" style="color: #4FC3F7;"></i>Contratos
@@ -78,17 +74,35 @@
                         </ul>
                     </li>
                     
-                    <li class="nav-item">
-                        <a class="nav-link text-white px-3 py-2 rounded transition" href="repositorio" style="transition: all 0.3s ease;">
-                            <i class="bi bi-folder-fill me-2" style="font-size: 1.4rem; vertical-align: middle; color: #EF5350;"></i>Repositorio
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownGestiones" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
+                            <i class="bi bi-briefcase me-2" style="font-size: 1.4rem; vertical-align: middle; color: #66BB6A;"></i>Gestiones
                         </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownGestiones">
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-cash-coin me-2" style="color: #4CAF50;"></i>Liquidaciones</a></li>
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-tag me-2" style="color: #FF9800;"></i>Ofertas</a></li>
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-arrow-repeat me-2" style="color: #2196F3;"></i>Renovaciones</a></li>
+                            <li><a class="dropdown-item" href="repositorio"><i class="bi bi-folder-fill me-2" style="color: #EF5350;"></i>Repositorio</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContabilidad" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
+                            <i class="bi bi-calculator me-2" style="font-size: 1.4rem; vertical-align: middle; color: #9C27B0;"></i>Contabilidad
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownContabilidad">
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-text me-2" style="color: #3F51B5;"></i>Presupuestos</a></li>
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-receipt me-2" style="color: #4CAF50;"></i>Facturas venta</a></li>
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-people me-2" style="color: #FF5722;"></i>Proveedores</a></li>
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-minus me-2" style="color: #F44336;"></i>Facturas compra</a></li>
+                        </ul>
                     </li>
                     
                     @if (AuthService.EsAdministrador)
                     {
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownConfiguracion" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                                <i class="bi bi-sliders me-2" style="font-size: 1.4rem; vertical-align: middle; color: #BDBDBD;"></i>Configuración
+                            <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownConfiguracion" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;" title="Configuración">
+                                <i class="bi bi-sliders" style="font-size: 1.4rem; vertical-align: middle; color: #BDBDBD;"></i>
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfiguracion">
                                 <li class="dropdown-submenu">

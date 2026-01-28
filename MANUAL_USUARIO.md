@@ -96,7 +96,7 @@ Selecciona "Contratos Energía" en el menú principal
 3. El cliente ya estará preseleccionado
 
 **Campos Obligatorios:**
-- **Tipo de Operación**: Cambio comercializadora, CC con cambio titularidad, o Alta nueva
+- **Tipo de Operación**: Cambio comercializadora, Cambio de Comercializadora con Cambio de titularidad, o Alta nueva
 - **Comercializadora**: Empresa suministradora de energía
 - **Tarifa**: Tarifa contratada (se filtra según la comercializadora seleccionada)
 - **Dirección de Suministro**:

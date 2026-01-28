@@ -116,6 +116,7 @@
                                             <th style="width: 50px;"><i class="bi bi-file-earmark"></i></th>
                                             <th>Nombre</th>
                                             <th style="width: 80px;"></th>
+                                            <th style="width: 250px;">Descripción</th>
                                             <th>Tamaño</th>
                                             <th>Fecha de modificación</th>
                                             <th style="width: 150px;">Acciones</th>
@@ -127,12 +128,13 @@
                                             <tr style="cursor: pointer;" @onclick="@(() => NavegarACarpeta(carpeta.Nombre))">
                                                 <td><i class="bi bi-folder-fill text-warning" style="font-size: 1.5rem;"></i></td>
                                                 <td><strong>@carpeta.Nombre</strong></td>
-                                                <td class="text-center">
+                                                <td>
                                                     @if (!string.IsNullOrEmpty(carpeta.LogoBase64))
                                                     {
-                                                        <img src="data:@carpeta.LogoMimeType;base64,@carpeta.LogoBase64" alt="Logo" style="max-height: 40px; max-width: 60px; object-fit: contain;" />
+                                                        <img src="data:@carpeta.LogoMimeType;base64,@carpeta.LogoBase64" alt="Logo" style="max-height: 80px; max-width: 120px; object-fit: contain; display: block;" />
                                                     }
                                                 </td>
+                                                <td>-</td>
                                                 <td>-</td>
                                                 <td>@carpeta.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
                                                 <td>
@@ -151,15 +153,21 @@
                                                 <td><i class="@ObtenerIconoArchivo(archivo.Nombre)" style="font-size: 1.5rem;"></i></td>
                                                 <td>@archivo.Nombre</td>
                                                 <td>-</td>
+                                                <td>
+                                                    <small class="text-muted">@(string.IsNullOrEmpty(archivo.Descripcion) ? "-" : archivo.Descripcion)</small>
+                                                </td>
                                                 <td>@FormatearTamano(archivo.Tamano)</td>
                                                 <td>@archivo.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
                                                 <td>
-                                                    <button class="btn btn-sm btn-primary me-1" @onclick="@(() => DescargarArchivo(archivo.Nombre))">
+                                                    <button class="btn btn-sm btn-primary me-1" @onclick="@(() => DescargarArchivo(archivo.Nombre))" title="Descargar">
                                                         <i class="bi bi-download"></i>
                                                     </button>
                                                     @if (AuthService.EsAdministrador)
                                                     {
-                                                        <button class="btn btn-sm btn-danger" @onclick="@(() => EliminarArchivo(archivo.Nombre))">
+                                                        <button class="btn btn-sm btn-secondary me-1" @onclick="@(() => MostrarModalEditarDescripcionArchivo(archivo.Nombre, archivo.Descripcion))" title="Editar descripción">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-danger" @onclick="@(() => EliminarArchivo(archivo.Nombre))" title="Eliminar">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
                                                     }
@@ -202,6 +210,36 @@
     </div>
 }
 
+<!-- Modal Editar Descripción -->
+@if (mostrarModalEditarDescripcion)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Descripción</h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalEditarDescripcion"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Archivo</label>
+                        <input type="text" class="form-control" value="@archivoParaEditar" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción (máx. 40 caracteres)</label>
+                        <input type="text" class="form-control" @bind="descripcionEditando" maxlength="40" placeholder="Breve descripción del archivo" />
+                        <small class="text-muted">Deje vacío para eliminar la descripción</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalEditarDescripcion">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="GuardarDescripcionEditada">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <!-- Modal Subir Archivo -->
 @if (mostrarModalSubirArchivo)
 {
@@ -216,6 +254,11 @@
                     <div class="mb-3">
                         <label class="form-label">Seleccione archivo</label>
                         <InputFile class="form-control" OnChange="SeleccionarArchivo" multiple />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descripción (opcional, máx. 40 caracteres)</label>
+                        <input type="text" class="form-control" @bind="descripcionArchivo" maxlength="40" placeholder="Breve descripción del archivo" />
+                        <small class="text-muted">La descripción se aplicará a todos los archivos seleccionados</small>
                     </div>
                     @if (!string.IsNullOrEmpty(mensajeSubida))
                     {
@@ -258,6 +301,11 @@
     private bool mostrarModalSubirArchivo = false;
     private List<IBrowserFile> archivosSeleccionados = new();
     private string mensajeSubida = "";
+    private string descripcionArchivo = "";
+    
+    private bool mostrarModalEditarDescripcion = false;
+    private string archivoParaEditar = "";
+    private string descripcionEditando = "";
 
     private string directorioBase = "";
     private bool inicializado = false;
@@ -330,8 +378,8 @@
                 {
                     var fileInfo = new FileInfo(file);
                     
-                    // Excluir archivos de logo en carpetas de entidades
-                    if (EsArchivoLogoDeEntidad(fileInfo.Name))
+                    // Excluir archivos de logo en carpetas de entidades y archivos .meta
+                    if (EsArchivoLogoDeEntidad(fileInfo.Name) || fileInfo.Extension.ToLower() == ".meta")
                         continue;
                         
                     archivos.Add(new ElementoRepositorio
@@ -339,7 +387,8 @@
                         Nombre = fileInfo.Name,
                         EsCarpeta = false,
                         Tamano = fileInfo.Length,
-                        FechaModificacion = fileInfo.LastWriteTime
+                        FechaModificacion = fileInfo.LastWriteTime,
+                        Descripcion = ObtenerDescripcionArchivo(fileInfo.Name)
                     });
                 }
             }
@@ -463,6 +512,7 @@
     {
         archivosSeleccionados.Clear();
         mensajeSubida = "";
+        descripcionArchivo = "";
         mostrarModalSubirArchivo = true;
     }
 
@@ -471,6 +521,7 @@
         mostrarModalSubirArchivo = false;
         archivosSeleccionados.Clear();
         mensajeSubida = "";
+        descripcionArchivo = "";
     }
 
     private void SeleccionarArchivo(InputFileChangeEventArgs e)
@@ -493,6 +544,12 @@
                 using var stream = archivo.OpenReadStream(maxAllowedSize: 52428800); // 50MB máximo
                 using var fileStream = File.Create(rutaCompleta);
                 await stream.CopyToAsync(fileStream);
+                
+                // Guardar descripción si existe
+                if (!string.IsNullOrWhiteSpace(descripcionArchivo))
+                {
+                    GuardarDescripcionArchivo(archivo.Name, descripcionArchivo);
+                }
             }
 
             CerrarModalSubirArchivo();
@@ -579,6 +636,14 @@
             {
                 var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
                 File.Delete(rutaCompleta);
+                
+                // Eliminar archivo .meta si existe
+                var rutaMeta = rutaCompleta + ".meta";
+                if (File.Exists(rutaMeta))
+                {
+                    File.Delete(rutaMeta);
+                }
+                
                 await CargarContenido();
                 await JSRuntime.InvokeVoidAsync("alert", "Archivo eliminado exitosamente");
             }
@@ -676,6 +741,90 @@
         return false;
     }
 
+    private void MostrarModalEditarDescripcionArchivo(string nombreArchivo, string? descripcionActual)
+    {
+        archivoParaEditar = nombreArchivo;
+        descripcionEditando = descripcionActual ?? "";
+        mostrarModalEditarDescripcion = true;
+    }
+
+    private void CerrarModalEditarDescripcion()
+    {
+        mostrarModalEditarDescripcion = false;
+        archivoParaEditar = "";
+        descripcionEditando = "";
+    }
+
+    private async Task GuardarDescripcionEditada()
+    {
+        try
+        {
+            var rutaArchivo = Path.Combine(directorioBase, rutaActual, archivoParaEditar);
+            var rutaMeta = rutaArchivo + ".meta";
+            
+            if (string.IsNullOrWhiteSpace(descripcionEditando))
+            {
+                // Si la descripción está vacía, eliminar el archivo .meta
+                if (File.Exists(rutaMeta))
+                {
+                    File.Delete(rutaMeta);
+                }
+            }
+            else
+            {
+                // Guardar la descripción en un archivo .meta
+                File.WriteAllText(rutaMeta, descripcionEditando);
+            }
+            
+            CerrarModalEditarDescripcion();
+            await CargarContenido();
+            await JSRuntime.InvokeVoidAsync("alert", "Descripción actualizada correctamente");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al guardar descripción: {ex.Message}");
+        }
+    }
+
+    private void GuardarDescripcionArchivo(string nombreArchivo, string descripcion)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(descripcion))
+                return;
+
+            var rutaArchivo = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            var rutaMeta = rutaArchivo + ".meta";
+            
+            // Guardar la descripción en un archivo .meta
+            File.WriteAllText(rutaMeta, descripcion);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Error al guardar descripción: {ex.Message}");
+        }
+    }
+
+    private string? ObtenerDescripcionArchivo(string nombreArchivo)
+    {
+        try
+        {
+            var rutaArchivo = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            var rutaMeta = rutaArchivo + ".meta";
+            
+            if (File.Exists(rutaMeta))
+            {
+                return File.ReadAllText(rutaMeta);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Error al leer descripción: {ex.Message}");
+        }
+        
+        return null;
+    }
+
     private class ElementoRepositorio
     {
         public string Nombre { get; set; } = "";
@@ -684,5 +833,6 @@
         public DateTime FechaModificacion { get; set; }
         public string? LogoBase64 { get; set; }
         public string? LogoMimeType { get; set; }
+        public string? Descripcion { get; set; }
     }
 }

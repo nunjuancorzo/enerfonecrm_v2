@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v8.0": {
-      "EnerfoneCRM/20260122": {
+      "EnerfoneCRM/20260128": {
         "dependencies": {
           "Blazored.LocalStorage": "4.5.0",
           "Blazored.SessionStorage": "2.4.0",
@@ -419,7 +419,7 @@
     }
   },
   "libraries": {
-    "EnerfoneCRM/20260122": {
+    "EnerfoneCRM/20260128": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

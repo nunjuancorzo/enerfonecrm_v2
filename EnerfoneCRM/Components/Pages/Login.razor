@@ -30,6 +30,13 @@
                     <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
                         <DataAnnotationsValidator />
 
+                        @if (sesionExpirada)
+                        {
+                            <div class="alert alert-warning" role="alert">
+                                <i class="bi bi-clock-history me-2"></i>Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.
+                            </div>
+                        }
+
                         @if (!string.IsNullOrEmpty(mensajeError))
                         {
                             <div class="alert alert-danger" role="alert">
@@ -83,12 +90,23 @@
     private string mensajeError = string.Empty;
     private bool cargando = false;
     private string? logoUrl;
+    private bool sesionExpirada = false;
+    private string? returnUrl;
 
     [Inject]
     private Blazored.LocalStorage.ILocalStorageService LocalStorage { get; set; } = default!;
 
+    [SupplyParameterFromQuery]
+    public string? Expired { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
+        sesionExpirada = Expired == "true";
+        returnUrl = ReturnUrl;
+        
         await CargarLogoAsync();
         await CargarCredencialesGuardadasAsync();
     }
@@ -155,8 +173,10 @@
                     Console.WriteLine("[LOGIN] Credenciales eliminadas");
                 }
                 
-                Console.WriteLine("[LOGIN] Navegando a home...");
-                Navigation.NavigateTo("/home", false);
+                // Navegar a la URL de retorno o a home
+                var targetUrl = !string.IsNullOrEmpty(returnUrl) ? returnUrl : "/home";
+                Console.WriteLine($"[LOGIN] Navegando a {targetUrl}...");
+                Navigation.NavigateTo(targetUrl, false);
             }
             else
             {
