@@ -535,11 +535,8 @@ else
                 exito = await EmpresaAlarmaService.CrearAsync(empresaAlarmaSeleccionada);
                 if (exito)
                 {
-                    // Crear carpeta en el repositorio con logo
-                    RepositorioService.CrearCarpetaEmpresaAlarma(
-                        empresaAlarmaSeleccionada.Nombre, 
-                        empresaAlarmaSeleccionada.LogoContenido, 
-                        empresaAlarmaSeleccionada.LogoArchivo);
+                    // Crear carpeta en el repositorio para documentos
+                    RepositorioService.CrearCarpetaEmpresaAlarma(empresaAlarmaSeleccionada.Nombre);
                     mensajeExito = "Empresa de alarma creada correctamente";
                 }
                 else

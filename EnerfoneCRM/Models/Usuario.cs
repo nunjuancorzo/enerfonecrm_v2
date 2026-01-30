@@ -44,7 +44,13 @@ public class Usuario
 
     [Column("rol")]
     [StringLength(45)]
-    public string Rol { get; set; } = "Usuario";
+    public string Rol { get; set; } = "Colaborador";
+
+    [Column("gestor_id")]
+    public int? GestorId { get; set; }
+
+    [Column("jefe_ventas_id")]
+    public int? JefeVentasId { get; set; }
 
     [Column("comercializadora")]
     [StringLength(255)]

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Microsoft.Extensions.Configuration;
 
 namespace EnerfoneCRM.Services
 {
@@ -8,10 +9,19 @@ namespace EnerfoneCRM.Services
         private readonly string directorioBase;
         private readonly IServiceProvider _serviceProvider;
 
-        public RepositorioService(IServiceProvider serviceProvider)
+        public RepositorioService(IServiceProvider serviceProvider, IConfiguration configuration)
         {
             _serviceProvider = serviceProvider;
-            directorioBase = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "repositorio");
+            
+            // Usar ruta configurable, con fallback a storage local en desarrollo
+            var storagePath = configuration.GetValue<string>("StoragePath");
+            if (string.IsNullOrEmpty(storagePath))
+            {
+                // En desarrollo, usar carpeta storage dentro del proyecto
+                storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+            }
+            
+            directorioBase = Path.Combine(storagePath, "repositorio");
             InicializarEstructura();
         }
 
@@ -35,7 +45,7 @@ namespace EnerfoneCRM.Services
             }
         }
 
-        public void CrearCarpetaComercializadora(string nombreComercializadora, byte[]? logoContenido = null, string? logoArchivo = null)
+        public void CrearCarpetaComercializadora(string nombreComercializadora)
         {
             try
             {
@@ -43,13 +53,7 @@ namespace EnerfoneCRM.Services
                 if (!Directory.Exists(rutaComercializadora))
                 {
                     Directory.CreateDirectory(rutaComercializadora);
-                }
-
-                // Copiar logo si existe
-                if (logoContenido != null && logoContenido.Length > 0 && !string.IsNullOrEmpty(logoArchivo))
-                {
-                    var rutaLogo = Path.Combine(rutaComercializadora, logoArchivo);
-                    File.WriteAllBytes(rutaLogo, logoContenido);
+                    Console.WriteLine($"[RepositorioService] Carpeta creada: {rutaComercializadora}");
                 }
             }
             catch (Exception ex)
@@ -58,7 +62,7 @@ namespace EnerfoneCRM.Services
             }
         }
 
-        public void CrearCarpetaOperadora(string nombreOperadora, byte[]? logoContenido = null, string? logoArchivo = null)
+        public void CrearCarpetaOperadora(string nombreOperadora)
         {
             try
             {
@@ -66,13 +70,7 @@ namespace EnerfoneCRM.Services
                 if (!Directory.Exists(rutaOperadora))
                 {
                     Directory.CreateDirectory(rutaOperadora);
-                }
-
-                // Copiar logo si existe
-                if (logoContenido != null && logoContenido.Length > 0 && !string.IsNullOrEmpty(logoArchivo))
-                {
-                    var rutaLogo = Path.Combine(rutaOperadora, logoArchivo);
-                    File.WriteAllBytes(rutaLogo, logoContenido);
+                    Console.WriteLine($"[RepositorioService] Carpeta creada: {rutaOperadora}");
                 }
             }
             catch (Exception ex)
@@ -81,7 +79,7 @@ namespace EnerfoneCRM.Services
             }
         }
 
-        public void CrearCarpetaEmpresaAlarma(string nombreEmpresa, byte[]? logoContenido = null, string? logoArchivo = null)
+        public void CrearCarpetaEmpresaAlarma(string nombreEmpresa)
         {
             try
             {
@@ -89,13 +87,7 @@ namespace EnerfoneCRM.Services
                 if (!Directory.Exists(rutaEmpresa))
                 {
                     Directory.CreateDirectory(rutaEmpresa);
-                }
-
-                // Copiar logo si existe
-                if (logoContenido != null && logoContenido.Length > 0 && !string.IsNullOrEmpty(logoArchivo))
-                {
-                    var rutaLogo = Path.Combine(rutaEmpresa, logoArchivo);
-                    File.WriteAllBytes(rutaLogo, logoContenido);
+                    Console.WriteLine($"[RepositorioService] Carpeta creada: {rutaEmpresa}");
                 }
             }
             catch (Exception ex)
@@ -115,7 +107,7 @@ namespace EnerfoneCRM.Services
                 var comercializadoras = await comercializadoraService.ObtenerTodasAsync();
                 foreach (var comercializadora in comercializadoras)
                 {
-                    CrearCarpetaComercializadora(comercializadora.Nombre, comercializadora.LogoContenido, comercializadora.LogoArchivo);
+                    CrearCarpetaComercializadora(comercializadora.Nombre);
                 }
                 
                 // Sincronizar Operadoras
@@ -123,7 +115,7 @@ namespace EnerfoneCRM.Services
                 var operadoras = await operadoraService.ObtenerTodasAsync();
                 foreach (var operadora in operadoras)
                 {
-                    CrearCarpetaOperadora(operadora.Nombre, operadora.LogoContenido, operadora.LogoArchivo);
+                    CrearCarpetaOperadora(operadora.Nombre);
                 }
                 
                 // Sincronizar Empresas de Alarmas
@@ -131,7 +123,7 @@ namespace EnerfoneCRM.Services
                 var empresasAlarmas = await empresaAlarmaService.ObtenerTodasAsync();
                 foreach (var empresa in empresasAlarmas)
                 {
-                    CrearCarpetaEmpresaAlarma(empresa.Nombre, empresa.LogoContenido, empresa.LogoArchivo);
+                    CrearCarpetaEmpresaAlarma(empresa.Nombre);
                 }
                 
                 Console.WriteLine("[RepositorioService] Sincronización de entidades completada");

@@ -7,6 +7,7 @@
 @inject MensajeBienvenidaService MensajeBienvenidaService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
 @rendermode InteractiveServer
 
 <PageTitle>Mensajes de Bienvenida - Enerfone CRM</PageTitle>
@@ -475,8 +476,16 @@ else
     {
         try
         {
+            // Obtener ruta base de configuración
+            var storagePath = Configuration.GetValue<string>("StoragePath");
+            if (string.IsNullOrEmpty(storagePath))
+            {
+                // En desarrollo, usar carpeta storage dentro del proyecto
+                storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+            }
+            
             // Crear directorio si no existe
-            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "mensajes");
+            var uploadsPath = Path.Combine(storagePath, "uploads", "mensajes");
             if (!Directory.Exists(uploadsPath))
             {
                 Directory.CreateDirectory(uploadsPath);
@@ -491,8 +500,8 @@ else
             await using var fileStream = new FileStream(rutaCompleta, FileMode.Create);
             await archivo.OpenReadStream(maxAllowedSize: 2097152).CopyToAsync(fileStream);
 
-            // Retornar la ruta relativa
-            return $"/uploads/mensajes/{nombreArchivo}";
+            // Retornar la ruta para acceso web
+            return $"/storage/uploads/mensajes/{nombreArchivo}";
         }
         catch (Exception ex)
         {

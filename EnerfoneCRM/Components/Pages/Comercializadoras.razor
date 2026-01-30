@@ -470,11 +470,8 @@ else
                 exito = await ComercializadoraService.CrearAsync(comercializadoraSeleccionada);
                 if (exito)
                 {
-                    // Crear carpeta en el repositorio con logo
-                    RepositorioService.CrearCarpetaComercializadora(
-                        comercializadoraSeleccionada.Nombre, 
-                        comercializadoraSeleccionada.LogoContenido, 
-                        comercializadoraSeleccionada.LogoArchivo);
+                    // Crear carpeta en el repositorio para documentos
+                    RepositorioService.CrearCarpetaComercializadora(comercializadoraSeleccionada.Nombre);
                     mensajeExito = "Comercializadora creada correctamente";
                 }
                 else

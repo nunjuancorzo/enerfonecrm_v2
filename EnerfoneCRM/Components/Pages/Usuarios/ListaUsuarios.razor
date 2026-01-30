@@ -424,15 +424,52 @@ else
         }
     }
 
-    private async Task CrearUsuario((Usuario usuario, string password, List<int> comercializadorasIds) datos)
+    private async Task CrearUsuario((Usuario usuario, string password, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds) datos)
     {
         var (exito, mensaje) = await UsuarioService.CrearAsync(datos.usuario, datos.password);
         if (exito)
         {
-            // Si se creó exitosamente, actualizar las comercializadoras permitidas
-            if (datos.comercializadorasIds.Any())
+            // Obtener el ID del usuario recién creado
+            var usuarioCreado = await UsuarioService.ObtenerPorNombreUsuarioAsync(datos.usuario.NombreUsuario);
+            
+            if (usuarioCreado != null)
             {
-                await UsuarioService.ActualizarComercializadorasPermitidasAsync(datos.usuario.Id, datos.comercializadorasIds);
+                // Actualizar comercializadoras permitidas
+                if (datos.comercializadorasIds.Any())
+                {
+                    await UsuarioService.ActualizarComercializadorasPermitidasAsync(usuarioCreado.Id, datos.comercializadorasIds);
+                }
+                
+                // Actualizar operadoras permitidas
+                if (datos.operadorasIds.Any())
+                {
+                    await UsuarioService.ActualizarOperadorasPermitidasAsync(usuarioCreado.Id, datos.operadorasIds);
+                }
+                
+                // Actualizar empresas de alarmas permitidas
+                if (datos.empresasAlarmasIds.Any())
+                {
+                    await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(usuarioCreado.Id, datos.empresasAlarmasIds);
+                }
+                
+                // Si es gestor y tiene colaboradores asignados, actualizarlos
+                if (usuarioCreado.Rol == "Gestor" && datos.colaboradoresIds.Any())
+                {
+                    await UsuarioService.ActualizarColaboradoresDeGestorAsync(usuarioCreado.Id, datos.colaboradoresIds);
+                }
+                
+                // Si es jefe de ventas, actualizar gestores y colaboradores asignados
+                if (usuarioCreado.Rol == "Jefe de ventas")
+                {
+                    if (datos.gestoresIds.Any())
+                    {
+                        await UsuarioService.ActualizarGestoresDeJefeVentasAsync(usuarioCreado.Id, datos.gestoresIds);
+                    }
+                    if (datos.colaboradoresIds.Any())
+                    {
+                        await UsuarioService.ActualizarColaboradoresDeJefeVentasAsync(usuarioCreado.Id, datos.colaboradoresIds);
+                    }
+                }
             }
             
             mensajeExito = mensaje;
@@ -470,7 +507,7 @@ else
         "Administrador" => "danger",
         "Gestor" => "warning",
         "Comercializadora" => "info",
-        "Usuario" => "secondary",
+        "Colaborador" => "secondary",
         _ => "secondary"
     };
 }

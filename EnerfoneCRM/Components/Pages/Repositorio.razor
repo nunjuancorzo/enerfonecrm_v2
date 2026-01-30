@@ -4,6 +4,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
 @rendermode InteractiveServer
 
 <PageTitle>Repositorio de Archivos</PageTitle>
@@ -312,8 +313,16 @@
 
     protected override void OnInitialized()
     {
+        // Obtener ruta base de configuración
+        var storagePath = Configuration.GetValue<string>("StoragePath");
+        if (string.IsNullOrEmpty(storagePath))
+        {
+            // En desarrollo, usar carpeta storage dentro del proyecto
+            storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+        }
+        
         // Directorio base para el repositorio
-        directorioBase = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "repositorio");
+        directorioBase = Path.Combine(storagePath, "repositorio");
         
         // Crear directorio si no existe
         if (!Directory.Exists(directorioBase))

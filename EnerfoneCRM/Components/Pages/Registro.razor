@@ -158,7 +158,7 @@
 </div>
 
 @code {
-    private Usuario usuario = new() { Rol = "Usuario", Activo = false };
+    private Usuario usuario = new() { Rol = "Colaborador", Activo = false };
     private string password = string.Empty;
     private string confirmarPassword = string.Empty;
     private string mensajeError = string.Empty;
@@ -256,7 +256,7 @@
         try
         {
             // Asegurar que el rol sea Usuario y esté inactivo
-            usuario.Rol = "Usuario";
+            usuario.Rol = "Colaborador";
             usuario.Activo = false;
             usuario.Comision = 0;
 

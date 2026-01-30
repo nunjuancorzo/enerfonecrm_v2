@@ -32,6 +32,9 @@ namespace EnerfoneCRM.Models
         [Column("fecha_activo")]
         public DateTime? FechaActivo { get; set; }
 
+        [Column("fecha_alta")]
+        public DateTime? FechaAlta { get; set; }
+
         [Column("idCliente")]
         public int? IdCliente { get; set; }
 
