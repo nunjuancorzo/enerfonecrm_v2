@@ -11,6 +11,7 @@
 @inject OperadoraService OperadoraService
 @inject ObservacionContratoService ObservacionContratoService
 @inject AuthService AuthService
+@inject UsuarioService UsuarioService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -391,13 +392,24 @@ else
                                 
                                 <!-- Fechas -->
                                 <div class="row mb-3">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-plus me-1"></i>Fecha de Creación</label>
                                         <input type="text" class="form-control" value="@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-check me-1"></i>Fecha de Modificación</label>
                                         <input type="text" class="form-control" value="@contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold"><i class="bi bi-calendar-event me-1"></i>Fecha Alta</label>
+                                        @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                        {
+                                            <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
+                                        }
+                                        else
+                                        {
+                                            <input type="text" class="form-control" value="@contratoSeleccionado.FechaAlta?.ToString("dd/MM/yyyy")" readonly />
+                                        }
                                     </div>
                                 </div>
 
@@ -413,7 +425,7 @@ else
                                                 <option value="En incidencia">En incidencia</option>
                                                 <option value="Pte Documentación">Pte Documentación</option>
                                                 <option value="Pte Validación">Pte Validación</option>
-                                                <option value="En Curso">En Curso</option>
+                                                <option value="En Activación">En Activación</option>
                                                 <option value="Activo">Activo</option>
                                                 <option value="Act/Facturable">Act/Facturable</option>
                                                 <option value="Liquidado">Liquidado</option>
@@ -428,7 +440,20 @@ else
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Comercial</label>
-                                            <InputText @bind-Value="contratoSeleccionado.Comercial" class="form-control" readonly />
+                                            @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                            {
+                                                <select @bind="contratoSeleccionado.Comercial" class="form-select">
+                                                    <option value="">Seleccionar comercial...</option>
+                                                    @foreach (var usuario in usuarios.Where(u => u.Rol == "Colaborador"))
+                                                    {
+                                                        <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                    }
+                                                </select>
+                                            }
+                                            else
+                                            {
+                                                <InputText @bind-Value="contratoSeleccionado.Comercial" class="form-control" readonly />
+                                            }
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Operadora</label>
@@ -782,19 +807,17 @@ else
                                     </div>
                                 </div>
                                 <div class="row mb-3">
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" disabled="@(!PuedeEditar())" />
                                     </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Localidad</label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" disabled="@(!PuedeEditar())" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditar())" />
                                     </div>
                                 </div>
 
@@ -1004,6 +1027,7 @@ else
     private Contrato? contratoSeleccionado;
     private Contrato? contratoAEliminar;
     private List<Cliente> todosLosClientes = new();
+    private List<Usuario> usuarios = new();
     private Cliente? clienteSeleccionadoInfo;
     private bool cargando = true;
     private bool cargandoSesion = true;
@@ -1038,7 +1062,7 @@ else
 
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
-    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "Activo", "Act/Facturable", "Liquidado", "Baja", "Cancelado", "Scoring" };
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Activación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
     private string filtroOperadora = string.Empty;
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
@@ -1099,6 +1123,9 @@ else
             
             // Cargar todos los clientes para el dropdown
             todosLosClientes = await ClienteService.ObtenerTodosAsync();
+            
+            // Cargar todos los usuarios para el dropdown de comerciales
+            usuarios = await UsuarioService.ObtenerTodosAsync();
             
             await CargarConteoObservaciones();
             AplicarFiltros();
@@ -1431,6 +1458,7 @@ else
             Comercial = contrato.Comercial,
             FechaCreacion = contrato.FechaCreacion,
             FechaModificacion = contrato.FechaModificacion,
+            FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion,
             IdCliente = contrato.IdCliente,
             NombreCliente = contrato.NombreCliente,
             Dni = contrato.Dni,
@@ -1675,7 +1703,8 @@ else
             "en incidencia" => "bg-warning text-dark",
             "pte documentación" => "bg-primary",
             "pte validación" => "bg-purple text-white",
-            "en curso" => "bg-info",
+            "en activación" => "bg-info",
+            "en liquidación" => "bg-warning",
             "activo" => "bg-success",
             "act/facturable" => "bg-teal text-white",
             "liquidado" => "bg-indigo text-white",

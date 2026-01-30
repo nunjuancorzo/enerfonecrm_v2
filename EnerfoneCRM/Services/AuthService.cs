@@ -31,7 +31,7 @@ public class AuthService
     public bool EsAdministrador => _usuarioActual?.Rol == "Administrador";
     public bool EsGestor => _usuarioActual?.Rol == "Gestor";
     public bool EsComercializadora => _usuarioActual?.Rol == "Comercializadora";
-    public bool EsUsuario => _usuarioActual?.Rol == "Usuario";
+    public bool EsUsuario => _usuarioActual?.Rol == "Colaborador";
 
     public event Action? OnAuthStateChanged;
 

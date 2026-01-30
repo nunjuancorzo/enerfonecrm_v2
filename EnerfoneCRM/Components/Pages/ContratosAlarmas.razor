@@ -397,13 +397,24 @@ else
                                 
                                 <!-- Fechas -->
                                 <div class="row mb-3">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-plus me-1"></i>Fecha de Creación</label>
                                         <input type="text" class="form-control" value="@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-check me-1"></i>Fecha de Modificación</label>
                                         <input type="text" class="form-control" value="@contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold"><i class="bi bi-calendar-event me-1"></i>Fecha Alta</label>
+                                        @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                        {
+                                            <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
+                                        }
+                                        else
+                                        {
+                                            <input type="text" class="form-control" value="@contratoSeleccionado.FechaAlta?.ToString("dd/MM/yyyy")" readonly />
+                                        }
                                     </div>
                                 </div>
 
@@ -425,10 +436,11 @@ else
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Estado</label>
                                         <InputSelect class="form-select" @bind-Value="contratoSeleccionado.Estado">
-                                            <option value="Pte Carga">Pte Carga</option>
-                                            <option value="Pte Firma">Pte Firma</option>
-                                            <option value="Activo">Activo</option>
-                                            <option value="Cancelado">Cancelado</option>
+                                            <option value="">-- Seleccionar Estado --</option>
+                                            @foreach (var estado in estadosDisponibles)
+                                            {
+                                                <option value="@estado">@estado</option>
+                                            }
                                         </InputSelect>
                                     </div>
                                     <div class="col-md-4">
@@ -437,7 +449,7 @@ else
                                         {
                                             <InputSelect class="form-select" @bind-Value="contratoSeleccionado.Comercial">
                                                 <option value="">-- Seleccionar Comercial --</option>
-                                                @foreach (var usuario in usuarios)
+                                                @foreach (var usuario in usuarios.Where(u => u.Rol == "Colaborador"))
                                                 {
                                                     <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
                                                 }
@@ -451,15 +463,11 @@ else
                                 </div>
                                 
                                 <div class="row mb-3">
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <label class="form-label fw-bold">DNI</label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.Dni" />
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Dirección</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.Direccion" />
-                                    </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <label class="form-label fw-bold">IBAN Cliente</label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.Iban" />
                                     </div>
@@ -652,19 +660,17 @@ else
                                     </div>
                                 </div>
                                 <div class="row mb-3">
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" />
                                     </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" />
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Localidad</label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" />
                                     </div>
                                 </div>
                                 <div class="row mb-3">
@@ -956,7 +962,7 @@ else
     
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
-    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "Activo", "Cancelado" };
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Activación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
     private string filtroTipoInmueble = string.Empty;
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
@@ -1357,7 +1363,8 @@ else
             AclaradorInstalacion = contrato.AclaradorInstalacion,
             ObservacionesAlarma = contrato.ObservacionesAlarma,
             FechaCreacion = contrato.FechaCreacion,
-            FechaModificacion = contrato.FechaModificacion
+            FechaModificacion = contrato.FechaModificacion,
+            FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion
         };
         
         // Cargar y filtrar tarifas por empresa
@@ -1734,5 +1741,26 @@ else
     private bool PuedeEditar()
     {
         return AuthService.EsAdministrador || AuthService.EsComercializadora;
+    }
+
+    private string ObtenerColorEstado(string estado)
+    {
+        return estado?.ToLower() switch
+        {
+            "pte carga" => "bg-secondary",
+            "pte firma" => "bg-primary",
+            "en incidencia" => "bg-warning text-dark",
+            "pte documentación" => "bg-purple text-white",
+            "pte validación" => "bg-orange text-white",
+            "en activación" => "bg-info",
+            "en liquidación" => "bg-warning",
+            "activo" => "bg-success",
+            "act/facturable" => "bg-teal text-white",
+            "liquidado" => "bg-indigo text-white",
+            "baja" => "bg-danger",
+            "cancelado" => "bg-dark",
+            "scoring" => "bg-danger text-white",
+            _ => "bg-secondary"
+        };
     }
 }

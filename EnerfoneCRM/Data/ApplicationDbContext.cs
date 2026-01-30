@@ -27,6 +27,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<ObservacionContrato> ObservacionesContratos { get; set; }
     public DbSet<LogAcceso> LogAccesos { get; set; }
     public DbSet<UsuarioComercializadora> UsuarioComercializadoras { get; set; }
+    public DbSet<UsuarioOperadora> UsuarioOperadoras { get; set; }
+    public DbSet<UsuarioEmpresaAlarma> UsuarioEmpresasAlarmas { get; set; }
     public DbSet<LogActivacionContrato> LogActivacionesContratos { get; set; }
     public DbSet<MensajeBienvenida> MensajesBienvenida { get; set; }
+    public DbSet<IncidenciaLiquidacion> IncidenciasLiquidacion { get; set; }
+    public DbSet<HistoricoLiquidacion> HistoricoLiquidaciones { get; set; }
 }

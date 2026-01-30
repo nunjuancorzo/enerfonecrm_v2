@@ -75,6 +75,7 @@ builder.Services.AddScoped<FicheroContratoService>();
 builder.Services.AddScoped<ObservacionContratoService>();
 builder.Services.AddScoped<LogActivacionContratoService>();
 builder.Services.AddScoped<MensajeBienvenidaService>();
+builder.Services.AddScoped<IncidenciaLiquidacionService>();
 builder.Services.AddSingleton<RepositorioService>();
 
 // Configurar tamaño máximo de formularios y archivos
@@ -110,16 +111,37 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Configurar archivos estáticos desde almacenamiento externo
+var storagePath = builder.Configuration.GetValue<string>("StoragePath");
+if (string.IsNullOrEmpty(storagePath))
+{
+    // En desarrollo, usar carpeta storage dentro del proyecto
+    storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+}
+
+if (!Directory.Exists(storagePath))
+{
+    Directory.CreateDirectory(storagePath);
+}
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(storagePath),
+    RequestPath = "/storage"
+});
+
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Sincronizar entidades existentes en el repositorio
-using (var scope = app.Services.CreateScope())
-{
-    var repositorioService = scope.ServiceProvider.GetRequiredService<RepositorioService>();
-    await repositorioService.SincronizarEntidadesExistentes();
-}
+// NOTA: Sincronización de entidades comentada para evitar duplicación de carpetas en el repositorio
+// Los logos se gestionan desde la base de datos, no es necesario crear carpetas automáticamente
+// using (var scope = app.Services.CreateScope())
+// {
+//     var repositorioService = scope.ServiceProvider.GetRequiredService<RepositorioService>();
+//     await repositorioService.SincronizarEntidadesExistentes();
+// }
 
 app.Run();

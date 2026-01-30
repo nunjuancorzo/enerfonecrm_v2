@@ -81,6 +81,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(titular_iban_nombre, '') as titular_iban_nombre,
                     COALESCE(titular_iban_numero, '') as titular_iban_numero,
                     fecha_activo,
+                    fecha_alta,
                     COALESCE(operadora_tel, '') as operadora_tel,
                     COALESCE(fijo_tel, '') as fijo_tel,
                     COALESCE(tarifa_fibra_tel, '') as tarifa_fibra_tel,
@@ -130,15 +131,67 @@ namespace EnerfoneCRM.Services
             // Filtrar por rol
             if (!string.IsNullOrEmpty(rolUsuario) && !string.IsNullOrEmpty(nombreUsuario))
             {
-                if (rolUsuario == "Usuario")
+                if (rolUsuario == "Colaborador")
                 {
                     whereConditions.Add($"comercial = {{{parameters.Count}}}");
                     parameters.Add(nombreUsuario);
                 }
                 else if (rolUsuario == "Gestor" && usuarioId.HasValue)
                 {
-                    whereConditions.Add($"comercial = {{{parameters.Count}}}");
-                    parameters.Add(nombreUsuario);
+                    // El gestor ve sus propios contratos y los de sus colaboradores
+                    var colaboradores = await context.Usuarios
+                        .Where(u => u.GestorId == usuarioId.Value)
+                        .Select(u => u.NombreUsuario)
+                        .ToListAsync();
+                    
+                    // Añadir el propio nombre del gestor a la lista
+                    var nombresUsuarios = new List<string> { nombreUsuario };
+                    nombresUsuarios.AddRange(colaboradores);
+                    
+                    // Crear condición IN para múltiples usuarios
+                    var inConditions = string.Join(" OR ", nombresUsuarios.Select((_, i) => $"comercial = {{{parameters.Count + i}}}"));
+                    whereConditions.Add($"({inConditions})");
+                    parameters.AddRange(nombresUsuarios);
+                }
+                else if (rolUsuario == "Jefe de ventas" && usuarioId.HasValue)
+                {
+                    // El jefe de ventas ve:
+                    // 1. Sus propios contratos
+                    // 2. Los contratos de sus colaboradores directos
+                    // 3. Los contratos de sus gestores asignados
+                    // 4. Los contratos de los colaboradores de esos gestores
+                    
+                    var nombresUsuarios = new List<string> { nombreUsuario };
+                    
+                    // Obtener colaboradores directos del jefe de ventas
+                    var colaboradoresDirectos = await context.Usuarios
+                        .Where(u => u.JefeVentasId == usuarioId.Value && u.Rol == "Colaborador")
+                        .Select(u => u.NombreUsuario)
+                        .ToListAsync();
+                    nombresUsuarios.AddRange(colaboradoresDirectos);
+                    
+                    // Obtener gestores del jefe de ventas
+                    var gestores = await context.Usuarios
+                        .Where(u => u.JefeVentasId == usuarioId.Value && u.Rol == "Gestor")
+                        .ToListAsync();
+                    
+                    foreach (var gestor in gestores)
+                    {
+                        // Añadir el gestor
+                        nombresUsuarios.Add(gestor.NombreUsuario);
+                        
+                        // Añadir los colaboradores de este gestor
+                        var colaboradoresGestor = await context.Usuarios
+                            .Where(u => u.GestorId == gestor.Id)
+                            .Select(u => u.NombreUsuario)
+                            .ToListAsync();
+                        nombresUsuarios.AddRange(colaboradoresGestor);
+                    }
+                    
+                    // Crear condición IN para todos los usuarios
+                    var inConditions = string.Join(" OR ", nombresUsuarios.Select((_, i) => $"comercial = {{{parameters.Count + i}}}"));
+                    whereConditions.Add($"({inConditions})");
+                    parameters.AddRange(nombresUsuarios);
                 }
                 else if (rolUsuario == "Comercializadora")
                 {

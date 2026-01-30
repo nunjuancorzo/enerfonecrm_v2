@@ -252,7 +252,7 @@ else
         @if (mostrarModal && clienteSeleccionado != null)
         {
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                <div class="modal-dialog modal-lg modal-dialog-scrollable" style="max-height: 90vh;">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title">
@@ -371,17 +371,17 @@ else
                                         <label class="form-label fw-bold">Código Postal <small class="text-muted">(opcional)</small></label>
                                         <InputText @bind-Value="clienteSeleccionado.CodigoPostal" class="form-control" placeholder="CP" />
                                     </div>
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
                                         <InputText @bind-Value="clienteSeleccionado.Aclarador" class="form-control" placeholder="Información adicional de la dirección" />
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Provincia <small class="text-muted">(opcional)</small></label>
-                                        <InputText @bind-Value="clienteSeleccionado.Provincia" class="form-control" placeholder="Provincia" />
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Localidad <small class="text-muted">(opcional)</small></label>
                                         <InputText @bind-Value="clienteSeleccionado.Poblacion" class="form-control" placeholder="Localidad" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Provincia <small class="text-muted">(opcional)</small></label>
+                                        <InputText @bind-Value="clienteSeleccionado.Provincia" class="form-control" placeholder="Provincia" />
                                     </div>
                                     
                                     <div class="col-md-6">
@@ -627,14 +627,19 @@ else
                                             <option value="En incidencia">En incidencia</option>
                                             <option value="Pte Documentación">Pte Documentación</option>
                                             <option value="Pte Validación">Pte Validación</option>
-                                            <option value="En Curso">En Curso</option>
+                                            <option value="En Activación">En Activación</option>
                                             <option value="Activo">Activo</option>
                                             <option value="Act/Facturable">Act/Facturable</option>
+                                            <option value="En Liquidación">En Liquidación</option>
                                             <option value="Liquidado">Liquidado</option>
                                             <option value="Baja">Baja</option>
                                             <option value="Cancelado">Cancelado</option>
                                             <option value="Scoring">Scoring</option>
                                         </InputSelect>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Fecha Alta</label>
+                                        <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Tipo de Operación</label>
@@ -747,17 +752,17 @@ else
                                         <label class="form-label fw-bold">Código Postal</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
                                     </div>
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.AclaradorInstalacion" placeholder="Información adicional de la dirección" />
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Localidad</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.LocalidadInstalacion" placeholder="Localidad" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
                                     </div>
                                     
                                     @* Facturas Pendientes *@
@@ -866,14 +871,19 @@ else
                                             <option value="En incidencia">En incidencia</option>
                                             <option value="Pte Documentación">Pte Documentación</option>
                                             <option value="Pte Validación">Pte Validación</option>
-                                            <option value="En Curso">En Curso</option>
+                                            <option value="En Activación">En Activación</option>
                                             <option value="Activo">Activo</option>
                                             <option value="Act/Facturable">Act/Facturable</option>
+                                            <option value="En Liquidación">En Liquidación</option>
                                             <option value="Liquidado">Liquidado</option>
                                             <option value="Baja">Baja</option>
                                             <option value="Cancelado">Cancelado</option>
                                             <option value="Scoring">Scoring</option>
                                         </InputSelect>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Fecha Alta</label>
+                                        <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Operadora</label>
@@ -1158,17 +1168,17 @@ else
                                         <label class="form-label fw-bold">Código Postal</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
                                     </div>
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.AclaradorInstalacion" placeholder="Información adicional de la dirección" />
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Localidad</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.LocalidadInstalacion" placeholder="Localidad" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
                                     </div>
                                 </div>
                             </div>
@@ -1243,6 +1253,10 @@ else
                                             <option value="Pte Firma">Pte Firma</option>
                                             <option value="Activo">Activo</option>
                                         </InputSelect>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Fecha Alta</label>
+                                        <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo de Inmueble</label>
@@ -1410,17 +1424,17 @@ else
                                         <label class="form-label fw-bold">Código Postal</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
                                     </div>
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.AclaradorInstalacion" placeholder="Información adicional de la dirección" />
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Localidad</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.LocalidadInstalacion" placeholder="Localidad" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
                                     </div>
                                     <div class="col-md-12">
                                         <label class="form-label fw-bold">Observaciones</label>
@@ -2317,6 +2331,7 @@ else
             Iban = clienteParaContrato.Iban,
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
             FechaCreacion = DateTime.Now,
+            FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
             Comision = 0
         };
@@ -2373,6 +2388,7 @@ else
             Iban = clienteParaContrato.Iban,
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
             FechaCreacion = DateTime.Now,
+            FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
             Comision = 0,
             TipoLineaMovilPrincipal = "Contrato"  // Valor por defecto
@@ -2396,6 +2412,7 @@ else
             Iban = clienteParaContrato.Iban,
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
             FechaCreacion = DateTime.Now,
+            FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
             Comision = 0
         };

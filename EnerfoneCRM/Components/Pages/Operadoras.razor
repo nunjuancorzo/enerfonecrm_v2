@@ -535,11 +535,8 @@ else
                 exito = await OperadoraService.CrearAsync(operadoraSeleccionada);
                 if (exito)
                 {
-                    // Crear carpeta en el repositorio con logo
-                    RepositorioService.CrearCarpetaOperadora(
-                        operadoraSeleccionada.Nombre, 
-                        operadoraSeleccionada.LogoContenido, 
-                        operadoraSeleccionada.LogoArchivo);
+                    // Crear carpeta en el repositorio para documentos
+                    RepositorioService.CrearCarpetaOperadora(operadoraSeleccionada.Nombre);
                     mensajeExito = "Operadora creada correctamente";
                 }
                 else

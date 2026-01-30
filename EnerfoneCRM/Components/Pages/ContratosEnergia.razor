@@ -13,6 +13,7 @@
 @inject ObservacionContratoService ObservacionContratoService
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
+@inject IConfiguration Configuration
 @inject LogActivacionContratoService LogActivacionContratoService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -431,13 +432,24 @@ else
                                 
                                 <!-- Fechas -->
                                 <div class="row mb-3">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-plus me-1"></i>Fecha de Creación</label>
                                         <input type="text" class="form-control" value="@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-check me-1"></i>Fecha de Modificación</label>
                                         <input type="text" class="form-control" value="@contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold"><i class="bi bi-calendar-event me-1"></i>Fecha Alta</label>
+                                        @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                        {
+                                            <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
+                                        }
+                                        else
+                                        {
+                                            <input type="text" class="form-control" value="@contratoSeleccionado.FechaAlta?.ToString("dd/MM/yyyy")" readonly />
+                                        }
                                     </div>
                                 </div>
 
@@ -516,7 +528,7 @@ else
                                             {
                                                 <select @bind="contratoSeleccionado.Comercial" class="form-select">
                                                     <option value="">Seleccionar comercial...</option>
-                                                    @foreach (var usuario in todosLosUsuarios)
+                                                    @foreach (var usuario in todosLosUsuarios.Where(u => u.Rol == "Colaborador"))
                                                     {
                                                         <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
                                                     }
@@ -702,19 +714,17 @@ else
                                     </div>
                                 </div>
                                 <div class="row mb-3">
-                                    <div class="col-md-12">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" disabled="@(!PuedeEditarCampo())" />
                                     </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Localidad</label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" disabled="@(!PuedeEditarCampo())" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Provincia</label>
+                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditarCampo())" />
                                     </div>
                                 </div>
 
@@ -1150,7 +1160,7 @@ else
 
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
-    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "Activo", "Act/Facturable", "Liquidado", "Baja", "Cancelado", "Scoring" };
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Activación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
     private string tipoFechaFiltro = "Creacion";
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
@@ -1769,6 +1779,7 @@ else
             Comercial = contrato.Comercial,
             FechaCreacion = contrato.FechaCreacion,
             FechaModificacion = contrato.FechaModificacion,
+            FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion,
             FechaActivo = contrato.FechaActivo,
             IdCliente = contrato.IdCliente,
             NombreCliente = contrato.NombreCliente,
@@ -2158,7 +2169,8 @@ else
             "en incidencia" => "bg-warning text-dark",
             "pte documentación" => "bg-purple text-white",
             "pte validación" => "bg-orange text-white",
-            "en curso" => "bg-info",
+            "en activación" => "bg-info",
+            "en liquidación" => "bg-warning",
             "activo" => "bg-success",
             "act/facturable" => "bg-teal text-white",
             "liquidado" => "bg-indigo text-white",
@@ -2620,8 +2632,15 @@ else
     {
         try
         {
+            // Obtener ruta base de configuración
+            var storagePath = Configuration.GetValue<string>("StoragePath");
+            if (string.IsNullOrEmpty(storagePath))
+            {
+                storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+            }
+            
             // Crear directorio si no existe
-            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "contratos");
+            var uploadsPath = Path.Combine(storagePath, "uploads", "contratos");
             if (!Directory.Exists(uploadsPath))
             {
                 Directory.CreateDirectory(uploadsPath);
@@ -2636,7 +2655,7 @@ else
             await File.WriteAllBytesAsync(rutaCompleta, contenido);
 
             // Retornar la ruta relativa para guardar en la BD
-            var rutaRelativa = $"/uploads/contratos/{nombreUnico}";
+            var rutaRelativa = $"/storage/uploads/contratos/{nombreUnico}";
             
             return (true, "PDF guardado correctamente", rutaRelativa);
         }
@@ -2656,8 +2675,16 @@ else
 
         try
         {
+            // Obtener ruta base de configuración
+            var storagePath = Configuration.GetValue<string>("StoragePath");
+            if (string.IsNullOrEmpty(storagePath))
+            {
+                storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+            }
+            
             // Eliminar archivo físico del servidor
-            var rutaCompleta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", contratoSeleccionado.PdfContratoUrl.TrimStart('/'));
+            var rutaRelativa = contratoSeleccionado.PdfContratoUrl.Replace("/storage/", "");
+            var rutaCompleta = Path.Combine(storagePath, rutaRelativa);
             if (File.Exists(rutaCompleta))
             {
                 File.Delete(rutaCompleta);
