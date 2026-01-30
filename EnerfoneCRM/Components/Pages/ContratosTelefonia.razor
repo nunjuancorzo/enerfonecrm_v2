@@ -444,7 +444,7 @@ else
                                             {
                                                 <select @bind="contratoSeleccionado.Comercial" class="form-select">
                                                     <option value="">Seleccionar comercial...</option>
-                                                    @foreach (var usuario in usuarios.Where(u => u.Rol == "Colaborador"))
+                                                    @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                                     {
                                                         <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
                                                     }
@@ -1699,19 +1699,20 @@ else
         return estado?.ToLower() switch
         {
             "pte carga" => "bg-secondary",
-            "pte firma" => "bg-info",
+            "pte firma" => "bg-primary",
             "en incidencia" => "bg-warning text-dark",
-            "pte documentación" => "bg-primary",
-            "pte validación" => "bg-purple text-white",
-            "en activación" => "bg-info",
-            "en liquidación" => "bg-warning",
+            "pte documentación" => "bg-purple text-white",
+            "pte validación" => "bg-info",
+            "en activación" => "bg-cyan text-white",
+            "en liquidación" => "bg-light text-dark",
+            "en curso" => "bg-orange text-white",
             "activo" => "bg-success",
             "act/facturable" => "bg-teal text-white",
             "liquidado" => "bg-indigo text-white",
-            "baja" => "bg-danger",
-            "cancelado" => "bg-dark",
+            "baja" => "bg-dark",
+            "cancelado" => "bg-secondary text-white",
             "scoring" => "bg-danger text-white",
-            _ => "bg-secondary"
+            _ => "bg-muted"
         };
     }
 

@@ -22,26 +22,11 @@ namespace EnerfoneCRM.Services
             }
             
             directorioBase = Path.Combine(storagePath, "repositorio");
-            InicializarEstructura();
-        }
-
-        private void InicializarEstructura()
-        {
-            // Crear directorio base si no existe
+            
+            // Crear solo el directorio base si no existe
             if (!Directory.Exists(directorioBase))
             {
                 Directory.CreateDirectory(directorioBase);
-            }
-
-            // Crear carpetas principales
-            var carpetasPrincipales = new[] { "Energía", "Telefonía", "Alarmas" };
-            foreach (var carpeta in carpetasPrincipales)
-            {
-                var ruta = Path.Combine(directorioBase, carpeta);
-                if (!Directory.Exists(ruta))
-                {
-                    Directory.CreateDirectory(ruta);
-                }
             }
         }
 
@@ -49,7 +34,15 @@ namespace EnerfoneCRM.Services
         {
             try
             {
-                var rutaComercializadora = Path.Combine(directorioBase, "Energía", SanitizarNombre(nombreComercializadora));
+                // Asegurar que existe la carpeta Energía
+                var carpetaEnergia = Path.Combine(directorioBase, "Energía");
+                if (!Directory.Exists(carpetaEnergia))
+                {
+                    Directory.CreateDirectory(carpetaEnergia);
+                }
+                
+                // Crear carpeta de la comercializadora
+                var rutaComercializadora = Path.Combine(carpetaEnergia, SanitizarNombre(nombreComercializadora));
                 if (!Directory.Exists(rutaComercializadora))
                 {
                     Directory.CreateDirectory(rutaComercializadora);
@@ -66,7 +59,15 @@ namespace EnerfoneCRM.Services
         {
             try
             {
-                var rutaOperadora = Path.Combine(directorioBase, "Telefonía", SanitizarNombre(nombreOperadora));
+                // Asegurar que existe la carpeta Telefonía
+                var carpetaTelefonia = Path.Combine(directorioBase, "Telefonía");
+                if (!Directory.Exists(carpetaTelefonia))
+                {
+                    Directory.CreateDirectory(carpetaTelefonia);
+                }
+                
+                // Crear carpeta de la operadora
+                var rutaOperadora = Path.Combine(carpetaTelefonia, SanitizarNombre(nombreOperadora));
                 if (!Directory.Exists(rutaOperadora))
                 {
                     Directory.CreateDirectory(rutaOperadora);
@@ -75,7 +76,15 @@ namespace EnerfoneCRM.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error al crear carpeta de operadora: {ex.Message}");
+                // Asegurar que existe la carpeta Alarmas
+                var carpetaAlarmas = Path.Combine(directorioBase, "Alarmas");
+                if (!Directory.Exists(carpetaAlarmas))
+                {
+                    Directory.CreateDirectory(carpetaAlarmas);
+                }
+                
+                // Crear carpeta de la empresa
+                var rutaEmpresa = Path.Combine(carpetaAlarmas {ex.Message}");
             }
         }
 
