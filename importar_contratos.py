@@ -18,9 +18,9 @@ from mysql.connector import Error
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'enerfone_pre',  # Cambiar según tu base de datos
+    'database': 'enerfonecrm',  # Cambiar según tu base de datos
     'user': 'root',  # Cambiar según tu usuario
-    'password': ''  # Añadir tu contraseña
+    'password': 'A76262136.r'  # Añadir tu contraseña
 }
 
 def limpiar_valor(valor):
@@ -65,6 +65,22 @@ def limpiar_bool(valor):
     valor_str = str(valor).strip().lower()
     return valor_str in ['sí', 'si', 'yes', 'true', '1', 's', 'y']
 
+def obtener_id_cliente_por_dni(cursor, dni_cif):
+    """Obtiene el ID del cliente a partir de su DNI/CIF"""
+    if not dni_cif:
+        return None
+    cursor.execute("SELECT id FROM clientes_simple WHERE dni_cif = %s", (dni_cif,))
+    resultado = cursor.fetchone()
+    return resultado[0] if resultado else None
+
+def obtener_id_cliente_por_dni(cursor, dni_cif):
+    """Obtiene el ID del cliente a partir de su DNI/CIF"""
+    if not dni_cif:
+        return None
+    cursor.execute("SELECT id FROM clientes_simple WHERE dni_cif = %s", (dni_cif,))
+    resultado = cursor.fetchone()
+    return resultado[0] if resultado else None
+
 def verificar_cliente_existe(cursor, id_cliente):
     """Verifica si un cliente existe en la base de datos"""
     cursor.execute("SELECT COUNT(*) FROM clientes_simple WHERE id = %s", (id_cliente,))
@@ -93,16 +109,18 @@ def importar_contratos_energia(archivo_excel):
             fila_num = index + 2
             
             try:
-                # Campo obligatorio
-                id_cliente = limpiar_entero(row.get('IdCliente*'))
+                # Campo obligatorio - usar DNI/CIF en lugar de IdCliente
+                dni_cif = limpiar_valor(row.get('DNI/CIF*'))
                 
                 # Saltar filas vacías
-                if not id_cliente:
+                if not dni_cif:
                     continue
                 
-                # Verificar que el cliente existe
-                if not verificar_cliente_existe(cursor, id_cliente):
-                    result['errores_detalle'].append(f"Fila {fila_num}: El cliente con ID {id_cliente} no existe")
+                # Obtener el ID del cliente a partir del DNI/CIF
+                id_cliente = obtener_id_cliente_por_dni(cursor, dni_cif)
+                
+                if not id_cliente:
+                    result['errores_detalle'].append(f"Fila {fila_num}: No se encontró cliente con DNI/CIF '{dni_cif}'")
                     result['errores'] += 1
                     continue
                 

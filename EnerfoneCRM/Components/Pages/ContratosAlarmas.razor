@@ -962,7 +962,7 @@ else
     
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
-    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Activación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
     private string filtroTipoInmueble = string.Empty;
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
@@ -1753,6 +1753,7 @@ else
             "pte documentación" => "bg-purple text-white",
             "pte validación" => "bg-info",
             "en activación" => "bg-cyan text-white",
+            "en tramitación" => "bg-teal-light text-dark",
             "en liquidación" => "bg-light text-dark",
             "en curso" => "bg-orange text-white",
             "activo" => "bg-success",

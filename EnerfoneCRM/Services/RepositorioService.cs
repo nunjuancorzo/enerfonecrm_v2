@@ -76,15 +76,7 @@ namespace EnerfoneCRM.Services
             }
             catch (Exception ex)
             {
-                // Asegurar que existe la carpeta Alarmas
-                var carpetaAlarmas = Path.Combine(directorioBase, "Alarmas");
-                if (!Directory.Exists(carpetaAlarmas))
-                {
-                    Directory.CreateDirectory(carpetaAlarmas);
-                }
-                
-                // Crear carpeta de la empresa
-                var rutaEmpresa = Path.Combine(carpetaAlarmas {ex.Message}");
+                Console.WriteLine($"Error al crear carpeta de operadora: {ex.Message}");
             }
         }
 

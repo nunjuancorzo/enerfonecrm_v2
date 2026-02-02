@@ -13,9 +13,9 @@ from mysql.connector import Error
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'enerfone_pre',  # Cambiar según tu base de datos
+    'database': 'enerfonecrm',  # Cambiar según tu base de datos
     'user': 'root',  # Cambiar según tu usuario
-    'password': ''  # Añadir tu contraseña
+    'password': 'A76262136.r'  # Añadir tu contraseña
 }
 
 def validar_email(email):
@@ -44,6 +44,9 @@ def importar_clientes(archivo_excel, id_usuario=1):
         # Leer el archivo Excel
         print(f"Leyendo archivo: {archivo_excel}")
         df = pd.read_excel(archivo_excel, sheet_name='Clientes')
+        
+        # Normalizar nombres de columnas (quitar asteriscos)
+        df.columns = df.columns.str.replace('*', '', regex=False).str.strip()
         
         # Verificar que tiene datos
         if df.empty:
@@ -80,8 +83,18 @@ def importar_clientes(archivo_excel, id_usuario=1):
                     errores += 1
                     continue
                 
-                if tipo_cliente not in ['Particular', 'Empresa']:
-                    errores_detalle.append(f"Fila {fila_num}: TipoCliente debe ser 'Particular' o 'Empresa'")
+                # Mapear variantes de tipo de cliente
+                tipo_cliente_map = {
+                    'PYME': 'Pyme',
+                    'EMPRESA': 'Pyme',
+                    'PARTICULAR': 'Particular'
+                }
+                tipo_cliente_upper = tipo_cliente.upper()
+                if tipo_cliente_upper in tipo_cliente_map:
+                    tipo_cliente = tipo_cliente_map[tipo_cliente_upper]
+                
+                if tipo_cliente not in ['Particular', 'Pyme']:
+                    errores_detalle.append(f"Fila {fila_num}: TipoCliente debe ser 'Particular' o 'Pyme' (actual: '{tipo_cliente}')")
                     errores += 1
                     continue
                 

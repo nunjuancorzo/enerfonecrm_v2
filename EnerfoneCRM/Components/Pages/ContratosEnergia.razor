@@ -460,18 +460,11 @@ else
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Estado</label>
                                             <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
-                                                <option value="Pte Carga">Pte Carga</option>
-                                                <option value="Pte Firma">Pte Firma</option>
-                                                <option value="En incidencia">En incidencia</option>
-                                                <option value="Pte Documentación">Pte Documentación</option>
-                                                <option value="Pte Validación">Pte Validación</option>
-                                                <option value="En Curso">En Curso</option>
-                                                <option value="Activo">Activo</option>
-                                                <option value="Act/Facturable">Act/Facturable</option>
-                                                <option value="Liquidado">Liquidado</option>
-                                                <option value="Baja">Baja</option>
-                                                <option value="Cancelado">Cancelado</option>
-                                                <option value="Scoring">Scoring</option>
+                                                <option value="">-- Seleccionar Estado --</option>
+                                                @foreach (var estado in estadosDisponibles)
+                                                {
+                                                    <option value="@estado">@estado</option>
+                                                }
                                             </InputSelect>
                                         </div>
 
@@ -503,18 +496,11 @@ else
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Estado Servicio</label>
                                             <InputSelect @bind-Value="contratoSeleccionado.EstadoServicio" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
-                                                <option value="Pte Carga">Pte Carga</option>
-                                                <option value="Pte Firma">Pte Firma</option>
-                                                <option value="En incidencia">En incidencia</option>
-                                                <option value="Pte Documentación">Pte Documentación</option>
-                                                <option value="Pte Validación">Pte Validación</option>
-                                                <option value="En Curso">En Curso</option>
-                                                <option value="Activo">Activo</option>
-                                                <option value="Act/Facturable">Act/Facturable</option>
-                                                <option value="Liquidado">Liquidado</option>
-                                                <option value="Baja">Baja</option>
-                                                <option value="Cancelado">Cancelado</option>
-                                                <option value="Scoring">Scoring</option>
+                                                <option value="">-- Seleccionar Estado --</option>
+                                                @foreach (var estado in estadosDisponibles)
+                                                {
+                                                    <option value="@estado">@estado</option>
+                                                }
                                                 <option value="No quiere">No quiere</option>
                                             </InputSelect>
                                         </div>
@@ -1160,7 +1146,7 @@ else
 
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
-    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Activación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
     private string tipoFechaFiltro = "Creacion";
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
@@ -2170,6 +2156,7 @@ else
             "pte documentación" => "bg-purple text-white",
             "pte validación" => "bg-info",
             "en activación" => "bg-cyan text-white",
+            "en tramitación" => "bg-teal-light text-dark",
             "en liquidación" => "bg-light text-dark",
             "en curso" => "bg-orange text-white",
             "activo" => "bg-success",
