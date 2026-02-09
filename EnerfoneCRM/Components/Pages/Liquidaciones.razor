@@ -2,10 +2,14 @@
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject DbContextProvider DbContextProvider
 @inject IncidenciaLiquidacionService IncidenciaLiquidacionService
+@inject EmailService EmailService
+@inject PdfLiquidacionService PdfLiquidacionService
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
 
 <PageTitle>Liquidaciones - EnerfoneCRM</PageTitle>
@@ -64,6 +68,7 @@
                                     <th>Email</th>
                                     <th>Rol</th>
                                     <th class="text-center">Contratos Facturables</th>
+                                    <th class="text-center">Total a liquidar</th>
                                     <th class="text-center">Incidencias</th>
                                     <th class="text-center">Acciones</th>
                                 </tr>
@@ -91,6 +96,9 @@
                                             <span class="badge bg-success fs-6">@item.CantidadContratos</span>
                                         </td>
                                         <td class="text-center">
+                                            <span class="badge bg-primary fs-6">@item.TotalComisiones.ToString("N2")€</span>
+                                        </td>
+                                        <td class="text-center">
                                             @if (item.TieneIncidenciasPendientes)
                                             {
                                                 <span class="badge bg-warning text-dark" title="@item.CantidadIncidenciasPendientes incidencia(s) pendiente(s)">
@@ -113,6 +121,19 @@
                                         <td class="text-center">
                                             <button class="btn btn-sm btn-primary me-1" @onclick="() => VerDetalleUsuario(item.Usuario.Id)" title="Ver Contratos">
                                                 <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => ImprimirLiquidacion(item.Usuario.Id)" title="Imprimir PDF">
+                                                <i class="bi bi-printer"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary me-1" @onclick="() => EnviarEmailLiquidacion(item.Usuario.Id)" title="Enviar por Email" disabled="@(item.Enviando || string.IsNullOrEmpty(item.Usuario.Email))">
+                                                @if (item.Enviando)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-envelope"></i>
+                                                }
                                             </button>
                                             <button class="btn btn-sm btn-warning me-1" @onclick="() => AbrirModalIncidencia(item.Usuario)" title="Gestionar Incidencias">
                                                 <i class="bi bi-exclamation-triangle"></i>
@@ -199,7 +220,7 @@
                                             <td><small>@contrato.NombreCliente</small></td>
                                             <td><small>@contrato.EnCups</small></td>
                                             <td><small>@contrato.EnCupsGas</small></td>
-                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")</small></td>
+                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
                                         </tr>
                                     }
                                 </tbody>
@@ -243,7 +264,7 @@
                                             <td><small>@contrato.FijoTel</small></td>
                                             <td><small>@contrato.LineaMovilPrincipal</small></td>
                                             <td><small>@contrato.NumeroLineasTel</small></td>
-                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")</small></td>
+                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
                                         </tr>
                                     }
                                 </tbody>
@@ -285,7 +306,7 @@
                                             <td><small>@contrato.SubtipoInmueble</small></td>
                                             <td><small>@contrato.KitAlarma</small></td>
                                             <td><small>@contrato.CampanaAlarma</small></td>
-                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")</small></td>
+                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
                                         </tr>
                                     }
                                 </tbody>
@@ -301,6 +322,21 @@
                     </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-info me-2" @onclick="() => ImprimirLiquidacion(usuarioSeleccionado!.Id)">
+                        <i class="bi bi-printer me-1"></i>Imprimir
+                    </button>
+                    <button type="button" class="btn btn-primary me-2" @onclick="() => EnviarEmailLiquidacion(usuarioSeleccionado!.Id)" disabled="@enviandoEmail">
+                        @if (enviandoEmail)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>Enviando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-envelope me-1"></i>
+                            <span>Enviar por Email</span>
+                        }
+                    </button>
                     <button type="button" class="btn btn-secondary" @onclick="CerrarModalContratos">
                         <i class="bi bi-x-circle me-1"></i>Cerrar
                     </button>
@@ -741,6 +777,7 @@
     private bool mostrarModalContratos = false;
     private List<Contrato> contratosFacurables = new();
     private Usuario? usuarioSeleccionado = null;
+    private bool enviandoEmail = false;
 
     // Variables para incidencias
     private bool mostrarModalIncidencias = false;
@@ -808,6 +845,11 @@
                                 && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
                                 && c.Estado == "Act/Facturable")
                             .Count()
+                        let totalComisiones = context.Contratos
+                            .Where(c => c.Comercial == usuario.NombreUsuario 
+                                && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                                && c.Estado == "Act/Facturable")
+                            .Sum(c => c.Comision ?? 0)
                         let incidenciasPendientes = context.IncidenciasLiquidacion
                             .Where(i => i.UsuarioColaboradorId == usuario.Id && i.Estado == "Pendiente")
                             .Count()
@@ -819,6 +861,7 @@
                         {
                             Usuario = usuario,
                             CantidadContratos = contratosFacturables,
+                            TotalComisiones = totalComisiones,
                             CantidadIncidenciasPendientes = incidenciasPendientes,
                             CantidadIncidenciasTotal = incidenciasTotal
                         };
@@ -879,6 +922,485 @@
         mostrarModalContratos = false;
         contratosFacurables.Clear();
         usuarioSeleccionado = null;
+    }
+
+    private async Task ImprimirLiquidacion(int usuarioId)
+    {
+        try
+        {
+            using var context = DbContextProvider.CreateDbContext();
+            
+            // Obtener el usuario
+            var usuario = context.Usuarios.Find(usuarioId);
+            
+            if (usuario == null)
+            {
+                mensajeError = "Usuario no encontrado";
+                return;
+            }
+            
+            // Obtener los contratos facturables del usuario
+            var contratos = context.Contratos
+                .Where(c => c.Comercial == usuario.NombreUsuario 
+                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && c.Estado == "Act/Facturable")
+                .OrderBy(c => c.Tipo)
+                .ThenByDescending(c => c.FechaCreacion)
+                .ToList();
+
+            if (!contratos.Any())
+            {
+                mensajeError = "No hay contratos para imprimir";
+                return;
+            }
+
+            // Calcular totales
+            var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+            
+            // Agrupar por tipo
+            var contratosEnergia = contratos.Where(c => c.Tipo == "energia").ToList();
+            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia").ToList();
+            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma").ToList();
+
+            // Construir HTML para impresión
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<html><head><title>Liquidación - ");
+            sb.Append(usuario.NombreUsuario);
+            sb.Append("</title><style>");
+            sb.Append("body { font-family: Arial, sans-serif; margin: 20px; }");
+            sb.Append("h1 { color: #0d6efd; text-align: center; }");
+            sb.Append("h2 { color: #6c757d; border-bottom: 2px solid #0d6efd; padding-bottom: 5px; margin-top: 25px; }");
+            sb.Append(".header { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }");
+            sb.Append(".info-row { margin: 5px 0; }");
+            sb.Append(".info-label { font-weight: bold; }");
+            sb.Append("table { width: 100%; border-collapse: collapse; margin-top: 10px; }");
+            sb.Append("th { background-color: #6c757d; color: white; padding: 8px; text-align: left; font-size: 12px; }");
+            sb.Append("td { border: 1px solid #dee2e6; padding: 6px; font-size: 11px; }");
+            sb.Append("tr:nth-child(even) { background-color: #f8f9fa; }");
+            sb.Append(".total { background-color: #0d6efd; color: white; font-weight: bold; padding: 10px; text-align: right; margin-top: 20px; }");
+            sb.Append(".tipo-energia { color: #ffc107; font-weight: bold; }");
+            sb.Append(".tipo-telefonia { color: #0dcaf0; font-weight: bold; }");
+            sb.Append(".tipo-alarma { color: #dc3545; font-weight: bold; }");
+            sb.Append("@media print { body { margin: 0; } button { display: none; } }");
+            sb.Append("</style></head><body>");
+            sb.Append("<h1>LIQUIDACIÓN DE CONTRATOS</h1>");
+            sb.Append("<div class='header'>");
+            sb.Append("<div class='info-row'><span class='info-label'>Usuario:</span> ");
+            sb.Append(usuario.NombreUsuario);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Nombre:</span> ");
+            sb.Append(usuario.Nombre);
+            sb.Append(" ");
+            sb.Append(usuario.Apellidos);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Email:</span> ");
+            sb.Append(usuario.Email);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Fecha de impresión:</span> ");
+            sb.Append(fechaActual);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Total contratos:</span> ");
+            sb.Append(contratos.Count);
+            sb.Append("</div></div>");
+
+            // Contratos de Energía
+            if (contratosEnergia.Any())
+            {
+                sb.Append("<h2 class='tipo-energia'>CONTRATOS DE ENERGÍA (");
+                sb.Append(contratosEnergia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Comercializadora</th>");
+                sb.Append("<th>Tarifa</th><th>CUPS Luz</th><th>CUPS Gas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosEnergia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnComercializadora);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnTarifa);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCups);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCupsGas);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Energía: ");
+                sb.Append((contratosEnergia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Telefonía
+            if (contratosTelefonia.Any())
+            {
+                sb.Append("<h2 class='tipo-telefonia'>CONTRATOS DE TELEFONÍA (");
+                sb.Append(contratosTelefonia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Operadora</th>");
+                sb.Append("<th>Tarifa</th><th>Fijo</th><th>Línea Móvil</th><th>Nº Líneas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosTelefonia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.OperadoraTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TarifaTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.FijoTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.LineaMovilPrincipal);
+                    sb.Append("</td><td>");
+                    sb.Append(c.NumeroLineasTel);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Telefonía: ");
+                sb.Append((contratosTelefonia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Alarmas
+            if (contratosAlarmas.Any())
+            {
+                sb.Append("<h2 class='tipo-alarma'>CONTRATOS DE ALARMAS (");
+                sb.Append(contratosAlarmas.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Tipo Alarma</th>");
+                sb.Append("<th>Subtipo</th><th>Kit</th><th>Campaña</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosAlarmas)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TipoAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.SubtipoInmueble);
+                    sb.Append("</td><td>");
+                    sb.Append(c.KitAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.CampanaAlarma);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Alarmas: ");
+                sb.Append((contratosAlarmas.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Total general
+            sb.Append("<div class='total'>TOTAL A LIQUIDAR: ");
+            sb.Append(totalComisiones.ToString("N2"));
+            sb.Append("€</div></body></html>");
+
+            // Invocar JavaScript para abrir ventana de impresión
+            await JSRuntime.InvokeVoidAsync("printLiquidacion", sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al generar PDF: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al generar PDF: {ex.Message}");
+        }
+    }
+
+    private async Task EnviarEmailLiquidacion(int usuarioId)
+    {
+        try
+        {
+            // Marcar como enviando
+            var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
+            if (usuario != null)
+            {
+                usuario.Enviando = true;
+                StateHasChanged();
+            }
+            else
+            {
+                enviandoEmail = true;
+                StateHasChanged();
+            }
+
+            using var context = DbContextProvider.CreateDbContext();
+            
+            // Obtener el usuario
+            var usuarioDb = context.Usuarios.Find(usuarioId);
+            
+            if (usuarioDb == null)
+            {
+                mensajeError = "Usuario no encontrado";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(usuarioDb.Email))
+            {
+                mensajeError = "El usuario no tiene un email configurado";
+                return;
+            }
+            
+            // Obtener los contratos facturables del usuario
+            var contratos = context.Contratos
+                .Where(c => c.Comercial == usuarioDb.NombreUsuario 
+                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && c.Estado == "Act/Facturable")
+                .OrderBy(c => c.Tipo)
+                .ThenByDescending(c => c.FechaCreacion)
+                .ToList();
+
+            if (!contratos.Any())
+            {
+                mensajeError = "No hay contratos para enviar";
+                return;
+            }
+
+            // Generar el HTML
+            var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+            
+            var contratosEnergia = contratos.Where(c => c.Tipo == "energia").ToList();
+            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia").ToList();
+            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma").ToList();
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<html><head><meta charset='utf-8'><title>Liquidación - ");
+            sb.Append(usuarioDb.NombreUsuario);
+            sb.Append("</title><style>");
+            sb.Append("body { font-family: Arial, sans-serif; margin: 20px; }");
+            sb.Append("h1 { color: #0d6efd; text-align: center; }");
+            sb.Append("h2 { color: #6c757d; border-bottom: 2px solid #0d6efd; padding-bottom: 5px; margin-top: 25px; }");
+            sb.Append(".header { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }");
+            sb.Append(".info-row { margin: 5px 0; }");
+            sb.Append(".info-label { font-weight: bold; }");
+            sb.Append("table { width: 100%; border-collapse: collapse; margin-top: 10px; }");
+            sb.Append("th { background-color: #6c757d; color: white; padding: 8px; text-align: left; font-size: 12px; }");
+            sb.Append("td { border: 1px solid #dee2e6; padding: 6px; font-size: 11px; }");
+            sb.Append("tr:nth-child(even) { background-color: #f8f9fa; }");
+            sb.Append(".total { background-color: #0d6efd; color: white; font-weight: bold; padding: 10px; text-align: right; margin-top: 20px; }");
+            sb.Append("</style></head><body>");
+            sb.Append("<h1>LIQUIDACIÓN DE CONTRATOS</h1>");
+            sb.Append("<div class='header'>");
+            sb.Append("<div class='info-row'><span class='info-label'>Usuario:</span> ");
+            sb.Append(usuarioDb.NombreUsuario);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Nombre:</span> ");
+            sb.Append(usuarioDb.Nombre);
+            sb.Append(" ");
+            sb.Append(usuarioDb.Apellidos);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Email:</span> ");
+            sb.Append(usuarioDb.Email);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Fecha de emisión:</span> ");
+            sb.Append(fechaActual);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Total contratos:</span> ");
+            sb.Append(contratos.Count);
+            sb.Append("</div></div>");
+
+            // Contratos de Energía
+            if (contratosEnergia.Any())
+            {
+                sb.Append("<h2>CONTRATOS DE ENERGÍA (");
+                sb.Append(contratosEnergia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Comercializadora</th>");
+                sb.Append("<th>Tarifa</th><th>CUPS Luz</th><th>CUPS Gas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosEnergia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnComercializadora);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnTarifa);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCups);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCupsGas);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Energía: ");
+                sb.Append((contratosEnergia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Telefonía
+            if (contratosTelefonia.Any())
+            {
+                sb.Append("<h2>CONTRATOS DE TELEFONÍA (");
+                sb.Append(contratosTelefonia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Operadora</th>");
+                sb.Append("<th>Tarifa</th><th>Fijo</th><th>Línea Móvil</th><th>Nº Líneas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosTelefonia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.OperadoraTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TarifaTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.FijoTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.LineaMovilPrincipal);
+                    sb.Append("</td><td>");
+                    sb.Append(c.NumeroLineasTel);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Telefonía: ");
+                sb.Append((contratosTelefonia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Alarmas
+            if (contratosAlarmas.Any())
+            {
+                sb.Append("<h2>CONTRATOS DE ALARMAS (");
+                sb.Append(contratosAlarmas.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Tipo Alarma</th>");
+                sb.Append("<th>Subtipo</th><th>Kit</th><th>Campaña</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosAlarmas)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TipoAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.SubtipoInmueble);
+                    sb.Append("</td><td>");
+                    sb.Append(c.KitAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.CampanaAlarma);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Alarmas: ");
+                sb.Append((contratosAlarmas.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Total general
+            sb.Append("<div class='total'>TOTAL A LIQUIDAR: ");
+            sb.Append(totalComisiones.ToString("N2"));
+            sb.Append("€</div>");
+            sb.Append("</body></html>");
+            
+            var asunto = $"Liquidación de contratos - {usuarioDb.NombreUsuario} - {fechaActual}";
+            var htmlEmail = sb.ToString();
+            
+            // Generar el PDF
+            var pdfBytes = PdfLiquidacionService.GenerarPdfLiquidacion(
+                usuarioDb,
+                contratosEnergia,
+                contratosTelefonia,
+                contratosAlarmas,
+                totalComisiones
+            );
+            
+            var nombreArchivoPdf = $"Liquidacion_{usuarioDb.NombreUsuario}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            
+            // Enviar email con PDF adjunto
+            var (exito, mensaje) = await EmailService.EnviarEmailConAdjuntoAsync(
+                usuarioDb.Email,
+                asunto,
+                htmlEmail,
+                pdfBytes,
+                nombreArchivoPdf,
+                "application/pdf"
+            );
+
+            if (exito)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Email enviado correctamente a {usuarioDb.Email} con PDF adjunto");
+            }
+            else
+            {
+                mensajeError = mensaje;
+                await JSRuntime.InvokeVoidAsync("alert", $"Error al enviar email: {mensaje}");
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al enviar email: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al enviar email: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al enviar email: {ex.Message}");
+        }
+        finally
+        {
+            // Desmarcar como enviando
+            var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
+            if (usuario != null)
+            {
+                usuario.Enviando = false;
+            }
+            enviandoEmail = false;
+            StateHasChanged();
+        }
     }
 
     private async Task AprobarLiquidacion(int usuarioId)
@@ -1269,9 +1791,31 @@
     {
         public Usuario Usuario { get; set; } = null!;
         public int CantidadContratos { get; set; }
+        public decimal TotalComisiones { get; set; }
         public int CantidadIncidenciasPendientes { get; set; }
         public int CantidadIncidenciasTotal { get; set; }
         public bool TieneIncidenciasPendientes => CantidadIncidenciasPendientes > 0;
         public bool Aprobando { get; set; }
+        public bool Enviando { get; set; }
     }
 }
+
+<script>
+    window.printLiquidacion = function (htmlContent) {
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        var doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(htmlContent);
+        doc.close();
+        
+        setTimeout(function () {
+            iframe.contentWindow.print();
+            setTimeout(function () {
+                document.body.removeChild(iframe);
+            }, 500);
+        }, 250);
+    };
+</script>

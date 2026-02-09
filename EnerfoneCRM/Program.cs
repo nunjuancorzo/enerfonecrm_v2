@@ -76,6 +76,8 @@ builder.Services.AddScoped<ObservacionContratoService>();
 builder.Services.AddScoped<LogActivacionContratoService>();
 builder.Services.AddScoped<MensajeBienvenidaService>();
 builder.Services.AddScoped<IncidenciaLiquidacionService>();
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddSingleton<RepositorioService>();
 
 // Configurar tamaño máximo de formularios y archivos

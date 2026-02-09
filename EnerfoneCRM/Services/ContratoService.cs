@@ -56,6 +56,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(opcionales_alarma, '') as opcionales_alarma,
                     COALESCE(campana_alarma, '') as campana_alarma,
                     COALESCE(empresa_alarma, '') as empresa_alarma,
+                    COALESCE(tipo_via_instalacion, '') as tipo_via_instalacion,
                     COALESCE(direccion_instalacion_alarma, '') as direccion_instalacion_alarma,
                     tiene_contrato_anterior,
                     COALESCE(numero_contrato_anterior, '') as numero_contrato_anterior,

@@ -56,4 +56,31 @@ public class ConfiguracionEmpresa
 
     [Column("fecha_actualizacion")]
     public DateTime? FechaActualizacion { get; set; }
+
+    // Configuración SMTP para envío de emails
+    [Column("smtp_servidor")]
+    [StringLength(255)]
+    public string? SmtpServidor { get; set; }
+
+    [Column("smtp_puerto")]
+    public int? SmtpPuerto { get; set; } = 587;
+
+    [Column("smtp_usuario")]
+    [StringLength(255)]
+    public string? SmtpUsuario { get; set; }
+
+    [Column("smtp_password")]
+    [StringLength(255)]
+    public string? SmtpPassword { get; set; }
+
+    [Column("smtp_usar_ssl")]
+    public bool SmtpUsarSsl { get; set; } = true;
+
+    [Column("smtp_email_desde")]
+    [StringLength(255)]
+    public string? SmtpEmailDesde { get; set; }
+
+    [Column("smtp_nombre_desde")]
+    [StringLength(255)]
+    public string? SmtpNombreDesde { get; set; }
 }

@@ -234,16 +234,63 @@ h1:focus {
 /* Colores personalizados para badges de estado */
 .bg-purple {
     background-color: #6f42c1 !important;
+    color: #fff !important;
+}
+
+.bg-lavender {
+    background-color: #718096 !important;
+    color: #ffffff !important;
+}
+
+.text-black {
+    color: #000000 !important;
 }
 
 .bg-teal {
     background-color: #20c997 !important;
+    color: #fff !important;
+}
+
+.bg-teal-light {
+    background-color: #4dd4ac !important;
+    color: #fff !important;
+}
+
+.bg-cyan {
+    background-color: #0dcaf0 !important;
+    color: #fff !important;
 }
 
 .bg-indigo {
     background-color: #6610f2 !important;
+    color: #fff !important;
 }
 
 .bg-orange {
     background-color: #fd7e14 !important;
+    color: #fff !important;
+}
+
+.bg-muted {
+    background-color: #6c757d !important;
+    color: #fff !important;
+}
+
+.bg-dark-red {
+    background-color: #8b0000 !important;
+    color: #fff !important;
+}
+
+.bg-brown {
+    background-color: #795548 !important;
+    color: #fff !important;
+}
+
+.bg-brown.text-black {
+    color: #000000 !important;
+}
+
+.bg-pink {
+    background-color: #e91e63 !important;
+    color: #fff !important;
 }

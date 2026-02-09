@@ -271,6 +271,10 @@ namespace EnerfoneCRM.Models
         [MaxLength(255)]
         public string? EmpresaAlarma { get; set; }
 
+        [Column("tipo_via_instalacion")]
+        [MaxLength(50)]
+        public string? TipoViaInstalacion { get; set; }
+
         [Column("direccion_instalacion_alarma")]
         [MaxLength(500)]
         public string? DireccionInstalacionAlarma { get; set; }

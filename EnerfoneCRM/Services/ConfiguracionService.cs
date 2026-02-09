@@ -40,6 +40,16 @@ public class ConfiguracionService
                 existente.Email = configuracion.Email;
                 existente.Web = configuracion.Web;
                 existente.LogoUrl = configuracion.LogoUrl;
+                existente.FechaActualizacion = DateTime.Now;
+                
+                // Configuración SMTP
+                existente.SmtpServidor = configuracion.SmtpServidor;
+                existente.SmtpPuerto = configuracion.SmtpPuerto;
+                existente.SmtpUsuario = configuracion.SmtpUsuario;
+                existente.SmtpPassword = configuracion.SmtpPassword;
+                existente.SmtpUsarSsl = configuracion.SmtpUsarSsl;
+                existente.SmtpEmailDesde = configuracion.SmtpEmailDesde;
+                existente.SmtpNombreDesde = configuracion.SmtpNombreDesde;
                 
                 context.ConfiguracionesEmpresa.Update(existente);
             }

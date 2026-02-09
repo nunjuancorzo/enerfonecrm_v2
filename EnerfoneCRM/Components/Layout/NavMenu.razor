@@ -86,17 +86,20 @@
                         </ul>
                     </li>
 
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContabilidad" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
-                            <i class="bi bi-calculator me-2" style="font-size: 1.4rem; vertical-align: middle; color: #9C27B0;"></i>Contabilidad
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownContabilidad">
-                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-text me-2" style="color: #3F51B5;"></i>Presupuestos</a></li>
-                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-receipt me-2" style="color: #4CAF50;"></i>Facturas venta</a></li>
-                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-people me-2" style="color: #FF5722;"></i>Proveedores</a></li>
-                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-minus me-2" style="color: #F44336;"></i>Facturas compra</a></li>
-                        </ul>
-                    </li>
+                    @if (AuthService.EsAdministrador)
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContabilidad" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
+                                <i class="bi bi-calculator me-2" style="font-size: 1.4rem; vertical-align: middle; color: #9C27B0;"></i>Contabilidad
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownContabilidad">
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-text me-2" style="color: #3F51B5;"></i>Presupuestos</a></li>
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-receipt me-2" style="color: #4CAF50;"></i>Facturas venta</a></li>
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-people me-2" style="color: #FF5722;"></i>Proveedores</a></li>
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-minus me-2" style="color: #F44336;"></i>Facturas compra</a></li>
+                            </ul>
+                        </li>
+                    }
                     
                     @if (AuthService.EsAdministrador)
                     {
@@ -114,6 +117,7 @@
                                         <li><a class="dropdown-item" href="tareas"><i class="bi bi-list-check text-success me-2"></i>Tareas</a></li>
                                     </ul>
                                 </li>
+                                <li><a class="dropdown-item" href="inicio-rapido"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>Inicio Rápido</a></li>
                                 <li><a class="dropdown-item" href="configuracion-empresa"><i class="bi bi-building me-2"></i>Datos de Empresa</a></li>
                                 <li><a class="dropdown-item" href="mensajes-bienvenida"><i class="bi bi-chat-left-text me-2"></i>Mensajes de Bienvenida</a></li>
                             </ul>
@@ -130,6 +134,9 @@
                 </ul>
 
                 <div class="d-flex align-items-center text-white">
+                    <a href="enviar-incidencia" class="btn btn-outline-danger btn-sm me-3" style="padding: 8px 16px; border-radius: 8px; font-weight: 500; transition: all 0.3s ease;" title="Reportar Incidencia">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Incidencia
+                    </a>
                     <div class="me-3 d-none d-md-flex align-items-center" style="padding: 8px 16px; background: rgba(255, 255, 255, 0.1); border-radius: 8px; backdrop-filter: blur(10px);">
                         <i class="bi bi-person-circle me-2" style="font-size: 1.2rem;"></i>
                         <div>

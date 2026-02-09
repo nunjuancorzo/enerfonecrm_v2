@@ -1,0 +1,417 @@
+@page "/enviar-incidencia"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject EmailService EmailService
+@rendermode InteractiveServer
+
+<PageTitle>Enviar Incidencia - EnerfoneCRM</PageTitle>
+
+@if (!AuthService.EstaAutenticado)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p>Verificando sesión...</p>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            Enviar Incidencia
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                    @if (!string.IsNullOrEmpty(mensajeExito))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>@mensajeExito
+                            <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>@mensajeError
+                            <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <p class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Utiliza este formulario para reportar cualquier incidencia técnica o problema con la aplicación.
+                            Recibirás un correo de confirmación cuando tu incidencia sea registrada.
+                        </p>
+                    </div>
+
+                    <EditForm Model="@incidencia" OnValidSubmit="@EnviarFormulario">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-person-fill me-1"></i>Usuario
+                            </label>
+                            <input type="text" class="form-control" value="@AuthService.UsuarioActual?.NombreUsuario" disabled />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-envelope-fill me-1"></i>Email
+                            </label>
+                            <input type="email" class="form-control" value="@AuthService.UsuarioActual?.Email" disabled />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-tag-fill me-1"></i>Asunto <span class="text-danger">*</span>
+                            </label>
+                            <InputText @bind-Value="incidencia.Asunto" class="form-control" placeholder="Ej: Error al guardar contrato de energía" maxlength="200" />
+                            <ValidationMessage For="@(() => incidencia.Asunto)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-list-ul me-1"></i>Tipo de Incidencia <span class="text-danger">*</span>
+                            </label>
+                            <InputSelect @bind-Value="incidencia.TipoIncidencia" class="form-select">
+                                <option value="">-- Selecciona un tipo --</option>
+                                <option value="Error Técnico">Error Técnico</option>
+                                <option value="Problema de Datos">Problema de Datos</option>
+                                <option value="Solicitud de Mejora">Solicitud de Mejora</option>
+                                <option value="Consulta">Consulta</option>
+                                <option value="Otro">Otro</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => incidencia.TipoIncidencia)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i>Prioridad <span class="text-danger">*</span>
+                            </label>
+                            <InputSelect @bind-Value="incidencia.Prioridad" class="form-select">
+                                <option value="">-- Selecciona prioridad --</option>
+                                <option value="Baja">Baja</option>
+                                <option value="Media">Media</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Crítica">Crítica</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => incidencia.Prioridad)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-chat-left-text-fill me-1"></i>Descripción detallada <span class="text-danger">*</span>
+                            </label>
+                            <InputTextArea @bind-Value="incidencia.Descripcion" class="form-control" rows="6" 
+                                placeholder="Describe el problema con el mayor detalle posible. Incluye los pasos para reproducir el error si es posible." />
+                            <ValidationMessage For="@(() => incidencia.Descripcion)" />
+                            <small class="text-muted">Caracteres restantes: @(2000 - (incidencia.Descripcion?.Length ?? 0))</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-image-fill me-1"></i>Imagen adjunta (opcional)
+                            </label>
+                            <InputFile OnChange="@CargarImagen" class="form-control" accept="image/*" />
+                            <small class="text-muted">Formatos soportados: JPG, PNG, GIF, BMP, WEBP, etc. Tamaño máximo: 5 MB</small>
+                            @if (!string.IsNullOrEmpty(nombreImagen))
+                            {
+                                <div class="mt-2 alert alert-info py-2">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Imagen seleccionada: <strong>@nombreImagen</strong> (@tamanoImagenMB MB)
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(errorImagen))
+                            {
+                                <div class="mt-2 alert alert-danger py-2">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>@errorImagen
+                                </div>
+                            }
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger" disabled="@enviando">
+                                @if (enviando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Enviando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-send-fill me-2"></i>
+                                    <span>Enviar Incidencia</span>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="Limpiar" disabled="@enviando">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i>Limpiar
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+}
+
+@code {
+    private IncidenciaFormulario incidencia = new IncidenciaFormulario();
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private bool enviando = false;
+    private byte[]? imagenBytes = null;
+    private string? nombreImagen = null;
+    private string? tipoMimeImagen = null;
+    private string? errorImagen = null;
+    private decimal tamanoImagenMB = 0;
+
+    private async Task EnviarFormulario()
+    {
+        try
+        {
+            enviando = true;
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+
+            var usuario = AuthService.UsuarioActual;
+            if (usuario == null)
+            {
+                mensajeError = "No se pudo obtener la información del usuario";
+                return;
+            }
+
+            var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+
+            // Email al administrador
+            var asuntoAdmin = $"[INCIDENCIA - {incidencia.Prioridad}] {incidencia.Asunto}";
+            var cuerpoAdmin = GenerarEmailIncidencia(usuario, fechaActual);
+
+            // Enviar con o sin imagen adjunta
+            (bool exitoAdmin, string mensajeAdmin) resultado;
+            
+            if (imagenBytes != null && !string.IsNullOrEmpty(nombreImagen) && !string.IsNullOrEmpty(tipoMimeImagen))
+            {
+                resultado = await EmailService.EnviarEmailConAdjuntoAsync(
+                    "juanma.corzoca@gmail.com",
+                    asuntoAdmin,
+                    cuerpoAdmin,
+                    imagenBytes,
+                    nombreImagen,
+                    tipoMimeImagen
+                );
+            }
+            else
+            {
+                resultado = await EmailService.EnviarEmailSimpleAsync(
+                    "juanma.corzoca@gmail.com",
+                    asuntoAdmin,
+                    cuerpoAdmin
+                );
+            }
+
+            if (!resultado.exitoAdmin)
+            {
+                mensajeError = $"Error al enviar la incidencia: {resultado.mensajeAdmin}";
+                return;
+            }
+
+            // Email de confirmación al usuario
+            if (!string.IsNullOrEmpty(usuario.Email))
+            {
+                var asuntoUsuario = "Confirmación de incidencia recibida";
+                var cuerpoUsuario = GenerarEmailConfirmacion(usuario, fechaActual);
+
+                var (exitoUsuario, mensajeUsuario) = await EmailService.EnviarEmailSimpleAsync(
+                    usuario.Email,
+                    asuntoUsuario,
+                    cuerpoUsuario
+                );
+            }
+
+            mensajeExito = "Tu incidencia ha sido enviada correctamente. Recibirás una respuesta lo antes posible.";
+            Limpiar();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al enviar la incidencia: {ex.Message}";
+            Console.WriteLine($"[INCIDENCIA] Error: {ex.Message}");
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private string GenerarEmailIncidencia(Usuario usuario, string fecha)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<html><head><meta charset='utf-8'><title>Nueva Incidencia</title><style>");
+        sb.Append("body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+        sb.Append(".container { background-color: white; padding: 30px; border-radius: 10px; max-width: 700px; margin: 0 auto; }");
+        sb.Append("h1 { color: #dc3545; border-bottom: 3px solid #dc3545; padding-bottom: 10px; }");
+        sb.Append(".info-box { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }");
+        sb.Append(".label { font-weight: bold; color: #495057; margin-right: 10px; }");
+        sb.Append(".value { color: #212529; }");
+        sb.Append(".prioridad { display: inline-block; padding: 5px 15px; border-radius: 5px; font-weight: bold; color: white; }");
+        sb.Append(".prioridad-critica { background-color: #dc3545; }");
+        sb.Append(".prioridad-alta { background-color: #fd7e14; }");
+        sb.Append(".prioridad-media { background-color: #ffc107; color: #000; }");
+        sb.Append(".prioridad-baja { background-color: #28a745; }");
+        sb.Append(".descripcion { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0; }");
+        sb.Append("</style></head><body>");
+        sb.Append("<div class='container'>");
+        sb.Append("<h1><i>⚠️</i> Nueva Incidencia Reportada</h1>");
+        
+        sb.Append("<div class='info-box'>");
+        sb.Append($"<div><span class='label'>Fecha:</span><span class='value'>{fecha}</span></div>");
+        sb.Append($"<div><span class='label'>Usuario:</span><span class='value'>{usuario.NombreUsuario}</span></div>");
+        sb.Append($"<div><span class='label'>Nombre:</span><span class='value'>{usuario.Nombre} {usuario.Apellidos}</span></div>");
+        sb.Append($"<div><span class='label'>Email:</span><span class='value'>{usuario.Email}</span></div>");
+        sb.Append($"<div><span class='label'>Rol:</span><span class='value'>{usuario.Rol}</span></div>");
+        sb.Append("</div>");
+
+        sb.Append("<div class='info-box'>");
+        sb.Append($"<div><span class='label'>Asunto:</span><span class='value'>{incidencia.Asunto}</span></div>");
+        sb.Append($"<div><span class='label'>Tipo:</span><span class='value'>{incidencia.TipoIncidencia}</span></div>");
+        sb.Append($"<div><span class='label'>Prioridad:</span> ");
+        
+        var clasePrioridad = incidencia.Prioridad?.ToLower() switch
+        {
+            "crítica" => "prioridad-critica",
+            "alta" => "prioridad-alta",
+            "media" => "prioridad-media",
+            "baja" => "prioridad-baja",
+            _ => "prioridad-media"
+        };
+        
+        sb.Append($"<span class='prioridad {clasePrioridad}'>{incidencia.Prioridad}</span></div>");
+        sb.Append("</div>");
+
+        sb.Append("<div class='descripcion'>");
+        sb.Append("<strong>Descripción:</strong><br><br>");
+        sb.Append(incidencia.Descripcion?.Replace("\n", "<br>"));
+        sb.Append("</div>");
+
+        sb.Append("</div></body></html>");
+        return sb.ToString();
+    }
+
+    private string GenerarEmailConfirmacion(Usuario usuario, string fecha)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<html><head><meta charset='utf-8'><title>Confirmación de Incidencia</title><style>");
+        sb.Append("body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+        sb.Append(".container { background-color: white; padding: 30px; border-radius: 10px; max-width: 700px; margin: 0 auto; }");
+        sb.Append("h1 { color: #28a745; border-bottom: 3px solid #28a745; padding-bottom: 10px; }");
+        sb.Append(".info-box { background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #28a745; }");
+        sb.Append(".resumen { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }");
+        sb.Append(".label { font-weight: bold; color: #495057; }");
+        sb.Append("</style></head><body>");
+        sb.Append("<div class='container'>");
+        sb.Append("<h1>✓ Incidencia Recibida</h1>");
+        
+        sb.Append("<div class='info-box'>");
+        sb.Append($"<p>Hola <strong>{usuario.Nombre}</strong>,</p>");
+        sb.Append("<p>Hemos recibido tu incidencia correctamente. Nuestro equipo técnico la revisará lo antes posible y se pondrá en contacto contigo si necesita más información.</p>");
+        sb.Append("</div>");
+
+        sb.Append("<div class='resumen'>");
+        sb.Append("<p class='label'>Resumen de tu incidencia:</p>");
+        sb.Append($"<p><strong>Fecha:</strong> {fecha}</p>");
+        sb.Append($"<p><strong>Asunto:</strong> {incidencia.Asunto}</p>");
+        sb.Append($"<p><strong>Tipo:</strong> {incidencia.TipoIncidencia}</p>");
+        sb.Append($"<p><strong>Prioridad:</strong> {incidencia.Prioridad}</p>");
+        sb.Append("</div>");
+
+        sb.Append("<p style='color: #6c757d; font-size: 0.9em; margin-top: 20px;'>");
+        sb.Append("Este es un correo automático, por favor no respondas a este mensaje.");
+        sb.Append("</p>");
+
+        sb.Append("</div></body></html>");
+        return sb.ToString();
+    }
+
+    private async Task CargarImagen(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            errorImagen = null;
+            nombreImagen = null;
+            imagenBytes = null;
+            tipoMimeImagen = null;
+            tamanoImagenMB = 0;
+
+            var archivo = e.File;
+            
+            // Validar tipo de archivo
+            if (!archivo.ContentType.StartsWith("image/"))
+            {
+                errorImagen = "El archivo debe ser una imagen";
+                return;
+            }
+
+            // Validar tamaño (5 MB máximo)
+            const long maxFileSize = 5 * 1024 * 1024; // 5 MB
+            if (archivo.Size > maxFileSize)
+            {
+                errorImagen = "La imagen no puede superar los 5 MB";
+                return;
+            }
+
+            // Leer el archivo
+            using var memoryStream = new MemoryStream();
+            await archivo.OpenReadStream(maxFileSize).CopyToAsync(memoryStream);
+            imagenBytes = memoryStream.ToArray();
+            nombreImagen = archivo.Name;
+            tipoMimeImagen = archivo.ContentType;
+            tamanoImagenMB = Math.Round((decimal)archivo.Size / 1024 / 1024, 2);
+        }
+        catch (Exception ex)
+        {
+            errorImagen = $"Error al cargar la imagen: {ex.Message}";
+            imagenBytes = null;
+            nombreImagen = null;
+            tipoMimeImagen = null;
+            Console.WriteLine($"[INCIDENCIA] Error al cargar imagen: {ex.Message}");
+        }
+    }
+
+    private void Limpiar()
+    {
+        incidencia = new IncidenciaFormulario();
+        imagenBytes = null;
+        nombreImagen = null;
+        tipoMimeImagen = null;
+        errorImagen = null;
+        tamanoImagenMB = 0;
+    }
+
+    private class IncidenciaFormulario
+    {
+        [Required(ErrorMessage = "El asunto es obligatorio")]
+        [StringLength(200, ErrorMessage = "El asunto no puede superar los 200 caracteres")]
+        public string Asunto { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Debes seleccionar un tipo de incidencia")]
+        public string TipoIncidencia { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Debes seleccionar una prioridad")]
+        public string Prioridad { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La descripción es obligatoria")]
+        [StringLength(2000, ErrorMessage = "La descripción no puede superar los 2000 caracteres")]
+        [MinLength(20, ErrorMessage = "La descripción debe tener al menos 20 caracteres")]
+        public string Descripcion { get; set; } = string.Empty;
+    }
+}

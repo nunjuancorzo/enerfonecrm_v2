@@ -118,10 +118,12 @@ def importar_clientes(archivo_excel, id_usuario=1):
                     continue
                 
                 # Preparar datos para insertar
+                dni_cif = limpiar_valor(row.get('DNI/CIF'))
+                
                 datos = {
                     'tipo_cliente': tipo_cliente,
                     'nombre': nombre,
-                    'dni_cif': limpiar_valor(row.get('DNI/CIF')),
+                    'dni_cif': dni_cif,
                     'dni_representante': limpiar_valor(row.get('DNI Representante')),
                     'email': email,
                     'telefono': limpiar_valor(row.get('Teléfono')),
@@ -142,25 +144,41 @@ def importar_clientes(archivo_excel, id_usuario=1):
                     'id_usuario': id_usuario
                 }
                 
-                # SQL de inserción
-                sql = """
-                    INSERT INTO clientes_simple (
-                        tipo_cliente, nombre, dni_cif, dni_representante, email, telefono,
-                        direccion, numero, escalera, piso, puerta, aclarador,
-                        poblacion, provincia, codigo_postal, iban, representante,
-                        comercial, observaciones, fecha_alta, id_usuario
-                    ) VALUES (
-                        %(tipo_cliente)s, %(nombre)s, %(dni_cif)s, %(dni_representante)s, 
-                        %(email)s, %(telefono)s, %(direccion)s, %(numero)s, %(escalera)s, 
-                        %(piso)s, %(puerta)s, %(aclarador)s, %(poblacion)s, %(provincia)s, 
-                        %(codigo_postal)s, %(iban)s, %(representante)s, %(comercial)s, 
-                        %(observaciones)s, %(fecha_alta)s, %(id_usuario)s
-                    )
-                """
+                # Verificar si ya existe un cliente con ese DNI/CIF
+                cliente_existente = None
+                if dni_cif:
+                    cursor.execute("SELECT id FROM clientes_simple WHERE dni_cif = %s", (dni_cif,))
+                    resultado = cursor.fetchone()
+                    # Consumir cualquier resultado restante
+                    cursor.fetchall()
+                    if resultado:
+                        cliente_existente = resultado[0]
                 
-                cursor.execute(sql, datos)
-                importados += 1
-                print(f"✓ Fila {fila_num}: {nombre} - Importado correctamente")
+                if cliente_existente:
+                    # Cliente ya existe, saltarlo
+                    errores_detalle.append(f"Fila {fila_num}: Cliente con DNI/CIF '{dni_cif}' ya existe (ID: {cliente_existente})")
+                    errores += 1
+                    print(f"⚠ Fila {fila_num}: {nombre} - Ya existe con DNI/CIF '{dni_cif}'")
+                else:
+                    # SQL de inserción
+                    sql = """
+                        INSERT INTO clientes_simple (
+                            tipo_cliente, nombre, dni_cif, dni_representante, email, telefono,
+                            direccion, numero, escalera, piso, puerta, aclarador,
+                            poblacion, provincia, codigo_postal, iban, representante,
+                            comercial, observaciones, fecha_alta, id_usuario
+                        ) VALUES (
+                            %(tipo_cliente)s, %(nombre)s, %(dni_cif)s, %(dni_representante)s, 
+                            %(email)s, %(telefono)s, %(direccion)s, %(numero)s, %(escalera)s, 
+                            %(piso)s, %(puerta)s, %(aclarador)s, %(poblacion)s, %(provincia)s, 
+                            %(codigo_postal)s, %(iban)s, %(representante)s, %(comercial)s, 
+                            %(observaciones)s, %(fecha_alta)s, %(id_usuario)s
+                        )
+                    """
+                    
+                    cursor.execute(sql, datos)
+                    importados += 1
+                    print(f"✓ Fila {fila_num}: {nombre} - Importado correctamente")
                 
             except Exception as e:
                 errores += 1
@@ -171,30 +189,26 @@ def importar_clientes(archivo_excel, id_usuario=1):
         # Confirmar cambios
         if importados > 0:
             conexion.commit()
-            print(f"\n{'='*60}")
-            print(f"✅ IMPORTACIÓN COMPLETADA")
-            print(f"{'='*60}")
-            print(f"Clientes importados: {importados}")
-            print(f"Filas con errores: {errores}")
-            
-            if errores_detalle:
-                print(f"\n{'='*60}")
-                print("ERRORES DETECTADOS:")
-                print(f"{'='*60}")
-                for error in errores_detalle:
-                    print(f"❌ {error}")
-        else:
-            print("\n⚠️  No se importaron clientes")
         
         # Cerrar conexión
         cursor.close()
         conexion.close()
-        print(f"\n✓ Conexión cerrada")
+        
+        # Imprimir resultado en formato parseable
+        print(f"Importados: {importados}")
+        print(f"Errores: {errores}")
+        if errores_detalle:
+            for error in errores_detalle:
+                print(f"❌ {error}")
         
     except FileNotFoundError:
         print(f"❌ Error: No se encontró el archivo '{archivo_excel}'")
+        print("Importados: 0")
+        print("Errores: 1")
     except Exception as e:
         print(f"❌ Error general: {str(e)}")
+        print("Importados: 0")
+        print("Errores: 1")
         import traceback
         traceback.print_exc()
 

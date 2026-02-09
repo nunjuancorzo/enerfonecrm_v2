@@ -15,6 +15,7 @@
 @inject UsuarioService UsuarioService
 @inject IConfiguration Configuration
 @inject LogActivacionContratoService LogActivacionContratoService
+@inject EmailService EmailService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -39,7 +40,7 @@ else
     }
     else
     {
-        <div class="container-fluid p-4" style="max-width: 2000px;">
+        <div class="container-fluid p-4" style="max-width: 2200px;">
             <div class="row mb-4">
                 <div class="col-md-12">
                     <div class="d-flex justify-content-between align-items-center">
@@ -205,21 +206,28 @@ else
                                                    @onchange="SeleccionarTodosContratosVisibles" 
                                                    checked="@(contratosFiltrados.Any() && contratosFiltrados.All(c => contratosSeleccionados.Contains(c.Id)))" />
                                         </th>
-                                        <th style="cursor: pointer; width: 85px;" @onclick='() => OrdenarPor("FechaCreacion")'>
+                                        <th style="cursor: pointer; width: 50px;" @onclick='() => OrdenarPor("Id")'>
+                                            ID
+                                            @if (columnaOrden == "Id")
+                                            {
+                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                            }
+                                        </th>
+                                        <th style="cursor: pointer; width: 75px;" @onclick='() => OrdenarPor("FechaCreacion")'>
                                             F. Creación
                                             @if (columnaOrden == "FechaCreacion")
                                             {
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 85px;" @onclick='() => OrdenarPor("FechaModificacion")'>
-                                            F. Modificación
+                                        <th style="cursor: pointer; width: 75px;" @onclick='() => OrdenarPor("FechaModificacion")'>
+                                            F. Modif.
                                             @if (columnaOrden == "FechaModificacion")
                                             {
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 100px;" @onclick='() => OrdenarPor("Estado")'>
+                                        <th style="cursor: pointer; width: 95px;" @onclick='() => OrdenarPor("Estado")'>
                                             Estado
                                             @if (columnaOrden == "Estado")
                                             {
@@ -240,14 +248,14 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 180px;" @onclick='() => OrdenarPor("EnTarifa")'>
+                                        <th style="cursor: pointer; width: 160px;" @onclick='() => OrdenarPor("EnTarifa")'>
                                             Tarifa
                                             @if (columnaOrden == "EnTarifa")
                                             {
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 200px;" @onclick='() => OrdenarPor("NombreCliente")'>
+                                        <th style="cursor: pointer; width: 180px;" @onclick='() => OrdenarPor("NombreCliente")'>
                                             Cliente
                                             @if (columnaOrden == "NombreCliente")
                                             {
@@ -275,7 +283,7 @@ else
                                     @if (contratosFiltrados == null || !contratosFiltrados.Any())
                                     {
                                         <tr>
-                                            <td colspan="11" class="text-center text-muted py-4">
+                                            <td colspan="12" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay contratos registrados</p>
                                             </td>
@@ -291,6 +299,7 @@ else
                                                            @onchange="() => ToggleSeleccionContrato(contrato.Id)" 
                                                            checked="@contratosSeleccionados.Contains(contrato.Id)" />
                                                 </td>
+                                                <td><small class="text-muted">@contrato.Id</small></td>
                                                 <td><small>@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
                                                 <td><small class="text-muted">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
                                                 <td>
@@ -672,6 +681,21 @@ else
                                 <hr class="my-4" />
                                 <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
                                 <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Tipo de Vía</label>
+                                        <select class="form-select" @bind="contratoSeleccionado.TipoViaInstalacion" disabled="@(!PuedeEditarCampo())">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="CALLE">CALLE</option>
+                                            <option value="AVENIDA">AVENIDA</option>
+                                            <option value="CARRETERA">CARRETERA</option>
+                                            <option value="CAMINO">CAMINO</option>
+                                            <option value="PASEO">PASEO</option>
+                                            <option value="PLAZA">PLAZA</option>
+                                            <option value="GLORIETA">GLORIETA</option>
+                                            <option value="EDIFICIO">EDIFICIO</option>
+                                            <option value="LUGAR">LUGAR</option>
+                                        </select>
+                                    </div>
                                     <div class="col-md-8">
                                         <label class="form-label fw-bold">Dirección</label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.DireccionInstalacionAlarma" placeholder="Nombre de la calle" disabled="@(!PuedeEditarCampo())" />
@@ -1007,6 +1031,13 @@ else
                                     }
                                 </InputSelect>
                             </div>
+                            @if (nuevoEstadoMasivo == "Activo")
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold"><i class="bi bi-calendar-event me-1"></i>Fecha de Activación <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" @bind="fechaActivacionMasivo" />
+                                </div>
+                            }
                             <div class="alert alert-info mb-0">
                                 <i class="bi bi-info-circle me-2"></i>
                                 Se cambiará el estado de todos los contratos seleccionados.
@@ -1177,6 +1208,7 @@ else
     private HashSet<int> contratosSeleccionados = new();
     private bool mostrarModalCambioEstadoMasivo = false;
     private string nuevoEstadoMasivo = string.Empty;
+    private DateTime? fechaActivacionMasivo = null;
     
     // Activación de contratos
     private bool mostrarCampoFechaActivo = false;
@@ -1543,6 +1575,9 @@ else
         // Ordenar la lista completa filtrada
         var listaOrdenada = columnaOrden switch
         {
+            "Id" => ordenAscendente 
+                ? contratosParaPaginar.OrderBy(c => c.Id).ToList()
+                : contratosParaPaginar.OrderByDescending(c => c.Id).ToList(),
             "FechaCreacion" => ordenAscendente 
                 ? contratosParaPaginar.OrderBy(c => c.FechaCreacion).ToList()
                 : contratosParaPaginar.OrderByDescending(c => c.FechaCreacion).ToList(),
@@ -1775,7 +1810,7 @@ else
             Comision = contrato.Comision,
             UsuarioComercializadoraId = contrato.UsuarioComercializadoraId,
             ServicioId = contrato.ServicioId,
-            EnComercializadora = NormalizarComercializadora(contrato.EnComercializadora ?? ""),
+            EnComercializadora = contrato.EnComercializadora ?? "",
             EnTarifa = contrato.EnTarifa,
             EnCups = contrato.EnCups,
             EnCupsGas = contrato.EnCupsGas,
@@ -1784,6 +1819,7 @@ else
             TipoOperacion = contrato.TipoOperacion,
             PotenciaContratada = contrato.PotenciaContratada,
             ConsumoAnual = contrato.ConsumoAnual,
+            TipoViaInstalacion = contrato.TipoViaInstalacion,
             DireccionInstalacionAlarma = contrato.DireccionInstalacionAlarma,
             NumeroInstalacion = contrato.NumeroInstalacion,
             EscaleraInstalacion = contrato.EscaleraInstalacion,
@@ -2043,6 +2079,10 @@ else
                 }
 
                 mensajeExito = "Contrato actualizado correctamente";
+                
+                // Enviar notificación por email si el usuario tiene activadas las notificaciones
+                await EnviarNotificacionCambioContrato(contratoSeleccionado);
+                
                 await CargarContratos();
                 CerrarModal();
             }
@@ -2150,22 +2190,22 @@ else
     {
         return estado?.ToLower() switch
         {
-            "pte carga" => "bg-secondary",
-            "pte firma" => "bg-primary",
+            "pte carga" => "bg-secondary text-white",
+            "pte firma" => "bg-primary text-white",
             "en incidencia" => "bg-warning text-dark",
             "pte documentación" => "bg-purple text-white",
-            "pte validación" => "bg-info",
-            "en activación" => "bg-cyan text-white",
-            "en tramitación" => "bg-teal-light text-dark",
-            "en liquidación" => "bg-light text-dark",
+            "pte validación" => "bg-light-blue text-dark",
             "en curso" => "bg-orange text-white",
-            "activo" => "bg-success",
+            "en activación" => "bg-cyan text-dark",
+            "en tramitación" => "bg-pink text-white",
+            "activo" => "bg-success text-white",
             "act/facturable" => "bg-teal text-white",
-            "liquidado" => "bg-indigo text-white",
-            "baja" => "bg-dark",
-            "cancelado" => "bg-secondary text-white",
-            "scoring" => "bg-danger text-white",
-            _ => "bg-muted"
+            "en liquidación" => "bg-indigo text-white",
+            "liquidado" => "bg-dark text-white",
+            "baja" => "bg-danger text-white",
+            "cancelado" => "bg-brown text-white",
+            "scoring" => "bg-dark-red text-white",
+            _ => "bg-secondary text-white"
         };
     }
 
@@ -2480,6 +2520,7 @@ else
     private void MostrarModalCambioEstadoMasivo()
     {
         nuevoEstadoMasivo = string.Empty;
+        fechaActivacionMasivo = null;
         mostrarModalCambioEstadoMasivo = true;
     }
 
@@ -2487,6 +2528,7 @@ else
     {
         mostrarModalCambioEstadoMasivo = false;
         nuevoEstadoMasivo = string.Empty;
+        fechaActivacionMasivo = null;
     }
 
     private async Task AplicarCambioEstadoMasivo()
@@ -2512,6 +2554,13 @@ else
                     {
                         contrato.Estado = nuevoEstadoMasivo;
                         contrato.FechaModificacion = DateTime.Now;
+                        
+                        // Si el estado es Activo y se proporcionó fecha de activación, actualizarla
+                        if (nuevoEstadoMasivo == "Activo" && fechaActivacionMasivo.HasValue)
+                        {
+                            contrato.FechaActivo = fechaActivacionMasivo.Value;
+                        }
+                        
                         await ContratoService.ActualizarAsync(contrato);
                         actualizados++;
                     }
@@ -2688,4 +2737,64 @@ else
             mensajeError = $"Error al eliminar el PDF: {ex.Message}";
         }
     }
-}
+
+    private async Task EnviarNotificacionCambioContrato(Contrato contrato)
+    {
+        try
+        {
+            // Buscar el usuario propietario del contrato
+            if (contrato.IdCliente == null) return;
+            var cliente = await ClienteService.ObtenerPorIdAsync(contrato.IdCliente.Value);
+            if (cliente == null || cliente.IdUsuario == null) return;
+
+            var usuario = await UsuarioService.ObtenerPorIdAsync(cliente.IdUsuario.Value);
+            if (usuario == null || !usuario.RecibirNotificaciones || string.IsNullOrEmpty(usuario.Email)) return;
+
+            // Generar el contenido del email
+            var asunto = $"Modificación en contrato de energía - {cliente.Nombre}";
+            var cuerpo = GenerarEmailNotificacionContrato(usuario, contrato, cliente);
+
+            // Enviar email
+            await EmailService.EnviarEmailSimpleAsync(usuario.Email, asunto, cuerpo);
+        }
+        catch (Exception ex)
+        {
+            // No mostrar error al usuario, solo registrar en consola
+            Console.WriteLine($"[NOTIFICACION] Error al enviar email: {ex.Message}");
+        }
+    }
+
+    private string GenerarEmailNotificacionContrato(Usuario usuario, Contrato contrato, Cliente cliente)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<html><head><meta charset='utf-8'><title>Modificación de Contrato</title><style>");
+        sb.Append("body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+        sb.Append(".container { background-color: white; padding: 30px; border-radius: 10px; max-width: 700px; margin: 0 auto; }");
+        sb.Append("h1 { color: #0d6efd; border-bottom: 3px solid #0d6efd; padding-bottom: 10px; }");
+        sb.Append(".info-box { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }");
+        sb.Append(".label { font-weight: bold; color: #495057; }");
+        sb.Append(".value { color: #212529; }");
+        sb.Append("</style></head><body>");
+        sb.Append("<div class='container'>");
+        sb.Append("<h1><i>📄</i> Notificación de Modificación de Contrato</h1>");
+        
+        sb.Append("<p>Hola <strong>" + usuario.Nombre + "</strong>,</p>");
+        sb.Append("<p>Te informamos que se ha modificado un contrato de energía asociado a tu cartera de clientes:</p>");
+
+        sb.Append("<div class='info-box'>");
+        sb.Append("<p><span class='label'>Cliente:</span> <span class='value'>" + cliente.Nombre + "</span></p>");
+        sb.Append("<p><span class='label'>Comercializadora:</span> <span class='value'>" + (contrato.EnComercializadora ?? "-") + "</span></p>");
+        sb.Append("<p><span class='label'>Tarifa:</span> <span class='value'>" + (contrato.EnTarifa ?? "-") + "</span></p>");
+        sb.Append("<p><span class='label'>Estado:</span> <span class='value'>" + (contrato.Estado ?? "-") + "</span></p>");
+        sb.Append("<p><span class='label'>CUPS:</span> <span class='value'>" + (contrato.EnCups ?? "-") + "</span></p>");
+        sb.Append("<p><span class='label'>Dirección:</span> <span class='value'>" + (contrato.Direccion ?? "-") + "</span></p>");
+        sb.Append("<p><span class='label'>Fecha de modificación:</span> <span class='value'>" + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + "</span></p>");
+        sb.Append("</div>");
+
+        sb.Append("<p style='color: #6c757d; font-size: 0.9em; margin-top: 20px;'>");
+        sb.Append("Esta es una notificación automática. Accede a EnerfoneCRM para ver todos los detalles del contrato.");
+        sb.Append("</p>");
+
+        sb.Append("</div></body></html>");
+        return sb.ToString();
+    }}

@@ -80,6 +80,32 @@ else
         {
             <div class="card">
                 <div class="card-body">
+                    <!-- Filtro de búsqueda -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       placeholder="Buscar por nombre, usuario o email..." 
+                                       @bind="textoBusqueda" 
+                                       @bind:event="oninput"
+                                       @onkeyup="FiltrarUsuarios" />
+                                @if (!string.IsNullOrEmpty(textoBusqueda))
+                                {
+                                    <button class="btn btn-outline-secondary" type="button" @onclick="LimpiarBusqueda">
+                                        <i class="bi bi-x"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <small class="text-muted">
+                                Mostrando @usuariosFiltrados.Count de @usuarios.Count usuario(s)
+                            </small>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -155,7 +181,7 @@ else
                                             </span>
                                         </td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(usuario)">
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await MostrarModalEditar(usuario)">
                                                 <span class="bi bi-pencil"></span>
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(usuario)">
@@ -254,6 +280,7 @@ else
 @code {
     private List<Usuario> usuarios = new();
     private List<Usuario> usuariosFiltrados = new();
+    private string textoBusqueda = string.Empty;
     
     // Ordenamiento
     private string columnaOrden = "NombreUsuario";
@@ -335,27 +362,39 @@ else
 
     private void AplicarOrdenamiento()
     {
+        // Primero filtrar por texto de búsqueda
+        var usuariosFiltradosPorBusqueda = string.IsNullOrWhiteSpace(textoBusqueda)
+            ? usuarios
+            : usuarios.Where(u => 
+                (u.NombreUsuario?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Email?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Nombre?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Apellidos?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Rol?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+            ).ToList();
+
+        // Luego ordenar
         var usuariosParaPaginar = columnaOrden switch
         {
             "NombreUsuario" => ordenAscendente
-                ? usuarios.OrderBy(u => u.NombreUsuario).ToList()
-                : usuarios.OrderByDescending(u => u.NombreUsuario).ToList(),
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.NombreUsuario).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.NombreUsuario).ToList(),
             "Email" => ordenAscendente
-                ? usuarios.OrderBy(u => u.Email).ToList()
-                : usuarios.OrderByDescending(u => u.Email).ToList(),
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Email).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Email).ToList(),
             "Rol" => ordenAscendente
-                ? usuarios.OrderBy(u => u.Rol).ToList()
-                : usuarios.OrderByDescending(u => u.Rol).ToList(),
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Rol).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Rol).ToList(),
             "Comision" => ordenAscendente
-                ? usuarios.OrderBy(u => u.Comision).ToList()
-                : usuarios.OrderByDescending(u => u.Comision).ToList(),
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Comision).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Comision).ToList(),
             "Activo" => ordenAscendente
-                ? usuarios.OrderBy(u => u.Activo).ToList()
-                : usuarios.OrderByDescending(u => u.Activo).ToList(),
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Activo).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Activo).ToList(),
             "Contratos" => ordenAscendente
-                ? usuarios.OrderBy(u => u.TotalContratos).ToList()
-                : usuarios.OrderByDescending(u => u.TotalContratos).ToList(),
-            _ => usuarios
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.TotalContratos).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.TotalContratos).ToList(),
+            _ => usuariosFiltradosPorBusqueda
         };
         
         totalElementos = usuariosParaPaginar.Count;
@@ -368,6 +407,18 @@ else
         
         StateHasChanged();
     }
+
+    private void FiltrarUsuarios()
+    {
+        paginaActual = 1;
+        AplicarOrdenamiento();
+    }
+
+    private void LimpiarBusqueda()
+    {
+        textoBusqueda = string.Empty;
+        FiltrarUsuarios();
+    }
     
     private void CambiarPagina(int nuevaPagina)
     {
@@ -378,10 +429,15 @@ else
         }
     }
 
-    private void MostrarModalEditar(Usuario usuario)
+    private async Task MostrarModalEditar(Usuario usuario)
     {
-        usuarioSeleccionado = usuario;
-        mostrarModalEditar = true;
+        // Recargar el usuario desde la base de datos para obtener todos los campos actualizados
+        var usuarioCompleto = await UsuarioService.ObtenerPorIdAsync(usuario.Id);
+        if (usuarioCompleto != null)
+        {
+            usuarioSeleccionado = usuarioCompleto;
+            mostrarModalEditar = true;
+        }
     }
 
     private void MostrarModalCrear()

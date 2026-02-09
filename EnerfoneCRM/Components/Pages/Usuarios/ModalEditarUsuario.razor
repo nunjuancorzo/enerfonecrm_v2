@@ -356,6 +356,16 @@
                     </div>
 
                     <div class="mb-3">
+                        <div class="form-check">
+                            <InputCheckbox id="recibirNotificaciones" class="form-check-input" @bind-Value="usuario.RecibirNotificaciones" />
+                            <label class="form-check-label" for="recibirNotificaciones">
+                                <i class="bi bi-envelope me-1"></i>Recibir notificaciones por email
+                            </label>
+                            <div class="form-text">Marque esta opción para que el usuario reciba notificaciones por email cuando se modifiquen sus contratos</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label">Fecha de Creación</label>
                         <input type="text" class="form-control" value="@usuario.FechaCreacion.ToString("dd/MM/yyyy HH:mm")" disabled />
                         <div class="form-text">Fecha de registro del usuario en el sistema</div>
@@ -520,6 +530,7 @@
                 PasswordHash = Usuario.PasswordHash,
                 Activo = Usuario.Activo,
                 ExcluirLogAcceso = Usuario.ExcluirLogAcceso,
+                RecibirNotificaciones = Usuario.RecibirNotificaciones,
                 FechaCreacion = Usuario.FechaCreacion
             };
             nuevaPassword = string.Empty;

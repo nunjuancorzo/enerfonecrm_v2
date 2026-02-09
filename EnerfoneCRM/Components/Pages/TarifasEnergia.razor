@@ -267,7 +267,11 @@ else
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Tipo <span class="text-danger">*</span></label>
-                                        <InputText class="form-control" @bind-Value="tarifaActual.Tipo" placeholder="Ej: 2.0TD" />
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.Tipo">
+                                            <option value="">-- Seleccionar tipo --</option>
+                                            <option value="Residencial">Residencial</option>
+                                            <option value="Pyme">Pyme</option>
+                                        </InputSelect>
                                         <ValidationMessage For="() => tarifaActual.Tipo" class="text-danger" />
                                     </div>
                                     <div class="col-md-4">

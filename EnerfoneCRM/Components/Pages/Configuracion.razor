@@ -138,6 +138,57 @@ else
 
                                 <hr class="my-4" />
 
+                                <h5 class="mb-3"><i class="bi bi-envelope-at me-2"></i>Configuración de Email SMTP</h5>
+                                <p class="text-muted small mb-3">Configura el servidor SMTP para enviar emails desde la aplicación</p>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label">Servidor SMTP</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.SmtpServidor" placeholder="smtp.gmail.com" />
+                                        <small class="text-muted">Ejemplo: smtp.gmail.com, smtp.office365.com</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Puerto</label>
+                                        <InputNumber class="form-control" @bind-Value="configuracion.SmtpPuerto" />
+                                        <small class="text-muted">Común: 587 o 465</small>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Usuario SMTP</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.SmtpUsuario" placeholder="tu-email@ejemplo.com" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Contraseña SMTP</label>
+                                        <InputText type="password" class="form-control" @bind-Value="configuracion.SmtpPassword" />
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email Remitente</label>
+                                        <InputText class="form-control" type="email" @bind-Value="configuracion.SmtpEmailDesde" placeholder="noreply@ejemplo.com" />
+                                        <small class="text-muted">Email que aparecerá como remitente</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Nombre Remitente</label>
+                                        <InputText class="form-control" @bind-Value="configuracion.SmtpNombreDesde" placeholder="Mi Empresa" />
+                                        <small class="text-muted">Nombre que aparecerá como remitente</small>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox class="form-check-input" id="usarSsl" @bind-Value="configuracion.SmtpUsarSsl" />
+                                        <label class="form-check-label" for="usarSsl">
+                                            Usar SSL/TLS (recomendado)
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+
                                 <h5 class="mb-3"><i class="bi bi-image me-2"></i>Imagen Corporativa</h5>
 
                                 <div class="mb-3">

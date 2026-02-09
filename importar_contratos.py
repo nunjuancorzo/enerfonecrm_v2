@@ -53,7 +53,10 @@ def limpiar_fecha(valor):
         return None
     try:
         if isinstance(valor, datetime):
-            return valor
+            return valor.strftime('%Y-%m-%d %H:%M:%S')
+        # Convertir pandas Timestamp a datetime
+        if hasattr(valor, 'to_pydatetime'):
+            return valor.to_pydatetime().strftime('%Y-%m-%d %H:%M:%S')
         return pd.to_datetime(str(valor)).strftime('%Y-%m-%d')
     except:
         return None
@@ -71,14 +74,7 @@ def obtener_id_cliente_por_dni(cursor, dni_cif):
         return None
     cursor.execute("SELECT id FROM clientes_simple WHERE dni_cif = %s", (dni_cif,))
     resultado = cursor.fetchone()
-    return resultado[0] if resultado else None
-
-def obtener_id_cliente_por_dni(cursor, dni_cif):
-    """Obtiene el ID del cliente a partir de su DNI/CIF"""
-    if not dni_cif:
-        return None
-    cursor.execute("SELECT id FROM clientes_simple WHERE dni_cif = %s", (dni_cif,))
-    resultado = cursor.fetchone()
+    cursor.fetchall()  # Consumir cualquier resultado restante
     return resultado[0] if resultado else None
 
 def verificar_cliente_existe(cursor, id_cliente):
@@ -109,8 +105,8 @@ def importar_contratos_energia(archivo_excel):
             fila_num = index + 2
             
             try:
-                # Campo obligatorio - usar DNI/CIF en lugar de IdCliente
-                dni_cif = limpiar_valor(row.get('DNI/CIF*'))
+                # Campo obligatorio - la columna IdCliente* contiene el DNI/CIF
+                dni_cif = limpiar_valor(row.get('IdCliente*'))
                 
                 # Saltar filas vacías
                 if not dni_cif:
@@ -226,16 +222,17 @@ def importar_contratos_telefonia(archivo_excel):
             fila_num = index + 2
             
             try:
-                # Campo obligatorio
-                id_cliente = limpiar_entero(row.get('IdCliente*'))
+                # Campo obligatorio - ahora es DNI/CIF en vez de ID numérico
+                dni_cif = limpiar_valor(row.get('IdCliente*'))
                 
                 # Saltar filas vacías
-                if not id_cliente:
+                if not dni_cif:
                     continue
                 
-                # Verificar que el cliente existe
-                if not verificar_cliente_existe(cursor, id_cliente):
-                    result['errores_detalle'].append(f"Fila {fila_num}: El cliente con ID {id_cliente} no existe")
+                # Obtener el ID del cliente por DNI/CIF
+                id_cliente = obtener_id_cliente_por_dni(cursor, dni_cif)
+                if not id_cliente:
+                    result['errores_detalle'].append(f"Fila {fila_num}: No se encontró cliente con DNI/CIF '{dni_cif}'")
                     result['errores'] += 1
                     continue
                 
@@ -339,16 +336,17 @@ def importar_contratos_alarmas(archivo_excel):
             fila_num = index + 2
             
             try:
-                # Campo obligatorio
-                id_cliente = limpiar_entero(row.get('IdCliente*'))
+                # Campo obligatorio - ahora es DNI/CIF en vez de ID numérico
+                dni_cif = limpiar_valor(row.get('IdCliente*'))
                 
                 # Saltar filas vacías
-                if not id_cliente:
+                if not dni_cif:
                     continue
                 
-                # Verificar que el cliente existe
-                if not verificar_cliente_existe(cursor, id_cliente):
-                    result['errores_detalle'].append(f"Fila {fila_num}: El cliente con ID {id_cliente} no existe")
+                # Obtener el ID del cliente por DNI/CIF
+                id_cliente = obtener_id_cliente_por_dni(cursor, dni_cif)
+                if not id_cliente:
+                    result['errores_detalle'].append(f"Fila {fila_num}: No se encontró cliente con DNI/CIF '{dni_cif}'")
                     result['errores'] += 1
                     continue
                 
@@ -423,20 +421,12 @@ def importar_contratos_alarmas(archivo_excel):
 
 def mostrar_resumen(resultado, tipo):
     """Muestra el resumen de la importación"""
-    print(f"\n{'='*60}")
-    print(f"✅ IMPORTACIÓN DE CONTRATOS DE {tipo.upper()} COMPLETADA")
-    print(f"{'='*60}")
-    print(f"Contratos importados: {resultado['importados']}")
-    print(f"Filas con errores: {resultado['errores']}")
+    print(f"Importados: {resultado['importados']}")
+    print(f"Errores: {resultado['errores']}")
     
     if resultado['errores_detalle']:
-        print(f"\n{'='*60}")
-        print("ERRORES DETECTADOS:")
-        print(f"{'='*60}")
         for error in resultado['errores_detalle']:
             print(f"❌ {error}")
-    
-    print(f"\n✓ Proceso finalizado")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

@@ -24,6 +24,17 @@ else if (!AuthService.EstaAutenticado)
         No tienes acceso a esta página. Por favor, inicia sesión.
     </div>
 }
+else if (!AuthService.EsAdministrador)
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Acceso Denegado</h4>
+            <p>No tienes permisos para acceder a esta sección. Solo los administradores pueden ver el log de activaciones.</p>
+            <hr>
+            <a href="/" class="btn btn-primary">Volver al Inicio</a>
+        </div>
+    </div>
+}
 else
 {
     <div class="container-fluid p-4">

@@ -7,3 +7,11 @@ window.downloadFile = function (fileName, dataUrl) {
     link.click();
     document.body.removeChild(link);
 };
+
+// Función para hacer scroll a un elemento
+window.scrollToElement = function (elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};

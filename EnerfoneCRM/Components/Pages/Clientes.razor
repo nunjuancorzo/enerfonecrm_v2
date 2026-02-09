@@ -162,7 +162,7 @@ else
                                     {
                                         @foreach (var cliente in clientesFiltrados)
                                         {
-                                            <tr>
+                                            <tr id="cliente-@cliente.Id" style="@(clienteRecienCreado == cliente.Id ? "background-color: #d1ecf1;" : "")">
                                                 <td><small>@(cliente.FechaAlta?.ToString("dd/MM/yyyy") ?? "-")</small></td>
                                                 <td>
                                                     @if (cliente.TipoCliente == "Pyme")
@@ -279,9 +279,23 @@ else
                                         }
                                         Guardar
                                     </button>
+                                    @if (!esNuevo)
+                                    {
+                                        <button type="button" class="btn btn-success ms-auto" @onclick="GuardarYCrearContrato" disabled="@guardando">
+                                            <i class="bi bi-file-earmark-plus me-2"></i>
+                                            Crear Contrato
+                                        </button>
+                                    }
                                 </div>
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                                @if (!string.IsNullOrEmpty(mensajeError))
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                                        <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                                    </div>
+                                }
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo Cliente <span class="text-danger">*</span></label>
@@ -347,6 +361,57 @@ else
                                         </h6>
                                     </div>
                                     
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Tipo de Vía <small class="text-muted">(opcional)</small></label>
+                                        <InputSelect class="form-select" @bind-Value="clienteSeleccionado.TipoVia">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="CALLE">CALLE</option>
+                                            <option value="AVENIDA">AVENIDA</option>
+                                            <option value="CARRETERA">CARRETERA</option>
+                                            <option value="CAMINO">CAMINO</option>
+                                            <option value="PASEO">PASEO</option>
+                                            <option value="PLAZA">PLAZA</option>
+                                            <option value="GLORIETA">GLORIETA</option>
+                                            <option value="ACERA">ACERA</option>
+                                            <option value="ALAMEDA">ALAMEDA</option>
+                                            <option value="ALDEA">ALDEA</option>
+                                            <option value="AMPLIACIÓN">AMPLIACIÓN</option>
+                                            <option value="ANGOSTA">ANGOSTA</option>
+                                            <option value="APARTAMENTOS">APARTAMENTOS</option>
+                                            <option value="ATAJO">ATAJO</option>
+                                            <option value="BAJADA">BAJADA</option>
+                                            <option value="BARRANCO">BARRANCO</option>
+                                            <option value="BARRIADA">BARRIADA</option>
+                                            <option value="BARRIO">BARRIO</option>
+                                            <option value="BLOQUES">BLOQUES</option>
+                                            <option value="CALLEJA">CALLEJA</option>
+                                            <option value="CALLEJÓN">CALLEJÓN</option>
+                                            <option value="CALLEJUELA">CALLEJUELA</option>
+                                            <option value="CALZADA">CALZADA</option>
+                                            <option value="CARRERA">CARRERA</option>
+                                            <option value="CASERIO">CASERIO</option>
+                                            <option value="CHALET">CHALET</option>
+                                            <option value="COLONIA">COLONIA</option>
+                                            <option value="COOPERATIVA">COOPERATIVA</option>
+                                            <option value="CORRAL">CORRAL</option>
+                                            <option value="COSTANILLA">COSTANILLA</option>
+                                            <option value="CUESTA">CUESTA</option>
+                                            <option value="EDIFICIO">EDIFICIO</option>
+                                            <option value="ESCALA">ESCALA</option>
+                                            <option value="ESCALERA">ESCALERA</option>
+                                            <option value="ESCALINATA">ESCALINATA</option>
+                                            <option value="ESTRADA">ESTRADA</option>
+                                            <option value="GRUPO">GRUPO</option>
+                                            <option value="LLANO">LLANO</option>
+                                            <option value="LUGAR">LUGAR</option>
+                                            <option value="MANZANA">MANZANA</option>
+                                            <option value="MERCADO">MERCADO</option>
+                                            <option value="MONTAÑA">MONTAÑA</option>
+                                            <option value="MUNICIPIO">MUNICIPIO</option>
+                                            <option value="PASEO ALTO">PASEO ALTO</option>
+                                            <option value="POBLADO">POBLADO</option>
+                                        </InputSelect>
+                                    </div>
                                     <div class="col-md-8">
                                         <label class="form-label fw-bold">Dirección <small class="text-muted">(opcional)</small></label>
                                         <InputText @bind-Value="clienteSeleccionado.Direccion" class="form-control" placeholder="Nombre de la calle" />
@@ -547,15 +612,15 @@ else
                         <div class="modal-body">
                             <p class="text-muted mb-4">Selecciona el tipo de contrato que deseas crear:</p>
                             <div class="d-grid gap-3">
-                                <button class="btn btn-outline-warning btn-lg" @onclick="() => CrearContratoEnergia()">
+                                <button class="btn btn-outline-warning btn-lg" @onclick="CrearContratoEnergia">
                                     <i class="bi bi-lightning-charge-fill me-2"></i>
                                     Contrato de Energía
                                 </button>
-                                <button class="btn btn-outline-info btn-lg" @onclick="() => CrearContratoTelefonia()">
+                                <button class="btn btn-outline-info btn-lg" @onclick="CrearContratoTelefonia">
                                     <i class="bi bi-telephone-fill me-2"></i>
                                     Contrato de Telefonía
                                 </button>
-                                <button class="btn btn-outline-danger btn-lg" @onclick="() => CrearContratoAlarmas()">
+                                <button class="btn btn-outline-danger btn-lg" @onclick="CrearContratoAlarmas">
                                     <i class="bi bi-shield-check me-2"></i>
                                     Contrato de Alarmas
                                 </button>
@@ -693,7 +758,7 @@ else
                                             <option value="">Seleccionar tarifa...</option>
                                             @foreach (var tarifa in tarifasEnergiaDisponibles)
                                             {
-                                                <option value="@tarifa.Nombre">@tarifa.Nombre - @tarifa.PrecioNew.ToString("N2")€</option>
+                                                <option value="@tarifa.Nombre">@tarifa.Nombre</option>
                                             }
                                         </select>
                                     </div>
@@ -727,6 +792,57 @@ else
                                     <div class="col-12 mt-3">
                                         <hr />
                                         <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Tipo de Vía</label>
+                                        <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoViaInstalacion">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="CALLE">CALLE</option>
+                                            <option value="AVENIDA">AVENIDA</option>
+                                            <option value="CARRETERA">CARRETERA</option>
+                                            <option value="CAMINO">CAMINO</option>
+                                            <option value="PASEO">PASEO</option>
+                                            <option value="PLAZA">PLAZA</option>
+                                            <option value="GLORIETA">GLORIETA</option>
+                                            <option value="ACERA">ACERA</option>
+                                            <option value="ALAMEDA">ALAMEDA</option>
+                                            <option value="ALDEA">ALDEA</option>
+                                            <option value="AMPLIACIÓN">AMPLIACIÓN</option>
+                                            <option value="ANGOSTA">ANGOSTA</option>
+                                            <option value="APARTAMENTOS">APARTAMENTOS</option>
+                                            <option value="ATAJO">ATAJO</option>
+                                            <option value="BAJADA">BAJADA</option>
+                                            <option value="BARRANCO">BARRANCO</option>
+                                            <option value="BARRIADA">BARRIADA</option>
+                                            <option value="BARRIO">BARRIO</option>
+                                            <option value="BLOQUES">BLOQUES</option>
+                                            <option value="CALLEJA">CALLEJA</option>
+                                            <option value="CALLEJÓN">CALLEJÓN</option>
+                                            <option value="CALLEJUELA">CALLEJUELA</option>
+                                            <option value="CALZADA">CALZADA</option>
+                                            <option value="CARRERA">CARRERA</option>
+                                            <option value="CASERIO">CASERIO</option>
+                                            <option value="CHALET">CHALET</option>
+                                            <option value="COLONIA">COLONIA</option>
+                                            <option value="COOPERATIVA">COOPERATIVA</option>
+                                            <option value="CORRAL">CORRAL</option>
+                                            <option value="COSTANILLA">COSTANILLA</option>
+                                            <option value="CUESTA">CUESTA</option>
+                                            <option value="EDIFICIO">EDIFICIO</option>
+                                            <option value="ESCALA">ESCALA</option>
+                                            <option value="ESCALERA">ESCALERA</option>
+                                            <option value="ESCALINATA">ESCALINATA</option>
+                                            <option value="ESTRADA">ESTRADA</option>
+                                            <option value="GRUPO">GRUPO</option>
+                                            <option value="LLANO">LLANO</option>
+                                            <option value="LUGAR">LUGAR</option>
+                                            <option value="MANZANA">MANZANA</option>
+                                            <option value="MERCADO">MERCADO</option>
+                                            <option value="MONTAÑA">MONTAÑA</option>
+                                            <option value="MUNICIPIO">MUNICIPIO</option>
+                                            <option value="PASEO ALTO">PASEO ALTO</option>
+                                            <option value="POBLADO">POBLADO</option>
+                                        </InputSelect>
                                     </div>
                                     <div class="col-md-8">
                                         <label class="form-label fw-bold">Dirección</label>
@@ -1144,6 +1260,57 @@ else
                                         <hr />
                                         <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
                                     </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Tipo de Vía</label>
+                                        <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoViaInstalacion">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="CALLE">CALLE</option>
+                                            <option value="AVENIDA">AVENIDA</option>
+                                            <option value="CARRETERA">CARRETERA</option>
+                                            <option value="CAMINO">CAMINO</option>
+                                            <option value="PASEO">PASEO</option>
+                                            <option value="PLAZA">PLAZA</option>
+                                            <option value="GLORIETA">GLORIETA</option>
+                                            <option value="ACERA">ACERA</option>
+                                            <option value="ALAMEDA">ALAMEDA</option>
+                                            <option value="ALDEA">ALDEA</option>
+                                            <option value="AMPLIACIÓN">AMPLIACIÓN</option>
+                                            <option value="ANGOSTA">ANGOSTA</option>
+                                            <option value="APARTAMENTOS">APARTAMENTOS</option>
+                                            <option value="ATAJO">ATAJO</option>
+                                            <option value="BAJADA">BAJADA</option>
+                                            <option value="BARRANCO">BARRANCO</option>
+                                            <option value="BARRIADA">BARRIADA</option>
+                                            <option value="BARRIO">BARRIO</option>
+                                            <option value="BLOQUES">BLOQUES</option>
+                                            <option value="CALLEJA">CALLEJA</option>
+                                            <option value="CALLEJÓN">CALLEJÓN</option>
+                                            <option value="CALLEJUELA">CALLEJUELA</option>
+                                            <option value="CALZADA">CALZADA</option>
+                                            <option value="CARRERA">CARRERA</option>
+                                            <option value="CASERIO">CASERIO</option>
+                                            <option value="CHALET">CHALET</option>
+                                            <option value="COLONIA">COLONIA</option>
+                                            <option value="COOPERATIVA">COOPERATIVA</option>
+                                            <option value="CORRAL">CORRAL</option>
+                                            <option value="COSTANILLA">COSTANILLA</option>
+                                            <option value="CUESTA">CUESTA</option>
+                                            <option value="EDIFICIO">EDIFICIO</option>
+                                            <option value="ESCALA">ESCALA</option>
+                                            <option value="ESCALERA">ESCALERA</option>
+                                            <option value="ESCALINATA">ESCALINATA</option>
+                                            <option value="ESTRADA">ESTRADA</option>
+                                            <option value="GRUPO">GRUPO</option>
+                                            <option value="LLANO">LLANO</option>
+                                            <option value="LUGAR">LUGAR</option>
+                                            <option value="MANZANA">MANZANA</option>
+                                            <option value="MERCADO">MERCADO</option>
+                                            <option value="MONTAÑA">MONTAÑA</option>
+                                            <option value="MUNICIPIO">MUNICIPIO</option>
+                                            <option value="PASEO ALTO">PASEO ALTO</option>
+                                            <option value="POBLADO">POBLADO</option>
+                                        </InputSelect>
+                                    </div>
                                     <div class="col-md-8">
                                         <label class="form-label fw-bold">Dirección</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.DireccionInstalacionAlarma" placeholder="Nombre de la calle" />
@@ -1400,6 +1567,57 @@ else
                                     <div class="col-12 mt-3">
                                         <h6 class="border-bottom pb-2"><i class="bi bi-geo-alt me-2"></i>Dirección de Instalación</h6>
                                     </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Tipo de Vía</label>
+                                        <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoViaInstalacion">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="CALLE">CALLE</option>
+                                            <option value="AVENIDA">AVENIDA</option>
+                                            <option value="CARRETERA">CARRETERA</option>
+                                            <option value="CAMINO">CAMINO</option>
+                                            <option value="PASEO">PASEO</option>
+                                            <option value="PLAZA">PLAZA</option>
+                                            <option value="GLORIETA">GLORIETA</option>
+                                            <option value="ACERA">ACERA</option>
+                                            <option value="ALAMEDA">ALAMEDA</option>
+                                            <option value="ALDEA">ALDEA</option>
+                                            <option value="AMPLIACIÓN">AMPLIACIÓN</option>
+                                            <option value="ANGOSTA">ANGOSTA</option>
+                                            <option value="APARTAMENTOS">APARTAMENTOS</option>
+                                            <option value="ATAJO">ATAJO</option>
+                                            <option value="BAJADA">BAJADA</option>
+                                            <option value="BARRANCO">BARRANCO</option>
+                                            <option value="BARRIADA">BARRIADA</option>
+                                            <option value="BARRIO">BARRIO</option>
+                                            <option value="BLOQUES">BLOQUES</option>
+                                            <option value="CALLEJA">CALLEJA</option>
+                                            <option value="CALLEJÓN">CALLEJÓN</option>
+                                            <option value="CALLEJUELA">CALLEJUELA</option>
+                                            <option value="CALZADA">CALZADA</option>
+                                            <option value="CARRERA">CARRERA</option>
+                                            <option value="CASERIO">CASERIO</option>
+                                            <option value="CHALET">CHALET</option>
+                                            <option value="COLONIA">COLONIA</option>
+                                            <option value="COOPERATIVA">COOPERATIVA</option>
+                                            <option value="CORRAL">CORRAL</option>
+                                            <option value="COSTANILLA">COSTANILLA</option>
+                                            <option value="CUESTA">CUESTA</option>
+                                            <option value="EDIFICIO">EDIFICIO</option>
+                                            <option value="ESCALA">ESCALA</option>
+                                            <option value="ESCALERA">ESCALERA</option>
+                                            <option value="ESCALINATA">ESCALINATA</option>
+                                            <option value="ESTRADA">ESTRADA</option>
+                                            <option value="GRUPO">GRUPO</option>
+                                            <option value="LLANO">LLANO</option>
+                                            <option value="LUGAR">LUGAR</option>
+                                            <option value="MANZANA">MANZANA</option>
+                                            <option value="MERCADO">MERCADO</option>
+                                            <option value="MONTAÑA">MONTAÑA</option>
+                                            <option value="MUNICIPIO">MUNICIPIO</option>
+                                            <option value="PASEO ALTO">PASEO ALTO</option>
+                                            <option value="POBLADO">POBLADO</option>
+                                        </InputSelect>
+                                    </div>
                                     <div class="col-md-8">
                                         <label class="form-label fw-bold">Dirección</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.DireccionInstalacionAlarma" placeholder="Nombre de la calle" />
@@ -1506,6 +1724,23 @@ else
                             <p>¿Estás seguro de que deseas eliminar el cliente <strong>@clienteAEliminar.Nombre</strong>?</p>
                             <p class="text-danger small mb-0">Esta acción no se puede deshacer.</p>
                         </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModalEliminar" disabled="@eliminando">
+                                <i class="bi bi-x-circle me-2"></i>No, cancelar
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="EliminarCliente" disabled="@eliminando">
+                                @if (eliminando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Eliminando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-trash me-2"></i>
+                                    <span>Sí, eliminar</span>
+                                }
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1525,13 +1760,14 @@ else
     private bool mostrarModalContratoTelefonia = false;
     private bool mostrarModalContratoAlarmas = false;
     private bool esNuevo = true;
+    private int? clienteRecienCreado = null;
 
     private List<Cliente> clientes = new();
     private List<Cliente> clientesFiltrados = new();
     
     // Ordenamiento
-    private string columnaOrden = "Nombre";
-    private bool ordenAscendente = true;
+    private string columnaOrden = "FechaAlta";
+    private bool ordenAscendente = false;
     
     // Paginación
     private int paginaActual = 1;
@@ -2179,6 +2415,7 @@ else
             Dni = cliente.Dni,
             Email = cliente.Email,
             Telefono = cliente.Telefono,
+            TipoVia = cliente.TipoVia,
             Direccion = cliente.Direccion,
             Numero = cliente.Numero,
             Escalera = cliente.Escalera,
@@ -2215,6 +2452,8 @@ else
         guardando = true;
         mensajeError = string.Empty;
         mensajeExito = string.Empty;
+        var esNuevoCliente = esNuevo;
+        var clienteId = clienteSeleccionado.Id;
 
         try
         {
@@ -2244,10 +2483,61 @@ else
                 mensajeExito = mensaje;
                 await CargarClientes();
                 CerrarModal();
+
+                // Si es un cliente nuevo, marcar para resaltar y hacer scroll
+                if (esNuevoCliente && clienteSeleccionado.Id > 0)
+                {
+                    // Buscar en qué página está el cliente
+                    var clientesOrdenados = clientes.Where(c =>
+                        (string.IsNullOrEmpty(filtroNombre) || (c.Nombre != null && c.Nombre.Contains(filtroNombre, StringComparison.OrdinalIgnoreCase))) &&
+                        (string.IsNullOrEmpty(filtroDni) || (c.DniCif != null && c.DniCif.Contains(filtroDni, StringComparison.OrdinalIgnoreCase)))
+                    ).ToList();
+                    
+                    // Aplicar ordenamiento
+                    clientesOrdenados = columnaOrden switch
+                    {
+                        "TipoCliente" => ordenAscendente ? clientesOrdenados.OrderBy(c => c.TipoCliente).ToList() : clientesOrdenados.OrderByDescending(c => c.TipoCliente).ToList(),
+                        "Nombre" => ordenAscendente ? clientesOrdenados.OrderBy(c => c.Nombre).ToList() : clientesOrdenados.OrderByDescending(c => c.Nombre).ToList(),
+                        "DniCif" => ordenAscendente ? clientesOrdenados.OrderBy(c => c.DniCif).ToList() : clientesOrdenados.OrderByDescending(c => c.DniCif).ToList(),
+                        "FechaAlta" => ordenAscendente ? clientesOrdenados.OrderBy(c => c.FechaAlta).ToList() : clientesOrdenados.OrderByDescending(c => c.FechaAlta).ToList(),
+                        "NombreUsuario" => ordenAscendente ? clientesOrdenados.OrderBy(c => c.NombreUsuario).ToList() : clientesOrdenados.OrderByDescending(c => c.NombreUsuario).ToList(),
+                        "Contratos" => ordenAscendente ? clientesOrdenados.OrderBy(c => contratoPorCliente.ContainsKey(c.Id) ? contratoPorCliente[c.Id] : 0).ToList() : clientesOrdenados.OrderByDescending(c => contratoPorCliente.ContainsKey(c.Id) ? contratoPorCliente[c.Id] : 0).ToList(),
+                        _ => clientesOrdenados
+                    };
+                    
+                    // Encontrar el índice del cliente
+                    var indiceCliente = clientesOrdenados.FindIndex(c => c.Id == clienteSeleccionado.Id);
+                    if (indiceCliente >= 0)
+                    {
+                        // Calcular la página donde está el cliente
+                        var paginaCliente = (indiceCliente / elementosPorPagina) + 1;
+                        paginaActual = paginaCliente;
+                        AplicarFiltros();
+                        
+                        clienteRecienCreado = clienteSeleccionado.Id;
+                        StateHasChanged();
+                        await Task.Delay(200); // Dar tiempo para que se renderice
+                        
+                        try
+                        {
+                            await JSRuntime.InvokeVoidAsync("scrollToElement", $"cliente-{clienteSeleccionado.Id}");
+                        }
+                        catch
+                        {
+                            // Ignorar errores de scroll
+                        }
+                        
+                        // Quitar resaltado después de 3 segundos
+                        await Task.Delay(3000);
+                        clienteRecienCreado = null;
+                        StateHasChanged();
+                    }
+                }
             }
             else
             {
                 mensajeError = mensaje;
+                StateHasChanged();
             }
         }
         catch (Exception ex)
@@ -2257,6 +2547,7 @@ else
         finally
         {
             guardando = false;
+            StateHasChanged();
         }
     }
 
@@ -2305,6 +2596,53 @@ else
         }
     }
 
+    private async Task GuardarYCrearContrato()
+    {
+        if (clienteSeleccionado == null) return;
+
+        guardando = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+        var clienteId = clienteSeleccionado.Id;
+
+        try
+        {
+            var (exito, mensaje) = await ClienteService.ActualizarAsync(clienteSeleccionado);
+
+            if (exito)
+            {
+                mensajeExito = mensaje;
+                await CargarClientes();
+                
+                // Buscar el cliente actualizado en la lista
+                var clienteActualizado = clientes.FirstOrDefault(c => c.Id == clienteId);
+                
+                // Cerrar modal de edición de cliente
+                CerrarModal();
+                
+                // Abrir modal de selección de tipo de contrato con el cliente actualizado
+                if (clienteActualizado != null)
+                {
+                    MostrarModalCrearContrato(clienteActualizado);
+                }
+            }
+            else
+            {
+                mensajeError = mensaje;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+            StateHasChanged();
+        }
+    }
+
     private void MostrarModalCrearContrato(Cliente cliente)
     {
         clienteParaContrato = cliente;
@@ -2333,8 +2671,15 @@ else
             FechaCreacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
+            EstadoServicio = "No quiere",
             Comision = 0
         };
+
+        // Asegurarse de que las comercializadoras están cargadas
+        if (comercializadorasEnergia == null || !comercializadorasEnergia.Any())
+        {
+            await CargarComercializadorasYOperadoras();
+        }
 
         // Cargar servicios según el tipo de cliente
         await CargarServiciosSegunTipoCliente();
@@ -2374,7 +2719,7 @@ else
         }
     }
 
-    private void CrearContratoTelefonia()
+    private async Task CrearContratoTelefonia()
     {
         if (clienteParaContrato == null) return;
 
@@ -2390,9 +2735,16 @@ else
             FechaCreacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
+            EstadoServicio = "No quiere",
             Comision = 0,
             TipoLineaMovilPrincipal = "Contrato"  // Valor por defecto
         };
+
+        // Asegurarse de que las operadoras están cargadas
+        if (operadorasTelefonia == null || !operadorasTelefonia.Any())
+        {
+            await CargarComercializadorasYOperadoras();
+        }
 
         mostrarModalTipoContrato = false;
         mostrarModalContratoTelefonia = true;
@@ -2414,6 +2766,7 @@ else
             FechaCreacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
+            EstadoServicio = "No quiere",
             Comision = 0
         };
 
@@ -2715,6 +3068,7 @@ else
                 else
                 {
                     CerrarModalContratoEnergia();
+                    Navigation.NavigateTo("/contratos/energia");
                 }
             }
             else
@@ -2878,6 +3232,7 @@ else
                 else
                 {
                     CerrarModalContratoTelefonia();
+                    Navigation.NavigateTo("/contratos/telefonia");
                 }
             }
             else
@@ -3000,6 +3355,7 @@ else
                 else
                 {
                     CerrarModalContratoAlarmas();
+                    Navigation.NavigateTo("/contratos/alarmas");
                 }
             }
             else

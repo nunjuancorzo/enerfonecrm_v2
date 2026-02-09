@@ -37,6 +37,10 @@ namespace EnerfoneCRM.Models
         [MaxLength(20)]
         public string? Telefono { get; set; }
 
+        [Column("tipo_via")]
+        [MaxLength(50)]
+        public string? TipoVia { get; set; }
+
         [Column("direccion")]
         [MaxLength(500)]
         public string? Direccion { get; set; }
