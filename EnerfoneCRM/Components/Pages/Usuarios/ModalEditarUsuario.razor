@@ -1,4 +1,5 @@
 @using EnerfoneCRM.Models
+@using Microsoft.AspNetCore.Components.Forms
 @inject EnerfoneCRM.Services.TarifaEnergiaService TarifaEnergiaService
 @inject EnerfoneCRM.Services.UsuarioService UsuarioService
 @inject EnerfoneCRM.Services.ComercializadoraService ComercializadoraService
@@ -80,6 +81,7 @@
                             <option value="Administrador">Administrador</option>
                             <option value="Gestor">Gestor</option>
                             <option value="Jefe de ventas">Jefe de ventas</option>
+                            <option value="Director comercial">Director comercial</option>
                             <option value="Comercializadora">Comercializadora</option>
                         </InputSelect>
                     </div>
@@ -103,6 +105,21 @@
                         <label class="form-label">Comisión (%)</label>
                         <InputNumber class="form-control" @bind-Value="usuario.Comision" />
                     </div>
+
+                    @if (usuario.Rol == "Jefe de ventas" || usuario.Rol == "Gestor" || usuario.Rol == "Colaborador")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Director Comercial Asignado</label>
+                            <InputSelect class="form-select" @bind-Value="usuario.DirectorComercialId" @bind-Value:after="OnDirectorComercialChanged">
+                                <option value="">Sin director comercial asignado</option>
+                                @foreach (var director in directoresComerciales)
+                                {
+                                    <option value="@director.Id">@director.NombreUsuario - @director.Nombre @director.Apellidos</option>
+                                }
+                            </InputSelect>
+                            <div class="form-text">Director comercial que supervisará a este usuario</div>
+                        </div>
+                    }
 
                     @if (usuario.Rol == "Colaborador")
                     {
@@ -335,6 +352,125 @@
 
                     <hr />
 
+                    <!-- Datos bancarios y tipo de entidad -->
+                    <div class="mb-3">
+                        <h6 class="mb-3"><i class="bi bi-bank me-2"></i>Datos Bancarios y Tipo de Entidad</h6>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Número de Cuenta (IBAN)</label>
+                                <InputText class="form-control" @bind-Value="usuario.NumeroCuenta" placeholder="ES91 2100 0418 4502 0005 1332" />
+                                <div class="form-text">Formato IBAN: ES91 2100 0418 4502 0005 1332</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Tipo de Entidad</label>
+                                <InputSelect class="form-select" @bind-Value="usuario.TipoEntidad">
+                                    <option value="N/A">N/A</option>
+                                    <option value="Autónomo">Autónomo</option>
+                                    <option value="PYME">PYME</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentación adjunta -->
+                    <div class="mb-3">
+                        <h6 class="mb-3"><i class="bi bi-folder2 me-2"></i>Documentación Adjunta</h6>
+                        <p class="text-muted small">Adjunta o actualiza los documentos del usuario</p>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Copia DNI</label>
+                                <InputFile OnChange="@((e) => HandleFileSelected(e, "dni"))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                @if (!string.IsNullOrEmpty(usuario.ArchivoDni))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="bi bi-file-earmark me-1"></i>Actual: @Path.GetFileName(usuario.ArchivoDni)
+                                            <a href="/storage/@usuario.ArchivoDni" target="_blank" class="ms-2"><i class="bi bi-download"></i></a>
+                                        </small>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(archivoDniNombre))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="bi bi-check-circle me-1"></i>Nuevo: @archivoDniNombre
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Copia CIF</label>
+                                <InputFile OnChange="@((e) => HandleFileSelected(e, "cif"))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                @if (!string.IsNullOrEmpty(usuario.ArchivoCif))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="bi bi-file-earmark me-1"></i>Actual: @Path.GetFileName(usuario.ArchivoCif)
+                                            <a href="/storage/@usuario.ArchivoCif" target="_blank" class="ms-2"><i class="bi bi-download"></i></a>
+                                        </small>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(archivoCifNombre))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="bi bi-check-circle me-1"></i>Nuevo: @archivoCifNombre
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Copia Poder / Escrituras de la Empresa</label>
+                                <InputFile OnChange="@((e) => HandleFileSelected(e, "poder"))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                @if (!string.IsNullOrEmpty(usuario.ArchivoPoder))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="bi bi-file-earmark me-1"></i>Actual: @Path.GetFileName(usuario.ArchivoPoder)
+                                            <a href="/storage/@usuario.ArchivoPoder" target="_blank" class="ms-2"><i class="bi bi-download"></i></a>
+                                        </small>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(archivoPoderNombre))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="bi bi-check-circle me-1"></i>Nuevo: @archivoPoderNombre
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Contrato de Colaboración</label>
+                                <InputFile OnChange="@((e) => HandleFileSelected(e, "contrato"))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                @if (!string.IsNullOrEmpty(usuario.ArchivoContrato))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="bi bi-file-earmark me-1"></i>Actual: @Path.GetFileName(usuario.ArchivoContrato)
+                                            <a href="/storage/@usuario.ArchivoContrato" target="_blank" class="ms-2"><i class="bi bi-download"></i></a>
+                                        </small>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(archivoContratoNombre))
+                                {
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="bi bi-check-circle me-1"></i>Nuevo: @archivoContratoNombre
+                                        </small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
                     <div class="mb-3">
                         <div class="form-check">
                             <InputCheckbox id="activo" class="form-check-input" @bind-Value="usuario.Activo" />
@@ -389,7 +525,7 @@
 
 @code {
     [Parameter] public Usuario? Usuario { get; set; }
-    [Parameter] public EventCallback<Usuario> OnGuardar { get; set; }
+    [Parameter] public EventCallback<(Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds)> OnGuardar { get; set; }
     [Parameter] public EventCallback OnCancelar { get; set; }
 
     private Usuario usuario = new();
@@ -404,9 +540,20 @@
     private HashSet<int> empresasAlarmasSeleccionadas = new();
     private List<Usuario> gestoresDisponibles = new();
     private List<Usuario> jefesVentasDisponibles = new();
+    private List<Usuario> directoresComerciales = new();
     private List<Usuario> colaboradoresDisponibles = new();
     private HashSet<int> colaboradoresSeleccionados = new();
     private HashSet<int> gestoresSeleccionados = new();
+
+    // Variables para los archivos adjuntos
+    private string? archivoDniNombre;
+    private string? archivoCifNombre;
+    private string? archivoPoderNombre;
+    private string? archivoContratoNombre;
+    private IBrowserFile? archivoDni;
+    private IBrowserFile? archivoCif;
+    private IBrowserFile? archivoPoder;
+    private IBrowserFile? archivoContrato;
 
     protected override async Task OnInitializedAsync()
     {
@@ -416,6 +563,7 @@
         await CargarTodasEmpresasAlarmas();
         await CargarGestores();
         await CargarJefesVentas();
+        await CargarDirectoresComerciales();
         await CargarColaboradores();
     }
 
@@ -490,6 +638,19 @@
         catch
         {
             jefesVentasDisponibles = new List<Usuario>();
+        }
+    }
+
+    private async Task CargarDirectoresComerciales()
+    {
+        try
+        {
+            var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            directoresComerciales = todosUsuarios.Where(u => u.Rol == "Director comercial" && u.Activo && u.Id != usuario.Id).ToList();
+        }
+        catch
+        {
+            directoresComerciales = new List<Usuario>();
         }
     }
 
@@ -631,19 +792,31 @@
 
     private void OnGestorChanged()
     {
-        // Si se asigna un gestor, limpiar jefe de ventas (solo puede tener uno)
+        // Si se asigna un gestor, limpiar jefe de ventas y director comercial (solo puede tener uno)
         if (usuario.GestorId.HasValue)
         {
             usuario.JefeVentasId = null;
+            usuario.DirectorComercialId = null;
         }
     }
 
     private void OnJefeVentasChanged()
     {
-        // Si se asigna un jefe de ventas, limpiar gestor (solo puede tener uno)
+        // Si se asigna un jefe de ventas, limpiar gestor y director comercial (solo puede tener uno)
         if (usuario.JefeVentasId.HasValue)
         {
             usuario.GestorId = null;
+            usuario.DirectorComercialId = null;
+        }
+    }
+
+    private void OnDirectorComercialChanged()
+    {
+        // Si se asigna un director comercial, limpiar gestor y jefe de ventas (solo puede tener uno)
+        if (usuario.DirectorComercialId.HasValue)
+        {
+            usuario.GestorId = null;
+            usuario.JefeVentasId = null;
         }
     }
 
@@ -700,35 +873,91 @@
             return; // No enviar si falta comercializadora
         }
 
+        // Guardar archivos si se seleccionaron nuevos
+        try
+        {
+            if (archivoDni != null)
+            {
+                usuario.ArchivoDni = await GuardarArchivo(archivoDni, "dni");
+            }
+            if (archivoCif != null)
+            {
+                usuario.ArchivoCif = await GuardarArchivo(archivoCif, "cif");
+            }
+            if (archivoPoder != null)
+            {
+                usuario.ArchivoPoder = await GuardarArchivo(archivoPoder, "poder");
+            }
+            if (archivoContrato != null)
+            {
+                usuario.ArchivoContrato = await GuardarArchivo(archivoContrato, "contrato");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar archivos: {ex.Message}");
+            return;
+        }
+
         // Si se proporcionó una nueva contraseña, actualizarla
         if (!string.IsNullOrWhiteSpace(nuevaPassword))
         {
             usuario.PasswordHash = nuevaPassword;
         }
         
-        // Guardar el usuario
-        await OnGuardar.InvokeAsync(usuario);
-        
-        // Guardar las comercializadoras permitidas
-        await UsuarioService.ActualizarComercializadorasPermitidasAsync(usuario.Id, comercializadorasSeleccionadas.ToList());
-        
-        // Guardar las operadoras permitidas
-        await UsuarioService.ActualizarOperadorasPermitidasAsync(usuario.Id, operadorasSeleccionadas.ToList());
-        
-        // Guardar las empresas de alarmas permitidas
-        await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(usuario.Id, empresasAlarmasSeleccionadas.ToList());
-        
-        // Si es gestor, actualizar colaboradores asignados
-        if (usuario.Rol == "Gestor")
+        // Invocar OnGuardar con todos los datos necesarios
+        await OnGuardar.InvokeAsync((
+            usuario,
+            comercializadorasSeleccionadas.ToList(),
+            operadorasSeleccionadas.ToList(),
+            empresasAlarmasSeleccionadas.ToList(),
+            colaboradoresSeleccionados.ToList(),
+            gestoresSeleccionados.ToList()
+        ));
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e, string tipoArchivo)
+    {
+        var file = e.File;
+        if (file != null)
         {
-            await UsuarioService.ActualizarColaboradoresDeGestorAsync(usuario.Id, colaboradoresSeleccionados.ToList());
+            switch (tipoArchivo)
+            {
+                case "dni":
+                    archivoDni = file;
+                    archivoDniNombre = file.Name;
+                    break;
+                case "cif":
+                    archivoCif = file;
+                    archivoCifNombre = file.Name;
+                    break;
+                case "poder":
+                    archivoPoder = file;
+                    archivoPoderNombre = file.Name;
+                    break;
+                case "contrato":
+                    archivoContrato = file;
+                    archivoContratoNombre = file.Name;
+                    break;
+            }
         }
+    }
+
+    private async Task<string> GuardarArchivo(IBrowserFile file, string tipoDocumento)
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+        var nombreArchivo = $"{timestamp}_{tipoDocumento}_{file.Name}";
+        var rutaStorage = Path.Combine("storage", "usuarios");
         
-        // Si es jefe de ventas, actualizar gestores y colaboradores asignados
-        if (usuario.Rol == "Jefe de ventas")
-        {
-            await UsuarioService.ActualizarGestoresDeJefeVentasAsync(usuario.Id, gestoresSeleccionados.ToList());
-            await UsuarioService.ActualizarColaboradoresDeJefeVentasAsync(usuario.Id, colaboradoresSeleccionados.ToList());
-        }
+        // Crear directorio si no existe
+        Directory.CreateDirectory(rutaStorage);
+        
+        var rutaCompleta = Path.Combine(rutaStorage, nombreArchivo);
+        
+        await using var stream = file.OpenReadStream(maxAllowedSize: 10485760); // 10 MB máximo
+        await using var fileStream = File.Create(rutaCompleta);
+        await stream.CopyToAsync(fileStream);
+        
+        return $"usuarios/{nombreArchivo}"; // Ruta relativa para la BD
     }
 }

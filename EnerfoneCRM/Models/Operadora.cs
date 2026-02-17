@@ -25,6 +25,9 @@ namespace EnerfoneCRM.Models
         [Column("activo")]
         public bool Activo { get; set; } = true;
 
+        [Column("requiere_icc")]
+        public bool RequiereICC { get; set; } = false;
+
         [Column("fecha_creacion")]
         public DateTime? FechaCreacion { get; set; }
     }

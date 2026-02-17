@@ -26,6 +26,13 @@ namespace EnerfoneCRM.Services
         {
             try
             {
+                // Si el usuario es superadmin, no registramos la observación (modo invisible)
+                if (observacion.Usuario == "superadmin")
+                {
+                    Console.WriteLine($"[ObservacionContrato] SUPERADMIN - Observación NO registrada (modo invisible)");
+                    return true;
+                }
+                
                 await using var context = _dbContextProvider.CreateDbContext();
                 observacion.FechaHora = DateTime.Now;
                 context.ObservacionesContratos.Add(observacion);

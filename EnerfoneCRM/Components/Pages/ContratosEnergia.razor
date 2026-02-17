@@ -137,20 +137,109 @@ else
                             <label class="form-label fw-bold">Buscar en</label>
                             <select @bind="campoBusqueda" class="form-select">
                                 <option value="">Todos los campos</option>
+                                <option value="ID">ID</option>
+                                <option value="Estado">Estado</option>
                                 <option value="Comercializadora">Comercializadora</option>
+                                <option value="Comercial">Comercial</option>
                                 <option value="Tarifa">Tarifa</option>
                                 <option value="Cliente">Cliente</option>
-                                <option value="DNI">DNI</option>
-                                <option value="Direccion">Dirección</option>
-                                <option value="CUPS">CUPS Luz</option>
-                                <option value="CUPSGas">CUPS Gas</option>
-                                <option value="IBAN">IBAN</option>
-                                <option value="Comercial">Comercial</option>
+                                <option value="DNI">DNI/CIF</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Texto a buscar</label>
-                            <input type="text" @bind="textoBusqueda" class="form-control" placeholder="Escriba el texto a buscar..." />
+                            <label class="form-label fw-bold">@(campoBusqueda == "Comercializadora" ? "Seleccionar Comercializadora" : campoBusqueda == "Comercial" ? "Seleccionar Comercial" : "Texto a buscar")</label>
+                            @if (campoBusqueda == "Comercializadora")
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="dropdownComercializadora" data-bs-toggle="dropdown" aria-expanded="false">
+                                        @if (comercializadorasSeleccionadas.Count == 0)
+                                        {
+                                            <span>Todas</span>
+                                        }
+                                        else if (comercializadorasSeleccionadas.Count == 1)
+                                        {
+                                            <span>@comercializadorasSeleccionadas.First()</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@comercializadorasSeleccionadas.Count seleccionadas</span>
+                                        }
+                                    </button>
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercializadora" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="comercializadoraTodas" @onchange="SeleccionarTodasComercializadoras" checked="@(comercializadorasSeleccionadas.Count == 0)">
+                                                <label class="form-check-label w-100" for="comercializadoraTodas" style="cursor: pointer;">
+                                                    <small><strong>Todas</strong></small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        @foreach (var comercializadora in comercializadoras)
+                                        {
+                                            var comId = $"com_{comercializadora.Replace(" ", "_")}";
+                                            <li class="px-2 py-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="@comId" 
+                                                           checked="@comercializadorasSeleccionadas.Contains(comercializadora)"
+                                                           @onchange="() => ToggleComercializadora(comercializadora)">
+                                                    <label class="form-check-label w-100" for="@comId" style="cursor: pointer;">
+                                                        <small>@comercializadora</small>
+                                                    </label>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            else if (campoBusqueda == "Comercial")
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="dropdownComercial" data-bs-toggle="dropdown" aria-expanded="false">
+                                        @if (comercialesSeleccionados.Count == 0)
+                                        {
+                                            <span>Todos</span>
+                                        }
+                                        else if (comercialesSeleccionados.Count == 1)
+                                        {
+                                            <span>@comercialesSeleccionados.First()</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@comercialesSeleccionados.Count seleccionados</span>
+                                        }
+                                    </button>
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercial" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="comercialTodos" @onchange="SeleccionarTodosComerciales" checked="@(comercialesSeleccionados.Count == 0)">
+                                                <label class="form-check-label w-100" for="comercialTodos" style="cursor: pointer;">
+                                                    <small><strong>Todos</strong></small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
+                                        {
+                                            var usrId = $"usr_{usuario.NombreUsuario.Replace(" ", "_")}";
+                                            <li class="px-2 py-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="@usrId" 
+                                                           checked="@comercialesSeleccionados.Contains(usuario.NombreUsuario)"
+                                                           @onchange="() => ToggleComercial(usuario.NombreUsuario)">
+                                                    <label class="form-check-label w-100" for="@usrId" style="cursor: pointer;">
+                                                        <small>@usuario.NombreUsuario</small>
+                                                    </label>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            else
+                            {
+                                <input type="text" @bind="textoBusqueda" class="form-control" placeholder="Escriba el texto a buscar..." />
+                            }
                         </div>
                         <div class="col-md-3 d-flex align-items-end gap-2">
                             <button class="btn btn-primary flex-grow-1" @onclick="AplicarFiltros">
@@ -167,10 +256,13 @@ else
             <div class="card shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                     <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Contratos</h5>
-                    <div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" @onclick="AbrirWizardNuevoContrato">
+                            <i class="bi bi-plus-circle me-2"></i>Nuevo Contrato
+                        </button>
                         @if (contratosSeleccionados.Any())
                         {
-                            <button class="btn btn-warning me-2" @onclick="MostrarModalCambioEstadoMasivo">
+                            <button class="btn btn-warning" @onclick="MostrarModalCambioEstadoMasivo">
                                 <i class="bi bi-arrow-repeat me-2"></i>Cambiar Estado (@contratosSeleccionados.Count)
                             </button>
                         }
@@ -331,7 +423,14 @@ else
                                                 <td style="max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@contrato.EnTarifa</small></td>
                                                 <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@contrato.NombreCliente</small></td>
                                                 <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
-                                                <td><span class="badge bg-warning text-dark" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                @if (PuedeMostrarComision(contrato.Estado))
+                                                {
+                                                    <td><span class="badge bg-warning text-dark" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                }
+                                                else if (AuthService.UsuarioActual?.Rol == "Colaborador")
+                                                {
+                                                    <td><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
+                                                }
                                                 <td class="text-end" style="white-space: nowrap;">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(contrato)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
@@ -464,6 +563,93 @@ else
 
                                 <hr class="my-3" />
 
+                                <!-- DATOS DEL CLIENTE -->
+                                <h6 class="mb-3"><i class="bi bi-person me-2"></i>Datos del Cliente</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Cliente</label>
+                                            <select @bind="contratoSeleccionado.IdCliente" @bind:after="OnClienteChanged" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                <option value="">Seleccione un cliente...</option>
+                                                @foreach (var cliente in todosLosClientes)
+                                                {
+                                                    <option value="@cliente.Id">@cliente.Nombre @(cliente.FechaAlta.HasValue ? $"- {cliente.FechaAlta.Value:dd/MM/yyyy}" : "")</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        @if (clienteSeleccionadoInfo != null)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">DNI Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.DniCif" disabled />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (clienteSeleccionadoInfo != null)
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Teléfono</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" readonly />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Email</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" readonly />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">IBAN Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" readonly />
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                
+                                @* Titular IBAN Diferente *@
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <InputCheckbox @bind-Value="contratoSeleccionado.TitularIbanDiferente" class="form-check-input" id="chkTitularIbanDiferenteEdicion" disabled="@(!PuedeEditarCampo())" />
+                                            <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicion">
+                                                El titular del IBAN es diferente al cliente
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                @if (contratoSeleccionado.TitularIbanDiferente)
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">DNI Titular IBAN</label>
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIF/CIF" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Nombre Titular IBAN</label>
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Número IBAN</label>
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" disabled="@(!PuedeEditarCampo())" />
+                                        </div>
+                                    </div>
+                                }
+
+                                <hr class="my-3" />
+
+                                <!-- DATOS DEL CONTRATO -->
+                                <h6 class="mb-3"><i class="bi bi-file-text me-2"></i>Datos del Contrato</h6>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -607,67 +793,8 @@ else
                                                 }
                                             </select>
                                         </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">DNI</label>
-                                            <InputText @bind-Value="contratoSeleccionado.Dni" class="form-control" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                        @* Campo Dirección oculto - se usa DireccionInstalacionAlarma en su lugar *@
-                                        @* <div class="mb-3">
-                                            <label class="form-label fw-bold">Dirección</label>
-                                            <InputText @bind-Value="contratoSeleccionado.Direccion" class="form-control" disabled="@(!PuedeEditarCampo())" />
-                                        </div> *@
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Cliente</label>
-                                            <select @bind="contratoSeleccionado.IdCliente" @bind:after="OnClienteChanged" class="form-select" disabled="@(!PuedeEditarCampo())">
-                                                <option value="">Seleccione un cliente...</option>
-                                                @foreach (var cliente in todosLosClientes)
-                                                {
-                                                    <option value="@cliente.Id">@cliente.Nombre @(cliente.FechaAlta.HasValue ? $"- {cliente.FechaAlta.Value:dd/MM/yyyy}" : "")</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        @if (clienteSeleccionadoInfo != null)
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Teléfono</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" readonly />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Email</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" readonly />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">IBAN Cliente</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" readonly />
-                                            </div>
-                                        }
                                         
-                                        @* Titular IBAN Diferente *@
-                                        <div class="mb-3">
-                                            <div class="form-check">
-                                                <InputCheckbox @bind-Value="contratoSeleccionado.TitularIbanDiferente" class="form-check-input" id="chkTitularIbanDiferenteEdicion" disabled="@(!PuedeEditarCampo())" />
-                                                <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicion">
-                                                    El titular del IBAN es diferente al cliente
-                                                </label>
-                                            </div>
-                                        </div>
-                                        @if (contratoSeleccionado.TitularIbanDiferente)
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">DNI Titular IBAN</label>
-                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIF/CIF" disabled="@(!PuedeEditarCampo())" />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Nombre Titular IBAN</label>
-                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" disabled="@(!PuedeEditarCampo())" />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Número IBAN</label>
-                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" disabled="@(!PuedeEditarCampo())" />
-                                            </div>
-                                        }
-                                        
-                                        @if (contratoSeleccionado.Id > 0)
+                                        @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
                                         {
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold">Comisión (€)</label>
@@ -1143,6 +1270,11 @@ else
                 </div>
             </div>
         }
+
+        <!-- Wizard para crear nuevo contrato -->
+        <WizardCrearContratoEnergia @ref="wizardNuevoContrato" 
+                                    OnContratoCreado="OnContratoCreado" 
+                                    OnCerrar="OnWizardCerrado" />
     }
 }
 
@@ -1155,6 +1287,9 @@ else
     
     // Facturas temporales para contratos nuevos (antes de tener ID)
     private List<(string nombreArchivo, byte[] contenido)> facturasPendientes = new();
+    
+    // Wizard de creación de contratos
+    private WizardCrearContratoEnergia? wizardNuevoContrato;
     
     private Contrato? contratoSeleccionado;
     private Contrato? contratoAEliminar;
@@ -1183,6 +1318,8 @@ else
     private DateTime? filtroFechaHasta;
     private string campoBusqueda = "";
     private string textoBusqueda = string.Empty;
+    private HashSet<string> comercializadorasSeleccionadas = new();
+    private HashSet<string> comercialesSeleccionados = new();
 
     // Ordenamiento
     private string columnaOrden = "FechaCreacion";
@@ -1260,7 +1397,10 @@ else
     {
         try
         {
-            todosLosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            todosLosUsuarios = await UsuarioService.ObtenerUsuariosPermitidosAsync(
+                AuthService.UsuarioActual?.Rol,
+                AuthService.UsuarioActual?.Id
+            );
         }
         catch (Exception ex)
         {
@@ -1273,8 +1413,18 @@ else
     {
         try
         {
-            // Cargar comercializadoras de la base de datos
-            comercializadorasObjetos = await ComercializadoraService.ObtenerActivasAsync();
+            // Obtener comercializadoras permitidas según el rol del usuario
+            if (AuthService.UsuarioActual?.Id != null)
+            {
+                comercializadorasObjetos = await ComercializadoraService.ObtenerPermitidasPorUsuarioAsync(
+                    AuthService.UsuarioActual.Id,
+                    AuthService.UsuarioActual.Rol
+                );
+            }
+            else
+            {
+                comercializadorasObjetos = await ComercializadoraService.ObtenerActivasAsync();
+            }
             
             // Obtener comercializadoras desde tarifas (método antiguo, mantener por compatibilidad)
             var comercializadorasTarifas = await TarifaEnergiaService.ObtenerEmpresasAsync();
@@ -1286,7 +1436,7 @@ else
                 .Distinct()
                 .ToList();
             
-            // Combinar listas: primero las de BD, luego tarifas y contratos
+            // Combinar listas: primero las de BD (permitidas), luego tarifas y contratos
             var nombresDB = comercializadorasObjetos.Select(c => c.Nombre).ToList();
             
             comercializadoras = nombresDB
@@ -1295,6 +1445,15 @@ else
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(c => c)
                 .ToList();
+                
+            // Filtrar las comercializadoras finales para que solo incluya las permitidas
+            if (AuthService.UsuarioActual?.Rol != "Administrador" && AuthService.UsuarioActual?.Id != null)
+            {
+                var nombresPermitidos = nombresDB;
+                comercializadoras = comercializadoras
+                    .Where(c => nombresPermitidos.Contains(c, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+            }
         }
         catch (Exception ex)
         {
@@ -1361,7 +1520,28 @@ else
         {
             try
             {
-                tarifasDisponibles = await TarifaEnergiaService.ObtenerPorEmpresaAsync(contratoSeleccionado.EnComercializadora);
+                // Obtener todas las tarifas de la comercializadora
+                var todasTarifas = await TarifaEnergiaService.ObtenerPorEmpresaAsync(contratoSeleccionado.EnComercializadora);
+                
+                // Filtrar por tipo de cliente si hay un cliente seleccionado
+                if (contratoSeleccionado.IdCliente != null && contratoSeleccionado.IdCliente.Value > 0)
+                {
+                    var cliente = await ClienteService.ObtenerPorIdAsync(contratoSeleccionado.IdCliente.Value);
+                    if (cliente != null)
+                    {
+                        // Si es Particular -> Residencial, si es Pyme -> Pyme
+                        string tipoTarifa = cliente.TipoCliente == "Particular" ? "Residencial" : "Pyme";
+                        tarifasDisponibles = todasTarifas.Where(t => t.Tipo == tipoTarifa).ToList();
+                    }
+                    else
+                    {
+                        tarifasDisponibles = todasTarifas;
+                    }
+                }
+                else
+                {
+                    tarifasDisponibles = todasTarifas;
+                }
                 
                 // Cargar usuarios comercializadora filtrados
                 var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
@@ -1471,14 +1651,36 @@ else
             }
         }
 
+        // Filtrar por comercializadoras seleccionadas
+        if (campoBusqueda == "Comercializadora" && comercializadorasSeleccionadas.Count > 0)
+        {
+            listaTemp = listaTemp.Where(c => 
+                c.EnComercializadora != null && 
+                comercializadorasSeleccionadas.Contains(c.EnComercializadora)
+            ).ToList();
+        }
+
+        // Filtrar por comerciales seleccionados
+        if (campoBusqueda == "Comercial" && comercialesSeleccionados.Count > 0)
+        {
+            listaTemp = listaTemp.Where(c => 
+                c.Comercial != null && 
+                comercialesSeleccionados.Contains(c.Comercial)
+            ).ToList();
+        }
+
         // Filtrar por búsqueda de texto según el campo seleccionado
-        if (!string.IsNullOrWhiteSpace(textoBusqueda))
+        if (!string.IsNullOrWhiteSpace(textoBusqueda) && campoBusqueda != "Comercializadora" && campoBusqueda != "Comercial")
         {
             listaTemp = campoBusqueda switch
             {
-                "Comercializadora" => listaTemp.Where(c => 
-                    c.EnComercializadora != null && 
-                    c.EnComercializadora.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                "ID" => listaTemp.Where(c => 
+                    c.Id.ToString().Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Estado" => listaTemp.Where(c => 
+                    c.Estado != null && 
+                    c.Estado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
                 ).ToList(),
                 
                 "Tarifa" => listaTemp.Where(c => 
@@ -1496,42 +1698,15 @@ else
                     c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
                 ).ToList(),
                 
-                "Direccion" => listaTemp.Where(c => 
-                    c.Direccion != null && 
-                    c.Direccion.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
-                ).ToList(),
-                
-                "CUPS" => listaTemp.Where(c => 
-                    c.EnCups != null && 
-                    c.EnCups.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
-                ).ToList(),
-                
-                "CUPSGas" => listaTemp.Where(c => 
-                    c.EnCupsGas != null && 
-                    c.EnCupsGas.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
-                ).ToList(),
-                
-                "IBAN" => listaTemp.Where(c => 
-                    c.EnIban != null && 
-                    c.EnIban.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
-                ).ToList(),
-                
-                "Comercial" => listaTemp.Where(c => 
-                    c.Comercial != null && 
-                    c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
-                ).ToList(),
-                
                 // Búsqueda en todos los campos
                 _ => listaTemp.Where(c =>
+                    c.Id.ToString().Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                    (c.Estado != null && c.Estado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
                     (c.EnComercializadora != null && c.EnComercializadora.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Comercial != null && c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
                     (c.EnTarifa != null && c.EnTarifa.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
                     (c.NombreCliente != null && c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.Dni != null && c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.Direccion != null && c.Direccion.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.EnCups != null && c.EnCups.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.EnCupsGas != null && c.EnCupsGas.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.EnIban != null && c.EnIban.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.Comercial != null && c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase))
+                    (c.Dni != null && c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase))
                 ).ToList()
             };
         }
@@ -1546,6 +1721,8 @@ else
     private void LimpiarFiltros()
     {
         estadosSeleccionados.Clear();
+        comercializadorasSeleccionadas.Clear();
+        comercialesSeleccionados.Clear();
         tipoFechaFiltro = "Creacion";
         filtroFechaDesde = null;
         filtroFechaHasta = null;
@@ -1647,6 +1824,46 @@ else
         if (e.Value is bool seleccionado && seleccionado)
         {
             estadosSeleccionados.Clear();
+        }
+    }
+
+    private void ToggleComercializadora(string comercializadora)
+    {
+        if (comercializadorasSeleccionadas.Contains(comercializadora))
+        {
+            comercializadorasSeleccionadas.Remove(comercializadora);
+        }
+        else
+        {
+            comercializadorasSeleccionadas.Add(comercializadora);
+        }
+    }
+
+    private void SeleccionarTodasComercializadoras(ChangeEventArgs e)
+    {
+        if (e.Value is bool seleccionado && seleccionado)
+        {
+            comercializadorasSeleccionadas.Clear();
+        }
+    }
+
+    private void ToggleComercial(string comercial)
+    {
+        if (comercialesSeleccionados.Contains(comercial))
+        {
+            comercialesSeleccionados.Remove(comercial);
+        }
+        else
+        {
+            comercialesSeleccionados.Add(comercial);
+        }
+    }
+
+    private void SeleccionarTodosComerciales(ChangeEventArgs e)
+    {
+        if (e.Value is bool seleccionado && seleccionado)
+        {
+            comercialesSeleccionados.Clear();
         }
     }
 
@@ -1891,6 +2108,12 @@ else
         await CargarInfoCliente();
         await CargarServiciosSegunCliente();
         
+        // Recargar tarifas si ya hay una comercializadora seleccionada
+        if (!string.IsNullOrEmpty(contratoSeleccionado?.EnComercializadora))
+        {
+            await OnComercializadoraChanged();
+        }
+        
         // Actualizar archivos del cliente
         if (contratoSeleccionado?.IdCliente != null && contratoSeleccionado.IdCliente.Value > 0)
         {
@@ -2039,6 +2262,19 @@ else
 
         try
         {
+            // Actualizar datos del cliente en el contrato
+            if (contratoSeleccionado.IdCliente.HasValue)
+            {
+                var cliente = todosLosClientes.FirstOrDefault(c => c.Id == contratoSeleccionado.IdCliente.Value);
+                if (cliente != null)
+                {
+                    contratoSeleccionado.NombreCliente = cliente.Nombre;
+                    contratoSeleccionado.Dni = cliente.DniCif;
+                    contratoSeleccionado.Direccion = cliente.Direccion;
+                    contratoSeleccionado.Iban = cliente.Iban;
+                }
+            }
+
             // Si el estado cambió a "Activo", guardar la fecha
             bool cambioAActivo = estadoAnterior != "Activo" && contratoSeleccionado.Estado == "Activo";
             if (cambioAActivo && fechaActivacion.HasValue)
@@ -2084,6 +2320,7 @@ else
                 await EnviarNotificacionCambioContrato(contratoSeleccionado);
                 
                 await CargarContratos();
+                StateHasChanged();
                 CerrarModal();
             }
             else
@@ -2178,6 +2415,19 @@ else
     private void IrALogActivaciones()
     {
         Navigation.NavigateTo("/contratos/log-activaciones");
+    }
+
+    private bool PuedeMostrarComision(string? estado)
+    {
+        // Si no es Colaborador, puede ver siempre la comisión
+        if (AuthService.UsuarioActual?.Rol != "Colaborador")
+        {
+            return true;
+        }
+        
+        // Si es Colaborador, solo puede ver la comisión en estos estados
+        var estadosPermitidos = new[] { "Act/Facturable", "En liquidación", "Liquidado" };
+        return estadosPermitidos.Contains(estado);
     }
 
     private bool PuedeAdjuntarFacturas()
@@ -2797,4 +3047,26 @@ else
 
         sb.Append("</div></body></html>");
         return sb.ToString();
-    }}
+    }
+
+    // Métodos para el wizard de nuevo contrato
+    private async Task AbrirWizardNuevoContrato()
+    {
+        if (wizardNuevoContrato != null)
+        {
+            await wizardNuevoContrato.Abrir();
+        }
+    }
+
+    private async Task OnContratoCreado()
+    {
+        mensajeExito = "Contrato creado exitosamente.";
+        await CargarContratos();
+        StateHasChanged();
+    }
+
+    private void OnWizardCerrado()
+    {
+        StateHasChanged();
+    }
+}

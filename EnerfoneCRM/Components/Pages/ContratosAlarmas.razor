@@ -70,7 +70,7 @@ else
                     <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h6>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
+                    <div class="row g-3 mb-3">
                         <div class="col-md-3">
                             <label class="form-label fw-bold">Estado</label>
                             <div class="dropdown">
@@ -116,24 +116,137 @@ else
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-bold">Tipo Inmueble</label>
-                            <select @bind="filtroTipoInmueble" class="form-select">
-                                <option value="">Todos</option>
-                                <option value="Hogar">Hogar</option>
-                                <option value="Negocio">Negocio</option>
+                            <label class="form-label fw-bold">Tipo de Fecha</label>
+                            <select @bind="tipoFechaFiltro" class="form-select">
+                                <option value="Creacion">Creación</option>
+                                <option value="Modificacion">Modificación</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">Fecha Desde</label>
                             <input type="date" @bind="filtroFechaDesde" class="form-control" />
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">Fecha Hasta</label>
                             <input type="date" @bind="filtroFechaHasta" class="form-control" />
                         </div>
-                        <div class="col-md-2 d-flex align-items-end gap-2">
-                            <button class="btn btn-primary w-100" @onclick="AplicarFiltros">
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Buscar en</label>
+                            <select @bind="campoBusqueda" class="form-select">
+                                <option value="">Todos los campos</option>
+                                <option value="ID">ID</option>
+                                <option value="Estado">Estado</option>
+                                <option value="EmpresaAlarma">Empresa Alarma</option>
+                                <option value="Comercial">Comercial</option>
+                                <option value="TipoAlarma">Tipo Alarma</option>
+                                <option value="Kit">Kit</option>
+                                <option value="Cliente">Cliente</option>
+                                <option value="DNI">DNI/CIF</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">@(campoBusqueda == "EmpresaAlarma" ? "Seleccionar Empresa Alarma" : campoBusqueda == "Comercial" ? "Seleccionar Comercial" : "Texto a buscar")</label>
+                            @if (campoBusqueda == "EmpresaAlarma")
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="dropdownEmpresaAlarma" data-bs-toggle="dropdown" aria-expanded="false">
+                                        @if (empresasAlarmasSeleccionadas.Count == 0)
+                                        {
+                                            <span>Todas</span>
+                                        }
+                                        else if (empresasAlarmasSeleccionadas.Count == 1)
+                                        {
+                                            <span>@empresasAlarmasSeleccionadas.First()</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@empresasAlarmasSeleccionadas.Count seleccionadas</span>
+                                        }
+                                    </button>
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownEmpresaAlarma" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="empresaTodas" @onchange="SeleccionarTodasEmpresasAlarmas" checked="@(empresasAlarmasSeleccionadas.Count == 0)">
+                                                <label class="form-check-label w-100" for="empresaTodas" style="cursor: pointer;">
+                                                    <small><strong>Todas</strong></small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        @foreach (var empresa in empresasAlarmas.OrderBy(e => e.Nombre))
+                                        {
+                                            var empId = $"emp_{empresa.Nombre.Replace(" ", "_")}";
+                                            <li class="px-2 py-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="@empId" 
+                                                           checked="@empresasAlarmasSeleccionadas.Contains(empresa.Nombre)"
+                                                           @onchange="() => ToggleEmpresaAlarma(empresa.Nombre)">
+                                                    <label class="form-check-label w-100" for="@empId" style="cursor: pointer;">
+                                                        <small>@empresa.Nombre</small>
+                                                    </label>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            else if (campoBusqueda == "Comercial")
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="dropdownComercialAla" data-bs-toggle="dropdown" aria-expanded="false">
+                                        @if (comercialesSeleccionados.Count == 0)
+                                        {
+                                            <span>Todos</span>
+                                        }
+                                        else if (comercialesSeleccionados.Count == 1)
+                                        {
+                                            <span>@comercialesSeleccionados.First()</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@comercialesSeleccionados.Count seleccionados</span>
+                                        }
+                                    </button>
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercialAla" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="comercialTodosAla" @onchange="SeleccionarTodosComerciales" checked="@(comercialesSeleccionados.Count == 0)">
+                                                <label class="form-check-label w-100" for="comercialTodosAla" style="cursor: pointer;">
+                                                    <small><strong>Todos</strong></small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
+                                        {
+                                            var usrId = $"usrAla_{usuario.NombreUsuario.Replace(" ", "_")}";
+                                            <li class="px-2 py-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="@usrId" 
+                                                           checked="@comercialesSeleccionados.Contains(usuario.NombreUsuario)"
+                                                           @onchange="() => ToggleComercial(usuario.NombreUsuario)">
+                                                    <label class="form-check-label w-100" for="@usrId" style="cursor: pointer;">
+                                                        <small>@usuario.NombreUsuario</small>
+                                                    </label>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            else
+                            {
+                                <input type="text" @bind="textoBusqueda" class="form-control" placeholder="Escriba el texto a buscar..." />
+                            }
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button class="btn btn-primary flex-grow-1" @onclick="AplicarFiltros">
                                 <i class="bi bi-search me-1"></i>Filtrar
+                            </button>
+                            <button class="btn btn-secondary" @onclick="LimpiarFiltros">
+                                <i class="bi bi-x-circle me-1"></i>Limpiar
                             </button>
                         </div>
                     </div>
@@ -143,7 +256,10 @@ else
             <div class="card shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                     <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Contratos</h5>
-                    <div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-danger" @onclick="AbrirWizardNuevoContrato">
+                            <i class="bi bi-plus-circle me-2"></i>Nuevo Contrato
+                        </button>
                         <div class="btn-group">
                             <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!contratosFiltrados.Any())">
                                 <i class="bi bi-download me-2"></i>Exportar
@@ -155,8 +271,7 @@ else
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    @if (cargando)
+                <div class="card-body p-0">\n                    @if (cargando)
                     {
                         <div class="text-center p-5">
                             <div class="spinner-border text-primary" role="status">
@@ -299,7 +414,14 @@ else
                                                 <td><span class="badge bg-secondary" style="font-size: 0.75rem;">@contrato.TipoAlarma</span></td>
                                                 <td><small>@contrato.KitAlarma @contrato.CampanaAlarma</small></td>
                                                 <td><small>@contrato.Comercial</small></td>
-                                                <td><span class="badge bg-danger" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                @if (PuedeMostrarComision(contrato.Estado))
+                                                {
+                                                    <td><span class="badge bg-danger" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                }
+                                                else if (AuthService.UsuarioActual?.Rol == "Colaborador")
+                                                {
+                                                    <td><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
+                                                }
                                                 <td class="text-end" style="white-space: nowrap;">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(contrato)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
@@ -429,19 +551,64 @@ else
 
                                 <hr class="my-3" />
 
+                                <!-- DATOS DEL CLIENTE -->
+                                <h6 class="mb-3"><i class="bi bi-person me-2"></i>Datos del Cliente</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Cliente</label>
+                                            <select class="form-select" @bind="contratoSeleccionado.IdCliente" @bind:after="OnClienteChanged">
+                                                <option value="">-- Seleccione un cliente --</option>
+                                                @foreach (var cliente in clientes)
+                                                {
+                                                    <option value="@cliente.Id">@cliente.Nombre @(cliente.FechaAlta.HasValue ? $"- {cliente.FechaAlta.Value:dd/MM/yyyy}" : "")</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        @if (clienteSeleccionadoInfo != null)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">DNI Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.DniCif" disabled />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (clienteSeleccionadoInfo != null)
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Teléfono Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" disabled />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Email Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" disabled />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">IBAN Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" disabled />
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                <hr class="my-3" />
+
                                 <!-- Información Básica -->
                                 <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-info-circle me-2"></i>Información Básica</h6>
                                 <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Cliente</label>
-                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.IdCliente">
-                                            <option value="">-- Seleccionar Cliente --</option>
-                                            @foreach (var cliente in clientes)
-                                            {
-                                                <option value="@cliente.Id">@cliente.Nombre (@cliente.DniCif)</option>
-                                            }
-                                        </InputSelect>
-                                    </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Estado</label>
                                         <InputSelect class="form-select" @bind-Value="contratoSeleccionado.Estado">
@@ -472,17 +639,6 @@ else
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Comercializadora</label>
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.EnComercializadora" placeholder="Comercializadora" />
-                                    </div>
-                                </div>
-                                
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">DNI</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.Dni" />
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">IBAN Cliente</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.Iban" />
                                     </div>
                                 </div>
                                 
@@ -702,7 +858,7 @@ else
                                     </div>
                                 </div>
                                 <div class="row mb-3">
-                                    @if (contratoSeleccionado.Id > 0)
+                                    @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
                                     {
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Comisión (€)</label>
@@ -950,11 +1106,19 @@ else
                     </div>
                 </div>
             </div>
+        
+        <!-- Wizard para crear nuevo contrato -->
+        <WizardCrearContratoAlarmas @ref="wizardNuevoContrato" 
+                                    OnContratoCreado="OnContratoCreado" 
+                                    OnCerrar="OnWizardCerrado" />
         }
     }
 }
 
 @code {
+    // Wizard de creación de contratos
+    private WizardCrearContratoAlarmas? wizardNuevoContrato;
+    
     private List<Contrato> contratos = new();
     private List<Contrato> contratosFiltrados = new();
     private List<Contrato> contratosParaPaginar = new();
@@ -970,6 +1134,7 @@ else
     
     private Contrato? contratoSeleccionado;
     private Contrato? contratoAEliminar;
+    private Cliente? clienteSeleccionadoInfo;
     
     private bool cargandoSesion = true;
     private bool cargando = false;
@@ -991,9 +1156,13 @@ else
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
     private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
-    private string filtroTipoInmueble = string.Empty;
+    private string tipoFechaFiltro = "Creacion";
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
+    private string campoBusqueda = "";
+    private string textoBusqueda = string.Empty;
+    private HashSet<string> empresasAlarmasSeleccionadas = new();
+    private HashSet<string> comercialesSeleccionados = new();
 
     // Ordenamiento
     private string columnaOrden = "FechaCreacion";
@@ -1037,8 +1206,21 @@ else
             
             contratos = await ContratoService.ObtenerTodosPorTipoAsync("alarma", rol, usuario, usuarioId);
             clientes = await ClienteService.ObtenerTodosAsync();
-            usuarios = await UsuarioService.ObtenerTodosAsync();
-            empresasAlarmas = await EmpresaAlarmaService.ObtenerActivasAsync();
+            usuarios = await UsuarioService.ObtenerUsuariosPermitidosAsync(rol, usuarioId);
+            
+            // Obtener empresas de alarmas permitidas según el rol del usuario
+            if (usuarioId != null)
+            {
+                empresasAlarmas = await EmpresaAlarmaService.ObtenerPermitidasPorUsuarioAsync(
+                    usuarioId.Value,
+                    rol
+                );
+            }
+            else
+            {
+                empresasAlarmas = await EmpresaAlarmaService.ObtenerActivasAsync();
+            }
+            
             tarifasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
             tarifasCampana = await TarifaAlarmaService.ObtenerPorTipoAsync("Campaña");
             
@@ -1090,28 +1272,107 @@ else
             listaTemp = listaTemp.Where(c => estadosSeleccionados.Contains(c.Estado)).ToList();
         }
 
-        if (!string.IsNullOrEmpty(filtroTipoInmueble))
-        {
-            listaTemp = listaTemp.Where(c => 
-                c.SubtipoInmueble != null && 
-                c.SubtipoInmueble.Contains(filtroTipoInmueble, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-        }
-
+        // Filtrar por fecha según el tipo de fecha seleccionado
         if (filtroFechaDesde.HasValue)
         {
-            listaTemp = listaTemp.Where(c => 
-                c.FechaCreacion.HasValue && 
-                c.FechaCreacion.Value.Date >= filtroFechaDesde.Value.Date
-            ).ToList();
+            if (tipoFechaFiltro == "Creacion")
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaCreacion.HasValue && 
+                    c.FechaCreacion.Value.Date >= filtroFechaDesde.Value.Date
+                ).ToList();
+            }
+            else // Modificacion
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaModificacion.HasValue && 
+                    c.FechaModificacion.Value.Date >= filtroFechaDesde.Value.Date
+                ).ToList();
+            }
         }
 
         if (filtroFechaHasta.HasValue)
         {
+            if (tipoFechaFiltro == "Creacion")
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaCreacion.HasValue && 
+                    c.FechaCreacion.Value.Date <= filtroFechaHasta.Value.Date
+                ).ToList();
+            }
+            else // Modificacion
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaModificacion.HasValue && 
+                    c.FechaModificacion.Value.Date <= filtroFechaHasta.Value.Date
+                ).ToList();
+            }
+        }
+
+        // Filtrar por empresas de alarma seleccionadas
+        if (campoBusqueda == "EmpresaAlarma" && empresasAlarmasSeleccionadas.Count > 0)
+        {
             listaTemp = listaTemp.Where(c => 
-                c.FechaCreacion.HasValue && 
-                c.FechaCreacion.Value.Date <= filtroFechaHasta.Value.Date
+                c.EmpresaAlarma != null && 
+                empresasAlarmasSeleccionadas.Contains(c.EmpresaAlarma)
             ).ToList();
+        }
+
+        // Filtrar por comerciales seleccionados
+        if (campoBusqueda == "Comercial" && comercialesSeleccionados.Count > 0)
+        {
+            listaTemp = listaTemp.Where(c => 
+                c.Comercial != null && 
+                comercialesSeleccionados.Contains(c.Comercial)
+            ).ToList();
+        }
+
+        // Filtrar por búsqueda de texto según el campo seleccionado
+        if (!string.IsNullOrWhiteSpace(textoBusqueda) && campoBusqueda != "EmpresaAlarma" && campoBusqueda != "Comercial")
+        {
+            listaTemp = campoBusqueda switch
+            {
+                "ID" => listaTemp.Where(c => 
+                    c.Id.ToString().Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Estado" => listaTemp.Where(c => 
+                    c.Estado != null && 
+                    c.Estado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "TipoAlarma" => listaTemp.Where(c => 
+                    c.TipoAlarma != null && 
+                    c.TipoAlarma.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Kit" => listaTemp.Where(c => 
+                    c.KitAlarma != null && 
+                    c.KitAlarma.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Cliente" => listaTemp.Where(c => 
+                    c.NombreCliente != null && 
+                    c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "DNI" => listaTemp.Where(c => 
+                    c.Dni != null && 
+                    c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                // Búsqueda en todos los campos
+                _ => listaTemp.Where(c =>
+                    c.Id.ToString().Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                    (c.Estado != null && c.Estado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.EmpresaAlarma != null && c.EmpresaAlarma.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Comercial != null && c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.TipoAlarma != null && c.TipoAlarma.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.KitAlarma != null && c.KitAlarma.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.NombreCliente != null && c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Dni != null && c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase))
+                ).ToList()
+            };
         }
 
         // Guardar en contratosParaPaginar en lugar de contratosFiltrados
@@ -1119,6 +1380,67 @@ else
 
         // Aplicar ordenamiento y paginación
         AplicarOrdenamiento();
+    }
+
+    private void LimpiarFiltros()
+    {
+        estadosSeleccionados.Clear();
+        empresasAlarmasSeleccionadas.Clear();
+        comercialesSeleccionados.Clear();
+        tipoFechaFiltro = "Creacion";
+        filtroFechaDesde = null;
+        filtroFechaHasta = null;
+        campoBusqueda = "";
+        textoBusqueda = string.Empty;
+        AplicarFiltros();
+    }
+
+    private void ToggleEmpresaAlarma(string empresa)
+    {
+        if (empresasAlarmasSeleccionadas.Contains(empresa))
+        {
+            empresasAlarmasSeleccionadas.Remove(empresa);
+        }
+        else
+        {
+            empresasAlarmasSeleccionadas.Add(empresa);
+        }
+    }
+
+    private void SeleccionarTodasEmpresasAlarmas()
+    {
+        if (empresasAlarmasSeleccionadas.Count == 0)
+        {
+            // No hacer nada, ya están todas seleccionadas
+        }
+        else
+        {
+            empresasAlarmasSeleccionadas.Clear();
+        }
+    }
+
+    private void ToggleComercial(string comercial)
+    {
+        if (comercialesSeleccionados.Contains(comercial))
+        {
+            comercialesSeleccionados.Remove(comercial);
+        }
+        else
+        {
+            comercialesSeleccionados.Add(comercial);
+        }
+    }
+
+    private void SeleccionarTodosComerciales()
+    {
+        if (comercialesSeleccionados.Count == 0)
+        {
+            // No hacer nada, ya están todos seleccionados
+        }
+        else
+        {
+            comercialesSeleccionados.Clear();
+        }
     }
 
     private void OrdenarPor(string columna)
@@ -1466,6 +1788,7 @@ else
                     contratoSeleccionado.NombreCliente = cliente.Nombre;
                     contratoSeleccionado.Dni = cliente.DniCif;
                     contratoSeleccionado.Direccion = cliente.Direccion;
+                    contratoSeleccionado.Iban = cliente.Iban;
                 }
             }
 
@@ -1483,8 +1806,9 @@ else
                     await EnviarNotificacionCambioContrato(contratoSeleccionado);
                 }
                 
-                CerrarModal();
                 await CargarDatos();
+                StateHasChanged();
+                CerrarModal();
             }
             else
             {
@@ -1867,5 +2191,65 @@ else
 
         sb.Append("</div></body></html>");
         return sb.ToString();
+    }
+
+    private async Task CargarInfoCliente()
+    {
+        if (contratoSeleccionado?.IdCliente != null && contratoSeleccionado.IdCliente.Value > 0)
+        {
+            try
+            {
+                clienteSeleccionadoInfo = await ClienteService.ObtenerPorIdAsync(contratoSeleccionado.IdCliente.Value);
+            }
+            catch (Exception ex)
+            {
+                mensajeError = $"Error al cargar información del cliente: {ex.Message}";
+                clienteSeleccionadoInfo = null;
+            }
+        }
+        else
+        {
+            clienteSeleccionadoInfo = null;
+        }
+    }
+
+    private async Task OnClienteChanged()
+    {
+        await CargarInfoCliente();
+        StateHasChanged();
+    }
+
+    private bool PuedeMostrarComision(string? estado)
+    {
+        // Si no es Colaborador, puede ver siempre la comisión
+        if (AuthService.UsuarioActual?.Rol != "Colaborador")
+        {
+            return true;
+        }
+        
+        // Si es Colaborador, solo puede ver la comisión en estos estados
+        var estadosPermitidos = new[] { "Act/Facturable", "En liquidación", "Liquidado" };
+        return estadosPermitidos.Contains(estado);
+    }
+
+    // Métodos para el wizard de nuevo contrato
+    private async Task AbrirWizardNuevoContrato()
+    {
+        if (wizardNuevoContrato != null)
+        {
+            await wizardNuevoContrato.Abrir();
+        }
+    }
+
+    private async Task OnContratoCreado()
+    {
+        mensajeExito = "Contrato creado exitosamente.";
+        await CargarDatos();
+        StateHasChanged();
+    }
+
+    private void OnWizardCerrado()
+    {
+        StateHasChanged();
     }
 }

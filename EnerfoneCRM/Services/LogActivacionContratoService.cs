@@ -17,6 +17,13 @@ public class LogActivacionContratoService
     {
         try
         {
+            // Si el usuario es superadmin o null, no registramos el log (modo invisible)
+            if (usuario == "superadmin")
+            {
+                Console.WriteLine($"[LogActivacionContrato] SUPERADMIN - Log NO registrado (modo invisible)");
+                return (true, "Activación registrada correctamente");
+            }
+            
             await using var context = _dbContextProvider.CreateDbContext();
             
             var logActivacion = new LogActivacionContrato

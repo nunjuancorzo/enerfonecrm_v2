@@ -34,24 +34,32 @@ namespace EnerfoneCRM.Services
         {
             try
             {
+                // Sanitizar el nombre primero para evitar rutas anidadas
+                var nombreSanitizado = SanitizarNombre(nombreComercializadora);
+                
                 // Asegurar que existe la carpeta Energía
                 var carpetaEnergia = Path.Combine(directorioBase, "Energía");
                 if (!Directory.Exists(carpetaEnergia))
                 {
                     Directory.CreateDirectory(carpetaEnergia);
+                    Console.WriteLine($"[RepositorioService] Carpeta base creada: {carpetaEnergia}");
                 }
                 
-                // Crear carpeta de la comercializadora
-                var rutaComercializadora = Path.Combine(carpetaEnergia, SanitizarNombre(nombreComercializadora));
+                // Crear carpeta de la comercializadora directamente dentro de Energía
+                var rutaComercializadora = Path.Combine(carpetaEnergia, nombreSanitizado);
                 if (!Directory.Exists(rutaComercializadora))
                 {
                     Directory.CreateDirectory(rutaComercializadora);
-                    Console.WriteLine($"[RepositorioService] Carpeta creada: {rutaComercializadora}");
+                    Console.WriteLine($"[RepositorioService] Carpeta comercializadora creada: {rutaComercializadora}");
+                }
+                else
+                {
+                    Console.WriteLine($"[RepositorioService] La carpeta ya existe: {rutaComercializadora}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error al crear carpeta de comercializadora: {ex.Message}");
+                Console.WriteLine($"[RepositorioService] Error al crear carpeta de comercializadora '{nombreComercializadora}': {ex.Message}");
             }
         }
 
@@ -137,14 +145,22 @@ namespace EnerfoneCRM.Services
 
         private string SanitizarNombre(string nombre)
         {
+            if (string.IsNullOrWhiteSpace(nombre))
+                return "Sin_Nombre";
+                
             // Eliminar caracteres no válidos para nombres de carpeta
             var caracteresInvalidos = Path.GetInvalidFileNameChars();
-            var nombreSanitizado = nombre;
+            var nombreSanitizado = nombre.Trim();
             
             foreach (var caracter in caracteresInvalidos)
             {
                 nombreSanitizado = nombreSanitizado.Replace(caracter, '_');
             }
+            
+            // Además, reemplazar separadores de ruta explícitamente para evitar subdirectorios
+            nombreSanitizado = nombreSanitizado.Replace('/', '_').Replace('\\', '_');
+            
+            Console.WriteLine($"[RepositorioService] Nombre sanitizado: '{nombre}' -> '{nombreSanitizado}'");
             
             return nombreSanitizado;
         }

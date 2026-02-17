@@ -93,6 +93,9 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
+                                        <th style="width: 120px;" class="text-center">
+                                            <i class="bi bi-sim me-1"></i>Requiere ICC
+                                        </th>
                                         <th style="width: 150px; cursor: pointer;" @onclick='() => OrdenarPor("FechaCreacion")'>
                                             Fecha Creación
                                             @if (columnaOrden == "FechaCreacion")
@@ -107,7 +110,7 @@ else
                                     @if (!operadoras.Any())
                                     {
                                         <tr>
-                                            <td colspan="5" class="text-center text-muted py-4">
+                                            <td colspan="6" class="text-center text-muted py-4">
                                                 No hay operadoras registradas
                                             </td>
                                         </tr>
@@ -139,6 +142,16 @@ else
                                                     else
                                                     {
                                                         <span class="badge bg-secondary">Inactivo</span>
+                                                    }
+                                                </td>
+                                                <td class="text-center">
+                                                    @if (operadora.RequiereICC)
+                                                    {
+                                                        <i class="bi bi-check-circle-fill text-success" title="Requiere ICC"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-x-circle text-muted" title="No requiere ICC"></i>
                                                     }
                                                 </td>
                                                 <td>@operadora.FechaCreacion?.ToString("dd/MM/yyyy")</td>
@@ -262,6 +275,15 @@ else
                                         <label class="form-check-label" for="checkActivo">
                                             Activo
                                         </label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <InputCheckbox @bind-Value="operadoraSeleccionada.RequiereICC" class="form-check-input" id="checkRequiereICC" />
+                                        <label class="form-check-label" for="checkRequiereICC">
+                                            <i class="bi bi-sim me-1"></i>Requiere código ICC en líneas móviles
+                                        </label>
+                                        <small class="text-muted d-block">Si está marcado, será obligatorio ingresar el código ICC (19 dígitos) para todas las líneas móviles</small>
                                     </div>
                                 </div>
                             </div>
@@ -456,6 +478,7 @@ else
             LogoArchivo = operadora.LogoArchivo,
             LogoContenido = operadora.LogoContenido,
             Activo = operadora.Activo,
+            RequiereICC = operadora.RequiereICC,
             FechaCreacion = operadora.FechaCreacion
         };
         archivoSeleccionado = null;

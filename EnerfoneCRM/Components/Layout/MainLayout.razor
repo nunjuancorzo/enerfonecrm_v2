@@ -29,33 +29,13 @@
 </div>
 
 @code {
-    private bool verificado = false;
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !verificado)
+        if (firstRender)
         {
-            verificado = true;
-            
-            // Obtener la URL actual
-            var uri = new Uri(NavigationManager.Uri);
-            var rutaActual = uri.AbsolutePath.ToLower();
-            
-            // Páginas que NO requieren autenticación
-            var paginasPublicas = new[] { "/login", "/registro", "/" };
-            
-            // Si no es una página pública, verificar autenticación
-            if (!paginasPublicas.Contains(rutaActual))
-            {
-                // Cargar sesión si no está cargada
-                await AuthService.CargarSesionAsync();
-                
-                if (!AuthService.EstaAutenticado)
-                {
-                    // No autenticado, redirigir a login
-                    NavigationManager.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(uri.PathAndQuery)}", true);
-                }
-            }
+            // Cargar sesión solo UNA VEZ cuando la app se carga
+            await AuthService.CargarSesionAsync();
+            StateHasChanged();
         }
     }
 

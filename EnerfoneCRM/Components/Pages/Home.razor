@@ -411,8 +411,7 @@ else if (AuthService.EstaAutenticado)
     {
         if (firstRender)
         {
-            await AuthService.CargarSesionAsync();
-            
+            // MainLayout ya cargó la sesión, solo verificar
             if (!AuthService.EstaAutenticado)
             {
                 Navigation.NavigateTo("/login", false);

@@ -2,9 +2,11 @@
 @layout Layout.EmptyLayout
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
 @inject UsuarioService UsuarioService
 @inject ConfiguracionService ConfiguracionService
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 @rendermode InteractiveServer
 
 <PageTitle>Registro - Enerfone CRM</PageTitle>
@@ -108,6 +110,80 @@
                                 </div>
                             </div>
 
+                            <div class="mb-3">
+                                <label for="tipoEntidad" class="form-label">Tipo de Entidad <span class="text-danger">*</span></label>
+                                <select id="tipoEntidad" class="form-select" @onchange="OnTipoEntidadChanged" value="@usuario.TipoEntidad">
+                                    <option value="">-- Selecciona --</option>
+                                    <option value="Particular">Particular</option>
+                                    <option value="Empresa">Empresa</option>
+                                </select>
+                                @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.TipoEntidad))
+                                {
+                                    <div class="text-danger small mt-1">El tipo de entidad es obligatorio</div>
+                                }
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="numeroCuenta" class="form-label">Número de Cuenta / IBAN <span class="text-danger">*</span></label>
+                                <InputText id="numeroCuenta" class="form-control" @bind-Value="usuario.NumeroCuenta" placeholder="ES00 0000 0000 0000 0000 0000" autocomplete="off" maxlength="34" />
+                                @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.NumeroCuenta))
+                                {
+                                    <div class="text-danger small mt-1">El número de cuenta es obligatorio</div>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(usuario.TipoEntidad))
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label">Documentación Requerida <span class="text-danger">*</span></label>
+                                    
+                                    @if (usuario.TipoEntidad == "Particular")
+                                    {
+                                        <div class="mb-2">
+                                            <label for="archivoDni" class="form-label">DNI (ambas caras)</label>
+                                            <InputFile OnChange="@CargarDni" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                            @if (!string.IsNullOrEmpty(nombreArchivoDni))
+                                            {
+                                                <small class="text-success"><i class="bi bi-check-circle me-1"></i>@nombreArchivoDni</small>
+                                            }
+                                        </div>
+                                    }
+                                    else if (usuario.TipoEntidad == "Empresa")
+                                    {
+                                        <div class="mb-2">
+                                            <label for="archivoCif" class="form-label">CIF</label>
+                                            <InputFile OnChange="@CargarCif" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                            @if (!string.IsNullOrEmpty(nombreArchivoCif))
+                                            {
+                                                <small class="text-success"><i class="bi bi-check-circle me-1"></i>@nombreArchivoCif</small>
+                                            }
+                                        </div>
+                                        <div class="mb-2">
+                                            <label for="archivoPoder" class="form-label">Poder de Representación</label>
+                                            <InputFile OnChange="@CargarPoder" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                            @if (!string.IsNullOrEmpty(nombreArchivoPoder))
+                                            {
+                                                <small class="text-success"><i class="bi bi-check-circle me-1"></i>@nombreArchivoPoder</small>
+                                            }
+                                        </div>
+                                    }
+                                    
+                                    <div class="mb-2">
+                                        <label for="archivoContrato" class="form-label">Contrato de Colaboración</label>
+                                        <InputFile OnChange="@CargarContrato" class="form-control" accept=".pdf,.jpg,.jpeg,.png" />
+                                        @if (!string.IsNullOrEmpty(nombreArchivoContrato))
+                                        {
+                                            <small class="text-success"><i class="bi bi-check-circle me-1"></i>@nombreArchivoContrato</small>
+                                        }
+                                    </div>
+
+                                    @if (intentoEnvio && !ValidarDocumentacion())
+                                    {
+                                        <div class="text-danger small mt-1">Debes adjuntar toda la documentación requerida</div>
+                                    }
+                                </div>
+                            }
+
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="password" class="form-label">Contraseña <span class="text-danger">*</span></label>
@@ -129,7 +205,13 @@
 
                             <div class="alert alert-info" role="alert">
                                 <i class="bi bi-info-circle me-2"></i>
-                                <small>Tu cuenta será creada con permisos básicos y deberá ser activada por un administrador antes de poder acceder al sistema.</small>
+                                <small>
+                                    <strong>Información importante:</strong><br>
+                                    • Tu cuenta será creada con permisos básicos y deberá ser activada por un administrador.<br>
+                                    • Debes proporcionar datos bancarios válidos para recibir tus comisiones.<br>
+                                    • La documentación adjunta debe ser legible y estar actualizada.<br>
+                                    • Los archivos no deben superar 5 MB.
+                                </small>
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100 mb-3" disabled="@cargando">
@@ -167,6 +249,16 @@
     private bool intentoEnvio = false;
     private string? logoUrl;
 
+    // Archivos adjuntos
+    private byte[]? archivosDniBytes = null;
+    private byte[]? archivosCifBytes = null;
+    private byte[]? archivosPoderBytes = null;
+    private byte[]? archivosContratoBytes = null;
+    private string nombreArchivoDni = string.Empty;
+    private string nombreArchivoCif = string.Empty;
+    private string nombreArchivoPoder = string.Empty;
+    private string nombreArchivoContrato = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         await CargarLogoAsync();
@@ -183,6 +275,148 @@
         {
             logoUrl = null;
         }
+    }
+
+    private void OnTipoEntidadChanged(ChangeEventArgs e)
+    {
+        usuario.TipoEntidad = e.Value?.ToString();
+        // Limpiar archivos si cambia el tipo
+        archivosDniBytes = null;
+        archivosCifBytes = null;
+        archivosPoderBytes = null;
+        nombreArchivoDni = string.Empty;
+        nombreArchivoCif = string.Empty;
+        nombreArchivoPoder = string.Empty;
+        StateHasChanged();
+    }
+
+    private async Task CargarDni(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var archivo = e.File;
+            if (archivo.Size > 5 * 1024 * 1024)
+            {
+                mensajeError = "El archivo no debe superar 5 MB";
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(ms);
+            archivosDniBytes = ms.ToArray();
+            nombreArchivoDni = archivo.Name;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el DNI: {ex.Message}";
+        }
+    }
+
+    private async Task CargarCif(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var archivo = e.File;
+            if (archivo.Size > 5 * 1024 * 1024)
+            {
+                mensajeError = "El archivo no debe superar 5 MB";
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(ms);
+            archivosCifBytes = ms.ToArray();
+            nombreArchivoCif = archivo.Name;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el CIF: {ex.Message}";
+        }
+    }
+
+    private async Task CargarPoder(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var archivo = e.File;
+            if (archivo.Size > 5 * 1024 * 1024)
+            {
+                mensajeError = "El archivo no debe superar 5 MB";
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(ms);
+            archivosPoderBytes = ms.ToArray();
+            nombreArchivoPoder = archivo.Name;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el poder: {ex.Message}";
+        }
+    }
+
+    private async Task CargarContrato(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var archivo = e.File;
+            if (archivo.Size > 5 * 1024 * 1024)
+            {
+                mensajeError = "El archivo no debe superar 5 MB";
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(ms);
+            archivosContratoBytes = ms.ToArray();
+            nombreArchivoContrato = archivo.Name;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el contrato: {ex.Message}";
+        }
+    }
+
+    private bool ValidarDocumentacion()
+    {
+        if (usuario.TipoEntidad == "Particular")
+        {
+            return archivosDniBytes != null && archivosContratoBytes != null;
+        }
+        else if (usuario.TipoEntidad == "Empresa")
+        {
+            return archivosCifBytes != null && archivosPoderBytes != null && archivosContratoBytes != null;
+        }
+        return false;
+    }
+
+    private async Task<string> GuardarArchivoAsync(byte[] bytes, string nombreOriginal, int usuarioId, string tipoArchivo)
+    {
+        var storagePath = Configuration.GetValue<string>("StoragePath");
+        if (string.IsNullOrEmpty(storagePath))
+        {
+            storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+        }
+
+        var usuariosDir = Path.Combine(storagePath, "usuarios", usuarioId.ToString());
+        if (!Directory.Exists(usuariosDir))
+        {
+            Directory.CreateDirectory(usuariosDir);
+        }
+
+        var extension = Path.GetExtension(nombreOriginal);
+        var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+        var nombreArchivo = $"{tipoArchivo}_{timestamp}{extension}";
+        var rutaCompleta = Path.Combine(usuariosDir, nombreArchivo);
+
+        await File.WriteAllBytesAsync(rutaCompleta, bytes);
+
+        return nombreArchivo;
     }
 
     private async Task HandleRegistro()
@@ -233,6 +467,24 @@
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(usuario.TipoEntidad))
+        {
+            mensajeError = "El tipo de entidad es obligatorio";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.NumeroCuenta))
+        {
+            mensajeError = "El número de cuenta es obligatorio";
+            return;
+        }
+
+        if (!ValidarDocumentacion())
+        {
+            mensajeError = "Debes adjuntar toda la documentación requerida";
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(password))
         {
             mensajeError = "La contraseña es obligatoria";
@@ -255,7 +507,7 @@
 
         try
         {
-            // Asegurar que el rol sea Usuario y esté inactivo
+            // Asegurar que el rol sea Colaborador y esté inactivo
             usuario.Rol = "Colaborador";
             usuario.Activo = false;
             usuario.Comision = 0;
@@ -264,6 +516,42 @@
 
             if (exito)
             {
+                // Obtener el ID del usuario creado
+                var usuarioCreado = await UsuarioService.ObtenerPorNombreUsuarioAsync(usuario.NombreUsuario);
+                if (usuarioCreado != null)
+                {
+                    // Guardar archivos adjuntos
+                    if (archivosDniBytes != null && !string.IsNullOrEmpty(nombreArchivoDni))
+                    {
+                        usuario.ArchivoDni = await GuardarArchivoAsync(archivosDniBytes, nombreArchivoDni, usuarioCreado.Id, "dni");
+                    }
+
+                    if (archivosCifBytes != null && !string.IsNullOrEmpty(nombreArchivoCif))
+                    {
+                        usuario.ArchivoCif = await GuardarArchivoAsync(archivosCifBytes, nombreArchivoCif, usuarioCreado.Id, "cif");
+                    }
+
+                    if (archivosPoderBytes != null && !string.IsNullOrEmpty(nombreArchivoPoder))
+                    {
+                        usuario.ArchivoPoder = await GuardarArchivoAsync(archivosPoderBytes, nombreArchivoPoder, usuarioCreado.Id, "poder");
+                    }
+
+                    if (archivosContratoBytes != null && !string.IsNullOrEmpty(nombreArchivoContrato))
+                    {
+                        usuario.ArchivoContrato = await GuardarArchivoAsync(archivosContratoBytes, nombreArchivoContrato, usuarioCreado.Id, "contrato");
+                    }
+
+                    // Actualizar usuario con las rutas de los archivos
+                    usuarioCreado.ArchivoDni = usuario.ArchivoDni;
+                    usuarioCreado.ArchivoCif = usuario.ArchivoCif;
+                    usuarioCreado.ArchivoPoder = usuario.ArchivoPoder;
+                    usuarioCreado.ArchivoContrato = usuario.ArchivoContrato;
+                    usuarioCreado.TipoEntidad = usuario.TipoEntidad;
+                    usuarioCreado.NumeroCuenta = usuario.NumeroCuenta;
+
+                    await UsuarioService.ActualizarAsync(usuarioCreado);
+                }
+
                 registroExitoso = true;
             }
             else

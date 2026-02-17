@@ -3,9 +3,12 @@
 @using EnerfoneCRM.Services
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components.Forms
+@using EnerfoneCRM.Data
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject EmailService EmailService
+@inject DbContextProvider DbContextProvider
+@inject IConfiguration Configuration
 @rendermode InteractiveServer
 
 <PageTitle>Enviar Incidencia - EnerfoneCRM</PageTitle>
@@ -188,10 +191,40 @@ else
             if (usuario == null)
             {
                 mensajeError = "No se pudo obtener la información del usuario";
+                StateHasChanged();
                 return;
             }
 
             var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+
+            // Si hay imagen, guardarla en almacenamiento para poder reutilizarla (por ejemplo, para integraciones)
+            string? nombreImagenGuardada = null;
+            if (imagenBytes != null && !string.IsNullOrEmpty(nombreImagen))
+            {
+                nombreImagenGuardada = await GuardarImagenIncidenciaAsync(imagenBytes, nombreImagen);
+            }
+
+            // Guardar incidencia en la base de datos
+            using (var context = DbContextProvider.CreateDbContext())
+            {
+                var nuevaIncidencia = new Incidencia
+                {
+                    Asunto = incidencia.Asunto,
+                    TipoIncidencia = incidencia.TipoIncidencia,
+                    Prioridad = incidencia.Prioridad,
+                    Descripcion = incidencia.Descripcion,
+                    UsuarioId = usuario.Id,
+                    NombreUsuario = usuario.NombreUsuario,
+                    EmailUsuario = usuario.Email,
+                    Estado = "Pendiente",
+                    FechaCreacion = DateTime.Now,
+                    TieneImagen = nombreImagenGuardada != null,
+                    NombreImagen = nombreImagenGuardada
+                };
+
+                context.Incidencias.Add(nuevaIncidencia);
+                await context.SaveChangesAsync();
+            }
 
             // Email al administrador
             var asuntoAdmin = $"[INCIDENCIA - {incidencia.Prioridad}] {incidencia.Asunto}";
@@ -223,6 +256,7 @@ else
             if (!resultado.exitoAdmin)
             {
                 mensajeError = $"Error al enviar la incidencia: {resultado.mensajeAdmin}";
+                StateHasChanged();
                 return;
             }
 
@@ -239,18 +273,44 @@ else
                 );
             }
 
-            mensajeExito = "Tu incidencia ha sido enviada correctamente. Recibirás una respuesta lo antes posible.";
-            Limpiar();
+            mensajeExito = "Tu incidencia ha sido enviada correctamente. Redirigiendo al listado...";
+            await Task.Delay(1500); // Dar tiempo para ver el mensaje
+            NavigationManager.NavigateTo("/incidencias", false);
         }
         catch (Exception ex)
         {
             mensajeError = $"Error al enviar la incidencia: {ex.Message}";
+            StateHasChanged();
             Console.WriteLine($"[INCIDENCIA] Error: {ex.Message}");
         }
         finally
         {
             enviando = false;
         }
+    }
+
+    private async Task<string> GuardarImagenIncidenciaAsync(byte[] bytes, string nombreOriginal)
+    {
+        var storagePath = Configuration.GetValue<string>("StoragePath");
+        if (string.IsNullOrEmpty(storagePath))
+        {
+            storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+        }
+
+        var incidenciasDir = Path.Combine(storagePath, "incidencias");
+        if (!Directory.Exists(incidenciasDir))
+        {
+            Directory.CreateDirectory(incidenciasDir);
+        }
+
+        var safeOriginal = Path.GetFileName(nombreOriginal);
+        var ext = Path.GetExtension(safeOriginal);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".bin";
+
+        var fileName = $"inc_{Guid.NewGuid():N}{ext}";
+        var ruta = Path.Combine(incidenciasDir, fileName);
+        await File.WriteAllBytesAsync(ruta, bytes);
+        return fileName;
     }
 
     private string GenerarEmailIncidencia(Usuario usuario, string fecha)
@@ -411,7 +471,6 @@ else
 
         [Required(ErrorMessage = "La descripción es obligatoria")]
         [StringLength(2000, ErrorMessage = "La descripción no puede superar los 2000 caracteres")]
-        [MinLength(20, ErrorMessage = "La descripción debe tener al menos 20 caracteres")]
         public string Descripcion { get; set; } = string.Empty;
     }
 }

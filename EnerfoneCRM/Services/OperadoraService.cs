@@ -76,5 +76,38 @@ namespace EnerfoneCRM.Services
             context.Operadoras.Remove(operadora);
             return await context.SaveChangesAsync() > 0;
         }
+
+        public async Task<List<Operadora>> ObtenerPermitidasPorUsuarioAsync(int usuarioId, string? rolUsuario)
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            
+            // Administrador ve todas las operadoras
+            if (rolUsuario == "Administrador")
+            {
+                return await context.Operadoras
+                    .OrderBy(o => o.Nombre)
+                    .ToListAsync();
+            }
+            
+            // Obtener IDs de operadoras permitidas para el usuario
+            var operadorasPermitidasIds = await context.UsuarioOperadoras
+                .Where(uo => uo.UsuarioId == usuarioId)
+                .Select(uo => uo.OperadoraId)
+                .ToListAsync();
+            
+            // Si no hay operadoras asignadas, retornar todas por defecto
+            if (!operadorasPermitidasIds.Any())
+            {
+                return await context.Operadoras
+                    .OrderBy(o => o.Nombre)
+                    .ToListAsync();
+            }
+            
+            // Retornar solo las operadoras permitidas
+            return await context.Operadoras
+                .Where(o => operadorasPermitidasIds.Contains(o.Id))
+                .OrderBy(o => o.Nombre)
+                .ToListAsync();
+        }
     }
 }

@@ -33,4 +33,5 @@ public class ApplicationDbContext : DbContext
     public DbSet<MensajeBienvenida> MensajesBienvenida { get; set; }
     public DbSet<IncidenciaLiquidacion> IncidenciasLiquidacion { get; set; }
     public DbSet<HistoricoLiquidacion> HistoricoLiquidaciones { get; set; }
+    public DbSet<Incidencia> Incidencias { get; set; }
 }

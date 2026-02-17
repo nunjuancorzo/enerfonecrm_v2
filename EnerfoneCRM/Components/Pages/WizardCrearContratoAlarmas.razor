@@ -1,0 +1,758 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject ClienteService ClienteService
+@inject EmpresaAlarmaService EmpresaAlarmaService
+@inject TarifaAlarmaService TarifaAlarmaService
+@inject ContratoService ContratoService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+@if (mostrarWizard)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 95vh;">
+            <div class="modal-content">
+                <div class="modal-header bg-danger">
+                    <h5 class="modal-title text-white">
+                        <i class="bi bi-shield-check me-2"></i>
+                        Nuevo Contrato de Alarmas
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarWizard" disabled="@guardando"></button>
+                </div>
+
+                <!-- Progress Stepper -->
+                <div class="card-body bg-light border-bottom py-3">
+                    <div class="d-flex justify-content-between align-items-center position-relative">
+                        <div class="progress" style="position: absolute; top: 50%; left: 10%; right: 10%; transform: translateY(-50%); height: 4px; z-index: 0;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: @((pasoActual - 1) * 50)%"></div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between w-100" style="position: relative; z-index: 1;">
+                            <!-- Paso 1 -->
+                            <div class="text-center" style="flex: 1;">
+                                <div class="rounded-circle @(pasoActual >= 1 ? "bg-danger text-white" : "bg-secondary text-white") d-inline-flex align-items-center justify-content-center" 
+                                     style="width: 45px; height: 45px; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    <i class="bi bi-person-fill fs-5"></i>
+                                </div>
+                                <div class="mt-2 small fw-bold @(pasoActual == 1 ? "text-danger" : "")">Cliente</div>
+                            </div>
+                            
+                            <!-- Paso 2 -->
+                            <div class="text-center" style="flex: 1;">
+                                <div class="rounded-circle @(pasoActual >= 2 ? "bg-danger text-white" : "bg-secondary text-white") d-inline-flex align-items-center justify-content-center" 
+                                     style="width: 45px; height: 45px; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    <i class="bi bi-building fs-5"></i>
+                                </div>
+                                <div class="mt-2 small fw-bold @(pasoActual == 2 ? "text-danger" : "")">Empresa</div>
+                            </div>
+                            
+                            <!-- Paso 3 -->
+                            <div class="text-center" style="flex: 1;">
+                                <div class="rounded-circle @(pasoActual >= 3 ? "bg-danger text-white" : "bg-secondary text-white") d-inline-flex align-items-center justify-content-center" 
+                                     style="width: 45px; height: 45px; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    <i class="bi bi-file-text fs-5"></i>
+                                </div>
+                                <div class="mt-2 small fw-bold @(pasoActual == 3 ? "text-danger" : "")">Datos Contrato</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-body" style="background-color: #e9ecef; max-height: calc(95vh - 240px); overflow-y: auto;">
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                            <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                        </div>
+                    }
+
+                    @if (pasoActual == 1)
+                    {
+                        <!-- PASO 1: Seleccionar o Crear Cliente -->
+                        <div class="card">
+                            <div class="card-header bg-white">
+                                <h6 class="mb-0"><i class="bi bi-person-fill me-2"></i>Paso 1: Seleccionar Cliente</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="btn-group w-100" role="group">
+                                            <button type="button" class="btn @(modoCrearCliente ? "btn-outline-danger" : "btn-danger")" @onclick="() => modoCrearCliente = false">
+                                                <i class="bi bi-search me-2"></i>Seleccionar Cliente Existente
+                                            </button>
+                                            <button type="button" class="btn @(modoCrearCliente ? "btn-danger" : "btn-outline-danger")" @onclick="() => modoCrearCliente = true">
+                                                <i class="bi bi-plus-circle me-2"></i>Crear Nuevo Cliente
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    @if (!modoCrearCliente)
+                                    {
+                                        <!-- Buscar y seleccionar cliente existente -->
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold">Buscar Cliente</label>
+                                            <input type="text" class="form-control" @bind="busquedaCliente" @bind:event="oninput" @bind:after="FiltrarClientes" placeholder="Buscar por nombre, DNI/CIF o teléfono..." />
+                                        </div>
+                                        
+                                        @if (clientesFiltrados.Any())
+                                        {
+                                            <div class="col-12">
+                                                <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                                                    @foreach (var cliente in clientesFiltrados.Take(10))
+                                                    {
+                                                        <button type="button" 
+                                                                class="list-group-item list-group-item-action @(clienteSeleccionado?.Id == cliente.Id ? "active" : "")"
+                                                                @onclick="() => SeleccionarCliente(cliente)">
+                                                            <div class="d-flex w-100 justify-content-between">
+                                                                <h6 class="mb-1">@cliente.Nombre</h6>
+                                                                <small>ID: @cliente.Id</small>
+                                                            </div>
+                                                            <p class="mb-1 small">
+                                                                <i class="bi bi-card-text me-1"></i>@cliente.DniCif
+                                                                @if (!string.IsNullOrEmpty(cliente.Telefono))
+                                                                {
+                                                                    <span class="ms-3"><i class="bi bi-telephone me-1"></i>@cliente.Telefono</span>
+                                                                }
+                                                            </p>
+                                                        </button>
+                                                    }
+                                                </div>
+                                                @if (clientesFiltrados.Count > 10)
+                                                {
+                                                    <small class="text-muted mt-2 d-block">Mostrando 10 de @clientesFiltrados.Count resultados. Refine su búsqueda para ver más opciones.</small>
+                                                }
+                                            </div>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(busquedaCliente))
+                                        {
+                                            <div class="col-12">
+                                                <div class="alert alert-info">
+                                                    <i class="bi bi-info-circle me-2"></i>No se encontraron clientes con ese criterio de búsqueda.
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <!-- Formulario crear nuevo cliente -->
+                                        @if (nuevoCliente != null)
+                                        {
+                                            <EditForm Model="nuevoCliente" OnValidSubmit="CrearNuevoCliente">
+                                                <DataAnnotationsValidator />
+                                                <div class="row g-3">
+                                                    <div class="col-12">
+                                                        <h6 class="border-bottom pb-2"><i class="bi bi-person-badge me-2"></i>Datos Personales</h6>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Nombre Completo *</label>
+                                                        <InputText @bind-Value="nuevoCliente.Nombre" class="form-control" placeholder="Nombre del cliente" />
+                                                        <ValidationMessage For="@(() => nuevoCliente.Nombre)" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">DNI/CIF *</label>
+                                                        <InputText @bind-Value="nuevoCliente.DniCif" class="form-control" placeholder="DNI o CIF" />
+                                                        <ValidationMessage For="@(() => nuevoCliente.DniCif)" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Teléfono</label>
+                                                        <InputText @bind-Value="nuevoCliente.Telefono" class="form-control" placeholder="Teléfono principal" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Email</label>
+                                                        <InputText @bind-Value="nuevoCliente.Email" class="form-control" type="email" placeholder="correo@ejemplo.com" />
+                                                    </div>
+                                                    <div class="col-12">
+                                                        <h6 class="border-bottom pb-2"><i class="bi bi-geo-alt me-2"></i>Dirección</h6>
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        <label class="form-label fw-bold">Dirección</label>
+                                                        <InputText @bind-Value="nuevoCliente.Direccion" class="form-control" placeholder="Calle, número, piso..." />
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-bold">Código Postal</label>
+                                                        <InputText @bind-Value="nuevoCliente.CodigoPostal" class="form-control" placeholder="CP" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Población</label>
+                                                        <InputText @bind-Value="nuevoCliente.Poblacion" class="form-control" placeholder="Ciudad/Pueblo" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Provincia</label>
+                                                        <InputText @bind-Value="nuevoCliente.Provincia" class="form-control" placeholder="Provincia" />
+                                                    </div>
+                                                </div>
+                                            </EditForm>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (pasoActual == 2)
+                    {
+                        <!-- PASO 2: Seleccionar Empresa de Alarmas -->
+                        <div class="card">
+                            <div class="card-header bg-white">
+                                <h6 class="mb-0"><i class="bi bi-building me-2"></i>Paso 2: Seleccionar Empresa de Alarmas</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    @if (empresasDisponibles.Any())
+                                    {
+                                        @foreach (var empresa in empresasDisponibles)
+                                        {
+                                            var isSelected = empresaSeleccionada?.Id == empresa.Id;
+                                            <div class="col-md-4 col-lg-3">
+                                                <div class="card h-100 @(isSelected ? "border-danger shadow-lg" : "border-secondary") cursor-pointer" 
+                                                     style="cursor: pointer; transition: all 0.3s;"
+                                                     @onclick="() => SeleccionarEmpresa(empresa)">
+                                                    <div class="card-body text-center d-flex flex-column">
+                                                        <div class="mb-3 d-flex align-items-center justify-content-center" style="height: 80px;">
+                                                            <i class="bi bi-shield-check fs-1 text-muted"></i>
+                                                        </div>
+                                                        <h6 class="card-title mb-0 mt-auto">@empresa.Nombre</h6>
+                                                        @if (isSelected)
+                                                        {
+                                                            <div class="mt-2">
+                                                                <i class="bi bi-check-circle-fill text-danger fs-4"></i>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="col-12">
+                                            <div class="alert alert-warning">
+                                                <i class="bi bi-exclamation-triangle me-2"></i>No hay empresas de alarmas disponibles.
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else if (pasoActual == 3 && nuevoContrato != null)
+                    {
+                        <!-- PASO 3: Formulario Contrato -->
+                        <EditForm Model="nuevoContrato" OnValidSubmit="GuardarContrato">
+                            <DataAnnotationsValidator />
+                            <div class="card">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Paso 3: Datos del Contrato</h6>
+                                    <div class="text-muted small">
+                                        <i class="bi bi-person-fill me-1"></i>@clienteSeleccionado?.Nombre
+                                        <span class="mx-2">|</span>
+                                        <i class="bi bi-building me-1"></i>@empresaSeleccionada?.Nombre
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <!-- Datos del contrato -->
+                                        <div class="col-12">
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-file-text me-2"></i>Información Básica</h6>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Estado</label>
+                                            <InputSelect @bind-Value="nuevoContrato.Estado" class="form-select">
+                                                <option value="">Seleccione...</option>
+                                                <option value="Pte Carga">Pte Carga</option>
+                                                <option value="Pte Firma">Pte Firma</option>
+                                                <option value="En incidencia">En incidencia</option>
+                                                <option value="Pte Documentación">Pte Documentación</option>
+                                                <option value="Pte Validación">Pte Validación</option>
+                                                <option value="En Activación">En Activación</option>
+                                                <option value="Activo">Activo</option>
+                                                <option value="Act/Facturable">Act/Facturable</option>
+                                                <option value="En Liquidación">En Liquidación</option>
+                                                <option value="Liquidado">Liquidado</option>
+                                                <option value="Baja">Baja</option>
+                                                <option value="Cancelado">Cancelado</option>
+                                                <option value="Scoring">Scoring</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Fecha Alta</label>
+                                            <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Comercial</label>
+                                            <InputText @bind-Value="nuevoContrato.Comercial" class="form-control" />
+                                        </div>
+
+                                        <!-- Titular IBAN -->
+                                        <div class="col-12 mt-3">
+                                            <hr />
+                                            <div class="form-check">
+                                                <InputCheckbox @bind-Value="nuevoContrato.TitularIbanDiferente" class="form-check-input" id="chkTitularIbanDiferenteAla" />
+                                                <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteAla">
+                                                    El titular del IBAN es diferente al cliente
+                                                </label>
+                                            </div>
+                                        </div>
+                                        @if (nuevoContrato.TitularIbanDiferente)
+                                        {
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">DNI Titular IBAN</label>
+                                                <InputText @bind-Value="nuevoContrato.TitularIbanDni" class="form-control" placeholder="DNI/NIF/CIF" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Nombre Titular IBAN</label>
+                                                <InputText @bind-Value="nuevoContrato.TitularIbanNombre" class="form-control" placeholder="Nombre completo" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Número IBAN</label>
+                                                <InputText @bind-Value="nuevoContrato.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
+                                            </div>
+                                        }
+                                        
+                                        <!-- Tipo de Alarma -->
+                                        <div class="col-12 mt-3">
+                                            <hr />
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-shield-check me-2"></i>Tipo de Alarma</h6>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Tipo de Inmueble</label>
+                                            <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoAlarma" @bind-Value:after="LimpiarSubtipo">
+                                                <option value="">-- Seleccionar --</option>
+                                                <option value="Hogar">Hogar</option>
+                                                <option value="Negocio">Negocio</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Subtipo</label>
+                                            @if (nuevoContrato.TipoAlarma == "Hogar")
+                                            {
+                                                <InputSelect class="form-select" @bind-Value="nuevoContrato.SubtipoInmueble">
+                                                    <option value="">-- Seleccionar --</option>
+                                                    <option value="Piso">Piso</option>
+                                                    <option value="Bajo">Bajo</option>
+                                                    <option value="Atico">Ático</option>
+                                                    <option value="Adosado">Adosado</option>
+                                                    <option value="Chalet">Chalet</option>
+                                                </InputSelect>
+                                            }
+                                            else if (nuevoContrato.TipoAlarma == "Negocio")
+                                            {
+                                                <InputSelect class="form-select" @bind-Value="nuevoContrato.SubtipoInmueble">
+                                                    <option value="">-- Seleccionar --</option>
+                                                    <option value="Comercio">Comercio</option>
+                                                    <option value="Bar">Bar</option>
+                                                    <option value="Restaurante">Restaurante</option>
+                                                    <option value="Taller">Taller</option>
+                                                    <option value="Estanco">Estanco</option>
+                                                    <option value="Farmacia">Farmacia</option>
+                                                    <option value="Clinica">Clínica</option>
+                                                    <option value="Despacho">Despacho</option>
+                                                    <option value="Joyeria">Joyería</option>
+                                                </InputSelect>
+                                            }
+                                            else
+                                            {
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.SubtipoInmueble" placeholder="Seleccione primero el tipo" disabled />
+                                            }
+                                        </div>
+
+                                        <!-- Qué Contratamos -->
+                                        <div class="col-12 mt-3">
+                                            <hr />
+                                            <h6 class="border-bottom pb-2"><i class="bi bi-cart-check me-2"></i>Qué Contratamos</h6>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Kit</label>
+                                            <select class="form-select" @bind="nuevoContrato.KitAlarma">
+                                                <option value="">-- Seleccionar Kit --</option>
+                                                @foreach (var tarifa in tarifasKit)
+                                                {
+                                                    <option value="@tarifa.NombreTarifa">@tarifa.NombreTarifa - @tarifa.CuotaMensual.ToString("N2")€</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Opcionales</label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.OpcionalesAlarma" placeholder="Ej: Cámara adicional" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Campaña</label>
+                                            <select class="form-select" @bind="nuevoContrato.CampanaAlarma">
+                                                <option value="">-- Sin Campaña --</option>
+                                                @foreach (var tarifa in tarifasCampana)
+                                                {
+                                                    <option value="@tarifa.NombreTarifa">@tarifa.NombreTarifa - @tarifa.CuotaMensual.ToString("N2")€</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        
+                                        <!-- Dirección de Instalación -->
+                                        <div class="col-12 mt-3">
+                                            <hr />
+                                            <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Instalación</h6>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Tipo de Vía</label>
+                                            <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoViaInstalacion">
+                                                <option value="">-- Seleccionar --</option>
+                                                <option value="CALLE">CALLE</option>
+                                                <option value="AVENIDA">AVENIDA</option>
+                                                <option value="PLAZA">PLAZA</option>
+                                                <option value="CARRETERA">CARRETERA</option>
+                                                <option value="PASEO">PASEO</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-bold">Dirección</label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.DireccionInstalacionAlarma" placeholder="Nombre de la calle" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Número</label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.NumeroInstalacion" placeholder="Nº" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.PisoInstalacion" placeholder="Piso" />
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.PuertaInstalacion" placeholder="Puerta" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Código Postal</label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Localidad</label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.LocalidadInstalacion" placeholder="Localidad" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Provincia</label>
+                                            <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
+                                        </div>
+                                        
+                                        <div class="col-md-12">
+                                            <label class="form-label fw-bold">Observaciones</label>
+                                            <InputTextArea @bind-Value="nuevoContrato.ObservacionesAlarma" class="form-control" rows="3" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+
+                <!-- Footer con botones de navegación -->
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarWizard" disabled="@guardando">
+                        <i class="bi bi-x-circle me-2"></i>Cancelar
+                    </button>
+                    
+                    @if (pasoActual > 1)
+                    {
+                        <button type="button" class="btn btn-outline-danger" @onclick="Anterior" disabled="@guardando">
+                            <i class="bi bi-arrow-left me-2"></i>Anterior
+                        </button>
+                    }
+                    
+                    @if (pasoActual < 3)
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="Siguiente" disabled="@(!PuedeAvanzar() || guardando)">
+                            Siguiente<i class="bi bi-arrow-right ms-2"></i>
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-success" @onclick="GuardarContrato" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-save me-2"></i>
+                            }
+                            Guardar Contrato
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback OnContratoCreado { get; set; }
+    [Parameter] public EventCallback OnCerrar { get; set; }
+
+    private bool mostrarWizard = false;
+    private int pasoActual = 1;
+    private bool guardando = false;
+    private string mensajeError = string.Empty;
+
+    // Paso 1: Cliente
+    private bool modoCrearCliente = false;
+    private string busquedaCliente = string.Empty;
+    private List<Cliente> todosLosClientes = new();
+    private List<Cliente> clientesFiltrados = new();
+    private Cliente? clienteSeleccionado = null;
+    private Cliente? nuevoCliente = null;
+
+    // Paso 2: Empresa de Alarmas
+    private List<EmpresaAlarma> empresasDisponibles = new();
+    private EmpresaAlarma? empresaSeleccionada = null;
+
+    // Paso 3: Datos del contrato
+    private Contrato? nuevoContrato = null;
+    private List<TarifaAlarma> tarifasKit = new();
+    private List<TarifaAlarma> tarifasCampana = new();
+
+    public async Task Abrir()
+    {
+        pasoActual = 1;
+        modoCrearCliente = false;
+        busquedaCliente = string.Empty;
+        clienteSeleccionado = null;
+        empresaSeleccionada = null;
+        mensajeError = string.Empty;
+        
+        // Cargar datos iniciales
+        await CargarClientes();
+        await CargarEmpresas();
+        
+        InicializarNuevoCliente();
+        
+        mostrarWizard = true;
+        StateHasChanged();
+    }
+
+    private async Task CargarClientes()
+    {
+        try
+        {
+            // Si es administrador, cargar todos los clientes
+            // Si no es administrador, cargar solo los clientes de su usuario
+            if (AuthService.UsuarioActual?.Rol == "Administrador")
+            {
+                todosLosClientes = await ClienteService.ObtenerTodosAsync();
+            }
+            else if (AuthService.UsuarioActual?.Id != null)
+            {
+                todosLosClientes = await ClienteService.ObtenerPorUsuarioAsync(AuthService.UsuarioActual.Id);
+            }
+            else
+            {
+                todosLosClientes = new();
+            }
+            
+            clientesFiltrados = new();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar clientes: {ex.Message}";
+        }
+    }
+
+    private async Task CargarEmpresas()
+    {
+        try
+        {
+            empresasDisponibles = await EmpresaAlarmaService.ObtenerTodasAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar empresas: {ex.Message}";
+        }
+    }
+
+    private async Task CargarTarifas()
+    {
+        if (empresaSeleccionada == null) return;
+
+        try
+        {
+            var todasLasTarifas = await TarifaAlarmaService.ObtenerTodasAsync();
+            var tarifasEmpresa = todasLasTarifas.Where(t => t.Empresa == empresaSeleccionada.Nombre).ToList();
+            
+            tarifasKit = tarifasEmpresa.Where(t => t.Tipo == "Kit").ToList();
+            tarifasCampana = tarifasEmpresa.Where(t => t.Tipo == "Campaña").ToList();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar tarifas: {ex.Message}";
+        }
+    }
+
+    private void InicializarNuevoCliente()
+    {
+        nuevoCliente = new Cliente();
+    }
+
+    private void FiltrarClientes()
+    {
+        if (string.IsNullOrWhiteSpace(busquedaCliente))
+        {
+            clientesFiltrados = new();
+            return;
+        }
+
+        var busqueda = busquedaCliente.ToLower();
+        clientesFiltrados = todosLosClientes
+            .Where(c =>
+                (c.Nombre != null && c.Nombre.ToLower().Contains(busqueda)) ||
+                (c.DniCif != null && c.DniCif.ToLower().Contains(busqueda)) ||
+                (c.Telefono != null && c.Telefono.Contains(busqueda))
+            )
+            .OrderBy(c => c.Nombre)
+            .ToList();
+    }
+
+    private void SeleccionarCliente(Cliente cliente)
+    {
+        clienteSeleccionado = cliente;
+        modoCrearCliente = false;
+    }
+
+    private async Task CrearNuevoCliente()
+    {
+        if (nuevoCliente == null) return;
+
+        try
+        {
+            guardando = true;
+            mensajeError = string.Empty;
+
+            var (exito, mensaje) = await ClienteService.CrearAsync(nuevoCliente);
+            if (!exito)
+            {
+                mensajeError = mensaje;
+                return;
+            }
+            
+            // Recargar clientes y seleccionar el recién creado
+            await CargarClientes();
+            clienteSeleccionado = todosLosClientes.OrderByDescending(c => c.Id).FirstOrDefault();
+            
+            // Avanzar al siguiente paso automáticamente
+            pasoActual = 2;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al crear cliente: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void SeleccionarEmpresa(EmpresaAlarma empresa)
+    {
+        empresaSeleccionada = empresa;
+    }
+
+    private bool PuedeAvanzar()
+    {
+        return pasoActual switch
+        {
+            1 => clienteSeleccionado != null || (modoCrearCliente && nuevoCliente != null && !string.IsNullOrWhiteSpace(nuevoCliente.Nombre) && !string.IsNullOrWhiteSpace(nuevoCliente.DniCif)),
+            2 => empresaSeleccionada != null,
+            _ => false
+        };
+    }
+
+    private async Task Siguiente()
+    {
+        if (pasoActual == 1 && modoCrearCliente && nuevoCliente != null)
+        {
+            // Si estamos creando un nuevo cliente, guardarlo primero
+            await CrearNuevoCliente();
+            if (!string.IsNullOrEmpty(mensajeError)) return; // No avanzar si hubo error
+        }
+        
+        if (pasoActual == 2)
+        {
+            // Cargar tarifas y inicializar el contrato al pasar al paso 3
+            await CargarTarifas();
+            InicializarNuevoContrato();
+        }
+
+        pasoActual++;
+    }
+
+    private void Anterior()
+    {
+        if (pasoActual > 1)
+        {
+            pasoActual--;
+        }
+    }
+
+    private void InicializarNuevoContrato()
+    {
+        nuevoContrato = new Contrato
+        {
+            Tipo = "alarmas",
+            IdCliente = clienteSeleccionado?.Id ?? 0,
+            NombreCliente = clienteSeleccionado?.Nombre,
+            Dni = clienteSeleccionado?.DniCif,
+            Direccion = clienteSeleccionado?.Direccion,
+            Iban = clienteSeleccionado?.Iban,
+            EmpresaAlarma = empresaSeleccionada?.Nombre,
+            Estado = "Pte Carga",
+            FechaCreacion = DateTime.Now,
+            FechaModificacion = DateTime.Now,
+            FechaAlta = DateTime.Now,
+            Comercial = AuthService.UsuarioActual?.NombreUsuario ?? ""
+        };
+    }
+
+    private async Task GuardarContrato()
+    {
+        if (nuevoContrato == null) return;
+
+        try
+        {
+            guardando = true;
+            mensajeError = string.Empty;
+
+            var exito = await ContratoService.CrearAsync(nuevoContrato);
+            if (!exito)
+            {
+                mensajeError = "Error al guardar el contrato";
+                return;
+            }
+            
+            await OnContratoCreado.InvokeAsync();
+            await CerrarWizard();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar contrato: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task CerrarWizard()
+    {
+        mostrarWizard = false;
+        pasoActual = 1;
+        clienteSeleccionado = null;
+        empresaSeleccionada = null;
+        nuevoContrato = null;
+        await OnCerrar.InvokeAsync();
+    }
+
+    private void LimpiarSubtipo()
+    {
+        if (nuevoContrato != null)
+        {
+            nuevoContrato.SubtipoInmueble = string.Empty;
+        }
+    }
+}

@@ -52,6 +52,9 @@ public class Usuario
     [Column("jefe_ventas_id")]
     public int? JefeVentasId { get; set; }
 
+    [Column("director_comercial_id")]
+    public int? DirectorComercialId { get; set; }
+
     [Column("comercializadora")]
     [StringLength(255)]
     public string? Comercializadora { get; set; }
@@ -70,6 +73,32 @@ public class Usuario
 
     [Column("fecha_creacion")]
     public DateTime FechaCreacion { get; set; } = DateTime.Now;
+
+    // Datos bancarios y tipo de entidad
+    [Column("numero_cuenta")]
+    [StringLength(34)]
+    public string? NumeroCuenta { get; set; }
+
+    [Column("tipo_entidad")]
+    [StringLength(20)]
+    public string? TipoEntidad { get; set; }
+
+    // Archivos adjuntos
+    [Column("archivo_dni")]
+    [StringLength(255)]
+    public string? ArchivoDni { get; set; }
+
+    [Column("archivo_cif")]
+    [StringLength(255)]
+    public string? ArchivoCif { get; set; }
+
+    [Column("archivo_poder")]
+    [StringLength(255)]
+    public string? ArchivoPoder { get; set; }
+
+    [Column("archivo_contrato")]
+    [StringLength(255)]
+    public string? ArchivoContrato { get; set; }
 
     // Propiedades calculadas para compatibilidad con la UI
     [NotMapped]

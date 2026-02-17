@@ -48,6 +48,22 @@ public class HistoricoLiquidacion
     [StringLength(500)]
     public string? Observaciones { get; set; }
 
+    [Column("estado")]
+    [StringLength(50)]
+    public string Estado { get; set; } = "Aceptada"; // Valores: "En incidencia", "Aceptada", "Liquidada"
+
+    [Column("fecha_en_incidencia")]
+    public DateTime? FechaEnIncidencia { get; set; }
+
+    [Column("fecha_aceptada")]
+    public DateTime? FechaAceptada { get; set; }
+
+    [Column("fecha_liquidada")]
+    public DateTime? FechaLiquidada { get; set; }
+
+    [Column("total_comisiones", TypeName = "decimal(10,2)")]
+    public decimal? TotalComisiones { get; set; }
+
     [NotMapped]
     public bool Reactivando { get; set; }
 }

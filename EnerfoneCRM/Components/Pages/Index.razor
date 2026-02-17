@@ -1,10 +1,25 @@
 @page "/"
 @inject NavigationManager NavigationManager
+@inject EnerfoneCRM.Services.AuthService AuthService
 @rendermode InteractiveServer
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        NavigationManager.NavigateTo("/login", true);
+        if (firstRender)
+        {
+            // Esperar a que MainLayout haya cargado la sesión
+            await Task.Delay(100);
+            
+            // Si está autenticado, ir a home; si no, ir a login
+            if (AuthService.EstaAutenticado)
+            {
+                NavigationManager.NavigateTo("/home", false);
+            }
+            else
+            {
+                NavigationManager.NavigateTo("/login", false);
+            }
+        }
     }
 }

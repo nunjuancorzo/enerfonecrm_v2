@@ -76,5 +76,38 @@ namespace EnerfoneCRM.Services
             context.EmpresasAlarmas.Remove(empresaAlarma);
             return await context.SaveChangesAsync() > 0;
         }
+
+        public async Task<List<EmpresaAlarma>> ObtenerPermitidasPorUsuarioAsync(int usuarioId, string? rolUsuario)
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            
+            // Administrador ve todas las empresas de alarmas
+            if (rolUsuario == "Administrador")
+            {
+                return await context.EmpresasAlarmas
+                    .OrderBy(e => e.Nombre)
+                    .ToListAsync();
+            }
+            
+            // Obtener IDs de empresas de alarmas permitidas para el usuario
+            var empresasPermitidasIds = await context.UsuarioEmpresasAlarmas
+                .Where(uea => uea.UsuarioId == usuarioId)
+                .Select(uea => uea.EmpresaAlarmaId)
+                .ToListAsync();
+            
+            // Si no hay empresas asignadas, retornar todas por defecto
+            if (!empresasPermitidasIds.Any())
+            {
+                return await context.EmpresasAlarmas
+                    .OrderBy(e => e.Nombre)
+                    .ToListAsync();
+            }
+            
+            // Retornar solo las empresas de alarmas permitidas
+            return await context.EmpresasAlarmas
+                .Where(e => empresasPermitidasIds.Contains(e.Id))
+                .OrderBy(e => e.Nombre)
+                .ToListAsync();
+        }
     }
 }

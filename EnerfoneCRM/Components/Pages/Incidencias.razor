@@ -1,0 +1,651 @@
+@page "/incidencias"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Data
+@using Microsoft.EntityFrameworkCore
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject DbContextProvider DbContextProvider
+@inject EmailService EmailService
+@inject RevolappsIncidenciasService RevolappsIncidenciasService
+@rendermode InteractiveServer
+
+<PageTitle>Gestión de Incidencias - EnerfoneCRM</PageTitle>
+
+@if (!AuthService.EstaAutenticado)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p>Verificando sesión...</p>
+    </div>
+}
+else
+{
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h2>
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                    Gestión de Incidencias
+                </h2>
+                <p class="text-muted">
+                    @if (AuthService.EsAdministrador)
+                    {
+                        <span>Visualiza y gestiona todas las incidencias del sistema</span>
+                    }
+                    else
+                    {
+                        <span>Visualiza tus incidencias reportadas</span>
+                    }
+                </p>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-danger" @onclick='() => NavigationManager.NavigateTo("/enviar-incidencia")'>
+                    <i class="bi bi-plus-circle me-2"></i>Nueva Incidencia
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        <!-- Filtros -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Estado</label>
+                        <select class="form-select" @onchange="e => FiltrarPorEstado(e.Value?.ToString())">
+                            <option value="">Todos</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Resuelta">Resuelta</option>
+                            <option value="Cerrada">Cerrada</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Prioridad</label>
+                        <select class="form-select" @onchange="e => FiltrarPorPrioridad(e.Value?.ToString())">
+                            <option value="">Todas</option>
+                            <option value="Crítica">Crítica</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Media">Media</option>
+                            <option value="Baja">Baja</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Buscar</label>
+                        <input type="text" class="form-control" placeholder="Buscar por asunto o descripción..." 
+                               @oninput="e => BuscarTexto(e.Value?.ToString())" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else if (!incidenciasFiltradas.Any())
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>No se encontraron incidencias
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Usuario</th>
+                            <th>Asunto</th>
+                            <th>Tipo</th>
+                            <th>Prioridad</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var incidencia in incidenciasFiltradas)
+                        {
+                            <tr>
+                                <td>@incidencia.Id</td>
+                                <td>@incidencia.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <div>@incidencia.NombreUsuario</div>
+                                    <small class="text-muted">@incidencia.EmailUsuario</small>
+                                </td>
+                                <td>
+                                    <strong>@incidencia.Asunto</strong>
+                                    @if (incidencia.TieneImagen)
+                                    {
+                                        <i class="bi bi-image text-info ms-1" title="Con imagen adjunta"></i>
+                                    }
+                                </td>
+                                <td><span class="badge bg-secondary">@incidencia.TipoIncidencia</span></td>
+                                <td>
+                                    <span class="badge @ObtenerClasePrioridad(incidencia.Prioridad)">
+                                        @incidencia.Prioridad
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge @ObtenerClaseEstado(incidencia.Estado)">
+                                        @incidencia.Estado
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" @onclick="() => MostrarDetalle(incidencia)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    @if (AuthService.EsAdministrador)
+                                    {
+                                        <button class="btn btn-sm btn-warning ms-1" @onclick="() => EditarIncidencia(incidencia)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <!-- Modal de Detalle -->
+        @if (incidenciaSeleccionada != null && mostrarModal)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                Detalle de Incidencia #@incidenciaSeleccionada.Id
+                            </h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Usuario:</strong> @incidenciaSeleccionada.NombreUsuario
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Email:</strong> @incidenciaSeleccionada.EmailUsuario
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Fecha creación:</strong> @incidenciaSeleccionada.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                </div>
+                                <div class="col-md-6">
+                                    @if (incidenciaSeleccionada.FechaActualizacion.HasValue)
+                                    {
+                                        <strong>Última actualización:</strong> @incidenciaSeleccionada.FechaActualizacion.Value.ToString("dd/MM/yyyy HH:mm")
+                                    }
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Asunto:</strong>
+                                <p>@incidenciaSeleccionada.Asunto</p>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Tipo:</strong> <span class="badge bg-secondary">@incidenciaSeleccionada.TipoIncidencia</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Prioridad:</strong> 
+                                    <span class="badge @ObtenerClasePrioridad(incidenciaSeleccionada.Prioridad)">
+                                        @incidenciaSeleccionada.Prioridad
+                                    </span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Estado:</strong> 
+                                    <span class="badge @ObtenerClaseEstado(incidenciaSeleccionada.Estado)">
+                                        @incidenciaSeleccionada.Estado
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Descripción:</strong>
+                                <div class="border p-3 bg-light rounded">
+                                    @incidenciaSeleccionada.Descripcion
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(incidenciaSeleccionada.ObservacionesAdmin))
+                            {
+                                <div class="mb-3">
+                                    <strong>Observaciones del Administrador:</strong>
+                                    <div class="border p-3 bg-warning bg-opacity-10 rounded">
+                                        @incidenciaSeleccionada.ObservacionesAdmin
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-primary" @onclick="EnviarIncidenciaARevolapps" disabled="@enviandoARevolapps">
+                                @if (enviandoARevolapps)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Enviando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-box-arrow-up-right me-2"></i>
+                                    <span>Enviar a Incidencias</span>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Modal de Edición (solo administrador) -->
+        @if (incidenciaEdicion != null && mostrarModalEdicion && AuthService.EsAdministrador)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-pencil me-2"></i>
+                                Editar Incidencia #@incidenciaEdicion.Id
+                            </h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModalEdicion"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Estado</label>
+                                <select class="form-select" @bind="incidenciaEdicion.Estado">
+                                    <option value="Pendiente">Pendiente</option>
+                                    <option value="En Proceso">En Proceso</option>
+                                    <option value="Resuelta">Resuelta</option>
+                                    <option value="Cerrada">Cerrada</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Observaciones del Administrador</label>
+                                <textarea class="form-control" rows="5" @bind="incidenciaEdicion.ObservacionesAdmin" 
+                                          placeholder="Añade observaciones o comentarios sobre la incidencia..."></textarea>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Usuario:</strong> @incidenciaEdicion.NombreUsuario<br />
+                                <strong>Asunto:</strong> @incidenciaEdicion.Asunto
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModalEdicion">Cancelar</button>
+                            <button type="button" class="btn btn-primary" @onclick="GuardarCambios" disabled="@guardando">
+                                @if (guardando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-save me-2"></i>Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Incidencia> incidencias = new();
+    private List<Incidencia> incidenciasFiltradas = new();
+    private Incidencia? incidenciaSeleccionada = null;
+    private Incidencia? incidenciaEdicion = null;
+    private bool cargando = true;
+    private bool mostrarModal = false;
+    private bool mostrarModalEdicion = false;
+    private bool guardando = false;
+    private bool enviandoARevolapps = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private string filtroEstado = string.Empty;
+    private string filtroPrioridad = string.Empty;
+    private string filtroBusqueda = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarIncidencias();
+    }
+
+    private async Task CargarIncidencias()
+    {
+        try
+        {
+            cargando = true;
+            using var context = DbContextProvider.CreateDbContext();
+
+            if (AuthService.EsAdministrador)
+            {
+                // El administrador ve todas las incidencias
+                incidencias = await context.Incidencias
+                    .OrderByDescending(i => i.FechaCreacion)
+                    .ToListAsync();
+            }
+            else
+            {
+                // Otros usuarios solo ven sus propias incidencias
+                incidencias = await context.Incidencias
+                    .Where(i => i.UsuarioId == AuthService.UsuarioActual!.Id)
+                    .OrderByDescending(i => i.FechaCreacion)
+                    .ToListAsync();
+            }
+
+            AplicarFiltros();
+        }
+        catch (MySqlConnector.MySqlException mysqlEx) when (mysqlEx.Message.Contains("doesn't exist"))
+        {
+            mensajeError = "La tabla de incidencias no existe en la base de datos. Por favor, ejecuta el script SQL: EnerfoneCRM/Data/Incidencias.sql";
+            Console.WriteLine($"[INCIDENCIAS] Error MySQL: {mysqlEx.Message}");
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar incidencias: {ex.Message}";
+            Console.WriteLine($"[INCIDENCIAS] Error al cargar: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AplicarFiltros()
+    {
+        incidenciasFiltradas = incidencias;
+
+        if (!string.IsNullOrEmpty(filtroEstado))
+        {
+            incidenciasFiltradas = incidenciasFiltradas
+                .Where(i => i.Estado == filtroEstado)
+                .ToList();
+        }
+
+        if (!string.IsNullOrEmpty(filtroPrioridad))
+        {
+            incidenciasFiltradas = incidenciasFiltradas
+                .Where(i => i.Prioridad == filtroPrioridad)
+                .ToList();
+        }
+
+        if (!string.IsNullOrEmpty(filtroBusqueda))
+        {
+            incidenciasFiltradas = incidenciasFiltradas
+                .Where(i => i.Asunto.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                           i.Descripcion.Contains(filtroBusqueda, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+    }
+
+    private void FiltrarPorEstado(string? estado)
+    {
+        filtroEstado = estado ?? string.Empty;
+        AplicarFiltros();
+    }
+
+    private void FiltrarPorPrioridad(string? prioridad)
+    {
+        filtroPrioridad = prioridad ?? string.Empty;
+        AplicarFiltros();
+    }
+
+    private void BuscarTexto(string? texto)
+    {
+        filtroBusqueda = texto ?? string.Empty;
+        AplicarFiltros();
+    }
+
+    private void MostrarDetalle(Incidencia incidencia)
+    {
+        incidenciaSeleccionada = incidencia;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        incidenciaSeleccionada = null;
+    }
+
+    private async Task EnviarIncidenciaARevolapps()
+    {
+        if (incidenciaSeleccionada == null) return;
+
+        try
+        {
+            enviandoARevolapps = true;
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+
+            var (exito, mensaje, incidentId) = await RevolappsIncidenciasService.EnviarIncidenciaAsync(incidenciaSeleccionada);
+            if (!exito)
+            {
+                mensajeError = mensaje;
+                return;
+            }
+
+            mensajeExito = incidentId.HasValue
+                ? $"Incidencia enviada correctamente (ID remoto: {incidentId.Value})."
+                : "Incidencia enviada correctamente.";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error enviando incidencia: {ex.Message}";
+        }
+        finally
+        {
+            enviandoARevolapps = false;
+        }
+    }
+
+    private void EditarIncidencia(Incidencia incidencia)
+    {
+        incidenciaEdicion = new Incidencia
+        {
+            Id = incidencia.Id,
+            Asunto = incidencia.Asunto,
+            TipoIncidencia = incidencia.TipoIncidencia,
+            Prioridad = incidencia.Prioridad,
+            Descripcion = incidencia.Descripcion,
+            UsuarioId = incidencia.UsuarioId,
+            NombreUsuario = incidencia.NombreUsuario,
+            EmailUsuario = incidencia.EmailUsuario,
+            Estado = incidencia.Estado,
+            FechaCreacion = incidencia.FechaCreacion,
+            FechaActualizacion = incidencia.FechaActualizacion,
+            ObservacionesAdmin = incidencia.ObservacionesAdmin,
+            TieneImagen = incidencia.TieneImagen,
+            NombreImagen = incidencia.NombreImagen
+        };
+        mostrarModalEdicion = true;
+    }
+
+    private void CerrarModalEdicion()
+    {
+        mostrarModalEdicion = false;
+        incidenciaEdicion = null;
+    }
+
+    private async Task GuardarCambios()
+    {
+        if (incidenciaEdicion == null) return;
+
+        try
+        {
+            guardando = true;
+            mensajeError = string.Empty;
+
+            using var context = DbContextProvider.CreateDbContext();
+            var incidenciaDb = await context.Incidencias.FindAsync(incidenciaEdicion.Id);
+            
+            if (incidenciaDb == null)
+            {
+                mensajeError = "Incidencia no encontrada";
+                return;
+            }
+
+            var estadoAnterior = incidenciaDb.Estado;
+            incidenciaDb.Estado = incidenciaEdicion.Estado;
+            incidenciaDb.ObservacionesAdmin = incidenciaEdicion.ObservacionesAdmin;
+            incidenciaDb.FechaActualizacion = DateTime.Now;
+
+            await context.SaveChangesAsync();
+
+            // Enviar email si el estado cambió a "Resuelta"
+            if (estadoAnterior != "Resuelta" && incidenciaEdicion.Estado == "Resuelta" && !string.IsNullOrEmpty(incidenciaDb.EmailUsuario))
+            {
+                await EnviarEmailIncidenciaResuelta(incidenciaDb);
+            }
+
+            mensajeExito = "Incidencia actualizada correctamente";
+            CerrarModalEdicion();
+            await CargarIncidencias();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar cambios: {ex.Message}";
+            Console.WriteLine($"[INCIDENCIAS] Error al guardar: {ex.Message}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task EnviarEmailIncidenciaResuelta(Incidencia incidencia)
+    {
+        try
+        {
+            var asunto = $"Tu incidencia ha sido resuelta - {incidencia.Asunto}";
+            var cuerpo = GenerarEmailIncidenciaResuelta(incidencia);
+
+            var (exito, mensaje) = await EmailService.EnviarEmailSimpleAsync(
+                incidencia.EmailUsuario,
+                asunto,
+                cuerpo
+            );
+
+            if (!exito)
+            {
+                Console.WriteLine($"[INCIDENCIAS] Error al enviar email de resolución: {mensaje}");
+            }
+            else
+            {
+                Console.WriteLine($"[INCIDENCIAS] Email de resolución enviado a {incidencia.EmailUsuario}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INCIDENCIAS] Error al enviar email: {ex.Message}");
+        }
+    }
+
+    private string GenerarEmailIncidenciaResuelta(Incidencia incidencia)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<html><head><meta charset='utf-8'><title>Incidencia Resuelta</title><style>");
+        sb.Append("body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+        sb.Append(".container { background-color: white; padding: 30px; border-radius: 10px; max-width: 700px; margin: 0 auto; }");
+        sb.Append("h1 { color: #28a745; border-bottom: 3px solid #28a745; padding-bottom: 10px; }");
+        sb.Append(".info-box { background-color: #d4edda; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #28a745; }");
+        sb.Append(".label { font-weight: bold; color: #495057; margin-right: 10px; }");
+        sb.Append(".value { color: #212529; }");
+        sb.Append(".footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 14px; }");
+        sb.Append("</style></head><body>");
+        sb.Append("<div class='container'>");
+        sb.Append("<h1>✅ Tu Incidencia ha sido Resuelta</h1>");
+        
+        sb.Append("<p>Estimado/a <strong>" + incidencia.NombreUsuario + "</strong>,</p>");
+        sb.Append("<p>Te informamos que tu incidencia ha sido marcada como resuelta por nuestro equipo.</p>");
+        
+        sb.Append("<div class='info-box'>");
+        sb.Append($"<div><span class='label'>ID de Incidencia:</span><span class='value'>#{incidencia.Id}</span></div>");
+        sb.Append($"<div><span class='label'>Asunto:</span><span class='value'>{incidencia.Asunto}</span></div>");
+        sb.Append($"<div><span class='label'>Tipo:</span><span class='value'>{incidencia.TipoIncidencia}</span></div>");
+        sb.Append($"<div><span class='label'>Prioridad:</span><span class='value'>{incidencia.Prioridad}</span></div>");
+        sb.Append($"<div><span class='label'>Fecha de creación:</span><span class='value'>{incidencia.FechaCreacion.ToString("dd/MM/yyyy HH:mm")}</span></div>");
+        sb.Append($"<div><span class='label'>Fecha de resolución:</span><span class='value'>{DateTime.Now.ToString("dd/MM/yyyy HH:mm")}</span></div>");
+        sb.Append("</div>");
+
+        if (!string.IsNullOrEmpty(incidencia.Descripcion))
+        {
+            sb.Append("<div style='background-color: #fff9e6; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #ffc107;'>");
+            sb.Append("<strong>Descripción original de tu incidencia:</strong><br><br>");
+            sb.Append("<div style='color: #495057;'>");
+            sb.Append(incidencia.Descripcion.Replace("\n", "<br>"));
+            sb.Append("</div>");
+            sb.Append("</div>");
+        }
+
+        if (!string.IsNullOrEmpty(incidencia.ObservacionesAdmin))
+        {
+            sb.Append("<div style='background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #0d6efd;'>");
+            sb.Append("<strong>💬 Comentarios del Administrador:</strong><br><br>");
+            sb.Append("<div style='color: #495057;'>");
+            sb.Append(incidencia.ObservacionesAdmin.Replace("\n", "<br>"));
+            sb.Append("</div>");
+            sb.Append("</div>");
+        }
+
+        sb.Append("<p>Si tienes alguna pregunta adicional o consideras que la incidencia no ha sido resuelta completamente, no dudes en contactarnos.</p>");
+        
+        sb.Append("<div class='footer'>");
+        sb.Append("<p>Este es un mensaje automático del sistema EnerfoneCRM.<br>");
+        sb.Append("Por favor, no respondas directamente a este correo.</p>");
+        sb.Append("</div>");
+        
+        sb.Append("</div></body></html>");
+        
+        return sb.ToString();
+    }
+
+    private string ObtenerClasePrioridad(string prioridad)
+    {
+        return prioridad switch
+        {
+            "Crítica" => "bg-danger",
+            "Alta" => "bg-warning text-dark",
+            "Media" => "bg-info",
+            "Baja" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string ObtenerClaseEstado(string estado)
+    {
+        return estado switch
+        {
+            "Pendiente" => "bg-warning text-dark",
+            "En Proceso" => "bg-info",
+            "Resuelta" => "bg-success",
+            "Cerrada" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+}

@@ -32,7 +32,8 @@ public class UsuarioService
                 .CountAsync();
         }
 
-        return usuarios;
+        // Excluir superadmin del listado (nunca debe aparecer)
+        return usuarios.Where(u => u.Id != -1 && u.NombreUsuario != "superadmin").ToList();
     }
 
     public async Task<Usuario?> ObtenerPorIdAsync(int id)
@@ -349,5 +350,140 @@ public class UsuarioService
         }
         
         await context.SaveChangesAsync();
+    }
+    
+    // Obtener usuarios (comerciales) permitidos según el rol del usuario actual
+    public async Task<List<Usuario>> ObtenerUsuariosPermitidosAsync(string? rolUsuario, int? usuarioId)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        
+        if (rolUsuario == "Administrador")
+        {
+            // Administrador ve todos los usuarios
+            return await context.Usuarios
+                .Where(u => u.Activo && u.Id != -1 && u.NombreUsuario != "superadmin")
+                .OrderBy(u => u.NombreUsuario)
+                .ToListAsync();
+        }
+        
+        if (!usuarioId.HasValue)
+        {
+            return new List<Usuario>();
+        }
+        
+        var usuariosPermitidos = new List<Usuario>();
+        
+        if (rolUsuario == "Colaborador")
+        {
+            // Colaborador solo se ve a sí mismo
+            var colaborador = await context.Usuarios.FindAsync(usuarioId.Value);
+            if (colaborador != null)
+            {
+                usuariosPermitidos.Add(colaborador);
+            }
+        }
+        else if (rolUsuario == "Gestor")
+        {
+            // El gestor se ve a sí mismo y a sus colaboradores
+            var gestor = await context.Usuarios.FindAsync(usuarioId.Value);
+            if (gestor != null)
+            {
+                usuariosPermitidos.Add(gestor);
+            }
+            
+            var colaboradores = await context.Usuarios
+                .Where(u => u.GestorId == usuarioId.Value && u.Activo)
+                .ToListAsync();
+            usuariosPermitidos.AddRange(colaboradores);
+        }
+        else if (rolUsuario == "Jefe de ventas")
+        {
+            // El jefe de ventas ve: sí mismo, sus colaboradores directos, sus gestores y los colaboradores de esos gestores
+            var jefe = await context.Usuarios.FindAsync(usuarioId.Value);
+            if (jefe != null)
+            {
+                usuariosPermitidos.Add(jefe);
+            }
+            
+            var colaboradoresDirectos = await context.Usuarios
+                .Where(u => u.JefeVentasId == usuarioId.Value && u.Rol == "Colaborador" && u.Activo)
+                .ToListAsync();
+            usuariosPermitidos.AddRange(colaboradoresDirectos);
+            
+            var gestores = await context.Usuarios
+                .Where(u => u.JefeVentasId == usuarioId.Value && u.Rol == "Gestor" && u.Activo)
+                .ToListAsync();
+            usuariosPermitidos.AddRange(gestores);
+            
+            foreach (var gestor in gestores)
+            {
+                var colaboradoresGestor = await context.Usuarios
+                    .Where(u => u.GestorId == gestor.Id && u.Activo)
+                    .ToListAsync();
+                usuariosPermitidos.AddRange(colaboradoresGestor);
+            }
+        }
+        else if (rolUsuario == "Director comercial")
+        {
+            // El director comercial ve toda su estructura
+            var director = await context.Usuarios.FindAsync(usuarioId.Value);
+            if (director != null)
+            {
+                usuariosPermitidos.Add(director);
+            }
+            
+            // Jefes de ventas del director
+            var jefesVentas = await context.Usuarios
+                .Where(u => u.DirectorComercialId == usuarioId.Value && u.Rol == "Jefe de ventas" && u.Activo)
+                .ToListAsync();
+            usuariosPermitidos.AddRange(jefesVentas);
+            
+            foreach (var jefe in jefesVentas)
+            {
+                var colaboradoresJefe = await context.Usuarios
+                    .Where(u => u.JefeVentasId == jefe.Id && u.Rol == "Colaborador" && u.Activo)
+                    .ToListAsync();
+                usuariosPermitidos.AddRange(colaboradoresJefe);
+                
+                var gestoresJefe = await context.Usuarios
+                    .Where(u => u.JefeVentasId == jefe.Id && u.Rol == "Gestor" && u.Activo)
+                    .ToListAsync();
+                usuariosPermitidos.AddRange(gestoresJefe);
+                
+                foreach (var gestor in gestoresJefe)
+                {
+                    var colaboradoresGestor = await context.Usuarios
+                        .Where(u => u.GestorId == gestor.Id && u.Activo)
+                        .ToListAsync();
+                    usuariosPermitidos.AddRange(colaboradoresGestor);
+                }
+            }
+            
+            // Gestores directos del director
+            var gestoresDirectos = await context.Usuarios
+                .Where(u => u.DirectorComercialId == usuarioId.Value && u.Rol == "Gestor" && u.Activo)
+                .ToListAsync();
+            usuariosPermitidos.AddRange(gestoresDirectos);
+            
+            foreach (var gestor in gestoresDirectos)
+            {
+                var colaboradoresGestor = await context.Usuarios
+                    .Where(u => u.GestorId == gestor.Id && u.Activo)
+                    .ToListAsync();
+                usuariosPermitidos.AddRange(colaboradoresGestor);
+            }
+            
+            // Colaboradores directos del director
+            var colaboradoresDirectos = await context.Usuarios
+                .Where(u => u.DirectorComercialId == usuarioId.Value && u.Rol == "Colaborador" && u.Activo)
+                .ToListAsync();
+            usuariosPermitidos.AddRange(colaboradoresDirectos);
+        }
+        
+        return usuariosPermitidos
+            .GroupBy(u => u.Id)
+            .Select(g => g.First())
+            .OrderBy(u => u.NombreUsuario)
+            .ToList();
     }
 }

@@ -80,6 +80,10 @@ builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddSingleton<RepositorioService>();
 
+// Integración externa de incidencias (INTEGRACION.md)
+builder.Services.AddHttpClient<RevolappsIncidenciasService>();
+builder.Services.AddScoped<RevolappsIncidenciasService>();
+
 // Configurar tamaño máximo de formularios y archivos
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {

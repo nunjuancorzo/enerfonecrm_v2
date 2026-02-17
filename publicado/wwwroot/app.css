@@ -261,6 +261,11 @@ h1:focus {
     color: #fff !important;
 }
 
+.bg-light-blue {
+    background-color: #87CEEB !important;
+    color: #000 !important;
+}
+
 .bg-indigo {
     background-color: #6610f2 !important;
     color: #fff !important;

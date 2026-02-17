@@ -68,7 +68,7 @@ else
                     <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h6>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
+                    <div class="row g-3 mb-3">
                         <div class="col-md-3">
                             <label class="form-label fw-bold">Estado</label>
                             <div class="dropdown">
@@ -114,20 +114,136 @@ else
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-bold">Operadora</label>
-                            <input type="text" @bind="filtroOperadora" class="form-control" placeholder="Buscar..." />
+                            <label class="form-label fw-bold">Tipo de Fecha</label>
+                            <select @bind="tipoFechaFiltro" class="form-select">
+                                <option value="Creacion">Creación</option>
+                                <option value="Modificacion">Modificación</option>
+                            </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">Fecha Desde</label>
                             <input type="date" @bind="filtroFechaDesde" class="form-control" />
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">Fecha Hasta</label>
                             <input type="date" @bind="filtroFechaHasta" class="form-control" />
                         </div>
-                        <div class="col-md-2 d-flex align-items-end gap-2">
-                            <button class="btn btn-primary w-100" @onclick="AplicarFiltros">
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Buscar en</label>
+                            <select @bind="campoBusqueda" class="form-select">
+                                <option value="">Todos los campos</option>
+                                <option value="ID">ID</option>
+                                <option value="Estado">Estado</option>
+                                <option value="Operadora">Operadora</option>
+                                <option value="Comercial">Comercial</option>
+                                <option value="Tarifa">Tarifa</option>
+                                <option value="Cliente">Cliente</option>
+                                <option value="DNI">DNI/CIF</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">@(campoBusqueda == "Operadora" ? "Seleccionar Operadora" : campoBusqueda == "Comercial" ? "Seleccionar Comercial" : "Texto a buscar")</label>
+                            @if (campoBusqueda == "Operadora")
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="dropdownOperadora" data-bs-toggle="dropdown" aria-expanded="false">
+                                        @if (operadorasSeleccionadas.Count == 0)
+                                        {
+                                            <span>Todas</span>
+                                        }
+                                        else if (operadorasSeleccionadas.Count == 1)
+                                        {
+                                            <span>@operadorasSeleccionadas.First()</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@operadorasSeleccionadas.Count seleccionadas</span>
+                                        }
+                                    </button>
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownOperadora" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="operadoraTodas" @onchange="SeleccionarTodasOperadoras" checked="@(operadorasSeleccionadas.Count == 0)">
+                                                <label class="form-check-label w-100" for="operadoraTodas" style="cursor: pointer;">
+                                                    <small><strong>Todas</strong></small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        @foreach (var operadora in operadorasObjetos.OrderBy(o => o.Nombre))
+                                        {
+                                            var opId = $"op_{operadora.Nombre.Replace(" ", "_")}";
+                                            <li class="px-2 py-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="@opId" 
+                                                           checked="@operadorasSeleccionadas.Contains(operadora.Nombre)"
+                                                           @onchange="() => ToggleOperadora(operadora.Nombre)">
+                                                    <label class="form-check-label w-100" for="@opId" style="cursor: pointer;">
+                                                        <small>@operadora.Nombre</small>
+                                                    </label>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            else if (campoBusqueda == "Comercial")
+                            {
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="dropdownComercialTel" data-bs-toggle="dropdown" aria-expanded="false">
+                                        @if (comercialesSeleccionados.Count == 0)
+                                        {
+                                            <span>Todos</span>
+                                        }
+                                        else if (comercialesSeleccionados.Count == 1)
+                                        {
+                                            <span>@comercialesSeleccionados.First()</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@comercialesSeleccionados.Count seleccionados</span>
+                                        }
+                                    </button>
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercialTel" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="comercialTodosTel" @onchange="SeleccionarTodosComerciales" checked="@(comercialesSeleccionados.Count == 0)">
+                                                <label class="form-check-label w-100" for="comercialTodosTel" style="cursor: pointer;">
+                                                    <small><strong>Todos</strong></small>
+                                                </label>
+                                            </div>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
+                                        {
+                                            var usrId = $"usrTel_{usuario.NombreUsuario.Replace(" ", "_")}";
+                                            <li class="px-2 py-1">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="@usrId" 
+                                                           checked="@comercialesSeleccionados.Contains(usuario.NombreUsuario)"
+                                                           @onchange="() => ToggleComercial(usuario.NombreUsuario)">
+                                                    <label class="form-check-label w-100" for="@usrId" style="cursor: pointer;">
+                                                        <small>@usuario.NombreUsuario</small>
+                                                    </label>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            }
+                            else
+                            {
+                                <input type="text" @bind="textoBusqueda" class="form-control" placeholder="Escriba el texto a buscar..." />
+                            }
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button class="btn btn-primary flex-grow-1" @onclick="AplicarFiltros">
                                 <i class="bi bi-search me-1"></i>Filtrar
+                            </button>
+                            <button class="btn btn-secondary" @onclick="LimpiarFiltros">
+                                <i class="bi bi-x-circle me-1"></i>Limpiar
                             </button>
                         </div>
                     </div>
@@ -137,7 +253,10 @@ else
             <div class="card shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                     <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Contratos</h5>
-                    <div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" @onclick="AbrirWizardNuevoContrato">
+                            <i class="bi bi-plus-circle me-2"></i>Nuevo Contrato
+                        </button>
                         <div class="btn-group">
                             <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!contratosFiltrados.Any())">
                                 <i class="bi bi-download me-2"></i>Exportar
@@ -149,8 +268,7 @@ else
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    @if (cargando)
+                <div class="card-body p-0">\n                    @if (cargando)
                     {
                         <div class="text-center p-5">
                             <div class="spinner-border text-primary" role="status">
@@ -291,7 +409,14 @@ else
                                                 <td><small>@contrato.LineaMovilPrincipal</small></td>
                                                 <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@contrato.NombreCliente</small></td>
                                                 <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
-                                                <td><span class="badge bg-primary" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                @if (PuedeMostrarComision(contrato.Estado))
+                                                {
+                                                    <td><span class="badge bg-primary" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                }
+                                                else if (AuthService.UsuarioActual?.Rol == "Colaborador")
+                                                {
+                                                    <td><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
+                                                }
                                                 <td class="text-end" style="white-space: nowrap;">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await MostrarModalEditar(contrato)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
@@ -424,6 +549,104 @@ else
 
                                 <hr class="my-3" />
 
+                                <!-- DATOS DEL CLIENTE -->
+                                <h6 class="mb-3"><i class="bi bi-person me-2"></i>Datos del Cliente</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Cliente</label>
+                                            <select class="form-select" @bind="contratoSeleccionado.IdCliente" @bind:after="OnClienteChanged" disabled="@(!PuedeEditar())">
+                                                <option value="">-- Seleccione un cliente --</option>
+                                                @foreach (var cliente in todosLosClientes)
+                                                {
+                                                    <option value="@cliente.Id">@cliente.Nombre @(cliente.FechaAlta.HasValue ? $"- {cliente.FechaAlta.Value:dd/MM/yyyy}" : "")</option>
+                                                }
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        @if (clienteSeleccionadoInfo != null)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">DNI Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.DniCif" disabled />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (clienteSeleccionadoInfo != null)
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Teléfono Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" disabled />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Email Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" disabled />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">IBAN Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" disabled />
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">IBAN Cliente</label>
+                                                <InputText @bind-Value="contratoSeleccionado.Iban" class="form-control" disabled="@(!PuedeEditar())" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                
+                                @* Titular IBAN Diferente *@
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionTel" @bind="contratoSeleccionado.TitularIbanDiferente" disabled="@(!PuedeEditar())">
+                                            <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicionTel">
+                                                Titular IBAN Diferente
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                @if (contratoSeleccionado.TitularIbanDiferente)
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">DNI Titular IBAN <span class="text-danger">*</span></label>
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIE" disabled="@(!PuedeEditar())" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Nombre Titular IBAN <span class="text-danger">*</span></label>
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" disabled="@(!PuedeEditar())" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Número IBAN <span class="text-danger">*</span></label>
+                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" disabled="@(!PuedeEditar())" />
+                                        </div>
+                                    </div>
+                                }
+
+                                <hr class="my-3" />
+
+                                <!-- DATOS DEL CONTRATO -->
+                                <h6 class="mb-3"><i class="bi bi-file-text me-2"></i>Datos del Contrato</h6>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -500,69 +723,6 @@ else
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Cliente</label>
-                                            <select class="form-select" @bind="contratoSeleccionado.IdCliente" @bind:after="OnClienteChanged" disabled="@(!PuedeEditar())">
-                                                <option value="">-- Seleccione un cliente --</option>
-                                                @foreach (var cliente in todosLosClientes)
-                                                {
-                                                    <option value="@cliente.Id">@cliente.Nombre @(cliente.FechaAlta.HasValue ? $"- {cliente.FechaAlta.Value:dd/MM/yyyy}" : "")</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        @if (clienteSeleccionadoInfo != null)
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">DNI Cliente</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.DniCif" disabled />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Teléfono Cliente</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" disabled />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Email Cliente</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" disabled />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">IBAN Cliente</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" disabled />
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">IBAN Cliente</label>
-                                                <InputText @bind-Value="contratoSeleccionado.Iban" class="form-control" disabled="@(!PuedeEditar())" />
-                                            </div>
-                                        }
-                                        
-                                        @* Titular IBAN Diferente *@
-                                        <div class="mb-3">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionTel" @bind="contratoSeleccionado.TitularIbanDiferente" disabled="@(!PuedeEditar())">
-                                                <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicionTel">
-                                                    Titular IBAN Diferente
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        @if (contratoSeleccionado.TitularIbanDiferente)
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">DNI Titular IBAN <span class="text-danger">*</span></label>
-                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIE" disabled="@(!PuedeEditar())" />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Nombre Titular IBAN <span class="text-danger">*</span></label>
-                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" disabled="@(!PuedeEditar())" />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Número IBAN <span class="text-danger">*</span></label>
-                                                <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" disabled="@(!PuedeEditar())" />
-                                            </div>
-                                        }
-                                        
                                         @* Mostrar campos relacionados con fibra *@
                                         @if (TieneComponenteFibra())
                                         {
@@ -589,10 +749,16 @@ else
                                                         </InputSelect>
                                                     </div>
                                                     
-                                                    @if (contratoSeleccionado.TipoLineaMovilPrincipal == "Prepago")
+                                                    @if (contratoSeleccionado.TipoLineaMovilPrincipal == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
                                                     {
                                                         <div class="col-md-6">
-                                                            <label class="form-label fw-bold small">Código ICC (19 dígitos) <span class="text-danger">*</span></label>
+                                                            <label class="form-label fw-bold small">
+                                                                Código ICC (19 dígitos) <span class="text-danger">*</span>
+                                                                @if (operadoraSeleccionada?.RequiereICC == true && contratoSeleccionado.TipoLineaMovilPrincipal != "Prepago")
+                                                                {
+                                                                    <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
+                                                                }
+                                                            </label>
                                                             <InputText @bind-Value="contratoSeleccionado.CodigoIccPrincipal" 
                                                                       class="form-control form-control-sm" 
                                                                       disabled="@(!PuedeEditar())" 
@@ -611,6 +777,50 @@ else
                                                     <small class="text-muted">Tarifa: @contratoSeleccionado.TarifaTel</small>
                                                 }
                                             </div>
+                                            
+                                            @* Segunda línea móvil principal (opcional) *@
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">
+                                                    Segunda Línea Móvil Principal <small class="text-muted">(Opcional)</small>
+                                                </label>
+                                                <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal2" class="form-control mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                
+                                                @if (!string.IsNullOrWhiteSpace(contratoSeleccionado.LineaMovilPrincipal2))
+                                                {
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-bold small">Tipo de Línea</label>
+                                                            <InputSelect @bind-Value="contratoSeleccionado.TipoLineaMovilPrincipal2" class="form-select form-select-sm" disabled="@(!PuedeEditar())">
+                                                                <option value="">-- Seleccionar --</option>
+                                                                <option value="Contrato">Contrato</option>
+                                                                <option value="Prepago">Prepago</option>
+                                                            </InputSelect>
+                                                        </div>
+                                                        
+                                                        @if (contratoSeleccionado.TipoLineaMovilPrincipal2 == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
+                                                        {
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-bold small">
+                                                                    Código ICC (19 dígitos) <span class="text-danger">*</span>
+                                                                    @if (operadoraSeleccionada?.RequiereICC == true && contratoSeleccionado.TipoLineaMovilPrincipal2 != "Prepago")
+                                                                    {
+                                                                        <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
+                                                                    }
+                                                                </label>
+                                                                <InputText @bind-Value="contratoSeleccionado.CodigoIccPrincipal2" 
+                                                                          class="form-control form-control-sm" 
+                                                                          disabled="@(!PuedeEditar())" 
+                                                                          placeholder="89 34 XX..." 
+                                                                          maxlength="19" />
+                                                                @if (!string.IsNullOrEmpty(contratoSeleccionado.CodigoIccPrincipal2) && contratoSeleccionado.CodigoIccPrincipal2.Length != 19)
+                                                                {
+                                                                    <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
                                         }
                                         
                                         @* Mostrar TV solo si el tipo incluye TV *@
@@ -622,7 +832,7 @@ else
                                             </div>
                                         }
                                         
-                                        @if (contratoSeleccionado.Id > 0)
+                                        @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
                                         {
                                             <div class="mb-3">
                                                 <label class="form-label fw-bold">Comisión (€)</label>
@@ -699,10 +909,16 @@ else
                                                                     </select>
                                                                 </div>
                                                                 
-                                                                @if (tipoLinea == "Prepago")
+                                                                @if (tipoLinea == "Prepago" || (operadoraSeleccionada?.RequiereICC == true && !string.IsNullOrWhiteSpace(tipoLinea)))
                                                                 {
                                                                     <div class="col-12">
-                                                                        <label class="form-label small fw-bold mb-1">ICC (19 dígitos) <span class="text-danger">*</span></label>
+                                                                        <label class="form-label small fw-bold mb-1">
+                                                                            ICC (19 dígitos) <span class="text-danger">*</span>
+                                                                            @if (operadoraSeleccionada?.RequiereICC == true && tipoLinea != "Prepago")
+                                                                            {
+                                                                                <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
+                                                                            }
+                                                                        </label>
                                                                         <InputText @bind-Value="@codigoIcc" 
                                                                                   @bind-Value:after="() => ActualizarCodigoIcc(lineaIndex, codigoIcc)" 
                                                                                   class="form-control form-control-sm" 
@@ -837,6 +1053,62 @@ else
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditar())" />
                                     </div>
                                 </div>
+
+                                @* Fibra Segunda Residencia *@
+                                <div class="mt-4 mb-3">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" @bind="tieneFibraSegundaResidencia" id="chkFibraSegundaResidenciaEditar" disabled="@(!PuedeEditar())" />
+                                        <label class="form-check-label fw-bold" for="chkFibraSegundaResidenciaEditar">
+                                            <i class="bi bi-house-add me-2"></i>¿Necesita Fibra en Segunda Residencia? <small class="text-muted">(Opcional)</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                @if (tieneFibraSegundaResidencia || !string.IsNullOrEmpty(contratoSeleccionado.DireccionSegundaResidencia))
+                                {
+                                    <div class="card border-primary mb-3">
+                                        <div class="card-header bg-primary text-white">
+                                            <i class="bi bi-house-gear me-2"></i>Datos de Fibra Segunda Residencia
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-bold">Tarifa Fibra Segunda Residencia <span class="text-danger">*</span></label>
+                                                    <select @bind="contratoSeleccionado.TarifaFibraSegundaResidencia" class="form-select" disabled="@(!PuedeEditar())">
+                                                        <option value="">-- Seleccionar tarifa de fibra --</option>
+                                                        @foreach (var tarifa in tarifasFibraSegundaResidenciaDisponibles)
+                                                        {
+                                                            var descripcion = ObtenerDescripcionTarifa(tarifa);
+                                                            <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
+                                                        }
+                                                    </select>
+                                                    @if (!tarifasFibraSegundaResidenciaDisponibles.Any())
+                                                    {
+                                                        <small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle me-1"></i>No hay tarifas de fibra segunda residencia disponibles para esta operadora. Debe crear una primero en Tarifas de Telefonía.</small>
+                                                    }
+                                                    else
+                                                    {
+                                                        <small class="text-muted">Seleccione la tarifa específica para la fibra de segunda residencia</small>
+                                                    }
+                                                </div>
+
+                                                <div class="col-12 mt-3">
+                                                    <label class="form-label fw-bold"><i class="bi bi-geo-alt me-2"></i>Dirección Segunda Residencia <span class="text-danger">*</span></label>
+                                                </div>
+
+                                                <div class="col-md-12">
+                                                    <label class="form-label">Dirección Completa</label>
+                                                    <textarea class="form-control" 
+                                                              @bind="contratoSeleccionado.DireccionSegundaResidencia" 
+                                                              rows="3" 
+                                                              placeholder="Ingrese la dirección completa (Tipo vía, calle, número, piso, puerta, CP, localidad, provincia)&#10;Ejemplo: Calle Mayor, 25, 2°A, 28013 Madrid, Madrid"
+                                                              disabled="@(!PuedeEditar())"></textarea>
+                                                    <small class="text-muted">Incluya todos los detalles de la dirección donde se instalará la fibra de segunda residencia</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
 
                                 <hr />
 
@@ -1034,10 +1306,18 @@ else
                 </div>
             </div>
         }
+        
+        <!-- Wizard para crear nuevo contrato -->
+        <WizardCrearContratoTelefonia @ref="wizardNuevoContrato" 
+                                      OnContratoCreado="OnContratoCreado" 
+                                      OnCerrar="OnWizardCerrado" />
     }
 }
 
 @code {
+    // Wizard de creación de contratos
+    private WizardCrearContratoTelefonia? wizardNuevoContrato;
+    
     private List<Contrato> contratos = new();
     private List<Contrato> contratosFiltrados = new();
     private List<Contrato> contratosParaPaginar = new();
@@ -1068,8 +1348,11 @@ else
     // Tarifas dinámicas
     private List<TarifaTelefonia> tarifasDisponibles = new();
     private List<TarifaTelefonia> tarifasMovilSolo = new();
+    private List<TarifaTelefonia> tarifasFibraSegundaResidenciaDisponibles = new();
     private TarifaTelefonia? tarifaSeleccionada;
     private int numeroLineasActivas = 0;
+    private bool tieneFibraSegundaResidencia = false;
+    private Operadora? operadoraSeleccionada = null;
 
     // Facturas del contrato
     private List<FicheroContrato> facturasContrato = new();
@@ -1080,9 +1363,13 @@ else
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
     private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
-    private string filtroOperadora = string.Empty;
+    private string tipoFechaFiltro = "Creacion";
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
+    private string campoBusqueda = "";
+    private string textoBusqueda = string.Empty;
+    private HashSet<string> operadorasSeleccionadas = new();
+    private HashSet<string> comercialesSeleccionados = new();
 
     // Ordenamiento
     private string columnaOrden = "FechaCreacion";
@@ -1118,7 +1405,18 @@ else
     {
         try
         {
-            operadorasObjetos = await OperadoraService.ObtenerTodasAsync();
+            // Obtener operadoras permitidas según el rol del usuario
+            if (AuthService.UsuarioActual?.Id != null)
+            {
+                operadorasObjetos = await OperadoraService.ObtenerPermitidasPorUsuarioAsync(
+                    AuthService.UsuarioActual.Id,
+                    AuthService.UsuarioActual.Rol
+                );
+            }
+            else
+            {
+                operadorasObjetos = await OperadoraService.ObtenerTodasAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -1141,8 +1439,11 @@ else
             // Cargar todos los clientes para el dropdown
             todosLosClientes = await ClienteService.ObtenerTodosAsync();
             
-            // Cargar todos los usuarios para el dropdown de comerciales
-            usuarios = await UsuarioService.ObtenerTodosAsync();
+            // Cargar usuarios permitidos según el rol del usuario actual
+            usuarios = await UsuarioService.ObtenerUsuariosPermitidosAsync(
+                AuthService.UsuarioActual?.Rol,
+                AuthService.UsuarioActual?.Id
+            );
             
             await CargarConteoObservaciones();
             AplicarFiltros();
@@ -1166,28 +1467,101 @@ else
             listaTemp = listaTemp.Where(c => estadosSeleccionados.Contains(c.Estado)).ToList();
         }
 
-        if (!string.IsNullOrEmpty(filtroOperadora))
-        {
-            listaTemp = listaTemp.Where(c => 
-                c.OperadoraTel != null && 
-                c.OperadoraTel.Contains(filtroOperadora, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-        }
-
+        // Filtrar por fecha según el tipo de fecha seleccionado
         if (filtroFechaDesde.HasValue)
         {
-            listaTemp = listaTemp.Where(c => 
-                c.FechaCreacion.HasValue && 
-                c.FechaCreacion.Value.Date >= filtroFechaDesde.Value.Date
-            ).ToList();
+            if (tipoFechaFiltro == "Creacion")
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaCreacion.HasValue && 
+                    c.FechaCreacion.Value.Date >= filtroFechaDesde.Value.Date
+                ).ToList();
+            }
+            else // Modificacion
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaModificacion.HasValue && 
+                    c.FechaModificacion.Value.Date >= filtroFechaDesde.Value.Date
+                ).ToList();
+            }
         }
 
         if (filtroFechaHasta.HasValue)
         {
+            if (tipoFechaFiltro == "Creacion")
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaCreacion.HasValue && 
+                    c.FechaCreacion.Value.Date <= filtroFechaHasta.Value.Date
+                ).ToList();
+            }
+            else // Modificacion
+            {
+                listaTemp = listaTemp.Where(c => 
+                    c.FechaModificacion.HasValue && 
+                    c.FechaModificacion.Value.Date <= filtroFechaHasta.Value.Date
+                ).ToList();
+            }
+        }
+
+        // Filtrar por operadoras seleccionadas
+        if (campoBusqueda == "Operadora" && operadorasSeleccionadas.Count > 0)
+        {
             listaTemp = listaTemp.Where(c => 
-                c.FechaCreacion.HasValue && 
-                c.FechaCreacion.Value.Date <= filtroFechaHasta.Value.Date
+                c.OperadoraTel != null && 
+                operadorasSeleccionadas.Contains(c.OperadoraTel)
             ).ToList();
+        }
+
+        // Filtrar por comerciales seleccionados
+        if (campoBusqueda == "Comercial" && comercialesSeleccionados.Count > 0)
+        {
+            listaTemp = listaTemp.Where(c => 
+                c.Comercial != null && 
+                comercialesSeleccionados.Contains(c.Comercial)
+            ).ToList();
+        }
+
+        // Filtrar por búsqueda de texto según el campo seleccionado
+        if (!string.IsNullOrWhiteSpace(textoBusqueda) && campoBusqueda != "Operadora" && campoBusqueda != "Comercial")
+        {
+            listaTemp = campoBusqueda switch
+            {
+                "ID" => listaTemp.Where(c => 
+                    c.Id.ToString().Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Estado" => listaTemp.Where(c => 
+                    c.Estado != null && 
+                    c.Estado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Tarifa" => listaTemp.Where(c => 
+                    c.TarifaTel != null && 
+                    c.TarifaTel.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "Cliente" => listaTemp.Where(c => 
+                    c.NombreCliente != null && 
+                    c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "DNI" => listaTemp.Where(c => 
+                    c.Dni != null && 
+                    c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                // Búsqueda en todos los campos
+                _ => listaTemp.Where(c =>
+                    c.Id.ToString().Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                    (c.Estado != null && c.Estado.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.OperadoraTel != null && c.OperadoraTel.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Comercial != null && c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.TarifaTel != null && c.TarifaTel.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.NombreCliente != null && c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.Dni != null && c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase))
+                ).ToList()
+            };
         }
 
         // Guardar en contratosParaPaginar en lugar de contratosFiltrados
@@ -1195,6 +1569,67 @@ else
 
         // Aplicar ordenamiento y paginación
         AplicarOrdenamiento();
+    }
+
+    private void LimpiarFiltros()
+    {
+        estadosSeleccionados.Clear();
+        operadorasSeleccionadas.Clear();
+        comercialesSeleccionados.Clear();
+        tipoFechaFiltro = "Creacion";
+        filtroFechaDesde = null;
+        filtroFechaHasta = null;
+        campoBusqueda = "";
+        textoBusqueda = string.Empty;
+        AplicarFiltros();
+    }
+
+    private void ToggleOperadora(string operadora)
+    {
+        if (operadorasSeleccionadas.Contains(operadora))
+        {
+            operadorasSeleccionadas.Remove(operadora);
+        }
+        else
+        {
+            operadorasSeleccionadas.Add(operadora);
+        }
+    }
+
+    private void SeleccionarTodasOperadoras()
+    {
+        if (operadorasSeleccionadas.Count == 0)
+        {
+            // No hacer nada, ya están todas seleccionadas
+        }
+        else
+        {
+            operadorasSeleccionadas.Clear();
+        }
+    }
+
+    private void ToggleComercial(string comercial)
+    {
+        if (comercialesSeleccionados.Contains(comercial))
+        {
+            comercialesSeleccionados.Remove(comercial);
+        }
+        else
+        {
+            comercialesSeleccionados.Add(comercial);
+        }
+    }
+
+    private void SeleccionarTodosComerciales()
+    {
+        if (comercialesSeleccionados.Count == 0)
+        {
+            // No hacer nada, ya están todos seleccionados
+        }
+        else
+        {
+            comercialesSeleccionados.Clear();
+        }
     }
 
     private void OrdenarPor(string columna)
@@ -1496,6 +1931,9 @@ else
             LineaMovilPrincipal = contrato.LineaMovilPrincipal,
             TipoLineaMovilPrincipal = contrato.TipoLineaMovilPrincipal,
             CodigoIccPrincipal = contrato.CodigoIccPrincipal,
+            LineaMovilPrincipal2 = contrato.LineaMovilPrincipal2,
+            TipoLineaMovilPrincipal2 = contrato.TipoLineaMovilPrincipal2,
+            CodigoIccPrincipal2 = contrato.CodigoIccPrincipal2,
             NumeroLineasTel = contrato.NumeroLineasTel,
             Tv = contrato.Tv,
             TelefonoLinea1Tel = contrato.TelefonoLinea1Tel,
@@ -1527,11 +1965,20 @@ else
             CodigoPostalInstalacion = contrato.CodigoPostalInstalacion,
             ProvinciaInstalacion = contrato.ProvinciaInstalacion,
             LocalidadInstalacion = contrato.LocalidadInstalacion,
-            AclaradorInstalacion = contrato.AclaradorInstalacion
+            AclaradorInstalacion = contrato.AclaradorInstalacion,
+            DireccionSegundaResidencia = contrato.DireccionSegundaResidencia,
+            TarifaFibraSegundaResidencia = contrato.TarifaFibraSegundaResidencia
         };
+        
+        // Verificar si tiene fibra segunda residencia
+        tieneFibraSegundaResidencia = !string.IsNullOrEmpty(contrato.DireccionSegundaResidencia) || 
+                                       !string.IsNullOrEmpty(contrato.TarifaFibraSegundaResidencia);
         
         // Cargar tarifas disponibles si hay operadora y tipo seleccionados
         await CargarTarifasDisponibles();
+        
+        // Forzar actualización de la interfaz después de cargar tarifas
+        StateHasChanged();
         
         // Calcular número de líneas activas
         RecalcularNumeroLineasActivas();
@@ -1553,6 +2000,8 @@ else
         mostrarModal = false;
         contratoSeleccionado = null;
         clienteSeleccionadoInfo = null;
+        tieneFibraSegundaResidencia = false;
+        tarifasFibraSegundaResidenciaDisponibles.Clear();
     }
 
     private async Task GuardarContrato()
@@ -1592,12 +2041,19 @@ else
             }
         }
 
-        // Validar línea móvil principal si es prepago
-        if (TieneComponenteMovil() && contratoSeleccionado.TipoLineaMovilPrincipal == "Prepago")
+        // Validar línea móvil principal si es prepago o si la operadora requiere ICC
+        if (TieneComponenteMovil() && (contratoSeleccionado.TipoLineaMovilPrincipal == "Prepago" || operadoraSeleccionada?.RequiereICC == true))
         {
             if (string.IsNullOrWhiteSpace(contratoSeleccionado.CodigoIccPrincipal))
             {
-                mensajeError = "El código ICC es obligatorio para líneas móviles de tipo Prepago";
+                if (contratoSeleccionado.TipoLineaMovilPrincipal == "Prepago")
+                {
+                    mensajeError = "El código ICC es obligatorio para líneas móviles de tipo Prepago";
+                }
+                else
+                {
+                    mensajeError = $"El código ICC es obligatorio para la operadora {operadoraSeleccionada?.Nombre}";
+                }
                 return;
             }
             if (contratoSeleccionado.CodigoIccPrincipal.Length != 19)
@@ -1612,17 +2068,52 @@ else
             }
         }
 
-        // Validar líneas adicionales prepago
+        // Validar segunda línea móvil principal si existe y es prepago o si la operadora requiere ICC
+        if (!string.IsNullOrWhiteSpace(contratoSeleccionado.LineaMovilPrincipal2) && 
+            (contratoSeleccionado.TipoLineaMovilPrincipal2 == "Prepago" || operadoraSeleccionada?.RequiereICC == true))
+        {
+            if (string.IsNullOrWhiteSpace(contratoSeleccionado.CodigoIccPrincipal2))
+            {
+                if (contratoSeleccionado.TipoLineaMovilPrincipal2 == "Prepago")
+                {
+                    mensajeError = "El código ICC de la segunda línea principal es obligatorio para líneas móviles de tipo Prepago";
+                }
+                else
+                {
+                    mensajeError = $"El código ICC de la segunda línea principal es obligatorio para la operadora {operadoraSeleccionada?.Nombre}";
+                }
+                return;
+            }
+            if (contratoSeleccionado.CodigoIccPrincipal2.Length != 19)
+            {
+                mensajeError = "El código ICC de la segunda línea principal debe tener exactamente 19 dígitos";
+                return;
+            }
+            if (!contratoSeleccionado.CodigoIccPrincipal2.All(char.IsDigit))
+            {
+                mensajeError = "El código ICC de la segunda línea principal solo debe contener números";
+                return;
+            }
+        }
+
+        // Validar líneas adicionales prepago o que requieran ICC por operadora
         for (int i = 1; i <= 5; i++)
         {
             var tipoLinea = ObtenerTipoLinea(i);
             var codigoIcc = ObtenerCodigoIcc(i);
             
-            if (tipoLinea == "Prepago")
+            if (tipoLinea == "Prepago" || (operadoraSeleccionada?.RequiereICC == true && !string.IsNullOrWhiteSpace(tipoLinea)))
             {
                 if (string.IsNullOrWhiteSpace(codigoIcc))
                 {
-                    mensajeError = $"El código ICC es obligatorio para la línea adicional {i} (tipo Prepago)";
+                    if (tipoLinea == "Prepago")
+                    {
+                        mensajeError = $"El código ICC es obligatorio para la línea adicional {i} (tipo Prepago)";
+                    }
+                    else
+                    {
+                        mensajeError = $"El código ICC es obligatorio para la línea adicional {i} (requerido por {operadoraSeleccionada?.Nombre})";
+                    }
                     return;
                 }
                 if (codigoIcc.Length != 19)
@@ -1644,6 +2135,19 @@ else
 
         try
         {
+            // Actualizar datos del cliente en el contrato
+            if (contratoSeleccionado.IdCliente.HasValue)
+            {
+                var cliente = todosLosClientes.FirstOrDefault(c => c.Id == contratoSeleccionado.IdCliente.Value);
+                if (cliente != null)
+                {
+                    contratoSeleccionado.NombreCliente = cliente.Nombre;
+                    contratoSeleccionado.Dni = cliente.DniCif;
+                    contratoSeleccionado.Direccion = cliente.Direccion;
+                    contratoSeleccionado.Iban = cliente.Iban;
+                }
+            }
+
             var resultado = await ContratoService.ActualizarAsync(contratoSeleccionado);
             if (resultado)
             {
@@ -1653,6 +2157,7 @@ else
                 await EnviarNotificacionCambioContrato(contratoSeleccionado);
                 
                 await CargarContratos();
+                StateHasChanged();
                 CerrarModal();
             }
             else
@@ -1766,7 +2271,9 @@ else
     {
         tarifasDisponibles.Clear();
         tarifasMovilSolo.Clear();
+        tarifasFibraSegundaResidenciaDisponibles.Clear();
         tarifaSeleccionada = null;
+        operadoraSeleccionada = null;
 
         if (contratoSeleccionado == null ||
             string.IsNullOrEmpty(contratoSeleccionado.OperadoraTel) ||
@@ -1777,6 +2284,9 @@ else
 
         try
         {
+            // Cargar información de la operadora
+            operadoraSeleccionada = await OperadoraService.ObtenerPorNombreAsync(contratoSeleccionado.OperadoraTel);
+            
             // Cargar tarifas según el tipo seleccionado
             tarifasDisponibles = await TarifaTelefoniaService.ObtenerPorCompaniaYTipoAsync(
                 contratoSeleccionado.OperadoraTel,
@@ -1788,6 +2298,12 @@ else
             {
                 await CargarTarifasMovilSolo();
             }
+            
+            // Cargar tarifas de fibra segunda residencia
+            await CargarTarifasFibraSegundaResidencia();
+            
+            // Forzar actualización después de cargar todas las tarifas
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -1795,20 +2311,51 @@ else
         }
     }
 
+    private async Task CargarTarifasFibraSegundaResidencia()
+    {
+        tarifasFibraSegundaResidenciaDisponibles.Clear();
+        
+        if (contratoSeleccionado == null || string.IsNullOrEmpty(contratoSeleccionado.OperadoraTel))
+        {
+            return;
+        }
+
+        try
+        {
+            var todasLasTarifas = await TarifaTelefoniaService.ObtenerPorEmpresaAsync(contratoSeleccionado.OperadoraTel);
+            // Filtrar solo tarifas de tipo "FibraSegundaResidencia"
+            tarifasFibraSegundaResidenciaDisponibles = todasLasTarifas.Where(t => t.Tipo == "FibraSegundaResidencia").ToList();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar tarifas de fibra segunda residencia: {ex.Message}";
+            tarifasFibraSegundaResidenciaDisponibles = new();
+        }
+    }
+
     private string ObtenerDescripcionTarifa(TarifaTelefonia tarifa)
     {
-        var partes = new List<string>();
-        
-        if (!string.IsNullOrEmpty(tarifa.Fibra))
-            partes.Add(tarifa.Fibra);
-        
-        if (!string.IsNullOrEmpty(tarifa.GbMovil))
-            partes.Add(tarifa.GbMovil);
-        
-        if (!string.IsNullOrEmpty(tarifa.TV))
-            partes.Add(tarifa.TV);
-
-        return partes.Any() ? string.Join(" + ", partes) : "Sin descripción";
+        if (tarifa.Tipo == "Fibra")
+        {
+            return $"{tarifa.Fibra} GB Fibra";
+        }
+        else if (tarifa.Tipo == "Movil")
+        {
+            return $"{tarifa.GbMovil} GB Móvil";
+        }
+        else if (tarifa.Tipo == "FibraMovil")
+        {
+            return $"{tarifa.Fibra} GB Fibra + {tarifa.GbMovil} GB Móvil";
+        }
+        else if (tarifa.Tipo == "FibraMovilTV")
+        {
+            return $"{tarifa.Fibra} GB Fibra + {tarifa.GbMovil} GB Móvil + TV";
+        }
+        else if (tarifa.Tipo == "FibraSegundaResidencia")
+        {
+            return $"{tarifa.Fibra} GB Fibra 2ª Residencia";
+        }
+        return tarifa.Tipo ?? "Sin descripción";
     }
 
     private void ActualizarDatosTarifa()
@@ -2401,6 +2948,40 @@ else
 
         sb.Append("</div></body></html>");
         return sb.ToString();
+    }
+
+    private bool PuedeMostrarComision(string? estado)
+    {
+        // Si no es Colaborador, puede ver siempre la comisión
+        if (AuthService.UsuarioActual?.Rol != "Colaborador")
+        {
+            return true;
+        }
+        
+        // Si es Colaborador, solo puede ver la comisión en estos estados
+        var estadosPermitidos = new[] { "Act/Facturable", "En liquidación", "Liquidado" };
+        return estadosPermitidos.Contains(estado);
+    }
+
+    // Métodos para el wizard de nuevo contrato
+    private async Task AbrirWizardNuevoContrato()
+    {
+        if (wizardNuevoContrato != null)
+        {
+            await wizardNuevoContrato.Abrir();
+        }
+    }
+
+    private async Task OnContratoCreado()
+    {
+        mensajeExito = "Contrato creado exitosamente.";
+        await CargarContratos();
+        StateHasChanged();
+    }
+
+    private void OnWizardCerrado()
+    {
+        StateHasChanged();
     }
 }
 

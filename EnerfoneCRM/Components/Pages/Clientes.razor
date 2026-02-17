@@ -8,6 +8,7 @@
 @inject TarifaTelefoniaService TarifaTelefoniaService
 @inject TarifaAlarmaService TarifaAlarmaService
 @inject EmpresaAlarmaService EmpresaAlarmaService
+@inject OperadoraService OperadoraService
 @inject ServicioService ServicioService
 @inject UsuarioService UsuarioService
 @inject AuthService AuthService
@@ -1071,10 +1072,16 @@ else
                                     </InputSelect>
                                 </div>
                                 
-                                @if (nuevoContrato.TipoLineaMovilPrincipal == "Prepago")
+                                @if (nuevoContrato.TipoLineaMovilPrincipal == "Prepago" || operadoraTelefoniaSeleccionada?.RequiereICC == true)
                                 {
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small">Código ICC (19 dígitos) <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-bold small">
+                                            Código ICC (19 dígitos) <span class="text-danger">*</span>
+                                            @if (operadoraTelefoniaSeleccionada?.RequiereICC == true && nuevoContrato.TipoLineaMovilPrincipal != "Prepago")
+                                            {
+                                                <small class="text-info ms-1">(Requerido por @operadoraTelefoniaSeleccionada.Nombre)</small>
+                                            }
+                                        </label>
                                         <InputText @bind-Value="nuevoContrato.CodigoIccPrincipal" 
                                                   class="form-control form-control-sm" 
                                                   placeholder="89 34 XX..." 
@@ -1090,6 +1097,49 @@ else
                             @if (!string.IsNullOrEmpty(nuevoContrato.TarifaTel))
                             {
                                 <small class="text-muted">Tarifa: @nuevoContrato.TarifaTel</small>
+                            }
+                        </div>
+                        
+                        @* Segunda línea móvil principal (opcional) *@
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                Segunda Línea Móvil Principal <small class="text-muted">(Opcional)</small>
+                            </label>
+                            <InputText @bind-Value="nuevoContrato.LineaMovilPrincipal2" class="form-control mb-2" placeholder="Número de teléfono" />
+                            
+                            @if (!string.IsNullOrWhiteSpace(nuevoContrato.LineaMovilPrincipal2))
+                            {
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small">Tipo de Línea</label>
+                                        <InputSelect @bind-Value="nuevoContrato.TipoLineaMovilPrincipal2" class="form-select form-select-sm">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="Contrato">Contrato</option>
+                                            <option value="Prepago">Prepago</option>
+                                        </InputSelect>
+                                    </div>
+                                    
+                                    @if (nuevoContrato.TipoLineaMovilPrincipal2 == "Prepago" || operadoraTelefoniaSeleccionada?.RequiereICC == true)
+                                    {
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold small">
+                                                Código ICC (19 dígitos) <span class="text-danger">*</span>
+                                                @if (operadoraTelefoniaSeleccionada?.RequiereICC == true && nuevoContrato.TipoLineaMovilPrincipal2 != "Prepago")
+                                                {
+                                                    <small class="text-info ms-1">(Requerido por @operadoraTelefoniaSeleccionada.Nombre)</small>
+                                                }
+                                            </label>
+                                            <InputText @bind-Value="nuevoContrato.CodigoIccPrincipal2" 
+                                                      class="form-control form-control-sm" 
+                                                      placeholder="89 34 XX..." 
+                                                      maxlength="19" />
+                                            @if (!string.IsNullOrEmpty(nuevoContrato.CodigoIccPrincipal2) && nuevoContrato.CodigoIccPrincipal2.Length != 19)
+                                            {
+                                                <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
+                                            }
+                                        </div>
+                                    }
+                                </div>
                             }
                         </div>
                     }                                    @* Mostrar TV solo si el tipo incluye TV *@
@@ -1163,10 +1213,16 @@ else
                                                                             </select>
                                                                         </div>
                                                                         
-                                                                        @if (tipoLinea == "Prepago")
+                                                                        @if (tipoLinea == "Prepago" || operadoraTelefoniaSeleccionada?.RequiereICC == true)
                                                                         {
                                                                             <div class="col-12">
-                                                                                <label class="form-label small fw-bold mb-1">ICC (19 dígitos) <span class="text-danger">*</span></label>
+                                                                                <label class="form-label small fw-bold mb-1">
+                                                                                    ICC (19 dígitos) <span class="text-danger">*</span>
+                                                                                    @if (operadoraTelefoniaSeleccionada?.RequiereICC == true && tipoLinea != "Prepago")
+                                                                                    {
+                                                                                        <small class="text-info">(Requerido por @operadoraTelefoniaSeleccionada.Nombre)</small>
+                                                                                    }
+                                                                                </label>
                                                                                 <InputText @bind-Value="@codigoIcc" 
                                                                                           @bind-Value:after="() => ActualizarCodigoIccTelefonia(lineaIndex, codigoIcc)" 
                                                                                           class="form-control form-control-sm" 
@@ -1347,6 +1403,64 @@ else
                                         <label class="form-label fw-bold">Provincia</label>
                                         <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
                                     </div>
+
+                                    @* Fibra Segunda Residencia *@
+                                    <div class="col-12 mt-3">
+                                        <hr />
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" @bind="tieneFibraSegundaResidencia" id="chkFibraSegundaResidencia" />
+                                            <label class="form-check-label fw-bold" for="chkFibraSegundaResidencia">
+                                                <i class="bi bi-house-add me-2"></i>¿Necesita Fibra en Segunda Residencia? <small class="text-muted">(Opcional)</small>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    @if (tieneFibraSegundaResidencia)
+                                    {
+                                        <div class="col-12">
+                                            <div class="card border-primary">
+                                                <div class="card-header bg-primary text-white">
+                                                    <i class="bi bi-house-gear me-2"></i>Datos de Fibra Segunda Residencia
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-12">
+                                                            <label class="form-label fw-bold">Tarifa Fibra Segunda Residencia <span class="text-danger">*</span></label>
+                                                            <select @bind="nuevoContrato.TarifaFibraSegundaResidencia" class="form-select">
+                                                                <option value="">-- Seleccionar tarifa de fibra --</option>
+                                                                @foreach (var tarifa in tarifasFibraSegundaResidenciaDisponibles)
+                                                                {
+                                                                    var descripcion = ObtenerDescripcionTarifaTelefonia(tarifa);
+                                                                    <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
+                                                                }
+                                                            </select>
+                                                            @if (!tarifasFibraSegundaResidenciaDisponibles.Any())
+                                                            {
+                                                                <small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle me-1"></i>No hay tarifas de fibra segunda residencia disponibles para esta operadora. Debe crear una primero en Tarifas de Telefonía.</small>
+                                                            }
+                                                            else
+                                                            {
+                                                                <small class="text-muted">Seleccione la tarifa específica para la fibra de segunda residencia</small>
+                                                            }
+                                                        </div>
+
+                                                        <div class="col-12 mt-3">
+                                                            <label class="form-label fw-bold"><i class="bi bi-geo-alt me-2"></i>Dirección Segunda Residencia <span class="text-danger">*</span></label>
+                                                        </div>
+
+                                                        <div class="col-md-12">
+                                                            <label class="form-label">Dirección Completa</label>
+                                                            <textarea class="form-control" 
+                                                                      @bind="nuevoContrato.DireccionSegundaResidencia" 
+                                                                      rows="3" 
+                                                                      placeholder="Ingrese la dirección completa (Tipo vía, calle, número, piso, puerta, CP, localidad, provincia)&#10;Ejemplo: Calle Mayor, 25, 2°A, 28013 Madrid, Madrid"></textarea>
+                                                            <small class="text-muted">Incluya todos los detalles de la dirección donde se instalará la fibra de segunda residencia</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
                                 </div>
                             </div>
                         </EditForm>
@@ -1799,10 +1913,13 @@ else
     private List<string> operadorasTelefonia = new();
     private List<TarifaTelefonia> tarifasTelefoniaDisponibles = new();
     private List<TarifaTelefonia> tarifasMovilSoloTelefonia = new();
+    private List<TarifaTelefonia> tarifasFibraSegundaResidenciaDisponibles = new();
     private List<TarifaAlarma> tarifasAlarmaKit = new();
     private List<TarifaAlarma> tarifasAlarmaCampana = new();
     private List<EmpresaAlarma> empresasAlarmas = new();
     private int numeroLineasActivasTelefonia = 0;
+    private bool tieneFibraSegundaResidencia = false;
+    private Operadora? operadoraTelefoniaSeleccionada = null;
 
     private string filtroNombre = string.Empty;
     private string filtroDni = string.Empty;
@@ -1905,7 +2022,18 @@ else
 
     private async Task OnOperadoraTelefoniaChanged()
     {
+        // Cargar información de la operadora seleccionada
+        if (!string.IsNullOrEmpty(nuevoContrato?.OperadoraTel))
+        {
+            operadoraTelefoniaSeleccionada = await OperadoraService.ObtenerPorNombreAsync(nuevoContrato.OperadoraTel);
+        }
+        else
+        {
+            operadoraTelefoniaSeleccionada = null;
+        }
+        
         await CargarTarifasDisponiblesTelefonia();
+        await CargarTarifasFibraSegundaResidencia();
     }
 
     private async Task CargarTarifasDisponiblesTelefonia()
@@ -1929,6 +2057,26 @@ else
             catch (Exception ex)
             {
                 mensajeError = $"Error al cargar tarifas de telefonía: {ex.Message}";
+            }
+        }
+    }
+
+    private async Task CargarTarifasFibraSegundaResidencia()
+    {
+        tarifasFibraSegundaResidenciaDisponibles.Clear();
+        
+        if (!string.IsNullOrEmpty(nuevoContrato?.OperadoraTel))
+        {
+            try
+            {
+                var todasLasTarifas = await TarifaTelefoniaService.ObtenerPorEmpresaAsync(nuevoContrato.OperadoraTel);
+                // Filtrar solo tarifas de tipo "FibraSegundaResidencia"
+                tarifasFibraSegundaResidenciaDisponibles = todasLasTarifas.Where(t => t.Tipo == "FibraSegundaResidencia").ToList();
+            }
+            catch (Exception ex)
+            {
+                mensajeError = $"Error al cargar tarifas de fibra segunda residencia: {ex.Message}";
+                tarifasFibraSegundaResidenciaDisponibles = new();
             }
         }
     }
@@ -1967,6 +2115,10 @@ else
         else if (tarifa.Tipo == "FibraMovilTV")
         {
             return $"{tarifa.Fibra} GB Fibra + {tarifa.GbMovil} GB Móvil + TV";
+        }
+        else if (tarifa.Tipo == "FibraSegundaResidencia")
+        {
+            return $"{tarifa.Fibra} GB Fibra 2ª Residencia";
         }
         return tarifa.Tipo ?? "";
     }
@@ -2740,6 +2892,10 @@ else
             TipoLineaMovilPrincipal = "Contrato"  // Valor por defecto
         };
 
+        // Reiniciar variables de fibra segunda residencia
+        tieneFibraSegundaResidencia = false;
+        tarifasFibraSegundaResidenciaDisponibles.Clear();
+
         // Asegurarse de que las operadoras están cargadas
         if (operadorasTelefonia == null || !operadorasTelefonia.Any())
         {
@@ -2847,7 +3003,9 @@ else
         clienteParaContrato = null;
         tarifasTelefoniaDisponibles = new();
         tarifasMovilSoloTelefonia = new();
+        tarifasFibraSegundaResidenciaDisponibles = new();
         numeroLineasActivasTelefonia = 0;
+        tieneFibraSegundaResidencia = false;
         facturasPendientes = new();
     }
 
@@ -3152,12 +3310,16 @@ else
             }
         }
 
-        // Validar línea móvil principal si es prepago
-        if (TieneComponenteMovilTelefonia() && nuevoContrato.TipoLineaMovilPrincipal == "Prepago")
+        // Validar línea móvil principal si es prepago o la operadora requiere ICC
+        if (TieneComponenteMovilTelefonia() && 
+            (nuevoContrato.TipoLineaMovilPrincipal == "Prepago" || operadoraTelefoniaSeleccionada?.RequiereICC == true))
         {
             if (string.IsNullOrWhiteSpace(nuevoContrato.CodigoIccPrincipal))
             {
-                mensajeError = "El código ICC es obligatorio para líneas móviles de tipo Prepago";
+                var razon = nuevoContrato.TipoLineaMovilPrincipal == "Prepago" 
+                    ? "para líneas móviles de tipo Prepago" 
+                    : $"para la operadora {operadoraTelefoniaSeleccionada?.Nombre}";
+                mensajeError = $"El código ICC es obligatorio {razon}";
                 return;
             }
             if (nuevoContrato.CodigoIccPrincipal.Length != 19)
@@ -3172,17 +3334,47 @@ else
             }
         }
 
-        // Validar líneas adicionales prepago
+        // Validar segunda línea móvil principal si existe y es prepago o la operadora requiere ICC
+        if (TieneComponenteMovilTelefonia() && !string.IsNullOrWhiteSpace(nuevoContrato.LineaMovilPrincipal2) &&
+            (nuevoContrato.TipoLineaMovilPrincipal2 == "Prepago" || operadoraTelefoniaSeleccionada?.RequiereICC == true))
+        {
+            if (string.IsNullOrWhiteSpace(nuevoContrato.CodigoIccPrincipal2))
+            {
+                var razon = nuevoContrato.TipoLineaMovilPrincipal2 == "Prepago" 
+                    ? "para líneas móviles de tipo Prepago" 
+                    : $"para la operadora {operadoraTelefoniaSeleccionada?.Nombre}";
+                mensajeError = $"El código ICC de la segunda línea principal es obligatorio {razon}";
+                return;
+            }
+            if (nuevoContrato.CodigoIccPrincipal2.Length != 19)
+            {
+                mensajeError = "El código ICC de la segunda línea principal debe tener exactamente 19 dígitos";
+                return;
+            }
+            if (!nuevoContrato.CodigoIccPrincipal2.All(char.IsDigit))
+            {
+                mensajeError = "El código ICC de la segunda línea principal solo debe contener números";
+                return;
+            }
+        }
+
+        // Validar líneas adicionales prepago o si la operadora requiere ICC
         for (int i = 1; i <= 5; i++)
         {
             var tipoLinea = ObtenerTipoLineaTelefonia(i);
             var codigoIcc = ObtenerCodigoIccTelefonia(i);
+            var telefono = ObtenerTelefonoLineaTelefonia(i);
             
-            if (tipoLinea == "Prepago")
+            // Solo validar si hay un teléfono ingresado para esta línea
+            if (!string.IsNullOrWhiteSpace(telefono) && 
+                (tipoLinea == "Prepago" || operadoraTelefoniaSeleccionada?.RequiereICC == true))
             {
                 if (string.IsNullOrWhiteSpace(codigoIcc))
                 {
-                    mensajeError = $"El código ICC es obligatorio para la línea adicional {i} (tipo Prepago)";
+                    var razon = tipoLinea == "Prepago" 
+                        ? "(tipo Prepago)" 
+                        : $"(operadora {operadoraTelefoniaSeleccionada?.Nombre} requiere ICC)";
+                    mensajeError = $"El código ICC es obligatorio para la línea adicional {i} {razon}";
                     return;
                 }
                 if (codigoIcc.Length != 19)

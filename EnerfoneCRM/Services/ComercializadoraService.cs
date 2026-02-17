@@ -76,5 +76,38 @@ namespace EnerfoneCRM.Services
             context.Comercializadoras.Remove(comercializadora);
             return await context.SaveChangesAsync() > 0;
         }
+
+        public async Task<List<Comercializadora>> ObtenerPermitidasPorUsuarioAsync(int usuarioId, string? rolUsuario)
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            
+            // Administrador ve todas las comercializadoras
+            if (rolUsuario == "Administrador")
+            {
+                return await context.Comercializadoras
+                    .OrderBy(c => c.Nombre)
+                    .ToListAsync();
+            }
+            
+            // Obtener IDs de comercializadoras permitidas para el usuario
+            var comercializadorasPermitidasIds = await context.UsuarioComercializadoras
+                .Where(uc => uc.UsuarioId == usuarioId)
+                .Select(uc => uc.ComercializadoraId)
+                .ToListAsync();
+            
+            // Si no hay comercializadoras asignadas, retornar todas por defecto
+            if (!comercializadorasPermitidasIds.Any())
+            {
+                return await context.Comercializadoras
+                    .OrderBy(c => c.Nombre)
+                    .ToListAsync();
+            }
+            
+            // Retornar solo las comercializadoras permitidas
+            return await context.Comercializadoras
+                .Where(c => comercializadorasPermitidasIds.Contains(c.Id))
+                .OrderBy(c => c.Nombre)
+                .ToListAsync();
+        }
     }
 }

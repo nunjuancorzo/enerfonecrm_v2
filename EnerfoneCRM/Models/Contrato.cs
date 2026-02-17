@@ -131,6 +131,18 @@ namespace EnerfoneCRM.Models
         [MaxLength(19)]
         public string? CodigoIccPrincipal { get; set; }
 
+        [Column("linea_movil_principal_2")]
+        [MaxLength(50)]
+        public string? LineaMovilPrincipal2 { get; set; }
+
+        [Column("tipo_linea_movil_principal_2")]
+        [MaxLength(20)]
+        public string? TipoLineaMovilPrincipal2 { get; set; }
+
+        [Column("codigo_icc_principal_2")]
+        [MaxLength(19)]
+        public string? CodigoIccPrincipal2 { get; set; }
+
         [Column("numero_lineas_tel")]
         public int? NumeroLineasTel { get; set; }
 
@@ -322,6 +334,16 @@ namespace EnerfoneCRM.Models
 
         [NotMapped] // Campo BLOB en BD
         public byte[]? Factura { get; set; }
+
+        // Campos Fibra Segunda Residencia (Telefonía)
+        [Column("direccion_segunda_residencia")]
+        [MaxLength(500)]
+        public string? DireccionSegundaResidencia { get; set; }
+
+        [Column("tarifa_fibra_segunda_residencia")]
+        [MaxLength(255)]
+        public string? TarifaFibraSegundaResidencia { get; set; }
+
         [Column("titular_iban_diferente")]
         public bool TitularIbanDiferente { get; set; }
 

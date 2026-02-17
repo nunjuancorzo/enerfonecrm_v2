@@ -69,6 +69,9 @@ namespace EnerfoneCRM.Services
                     consumo_ultimos_12_meses,
                     COALESCE(tipo_linea_movil_principal, '') as tipo_linea_movil_principal,
                     COALESCE(codigo_icc_principal, '') as codigo_icc_principal,
+                    COALESCE(linea_movil_principal_2, '') as linea_movil_principal_2,
+                    COALESCE(tipo_linea_movil_principal_2, '') as tipo_linea_movil_principal_2,
+                    COALESCE(codigo_icc_principal_2, '') as codigo_icc_principal_2,
                     COALESCE(numero_instalacion, '') as numero_instalacion,
                     COALESCE(escalera_instalacion, '') as escalera_instalacion,
                     COALESCE(piso_instalacion, '') as piso_instalacion,
@@ -116,7 +119,9 @@ namespace EnerfoneCRM.Services
                     COALESCE(en_Servicios, '') as en_Servicios,
                     COALESCE(en_IBAN, '') as en_IBAN,
                     COALESCE(observaciones_alarma, '') as observaciones_alarma,
-                    COALESCE(observaciones_estado, '') as observaciones_estado
+                    COALESCE(observaciones_estado, '') as observaciones_estado,
+                    COALESCE(direccion_segunda_residencia, '') as direccion_segunda_residencia,
+                    COALESCE(tarifa_fibra_segunda_residencia, '') as tarifa_fibra_segunda_residencia
                 FROM contratos";
             
             var whereConditions = new List<string>();
@@ -188,6 +193,87 @@ namespace EnerfoneCRM.Services
                             .ToListAsync();
                         nombresUsuarios.AddRange(colaboradoresGestor);
                     }
+                    
+                    // Crear condición IN para todos los usuarios
+                    var inConditions = string.Join(" OR ", nombresUsuarios.Select((_, i) => $"comercial = {{{parameters.Count + i}}}"));
+                    whereConditions.Add($"({inConditions})");
+                    parameters.AddRange(nombresUsuarios);
+                }
+                else if (rolUsuario == "Director comercial" && usuarioId.HasValue)
+                {
+                    // El director comercial ve:
+                    // 1. Sus propios contratos
+                    // 2. Los contratos de sus jefes de ventas asignados
+                    // 3. Los contratos de los colaboradores y gestores de esos jefes de ventas
+                    // 4. Los contratos de sus gestores asignados directamente
+                    // 5. Los contratos de los colaboradores de esos gestores
+                    // 6. Los contratos de sus colaboradores asignados directamente
+                    
+                    var nombresUsuarios = new List<string> { nombreUsuario };
+                    
+                    // Obtener jefes de ventas del director comercial
+                    var jefesVentas = await context.Usuarios
+                        .Where(u => u.DirectorComercialId == usuarioId.Value && u.Rol == "Jefe de ventas")
+                        .ToListAsync();
+                    
+                    foreach (var jefeVentas in jefesVentas)
+                    {
+                        // Añadir el jefe de ventas
+                        nombresUsuarios.Add(jefeVentas.NombreUsuario);
+                        
+                        // Obtener colaboradores directos del jefe de ventas
+                        var colaboradoresJefe = await context.Usuarios
+                            .Where(u => u.JefeVentasId == jefeVentas.Id && u.Rol == "Colaborador")
+                            .Select(u => u.NombreUsuario)
+                            .ToListAsync();
+                        nombresUsuarios.AddRange(colaboradoresJefe);
+                        
+                        // Obtener gestores del jefe de ventas
+                        var gestoresJefe = await context.Usuarios
+                            .Where(u => u.JefeVentasId == jefeVentas.Id && u.Rol == "Gestor")
+                            .ToListAsync();
+                        
+                        foreach (var gestor in gestoresJefe)
+                        {
+                            // Añadir el gestor
+                            nombresUsuarios.Add(gestor.NombreUsuario);
+                            
+                            // Añadir los colaboradores de este gestor
+                            var colaboradoresGestor = await context.Usuarios
+                                .Where(u => u.GestorId == gestor.Id)
+                                .Select(u => u.NombreUsuario)
+                                .ToListAsync();
+                            nombresUsuarios.AddRange(colaboradoresGestor);
+                        }
+                    }
+                    
+                    // Obtener gestores asignados directamente al director comercial
+                    var gestoresDirectos = await context.Usuarios
+                        .Where(u => u.DirectorComercialId == usuarioId.Value && u.Rol == "Gestor")
+                        .ToListAsync();
+                    
+                    foreach (var gestor in gestoresDirectos)
+                    {
+                        // Añadir el gestor
+                        nombresUsuarios.Add(gestor.NombreUsuario);
+                        
+                        // Añadir los colaboradores de este gestor
+                        var colaboradoresGestor = await context.Usuarios
+                            .Where(u => u.GestorId == gestor.Id)
+                            .Select(u => u.NombreUsuario)
+                            .ToListAsync();
+                        nombresUsuarios.AddRange(colaboradoresGestor);
+                    }
+                    
+                    // Obtener colaboradores asignados directamente al director comercial
+                    var colaboradoresDirectos = await context.Usuarios
+                        .Where(u => u.DirectorComercialId == usuarioId.Value && u.Rol == "Colaborador")
+                        .Select(u => u.NombreUsuario)
+                        .ToListAsync();
+                    nombresUsuarios.AddRange(colaboradoresDirectos);
+                    
+                    // Eliminar duplicados
+                    nombresUsuarios = nombresUsuarios.Distinct().ToList();
                     
                     // Crear condición IN para todos los usuarios
                     var inConditions = string.Join(" OR ", nombresUsuarios.Select((_, i) => $"comercial = {{{parameters.Count + i}}}"));

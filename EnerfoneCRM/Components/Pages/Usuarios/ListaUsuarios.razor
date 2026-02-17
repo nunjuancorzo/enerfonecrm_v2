@@ -464,11 +464,33 @@ else
         usuarioSeleccionado = null;
     }
 
-    private async Task GuardarUsuario(Usuario usuario)
+    private async Task GuardarUsuario((Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds) datos)
     {
-        var (exito, mensaje) = await UsuarioService.ActualizarAsync(usuario);
+        var (exito, mensaje) = await UsuarioService.ActualizarAsync(datos.usuario);
         if (exito)
         {
+            // Actualizar comercializadoras permitidas
+            await UsuarioService.ActualizarComercializadorasPermitidasAsync(datos.usuario.Id, datos.comercializadorasIds);
+            
+            // Actualizar operadoras permitidas
+            await UsuarioService.ActualizarOperadorasPermitidasAsync(datos.usuario.Id, datos.operadorasIds);
+            
+            // Actualizar empresas de alarmas permitidas
+            await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(datos.usuario.Id, datos.empresasAlarmasIds);
+            
+            // Si es gestor, actualizar colaboradores asignados
+            if (datos.usuario.Rol == "Gestor")
+            {
+                await UsuarioService.ActualizarColaboradoresDeGestorAsync(datos.usuario.Id, datos.colaboradoresIds);
+            }
+            
+            // Si es jefe de ventas, actualizar gestores y colaboradores asignados
+            if (datos.usuario.Rol == "Jefe de ventas")
+            {
+                await UsuarioService.ActualizarGestoresDeJefeVentasAsync(datos.usuario.Id, datos.gestoresIds);
+                await UsuarioService.ActualizarColaboradoresDeJefeVentasAsync(datos.usuario.Id, datos.colaboradoresIds);
+            }
+            
             mensajeExito = mensaje;
             await CargarUsuarios();
             StateHasChanged();
