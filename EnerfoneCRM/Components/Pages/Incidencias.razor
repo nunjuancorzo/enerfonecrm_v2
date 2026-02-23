@@ -73,6 +73,7 @@ else
                         <select class="form-select" @onchange="e => FiltrarPorEstado(e.Value?.ToString())">
                             <option value="">Todos</option>
                             <option value="Pendiente">Pendiente</option>
+                            <option value="Pendiente subir PRO">Pendiente subir PRO</option>
                             <option value="En Proceso">En Proceso</option>
                             <option value="Resuelta">Resuelta</option>
                             <option value="Cerrada">Cerrada</option>
@@ -281,6 +282,7 @@ else
                                 <label class="form-label fw-bold">Estado</label>
                                 <select class="form-select" @bind="incidenciaEdicion.Estado">
                                     <option value="Pendiente">Pendiente</option>
+                                    <option value="Pendiente subir PRO">Pendiente subir PRO</option>
                                     <option value="En Proceso">En Proceso</option>
                                     <option value="Resuelta">Resuelta</option>
                                     <option value="Cerrada">Cerrada</option>

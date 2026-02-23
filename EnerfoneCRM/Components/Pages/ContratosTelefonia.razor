@@ -268,7 +268,8 @@ else
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-0">\n                    @if (cargando)
+                <div class="card-body p-0">
+                    @if (cargando)
                     {
                         <div class="text-center p-5">
                             <div class="spinner-border text-primary" role="status">
@@ -613,6 +614,64 @@ else
                                     </div>
                                 }
                                 
+                                @* Fibra Segunda Residencia *@
+                                <div class="mt-4 mb-3">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" @bind="tieneFibraSegundaResidencia" id="chkFibraSegundaResidenciaEditar" disabled="@(!PuedeEditar())" />
+                                        <label class="form-check-label fw-bold" for="chkFibraSegundaResidenciaEditar">
+                                            <i class="bi bi-house-add me-2"></i>¿Necesita Fibra en Segunda Residencia? <small class="text-muted">(Opcional)</small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                @if (tieneFibraSegundaResidencia || !string.IsNullOrEmpty(contratoSeleccionado.DireccionSegundaResidencia))
+                                {
+                                    <div class="card border-primary mb-3">
+                                        <div class="card-header bg-primary text-white">
+                                            <i class="bi bi-house-gear me-2"></i>Datos de Fibra Segunda Residencia
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-bold">Tarifa Fibra Segunda Residencia <span class="text-danger">*</span></label>
+                                                    <select @bind="contratoSeleccionado.TarifaFibraSegundaResidencia" class="form-select" disabled="@(!PuedeEditar())">
+                                                        <option value="">-- Seleccionar tarifa de fibra --</option>
+                                                        @foreach (var tarifa in tarifasFibraSegundaResidenciaDisponibles)
+                                                        {
+                                                            var descripcion = ObtenerDescripcionTarifa(tarifa);
+                                                            <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
+                                                        }
+                                                    </select>
+                                                    @if (!tarifasFibraSegundaResidenciaDisponibles.Any())
+                                                    {
+                                                        <small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle me-1"></i>No hay tarifas de fibra segunda residencia disponibles para esta operadora. Debe crear una primero en Tarifas de Telefonía.</small>
+                                                    }
+                                                    else
+                                                    {
+                                                        <small class="text-muted">Seleccione la tarifa específica para la fibra de segunda residencia</small>
+                                                    }
+                                                </div>
+
+                                                <div class="col-12 mt-3">
+                                                    <label class="form-label fw-bold"><i class="bi bi-geo-alt me-2"></i>Dirección Segunda Residencia <span class="text-danger">*</span></label>
+                                                </div>
+
+                                                <div class="col-md-12">
+                                                    <label class="form-label">Dirección Completa</label>
+                                                    <textarea class="form-control" 
+                                                              @bind="contratoSeleccionado.DireccionSegundaResidencia" 
+                                                              rows="3" 
+                                                              placeholder="Ingrese la dirección completa (Tipo vía, calle, número, piso, puerta, CP, localidad, provincia)&#10;Ejemplo: Calle Mayor, 25, 2°A, 28013 Madrid, Madrid"
+                                                              disabled="@(!PuedeEditar())"></textarea>
+                                                    <small class="text-muted">Incluya todos los detalles de la dirección donde se instalará la fibra de segunda residencia</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                <hr class="my-3" />
+
                                 @* Titular IBAN Diferente *@
                                 <div class="row mb-3">
                                     <div class="col-12">
@@ -942,7 +1001,7 @@ else
 
                                 @* Resto del formulario *@
                                 <hr />
-                                
+
                                 <!-- Facturas del Contrato -->
                                 <h6 class="mb-3"><i class="bi bi-receipt me-2"></i>Facturas del Contrato</h6>
                                 <div class="row mb-3">
@@ -1053,62 +1112,6 @@ else
                                         <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditar())" />
                                     </div>
                                 </div>
-
-                                @* Fibra Segunda Residencia *@
-                                <div class="mt-4 mb-3">
-                                    <div class="form-check mb-3">
-                                        <input class="form-check-input" type="checkbox" @bind="tieneFibraSegundaResidencia" id="chkFibraSegundaResidenciaEditar" disabled="@(!PuedeEditar())" />
-                                        <label class="form-check-label fw-bold" for="chkFibraSegundaResidenciaEditar">
-                                            <i class="bi bi-house-add me-2"></i>¿Necesita Fibra en Segunda Residencia? <small class="text-muted">(Opcional)</small>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                @if (tieneFibraSegundaResidencia || !string.IsNullOrEmpty(contratoSeleccionado.DireccionSegundaResidencia))
-                                {
-                                    <div class="card border-primary mb-3">
-                                        <div class="card-header bg-primary text-white">
-                                            <i class="bi bi-house-gear me-2"></i>Datos de Fibra Segunda Residencia
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row g-3">
-                                                <div class="col-md-12">
-                                                    <label class="form-label fw-bold">Tarifa Fibra Segunda Residencia <span class="text-danger">*</span></label>
-                                                    <select @bind="contratoSeleccionado.TarifaFibraSegundaResidencia" class="form-select" disabled="@(!PuedeEditar())">
-                                                        <option value="">-- Seleccionar tarifa de fibra --</option>
-                                                        @foreach (var tarifa in tarifasFibraSegundaResidenciaDisponibles)
-                                                        {
-                                                            var descripcion = ObtenerDescripcionTarifa(tarifa);
-                                                            <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
-                                                        }
-                                                    </select>
-                                                    @if (!tarifasFibraSegundaResidenciaDisponibles.Any())
-                                                    {
-                                                        <small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle me-1"></i>No hay tarifas de fibra segunda residencia disponibles para esta operadora. Debe crear una primero en Tarifas de Telefonía.</small>
-                                                    }
-                                                    else
-                                                    {
-                                                        <small class="text-muted">Seleccione la tarifa específica para la fibra de segunda residencia</small>
-                                                    }
-                                                </div>
-
-                                                <div class="col-12 mt-3">
-                                                    <label class="form-label fw-bold"><i class="bi bi-geo-alt me-2"></i>Dirección Segunda Residencia <span class="text-danger">*</span></label>
-                                                </div>
-
-                                                <div class="col-md-12">
-                                                    <label class="form-label">Dirección Completa</label>
-                                                    <textarea class="form-control" 
-                                                              @bind="contratoSeleccionado.DireccionSegundaResidencia" 
-                                                              rows="3" 
-                                                              placeholder="Ingrese la dirección completa (Tipo vía, calle, número, piso, puerta, CP, localidad, provincia)&#10;Ejemplo: Calle Mayor, 25, 2°A, 28013 Madrid, Madrid"
-                                                              disabled="@(!PuedeEditar())"></textarea>
-                                                    <small class="text-muted">Incluya todos los detalles de la dirección donde se instalará la fibra de segunda residencia</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
 
                                 <hr />
 

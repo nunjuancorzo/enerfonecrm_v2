@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 
 namespace EnerfoneCRM.Services
@@ -37,13 +38,8 @@ namespace EnerfoneCRM.Services
                 // Sanitizar el nombre primero para evitar rutas anidadas
                 var nombreSanitizado = SanitizarNombre(nombreComercializadora);
                 
-                // Asegurar que existe la carpeta Energía
-                var carpetaEnergia = Path.Combine(directorioBase, "Energía");
-                if (!Directory.Exists(carpetaEnergia))
-                {
-                    Directory.CreateDirectory(carpetaEnergia);
-                    Console.WriteLine($"[RepositorioService] Carpeta base creada: {carpetaEnergia}");
-                }
+                // Buscar carpeta Energía existente (puede tener diferente codificación Unicode)
+                var carpetaEnergia = ObtenerOCrearCarpetaBase("Energía");
                 
                 // Crear carpeta de la comercializadora directamente dentro de Energía
                 var rutaComercializadora = Path.Combine(carpetaEnergia, nombreSanitizado);
@@ -67,12 +63,8 @@ namespace EnerfoneCRM.Services
         {
             try
             {
-                // Asegurar que existe la carpeta Telefonía
-                var carpetaTelefonia = Path.Combine(directorioBase, "Telefonía");
-                if (!Directory.Exists(carpetaTelefonia))
-                {
-                    Directory.CreateDirectory(carpetaTelefonia);
-                }
+                // Buscar carpeta Telefonía existente (puede tener diferente codificación Unicode)
+                var carpetaTelefonia = ObtenerOCrearCarpetaBase("Telefonía");
                 
                 // Crear carpeta de la operadora
                 var rutaOperadora = Path.Combine(carpetaTelefonia, SanitizarNombre(nombreOperadora));
@@ -92,7 +84,10 @@ namespace EnerfoneCRM.Services
         {
             try
             {
-                var rutaEmpresa = Path.Combine(directorioBase, "Alarmas", SanitizarNombre(nombreEmpresa));
+                // Buscar carpeta Alarmas existente (puede tener diferente codificación Unicode)
+                var carpetaAlarmas = ObtenerOCrearCarpetaBase("Alarmas");
+                
+                var rutaEmpresa = Path.Combine(carpetaAlarmas, SanitizarNombre(nombreEmpresa));
                 if (!Directory.Exists(rutaEmpresa))
                 {
                     Directory.CreateDirectory(rutaEmpresa);
@@ -148,9 +143,12 @@ namespace EnerfoneCRM.Services
             if (string.IsNullOrWhiteSpace(nombre))
                 return "Sin_Nombre";
                 
+            // Normalizar Unicode a forma NFC para evitar duplicados por diferentes codificaciones
+            var nombreNormalizado = nombre.Normalize(NormalizationForm.FormC);
+            
             // Eliminar caracteres no válidos para nombres de carpeta
             var caracteresInvalidos = Path.GetInvalidFileNameChars();
-            var nombreSanitizado = nombre.Trim();
+            var nombreSanitizado = nombreNormalizado.Trim();
             
             foreach (var caracter in caracteresInvalidos)
             {
@@ -163,6 +161,53 @@ namespace EnerfoneCRM.Services
             Console.WriteLine($"[RepositorioService] Nombre sanitizado: '{nombre}' -> '{nombreSanitizado}'");
             
             return nombreSanitizado;
+        }
+        
+        /// <summary>
+        /// Normaliza el nombre de una carpeta base (Energía, Telefonía, Alarmas)
+        /// para asegurar consistencia en la codificación Unicode
+        /// </summary>
+        private string NormalizarNombreCarpetaBase(string nombre)
+        {
+            return nombre.Normalize(NormalizationForm.FormC);
+        }
+        
+        /// <summary>
+        /// Obtiene la ruta de una carpeta base existente o la crea si no existe.
+        /// Busca carpetas existentes independientemente de su codificación Unicode.
+        /// </summary>
+        /// <param name="nombreBase">Nombre de la carpeta base (Energía, Telefonía, Alarmas)</param>
+        /// <returns>Ruta completa de la carpeta</returns>
+        private string ObtenerOCrearCarpetaBase(string nombreBase)
+        {
+            // Normalizar el nombre que buscamos
+            var nombreNormalizado = nombreBase.Normalize(NormalizationForm.FormC);
+            
+            // Verificar si el directorio base existe
+            if (!Directory.Exists(directorioBase))
+            {
+                Directory.CreateDirectory(directorioBase);
+            }
+            
+            // Buscar carpetas existentes que coincidan (independientemente de codificación Unicode)
+            var carpetasExistentes = Directory.GetDirectories(directorioBase);
+            foreach (var carpeta in carpetasExistentes)
+            {
+                var nombreCarpeta = Path.GetFileName(carpeta);
+                var nombreCarpetaNormalizado = nombreCarpeta.Normalize(NormalizationForm.FormC);
+                
+                if (nombreCarpetaNormalizado.Equals(nombreNormalizado, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"[RepositorioService] Carpeta base encontrada: {carpeta} (original: {nombreCarpeta})");
+                    return carpeta; // Retornar la carpeta existente con su codificación original
+                }
+            }
+            
+            // Si no existe, crear con nombre normalizado
+            var rutaNueva = Path.Combine(directorioBase, nombreNormalizado);
+            Directory.CreateDirectory(rutaNueva);
+            Console.WriteLine($"[RepositorioService] Carpeta base creada: {rutaNueva}");
+            return rutaNueva;
         }
     }
 }

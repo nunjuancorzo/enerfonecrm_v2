@@ -738,7 +738,13 @@
         if (partesRuta.Length >= 2)
         {
             var carpetaPrincipal = partesRuta[0];
-            if (carpetaPrincipal == "Energía" || carpetaPrincipal == "Telefonía" || carpetaPrincipal == "Alarmas")
+            // Normalizar para comparación Unicode consistente
+            var carpetaNormalizada = carpetaPrincipal.Normalize(System.Text.NormalizationForm.FormC);
+            var energia = "Energía".Normalize(System.Text.NormalizationForm.FormC);
+            var telefonia = "Telefonía".Normalize(System.Text.NormalizationForm.FormC);
+            var alarmas = "Alarmas".Normalize(System.Text.NormalizationForm.FormC);
+            
+            if (carpetaNormalizada == energia || carpetaNormalizada == telefonia || carpetaNormalizada == alarmas)
             {
                 // Está en una subcarpeta de entidad, verificar si es una imagen
                 var extension = Path.GetExtension(nombreArchivo).ToLower();

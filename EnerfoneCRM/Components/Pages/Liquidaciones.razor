@@ -2060,23 +2060,70 @@
         {
             await using var context = DbContextProvider.CreateDbContext();
             
+            // Determinar si se debe filtrar por usuario
+            var filtrarPorUsuario = !AuthService.EsAdministrador && AuthService.UsuarioActual != null;
+            var usuarioActualId = AuthService.UsuarioActual?.Id ?? 0;
+            
             // Liquidaciones en incidencia
-            liquidacionesEnIncidencia = await context.HistoricoLiquidaciones
-                .Where(h => h.Estado == "En incidencia")
+            var queryIncidencia = context.HistoricoLiquidaciones
+                .Where(h => h.Estado == "En incidencia");
+            if (filtrarPorUsuario)
+            {
+                queryIncidencia = queryIncidencia.Where(h => h.UsuarioId == usuarioActualId);
+            }
+            liquidacionesEnIncidencia = await queryIncidencia
                 .OrderByDescending(h => h.FechaEnIncidencia ?? h.FechaAprobacion)
                 .ToListAsync();
             
             // Liquidaciones aceptadas
-            liquidacionesAceptadas = await context.HistoricoLiquidaciones
-                .Where(h => h.Estado == "Aceptada")
+            var queryAceptadas = context.HistoricoLiquidaciones
+                .Where(h => h.Estado == "Aceptada");
+            if (filtrarPorUsuario)
+            {
+                queryAceptadas = queryAceptadas.Where(h => h.UsuarioId == usuarioActualId);
+            }
+            liquidacionesAceptadas = await queryAceptadas
                 .OrderByDescending(h => h.FechaAceptada ?? h.FechaAprobacion)
                 .ToListAsync();
             
             // Liquidaciones liquidadas
-            liquidacionesLiquidadas = await context.HistoricoLiquidaciones
-                .Where(h => h.Estado == "Liquidada")
+            var queryLiquidadas = context.HistoricoLiquidaciones
+                .Where(h => h.Estado == "Liquidada");
+            if (filtrarPorUsuario)
+            {
+                queryLiquidadas = queryLiquidadas.Where(h => h.UsuarioId == usuarioActualId);
+            }
+            liquidacionesLiquidadas = await queryLiquidadas
                 .OrderByDescending(h => h.FechaLiquidada ?? h.FechaAprobacion)
                 .ToListAsync();
+            
+            // Recalcular totales si están en NULL o 0
+            var todasLiquidaciones = liquidacionesEnIncidencia
+                .Concat(liquidacionesAceptadas)
+                .Concat(liquidacionesLiquidadas)
+                .Where(l => !l.TotalComisiones.HasValue || l.TotalComisiones == 0)
+                .ToList();
+            
+            foreach (var liq in todasLiquidaciones)
+            {
+                var usuario = await context.Usuarios.FindAsync(liq.UsuarioId);
+                if (usuario != null)
+                {
+                    var totalComisiones = await context.Contratos
+                        .Where(c => c.Comercial == usuario.NombreUsuario
+                            && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                            && c.Estado == "Liquidado")
+                        .SumAsync(c => c.Comision ?? 0);
+                    
+                    liq.TotalComisiones = totalComisiones;
+                    context.HistoricoLiquidaciones.Update(liq);
+                }
+            }
+            
+            if (todasLiquidaciones.Any())
+            {
+                await context.SaveChangesAsync();
+            }
                 
             StateHasChanged();
         }

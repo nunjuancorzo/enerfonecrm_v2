@@ -18,9 +18,9 @@ from mysql.connector import Error
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'crmgrupobasette',
-    'user': 'enerfone',
-    'password': 'Salaiet6680.'
+    'database': 'enerfonecrm',  # Cambiar según tu base de datos
+    'user': 'root',  # Cambiar según tu usuario
+    'password': 'A76262136.r'  # Añadir tu contraseña
 }
 
 def limpiar_valor(valor):
@@ -94,7 +94,7 @@ def importar_contratos_energia(archivo_excel):
             result['errores_detalle'].append("El archivo no contiene datos")
             return result
         
-        print(f"[OK] Se encontraron {len(df)} filas")
+        print(f"✓ Se encontraron {len(df)} filas")
         
         # Conectar a la base de datos
         print(f"Conectando a la base de datos {DB_CONFIG['database']}...")
@@ -160,13 +160,13 @@ def importar_contratos_energia(archivo_excel):
                 
                 cursor.execute(sql, datos)
                 result['importados'] += 1
-                print(f"[OK] Fila {fila_num}: Contrato para cliente {id_cliente} - Importado")
+                print(f"✓ Fila {fila_num}: Contrato para cliente {id_cliente} - Importado")
                 
             except Exception as e:
                 result['errores'] += 1
                 error_msg = f"Fila {fila_num}: Error - {str(e)}"
                 result['errores_detalle'].append(error_msg)
-                print(f"[ERROR] {error_msg}")
+                print(f"❌ {error_msg}")
         
         if result['importados'] > 0:
             conexion.commit()
@@ -191,7 +191,7 @@ def importar_contratos_telefonia(archivo_excel):
             result['errores_detalle'].append("El archivo no contiene datos")
             return result
         
-        print(f"[OK] Se encontraron {len(df)} filas")
+        print(f"✓ Se encontraron {len(df)} filas")
         
         # Leer líneas adicionales si existen
         lineas_adicionales = {}
@@ -209,9 +209,9 @@ def importar_contratos_telefonia(archivo_excel):
                         'tipo': limpiar_valor(linea.get('TipoLinea')),
                         'icc': limpiar_valor(linea.get('CodigoICC'))
                     }
-            print(f"[OK] Se encontraron líneas adicionales para {len(lineas_adicionales)} clientes")
+            print(f"✓ Se encontraron líneas adicionales para {len(lineas_adicionales)} clientes")
         except:
-            print("[AVISO] No se encontró hoja 'Líneas Adicionales'")
+            print("⚠ No se encontró hoja 'Líneas Adicionales'")
         
         # Conectar a la base de datos
         print(f"Conectando a la base de datos {DB_CONFIG['database']}...")
@@ -294,13 +294,13 @@ def importar_contratos_telefonia(archivo_excel):
                 
                 cursor.execute(sql, datos)
                 result['importados'] += 1
-                print(f"[OK] Fila {fila_num}: Contrato para cliente {id_cliente} - Importado")
+                print(f"✓ Fila {fila_num}: Contrato para cliente {id_cliente} - Importado")
                 
             except Exception as e:
                 result['errores'] += 1
                 error_msg = f"Fila {fila_num}: Error - {str(e)}"
                 result['errores_detalle'].append(error_msg)
-                print(f"[ERROR] {error_msg}")
+                print(f"❌ {error_msg}")
         
         if result['importados'] > 0:
             conexion.commit()
@@ -325,7 +325,7 @@ def importar_contratos_alarmas(archivo_excel):
             result['errores_detalle'].append("El archivo no contiene datos")
             return result
         
-        print(f"[OK] Se encontraron {len(df)} filas")
+        print(f"✓ Se encontraron {len(df)} filas")
         
         # Conectar a la base de datos
         print(f"Conectando a la base de datos {DB_CONFIG['database']}...")
@@ -400,13 +400,13 @@ def importar_contratos_alarmas(archivo_excel):
                 
                 cursor.execute(sql, datos)
                 result['importados'] += 1
-                print(f"[OK] Fila {fila_num}: Contrato para cliente {id_cliente} - Importado")
+                print(f"✓ Fila {fila_num}: Contrato para cliente {id_cliente} - Importado")
                 
             except Exception as e:
                 result['errores'] += 1
                 error_msg = f"Fila {fila_num}: Error - {str(e)}"
                 result['errores_detalle'].append(error_msg)
-                print(f"[ERROR] {error_msg}")
+                print(f"❌ {error_msg}")
         
         if result['importados'] > 0:
             conexion.commit()
@@ -426,7 +426,7 @@ def mostrar_resumen(resultado, tipo):
     
     if resultado['errores_detalle']:
         for error in resultado['errores_detalle']:
-            print(f"[ERROR] {error}")
+            print(f"❌ {error}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
@@ -464,6 +464,6 @@ Base de datos: {DB_CONFIG['database']}
         resultado = importar_contratos_alarmas(archivo)
         mostrar_resumen(resultado, 'Alarmas')
     else:
-        print(f"[ERROR] Error: Tipo '{tipo}' no válido")
+        print(f"❌ Error: Tipo '{tipo}' no válido")
         print("Tipos válidos: energia, telefonia, alarmas")
         sys.exit(1)

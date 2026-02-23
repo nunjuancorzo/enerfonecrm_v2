@@ -13,9 +13,9 @@ from mysql.connector import Error
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'enerfone_pre',
-    'user': 'enerfone',
-    'password': 'Salaiet6680.'
+    'database': 'enerfonecrm',  # Cambiar según tu base de datos
+    'user': 'root',  # Cambiar según tu usuario
+    'password': 'A76262136.r'  # Añadir tu contraseña
 }
 
 def validar_email(email):
@@ -50,10 +50,10 @@ def importar_clientes(archivo_excel, id_usuario=1):
         
         # Verificar que tiene datos
         if df.empty:
-            print("[ERROR] El archivo no contiene datos")
+            print("❌ El archivo no contiene datos")
             return
         
-        print(f"[OK] Se encontraron {len(df)} filas")
+        print(f"✓ Se encontraron {len(df)} filas")
         
         # Conectar a la base de datos
         print(f"Conectando a la base de datos {DB_CONFIG['database']}...")
@@ -158,7 +158,7 @@ def importar_clientes(archivo_excel, id_usuario=1):
                     # Cliente ya existe, saltarlo
                     errores_detalle.append(f"Fila {fila_num}: Cliente con DNI/CIF '{dni_cif}' ya existe (ID: {cliente_existente})")
                     errores += 1
-                    print(f"[AVISO] Fila {fila_num}: {nombre} - Ya existe con DNI/CIF '{dni_cif}'")
+                    print(f"⚠ Fila {fila_num}: {nombre} - Ya existe con DNI/CIF '{dni_cif}'")
                 else:
                     # SQL de inserción
                     sql = """
@@ -178,13 +178,13 @@ def importar_clientes(archivo_excel, id_usuario=1):
                     
                     cursor.execute(sql, datos)
                     importados += 1
-                    print(f"[OK] Fila {fila_num}: {nombre} - Importado correctamente")
+                    print(f"✓ Fila {fila_num}: {nombre} - Importado correctamente")
                 
             except Exception as e:
                 errores += 1
                 error_msg = f"Fila {fila_num}: Error al procesar - {str(e)}"
                 errores_detalle.append(error_msg)
-                print(f"[ERROR] {error_msg}")
+                print(f"❌ {error_msg}")
         
         # Confirmar cambios
         if importados > 0:
@@ -199,14 +199,14 @@ def importar_clientes(archivo_excel, id_usuario=1):
         print(f"Errores: {errores}")
         if errores_detalle:
             for error in errores_detalle:
-                print(f"[ERROR] {error}")
+                print(f"❌ {error}")
         
     except FileNotFoundError:
-        print(f"[ERROR] No se encontró el archivo '{archivo_excel}'")
+        print(f"❌ Error: No se encontró el archivo '{archivo_excel}'")
         print("Importados: 0")
         print("Errores: 1")
     except Exception as e:
-        print(f"[ERROR] Error general: {str(e)}")
+        print(f"❌ Error general: {str(e)}")
         print("Importados: 0")
         print("Errores: 1")
         import traceback

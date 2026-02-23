@@ -19,9 +19,9 @@ from mysql.connector import Error
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'crmgrupobasette',
-    'user': 'root',
-    'password': 'A76262136.r'
+    'database': 'enerfone_pre',  # Cambiar según tu base de datos
+    'user': 'root',  # Cambiar según tu usuario
+    'password': ''  # Añadir tu contraseña
 }
 
 def limpiar_valor(valor):

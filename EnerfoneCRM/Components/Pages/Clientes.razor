@@ -1244,46 +1244,63 @@ else
                                         </div>
                                     }
 
-                                    <!-- Facturas Pendientes -->
-                                    <div class="col-12 mt-4">
-                                        <h6 class="border-bottom pb-2">
-                                            <i class="bi bi-file-earmark-pdf me-2"></i>Facturas
-                                        </h6>
+                                    @* Fibra Segunda Residencia *@
+                                    <div class="col-12 mt-3">
+                                        <hr />
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" @bind="tieneFibraSegundaResidencia" id="chkFibraSegundaResidencia" />
+                                            <label class="form-check-label fw-bold" for="chkFibraSegundaResidencia">
+                                                <i class="bi bi-house-add me-2"></i>¿Necesita Fibra en Segunda Residencia? <small class="text-muted">(Opcional)</small>
+                                            </label>
+                                        </div>
                                     </div>
 
-                                    @if (facturasPendientes.Any())
+                                    @if (tieneFibraSegundaResidencia)
                                     {
                                         <div class="col-12">
-                                            <div class="alert alert-warning">
-                                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                                Las siguientes facturas se guardarán después de crear el contrato:
+                                            <div class="card border-primary">
+                                                <div class="card-header bg-primary text-white">
+                                                    <i class="bi bi-house-gear me-2"></i>Datos de Fibra Segunda Residencia
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-12">
+                                                            <label class="form-label fw-bold">Tarifa Fibra Segunda Residencia <span class="text-danger">*</span></label>
+                                                            <select @bind="nuevoContrato.TarifaFibraSegundaResidencia" class="form-select">
+                                                                <option value="">-- Seleccionar tarifa de fibra --</option>
+                                                                @foreach (var tarifa in tarifasFibraSegundaResidenciaDisponibles)
+                                                                {
+                                                                    var descripcion = ObtenerDescripcionTarifaTelefonia(tarifa);
+                                                                    <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
+                                                                }
+                                                            </select>
+                                                            @if (!tarifasFibraSegundaResidenciaDisponibles.Any())
+                                                            {
+                                                                <small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle me-1"></i>No hay tarifas de fibra segunda residencia disponibles para esta operadora. Debe crear una primero en Tarifas de Telefonía.</small>
+                                                            }
+                                                            else
+                                                            {
+                                                                <small class="text-muted">Seleccione la tarifa específica para la fibra de segunda residencia</small>
+                                                            }
+                                                        </div>
+
+                                                        <div class="col-12 mt-3">
+                                                            <label class="form-label fw-bold"><i class="bi bi-geo-alt me-2"></i>Dirección Segunda Residencia <span class="text-danger">*</span></label>
+                                                        </div>
+
+                                                        <div class="col-md-12">
+                                                            <label class="form-label">Dirección Completa</label>
+                                                            <textarea class="form-control" 
+                                                                      @bind="nuevoContrato.DireccionSegundaResidencia" 
+                                                                      rows="3" 
+                                                                      placeholder="Ingrese la dirección completa (Tipo vía, calle, número, piso, puerta, CP, localidad, provincia)&#10;Ejemplo: Calle Mayor, 25, 2°A, 28013 Madrid, Madrid"></textarea>
+                                                            <small class="text-muted">Incluya todos los detalles de la dirección donde se instalará la fibra de segunda residencia</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <ul class="list-group">
-                                                @for (int i = 0; i < facturasPendientes.Count; i++)
-                                                {
-                                                    var index = i;
-                                                    var factura = facturasPendientes[i];
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        <span>
-                                                            <i class="bi bi-file-earmark-pdf text-warning me-2"></i>
-                                                            @factura.nombreArchivo
-                                                            <small class="text-muted ms-2">(pendiente de guardar)</small>
-                                                        </span>
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                                @onclick="() => EliminarFacturaPendienteTelefonia(index)">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </li>
-                                                }
-                                            </ul>
                                         </div>
                                     }
-
-                                    <div class="col-12">
-                                        <label class="form-label fw-bold">Adjuntar Factura</label>
-                                        <InputFile OnChange="CargarFacturaTelefonia" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                                        <small class="text-muted">Formatos: PDF, JPG, PNG, DOC, DOCX (Máx. 10MB)</small>
-                                    </div>
 
                                     @* Titular IBAN *@
                                     <div class="col-12 mt-3">
@@ -1404,63 +1421,47 @@ else
                                         <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
                                     </div>
 
-                                    @* Fibra Segunda Residencia *@
-                                    <div class="col-12 mt-3">
+                                    <!-- Facturas Pendientes -->
+                                    <div class="col-12 mt-4">
                                         <hr />
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" @bind="tieneFibraSegundaResidencia" id="chkFibraSegundaResidencia" />
-                                            <label class="form-check-label fw-bold" for="chkFibraSegundaResidencia">
-                                                <i class="bi bi-house-add me-2"></i>¿Necesita Fibra en Segunda Residencia? <small class="text-muted">(Opcional)</small>
-                                            </label>
-                                        </div>
+                                        <h6 class="border-bottom pb-2">
+                                            <i class="bi bi-file-earmark-pdf me-2"></i>Facturas
+                                        </h6>
                                     </div>
 
-                                    @if (tieneFibraSegundaResidencia)
+                                    @if (facturasPendientes.Any())
                                     {
                                         <div class="col-12">
-                                            <div class="card border-primary">
-                                                <div class="card-header bg-primary text-white">
-                                                    <i class="bi bi-house-gear me-2"></i>Datos de Fibra Segunda Residencia
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row g-3">
-                                                        <div class="col-md-12">
-                                                            <label class="form-label fw-bold">Tarifa Fibra Segunda Residencia <span class="text-danger">*</span></label>
-                                                            <select @bind="nuevoContrato.TarifaFibraSegundaResidencia" class="form-select">
-                                                                <option value="">-- Seleccionar tarifa de fibra --</option>
-                                                                @foreach (var tarifa in tarifasFibraSegundaResidenciaDisponibles)
-                                                                {
-                                                                    var descripcion = ObtenerDescripcionTarifaTelefonia(tarifa);
-                                                                    <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
-                                                                }
-                                                            </select>
-                                                            @if (!tarifasFibraSegundaResidenciaDisponibles.Any())
-                                                            {
-                                                                <small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle me-1"></i>No hay tarifas de fibra segunda residencia disponibles para esta operadora. Debe crear una primero en Tarifas de Telefonía.</small>
-                                                            }
-                                                            else
-                                                            {
-                                                                <small class="text-muted">Seleccione la tarifa específica para la fibra de segunda residencia</small>
-                                                            }
-                                                        </div>
-
-                                                        <div class="col-12 mt-3">
-                                                            <label class="form-label fw-bold"><i class="bi bi-geo-alt me-2"></i>Dirección Segunda Residencia <span class="text-danger">*</span></label>
-                                                        </div>
-
-                                                        <div class="col-md-12">
-                                                            <label class="form-label">Dirección Completa</label>
-                                                            <textarea class="form-control" 
-                                                                      @bind="nuevoContrato.DireccionSegundaResidencia" 
-                                                                      rows="3" 
-                                                                      placeholder="Ingrese la dirección completa (Tipo vía, calle, número, piso, puerta, CP, localidad, provincia)&#10;Ejemplo: Calle Mayor, 25, 2°A, 28013 Madrid, Madrid"></textarea>
-                                                            <small class="text-muted">Incluya todos los detalles de la dirección donde se instalará la fibra de segunda residencia</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                            <div class="alert alert-warning">
+                                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                Las siguientes facturas se guardarán después de crear el contrato:
                                             </div>
+                                            <ul class="list-group">
+                                                @for (int i = 0; i < facturasPendientes.Count; i++)
+                                                {
+                                                    var index = i;
+                                                    var factura = facturasPendientes[i];
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <span>
+                                                            <i class="bi bi-file-earmark-pdf text-warning me-2"></i>
+                                                            @factura.nombreArchivo
+                                                            <small class="text-muted ms-2">(pendiente de guardar)</small>
+                                                        </span>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                                @onclick="() => EliminarFacturaPendienteTelefonia(index)">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </li>
+                                                }
+                                            </ul>
                                         </div>
                                     }
+
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold">Adjuntar Factura</label>
+                                        <InputFile OnChange="CargarFacturaTelefonia" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                        <small class="text-muted">Formatos: PDF, JPG, PNG, DOC, DOCX (Máx. 10MB)</small>
+                                    </div>
                                 </div>
                             </div>
                         </EditForm>
