@@ -220,7 +220,7 @@ else
                                         </div>
                                     </div>
                                 }
-                                <small class="text-muted">Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 2MB</small>
+                                <small class="text-muted">Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 50MB</small>
                             </div>
 
                             <div class="row mb-3">
@@ -385,10 +385,10 @@ else
             archivoImagen = e.File;
             nombreArchivoImagen = archivoImagen.Name;
 
-            // Validar tamaño (2MB máximo)
-            if (archivoImagen.Size > 2097152)
+            // Validar tamaño (50MB máximo)
+            if (archivoImagen.Size > 50 * 1024 * 1024)
             {
-                mensajeError = "La imagen no puede superar los 2MB";
+                mensajeError = "La imagen no puede superar los 50MB";
                 archivoImagen = null;
                 nombreArchivoImagen = string.Empty;
                 return Task.CompletedTask;
@@ -498,7 +498,7 @@ else
 
             // Guardar el archivo
             await using var fileStream = new FileStream(rutaCompleta, FileMode.Create);
-            await archivo.OpenReadStream(maxAllowedSize: 2097152).CopyToAsync(fileStream);
+            await archivo.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024).CopyToAsync(fileStream); // 50MB
 
             // Retornar la ruta para acceso web
             return $"/storage/uploads/mensajes/{nombreArchivo}";

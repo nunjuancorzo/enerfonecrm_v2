@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Script para importar clientes desde un archivo Excel a la base de datos MySQL
-Uso: python3 importar_clientes.py plantilla_clientes.xlsx
+Uso: python3 importar_clientes.py <nombre_bd> plantilla_clientes.xlsx
 """
 
 import sys
@@ -10,11 +10,19 @@ import mysql.connector
 from datetime import datetime
 from mysql.connector import Error
 
+# Verificar argumentos
+if len(sys.argv) < 3:
+    print("Uso: python3 importar_clientes.py <nombre_bd> <archivo_excel>")
+    sys.exit(1)
+
+database_name = sys.argv[1]
+archivo_excel_arg = sys.argv[2]
+
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'enerfonecrm',  # Cambiar según tu base de datos
-    'user': 'root',  # Cambiar según tu usuario
+    'database': database_name,
+    'user': 'root',
     'password': 'A76262136.r'  # Añadir tu contraseña
 }
 
@@ -213,20 +221,19 @@ def importar_clientes(archivo_excel, id_usuario=1):
         traceback.print_exc()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Uso: python3 importar_clientes.py <archivo_excel>")
-        print("Ejemplo: python3 importar_clientes.py plantilla_clientes.xlsx")
-        sys.exit(1)
-    
-    archivo = sys.argv[1]
-    
-    # ID de usuario opcional (segundo argumento)
-    id_usuario = int(sys.argv[2]) if len(sys.argv) > 2 else 1
+    # ID de usuario opcional (tercer argumento)
+    id_usuario = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     
     print(f"""
 {'='*60}
 IMPORTACIÓN DE CLIENTES A LA BASE DE DATOS
 {'='*60}
+Archivo: {archivo_excel_arg}
+Base de datos: {database_name}
+{'='*60}
+    """)
+    
+    importar_clientes(archivo_excel_arg, id_usuario)
 Archivo: {archivo}
 Base de datos: {DB_CONFIG['database']}
 Usuario ID: {id_usuario}

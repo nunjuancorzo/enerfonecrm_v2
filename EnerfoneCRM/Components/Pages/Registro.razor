@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject UsuarioService UsuarioService
 @inject ConfiguracionService ConfiguracionService
+@inject EmailService EmailService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @rendermode InteractiveServer
@@ -114,8 +115,8 @@
                                 <label for="tipoEntidad" class="form-label">Tipo de Entidad <span class="text-danger">*</span></label>
                                 <select id="tipoEntidad" class="form-select" @onchange="OnTipoEntidadChanged" value="@usuario.TipoEntidad">
                                     <option value="">-- Selecciona --</option>
-                                    <option value="Particular">Particular</option>
-                                    <option value="Empresa">Empresa</option>
+                                    <option value="Autónomo">Autónomo</option>
+                                    <option value="PYME">PYME</option>
                                 </select>
                                 @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.TipoEntidad))
                                 {
@@ -137,7 +138,7 @@
                                 <div class="mb-3">
                                     <label class="form-label">Documentación Requerida <span class="text-danger">*</span></label>
                                     
-                                    @if (usuario.TipoEntidad == "Particular")
+                                    @if (usuario.TipoEntidad == "Autónomo")
                                     {
                                         <div class="mb-2">
                                             <label for="archivoDni" class="form-label">DNI (ambas caras)</label>
@@ -148,7 +149,7 @@
                                             }
                                         </div>
                                     }
-                                    else if (usuario.TipoEntidad == "Empresa")
+                                    else if (usuario.TipoEntidad == "PYME")
                                     {
                                         <div class="mb-2">
                                             <label for="archivoCif" class="form-label">CIF</label>
@@ -177,10 +178,12 @@
                                         }
                                     </div>
 
+                                    @* Documentación ahora opcional - validación deshabilitada
                                     @if (intentoEnvio && !ValidarDocumentacion())
                                     {
                                         <div class="text-danger small mt-1">Debes adjuntar toda la documentación requerida</div>
                                     }
+                                    *@
                                 </div>
                             }
 
@@ -384,15 +387,9 @@
 
     private bool ValidarDocumentacion()
     {
-        if (usuario.TipoEntidad == "Particular")
-        {
-            return archivosDniBytes != null && archivosContratoBytes != null;
-        }
-        else if (usuario.TipoEntidad == "Empresa")
-        {
-            return archivosCifBytes != null && archivosPoderBytes != null && archivosContratoBytes != null;
-        }
-        return false;
+        // DNI y Contrato de Colaboración ya no son obligatorios
+        // Los usuarios pueden registrarse sin estos documentos
+        return true;
     }
 
     private async Task<string> GuardarArchivoAsync(byte[] bytes, string nombreOriginal, int usuarioId, string tipoArchivo)
@@ -479,11 +476,12 @@
             return;
         }
 
-        if (!ValidarDocumentacion())
-        {
-            mensajeError = "Debes adjuntar toda la documentación requerida";
-            return;
-        }
+        // Documentación ahora opcional - validación deshabilitada
+        //if (!ValidarDocumentacion())
+        //{
+        //    mensajeError = "Debes adjuntar toda la documentación requerida";
+        //    return;
+        //}
 
         if (string.IsNullOrWhiteSpace(password))
         {
@@ -550,6 +548,9 @@
                     usuarioCreado.NumeroCuenta = usuario.NumeroCuenta;
 
                     await UsuarioService.ActualizarAsync(usuarioCreado);
+
+                    // Enviar email de notificación a los administradores
+                    await EnviarNotificacionAdministrador(usuarioCreado);
                 }
 
                 registroExitoso = true;
@@ -561,12 +562,120 @@
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error al registrar: {ex.Message}";
-            Console.WriteLine($"[REGISTRO] Error: {ex.Message}");
+            var errorCompleto = ex.InnerException != null ? $"{ex.Message} - InnerException: {ex.InnerException.Message}" : ex.Message;
+            mensajeError = $"Error al registrar: {errorCompleto}";
+            Console.WriteLine($"[REGISTRO] Error: {errorCompleto}");
+            if (ex.InnerException?.InnerException != null)
+            {
+                Console.WriteLine($"[REGISTRO] InnerException más profunda: {ex.InnerException.InnerException.Message}");
+            }
         }
         finally
         {
             cargando = false;
+        }
+    }
+
+    private async Task EnviarNotificacionAdministrador(Usuario nuevoColaborador)
+    {
+        try
+        {
+            // Obtener emails de administradores
+            var administradores = await UsuarioService.ObtenerAdministradoresActivosAsync();
+            
+            if (!administradores.Any())
+            {
+                Console.WriteLine("[REGISTRO] No se encontraron administradores para notificar");
+                return;
+            }
+
+            // Construir el cuerpo del email
+            var cuerpoHtml = $@"
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #4CAF50; color: white; padding: 20px; text-align: center; }}
+                        .content {{ background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; }}
+                        .info-row {{ margin: 10px 0; }}
+                        .label {{ font-weight: bold; color: #555; }}
+                        .footer {{ margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #777; }}
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <div class='header'>
+                            <h2>Nuevo Colaborador Registrado</h2>
+                        </div>
+                        <div class='content'>
+                            <p>Se ha registrado un nuevo colaborador en el sistema. Por favor, revisa y aprueba su cuenta.</p>
+                            
+                            <div class='info-row'>
+                                <span class='label'>Nombre completo:</span> {nuevoColaborador.Nombre} {nuevoColaborador.Apellidos}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Email:</span> {nuevoColaborador.Email}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Usuario:</span> {nuevoColaborador.NombreUsuario}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Tipo de Entidad:</span> {nuevoColaborador.TipoEntidad}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Dirección:</span> {nuevoColaborador.Direccion}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Código Postal:</span> {nuevoColaborador.CodigoPostal}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Localidad:</span> {nuevoColaborador.Localidad}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Número de Cuenta:</span> {nuevoColaborador.NumeroCuenta}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Fecha de Registro:</span> {nuevoColaborador.FechaCreacion:dd/MM/yyyy HH:mm}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>Estado:</span> <span style='color: orange;'>Pendiente de activación</span>
+                            </div>
+                        </div>
+                        <div class='footer'>
+                            <p>Este es un mensaje automático del sistema Enerfone CRM. Por favor, accede al panel de administración para activar la cuenta del nuevo colaborador.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            ";
+
+            // Enviar email a cada administrador
+            foreach (var admin in administradores)
+            {
+                if (!string.IsNullOrWhiteSpace(admin.Email))
+                {
+                    var (exito, mensaje) = await EmailService.EnviarEmailSimpleAsync(
+                        admin.Email,
+                        "Nuevo Colaborador Registrado - Requiere Aprobación",
+                        cuerpoHtml
+                    );
+
+                    if (exito)
+                    {
+                        Console.WriteLine($"[REGISTRO] Notificación enviada a {admin.Email}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[REGISTRO] Error al enviar email a {admin.Email}: {mensaje}");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[REGISTRO] Error al enviar notificación a administradores: {ex.Message}");
+            // No lanzar excepción para que no afecte el registro
         }
     }
 }

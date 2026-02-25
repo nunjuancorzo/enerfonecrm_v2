@@ -21,5 +21,10 @@ namespace EnerfoneCRM.Services
         {
             return IsDemo() ? "Demo" : "Producción";
         }
+
+        public string GetDatabaseName()
+        {
+            return IsDemo() ? "demoenerfone" : "enerfone_pre";
+        }
     }
 }

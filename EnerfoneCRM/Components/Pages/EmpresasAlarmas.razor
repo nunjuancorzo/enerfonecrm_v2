@@ -537,6 +537,27 @@ else
                 {
                     // Crear carpeta en el repositorio para documentos
                     RepositorioService.CrearCarpetaEmpresaAlarma(empresaAlarmaSeleccionada.Nombre);
+                    
+                    // Guardar el logo en el repositorio si existe
+                    if (empresaAlarmaSeleccionada.LogoContenido != null && 
+                        empresaAlarmaSeleccionada.LogoContenido.Length > 0 && 
+                        !string.IsNullOrEmpty(empresaAlarmaSeleccionada.LogoArchivo))
+                    {
+                        try
+                        {
+                            await RepositorioService.GuardarLogoEmpresaAlarma(
+                                empresaAlarmaSeleccionada.Nombre,
+                                empresaAlarmaSeleccionada.LogoContenido,
+                                empresaAlarmaSeleccionada.LogoArchivo
+                            );
+                        }
+                        catch (Exception exLogo)
+                        {
+                            Console.WriteLine($"Error al guardar logo en repositorio: {exLogo.Message}");
+                            // No fallar la creación si solo falla guardar el logo
+                        }
+                    }
+                    
                     mensajeExito = "Empresa de alarma creada correctamente";
                 }
                 else
@@ -549,6 +570,26 @@ else
                 exito = await EmpresaAlarmaService.ActualizarAsync(empresaAlarmaSeleccionada);
                 if (exito)
                 {
+                    // Si se actualizó el logo, guardarlo en el repositorio
+                    if (empresaAlarmaSeleccionada.LogoContenido != null && 
+                        empresaAlarmaSeleccionada.LogoContenido.Length > 0 && 
+                        !string.IsNullOrEmpty(empresaAlarmaSeleccionada.LogoArchivo))
+                    {
+                        try
+                        {
+                            await RepositorioService.GuardarLogoEmpresaAlarma(
+                                empresaAlarmaSeleccionada.Nombre,
+                                empresaAlarmaSeleccionada.LogoContenido,
+                                empresaAlarmaSeleccionada.LogoArchivo
+                            );
+                        }
+                        catch (Exception exLogo)
+                        {
+                            Console.WriteLine($"Error al guardar logo en repositorio: {exLogo.Message}");
+                            // No fallar la actualización si solo falla guardar el logo
+                        }
+                    }
+                    
                     mensajeExito = "Empresa de alarma actualizada correctamente";
                 }
                 else

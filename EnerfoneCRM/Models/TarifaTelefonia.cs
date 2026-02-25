@@ -20,6 +20,10 @@ namespace EnerfoneCRM.Models
         [StringLength(255)]
         public string Tipo { get; set; } = string.Empty;
 
+        [Column("tarifa")]
+        [StringLength(255)]
+        public string? Tarifa { get; set; }
+
         [Column("fibra")]
         [StringLength(255)]
         public string? Fibra { get; set; }
@@ -27,6 +31,18 @@ namespace EnerfoneCRM.Models
         [Column("gbmovil")]
         [StringLength(255)]
         public string? GbMovil { get; set; }
+
+        [Column("movil2")]
+        [StringLength(255)]
+        public string? Movil2 { get; set; }
+
+        [Column("tv1")]
+        [StringLength(255)]
+        public string? Tv1 { get; set; }
+
+        [Column("tv2")]
+        [StringLength(255)]
+        public string? Tv2 { get; set; }
 
         [Column("precio")]
         [StringLength(255)]
@@ -44,8 +60,11 @@ namespace EnerfoneCRM.Models
         [Column("comisionNew")]
         public decimal ComisionNew { get; set; }
 
-        [Column("TV")]
+        [Column("permanencia")]
         [StringLength(100)]
-        public string? TV { get; set; }
+        public string? Permanencia { get; set; }
+
+        [Column("fecha_carga")]
+        public DateTime? FechaCarga { get; set; }
     }
 }

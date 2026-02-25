@@ -647,7 +647,9 @@ else
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionAlarma" @bind="contratoSeleccionado.TitularIbanDiferente">
+                                            <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionAlarma" 
+                                                   @bind="contratoSeleccionado.TitularIbanDiferente"
+                                                   @bind:after="LimpiarCamposTitularIbanSiNoMarcado">
                                             <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicionAlarma">
                                                 Titular IBAN Diferente
                                             </label>
@@ -1156,7 +1158,7 @@ else
     
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
-    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Solicitado", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring", "Retrocomision" };
     private string tipoFechaFiltro = "Creacion";
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
@@ -1680,6 +1682,13 @@ else
 
     private async Task MostrarModalEditar(Contrato contrato)
     {
+        Console.WriteLine($"=== CARGAR CONTRATO PARA EDICIÓN ===");
+        Console.WriteLine($"Contrato ID: {contrato.Id}");
+        Console.WriteLine($"TitularIbanDiferente: {contrato.TitularIbanDiferente}");
+        Console.WriteLine($"TitularIbanDni: '{contrato.TitularIbanDni}'");
+        Console.WriteLine($"TitularIbanNombre: '{contrato.TitularIbanNombre}'");
+        Console.WriteLine($"TitularIbanNumero: '{contrato.TitularIbanNumero}'");
+        
         contratoSeleccionado = new Contrato
         {
             Id = contrato.Id,
@@ -1723,6 +1732,12 @@ else
             FechaModificacion = contrato.FechaModificacion,
             FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion
         };
+        
+        Console.WriteLine($"=== CONTRATO SELECCIONADO CREADO ===");
+        Console.WriteLine($"contratoSeleccionado.TitularIbanDiferente: {contratoSeleccionado.TitularIbanDiferente}");
+        Console.WriteLine($"contratoSeleccionado.TitularIbanDni: '{contratoSeleccionado.TitularIbanDni}'");
+        Console.WriteLine($"contratoSeleccionado.TitularIbanNombre: '{contratoSeleccionado.TitularIbanNombre}'");
+        Console.WriteLine($"contratoSeleccionado.TitularIbanNumero: '{contratoSeleccionado.TitularIbanNumero}'");
         
         // Cargar y filtrar tarifas por empresa
         await FiltrarTarifasPorEmpresa();
@@ -1777,6 +1792,13 @@ else
 
         guardando = true;
         StateHasChanged();
+        
+        Console.WriteLine($"=== GUARDANDO CONTRATO ===");
+        Console.WriteLine($"Contrato ID: {contratoSeleccionado.Id}");
+        Console.WriteLine($"TitularIbanDiferente: {contratoSeleccionado.TitularIbanDiferente}");
+        Console.WriteLine($"TitularIbanDni: '{contratoSeleccionado.TitularIbanDni}'");
+        Console.WriteLine($"TitularIbanNombre: '{contratoSeleccionado.TitularIbanNombre}'");
+        Console.WriteLine($"TitularIbanNumero: '{contratoSeleccionado.TitularIbanNumero}'");
         
         try
         {
@@ -2114,6 +2136,7 @@ else
         return estado?.ToLower() switch
         {
             "pte carga" => "bg-secondary text-white",
+            "solicitado" => "bg-orange text-white",
             "pte firma" => "bg-primary text-white",
             "en incidencia" => "bg-warning text-dark",
             "pte documentación" => "bg-purple text-white",
@@ -2128,6 +2151,7 @@ else
             "baja" => "bg-danger text-white",
             "cancelado" => "bg-brown text-white",
             "scoring" => "bg-dark-red text-white",
+            "retrocomision" => "bg-orange text-dark",
             _ => "bg-secondary text-white"
         };
     }
@@ -2252,5 +2276,28 @@ else
     private void OnWizardCerrado()
     {
         StateHasChanged();
+    }
+
+    private void LimpiarCamposTitularIbanSiNoMarcado()
+    {
+        Console.WriteLine($"=== LimpiarCamposTitularIbanSiNoMarcado EJECUTADO ===");
+        Console.WriteLine($"contratoSeleccionado != null: {contratoSeleccionado != null}");
+        if (contratoSeleccionado != null)
+        {
+            Console.WriteLine($"TitularIbanDiferente: {contratoSeleccionado.TitularIbanDiferente}");
+            Console.WriteLine($"!TitularIbanDiferente: {!contratoSeleccionado.TitularIbanDiferente}");
+        }
+        
+        if (contratoSeleccionado != null && !contratoSeleccionado.TitularIbanDiferente)
+        {
+            Console.WriteLine("LIMPIANDO campos de titular IBAN");
+            contratoSeleccionado.TitularIbanDni = "";
+            contratoSeleccionado.TitularIbanNombre = "";
+            contratoSeleccionado.TitularIbanNumero = "";
+        }
+        else
+        {
+            Console.WriteLine("NO se limpian los campos (checkbox marcado o contrato null)");
+        }  
     }
 }

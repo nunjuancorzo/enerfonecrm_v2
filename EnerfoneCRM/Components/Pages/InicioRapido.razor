@@ -1,6 +1,7 @@
 @page "/inicio-rapido"
 @using EnerfoneCRM.Services
 @inject AuthService AuthService
+@inject EnvironmentService EnvironmentService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -40,9 +41,10 @@ else
         }
 
         <div class="row g-4">
-            <!-- Tarjeta de Clientes -->
+            <!-- Columna izquierda: Clientes y Contratos -->
             <div class="col-md-6">
-                <div class="card shadow-sm h-100">
+                <!-- Tarjeta de Clientes -->
+                <div class="card shadow-sm mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0"><i class="bi bi-people me-2"></i>Importar Clientes</h5>
                     </div>
@@ -100,11 +102,9 @@ else
                         }
                     </div>
                 </div>
-            </div>
 
-            <!-- Tarjeta de Contratos -->
-            <div class="col-md-6">
-                <div class="card shadow-sm h-100">
+                <!-- Tarjeta de Contratos -->
+                <div class="card shadow-sm">
                     <div class="card-header bg-success text-white">
                         <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Importar Contratos</h5>
                     </div>
@@ -175,6 +175,129 @@ else
                     </div>
                 </div>
             </div>
+
+            <!-- Columna derecha: Tarifas de Energía y Tarifas de Telefonía -->
+            <div class="col-md-6">
+                <!-- Tarjeta de Tarifas de Energía -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>Importar Tarifas de Energía</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Importa tarifas de energía de forma masiva desde un archivo Excel.
+                            Descarga la plantilla o usa el formato estándar con las columnas requeridas.
+                        </p>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-warning" @onclick="DescargarPlantillaTarifasEnergia">
+                                <i class="bi bi-download me-2"></i>Descargar Plantilla
+                            </button>
+                            
+                            <div class="mt-3">
+                                <label class="form-label fw-bold">Seleccionar archivo Excel</label>
+                                <InputFile OnChange="@(e => CargarArchivoTarifasEnergia(e))" class="form-control" accept=".xlsx,.xls" />
+                            </div>
+                            
+                            <button class="btn btn-warning mt-2" @onclick="ImportarTarifasEnergia" disabled="@(archivoTarifasEnergia == null || procesando)">
+                                @if (procesando && tipoImportacion == "tarifas-energia")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-upload me-2"></i>Importar Tarifas
+                            </button>
+                        </div>
+
+                        @if (resultadoTarifasEnergia != null)
+                        {
+                            <div class="mt-3">
+                                <div class="alert alert-info">
+                                    <strong>Resultado:</strong><br/>
+                                    ✓ Importados: @resultadoTarifasEnergia.Importados<br/>
+                                    ✗ Errores: @resultadoTarifasEnergia.Errores
+                                </div>
+                                
+                                @if (resultadoTarifasEnergia.Errores > 0 && resultadoTarifasEnergia.DetalleErrores.Any())
+                                {
+                                    <div class="alert alert-warning">
+                                        <strong>Detalles de errores:</strong>
+                                        <ul class="mb-0 mt-2">
+                                            @foreach (var error in resultadoTarifasEnergia.DetalleErrores.Take(10))
+                                            {
+                                                <li><small>@error</small></li>
+                                            }
+                                            @if (resultadoTarifasEnergia.DetalleErrores.Count > 10)
+                                            {
+                                                <li><small><em>... y @(resultadoTarifasEnergia.DetalleErrores.Count - 10) errores más</em></small></li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Tarifas de Telefonía -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-telephone me-2"></i>Importar Tarifas de Telefonía</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Importa tarifas de telefonía de forma masiva desde un archivo Excel.
+                            Descarga la plantilla o usa el formato estándar con las columnas requeridas.
+                        </p>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-info" @onclick="DescargarPlantillaTarifasTelefonia">
+                                <i class="bi bi-download me-2"></i>Descargar Plantilla
+                            </button>
+                            
+                            <div class="mt-3">
+                                <label class="form-label fw-bold">Seleccionar archivo Excel</label>
+                                <InputFile OnChange="@(e => CargarArchivoTarifasTelefonia(e))" class="form-control" accept=".xlsx,.xls" />
+                            </div>
+                            
+                            <button class="btn btn-info mt-2" @onclick="ImportarTarifasTelefonia" disabled="@(archivoTarifasTelefonia == null || procesando)">
+                                @if (procesando && tipoImportacion == "tarifas-telefonia")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-upload me-2"></i>Importar Tarifas
+                            </button>
+                        </div>
+
+                        @if (resultadoTarifasTelefonia != null)
+                        {
+                            <div class="mt-3">
+                                <div class="alert alert-info">
+                                    <strong>Resultado:</strong><br/>
+                                    ✓ Importados: @resultadoTarifasTelefonia.Importados<br/>
+                                    ✗ Errores: @resultadoTarifasTelefonia.Errores
+                                </div>
+                                
+                                @if (resultadoTarifasTelefonia.Errores > 0 && resultadoTarifasTelefonia.DetalleErrores.Any())
+                                {
+                                    <div class="alert alert-warning">
+                                        <strong>Detalles de errores:</strong>
+                                        <ul class="mb-0 mt-2">
+                                            @foreach (var error in resultadoTarifasTelefonia.DetalleErrores.Take(10))
+                                            {
+                                                <li><small>@error</small></li>
+                                            }
+                                            @if (resultadoTarifasTelefonia.DetalleErrores.Count > 10)
+                                            {
+                                                <li><small><em>... y @(resultadoTarifasTelefonia.DetalleErrores.Count - 10) errores más</em></small></li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Información adicional -->
@@ -196,6 +319,26 @@ else
     </div>
 }
 
+<script>
+    window.descargarArchivo = function (fileName, base64Data) {
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+</script>
+
 @code {
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
@@ -204,11 +347,29 @@ else
     
     private IBrowserFile? archivoClientes;
     private IBrowserFile? archivoContratos;
+    private IBrowserFile? archivoTarifasEnergia;
+    private IBrowserFile? archivoTarifasTelefonia;
     private string tipoContratoSeleccionado = string.Empty;
     
     private ResultadoImportacion? resultadoClientes;
     private ResultadoImportacion? resultadoContratos;
+    private ResultadoImportacion? resultadoTarifasEnergia;
+    private ResultadoImportacion? resultadoTarifasTelefonia;
     private bool verificacionRealizada = false;
+
+    // Función para obtener la ruta de Python según el sistema operativo
+    private string ObtenerRutaPython()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return @"C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe";
+        }
+        else if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+        {
+            return "python3";
+        }
+        return "python3"; // Por defecto
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -265,6 +426,126 @@ else
         }
     }
 
+    private async Task DescargarPlantillaTarifasEnergia()
+    {
+        try
+        {
+            // Generar la plantilla usando el script Python
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "generar_plantilla_tarifas_energia.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "generar_plantilla_tarifas_energia.py");
+            }
+
+            if (!File.Exists(scriptPath))
+            {
+                mensajeError = "No se encontró el script generar_plantilla_tarifas_energia.py";
+                return;
+            }
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = "generar_plantilla_tarifas_energia.py",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            await proceso.WaitForExitAsync();
+
+            // Descargar el archivo generado
+            var archivoPlantilla = Path.Combine(directorioTrabajo, "plantilla_tarifas_energia_importacion.xlsx");
+            if (File.Exists(archivoPlantilla))
+            {
+                var bytes = await File.ReadAllBytesAsync(archivoPlantilla);
+                await JS.InvokeVoidAsync("descargarArchivo", "plantilla_tarifas_energia_importacion.xlsx", 
+                    Convert.ToBase64String(bytes));
+                mensajeExito = "Plantilla de tarifas de energía descargada correctamente.";
+            }
+            else
+            {
+                mensajeError = "No se pudo generar la plantilla.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al descargar plantilla: {ex.Message}";
+        }
+    }
+
+    private async Task DescargarPlantillaTarifasTelefonia()
+    {
+        try
+        {
+            // Generar la plantilla usando el script Python
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "generar_plantilla_tarifas_telefonia.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "generar_plantilla_tarifas_telefonia.py");
+            }
+
+            if (!File.Exists(scriptPath))
+            {
+                mensajeError = "No se encontró el script generar_plantilla_tarifas_telefonia.py";
+                return;
+            }
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = "generar_plantilla_tarifas_telefonia.py",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            await proceso.WaitForExitAsync();
+
+            // Descargar el archivo generado
+            var archivoPlantilla = Path.Combine(directorioTrabajo, "plantilla_tarifas_telefonia_importacion.xlsx");
+            if (File.Exists(archivoPlantilla))
+            {
+                var bytes = await File.ReadAllBytesAsync(archivoPlantilla);
+                await JS.InvokeVoidAsync("descargarArchivo", "plantilla_tarifas_telefonia_importacion.xlsx", 
+                    Convert.ToBase64String(bytes));
+                mensajeExito = "Plantilla de tarifas de telefonía descargada correctamente.";
+            }
+            else
+            {
+                mensajeError = "No se pudo generar la plantilla.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al descargar plantilla: {ex.Message}";
+        }
+    }
+
     private void CargarArchivoClientes(InputFileChangeEventArgs e)
     {
         archivoClientes = e.File;
@@ -277,6 +558,22 @@ else
     {
         archivoContratos = e.File;
         resultadoContratos = null;
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+    }
+
+    private void CargarArchivoTarifasEnergia(InputFileChangeEventArgs e)
+    {
+        archivoTarifasEnergia = e.File;
+        resultadoTarifasEnergia = null;
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+    }
+
+    private void CargarArchivoTarifasTelefonia(InputFileChangeEventArgs e)
+    {
+        archivoTarifasTelefonia = e.File;
+        resultadoTarifasTelefonia = null;
         mensajeExito = string.Empty;
         mensajeError = string.Empty;
     }
@@ -318,13 +615,16 @@ else
                 throw new Exception($"No se encontró el script importar_clientes.py en {directorioActual} ni en {directorioTrabajo}");
             }
 
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
             {
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = @"C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe",
-                    Arguments = $"importar_clientes.py \"{rutaTemporal}\"",
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"importar_clientes.py \"{databaseName}\" \"{rutaTemporal}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -420,13 +720,16 @@ else
                 throw new Exception($"No se encontró el script importar_contratos.py en {directorioActual} ni en {directorioTrabajo}");
             }
 
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
             {
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = @"C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe",
-                    Arguments = $"importar_contratos.py {tipoContratoSeleccionado} \"{rutaTemporal}\"",
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"importar_contratos.py \"{databaseName}\" {tipoContratoSeleccionado} \"{rutaTemporal}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -461,6 +764,216 @@ else
                 mensajeExito = $"Importación completada: {resultadoContratos.Importados} contratos importados.";
             }
             else if (resultadoContratos.Errores > 0)
+            {
+                mensajeError = $"Errores encontrados. Revisa los detalles.";
+            }
+            else
+            {
+                // Mostrar salida completa para debug
+                mensajeError = $"No se pudo parsear el resultado. SALIDA COMPLETA DEL SCRIPT:\n\n{salida}";
+            }
+
+            // Limpiar archivo temporal
+            if (File.Exists(rutaTemporal))
+                File.Delete(rutaTemporal);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error durante la importación: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+            tipoImportacion = string.Empty;
+        }
+    }
+
+    private async Task ImportarTarifasEnergia()
+    {
+        if (archivoTarifasEnergia == null) return;
+
+        procesando = true;
+        tipoImportacion = "tarifas-energia";
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+        resultadoTarifasEnergia = null;
+
+        try
+        {
+            // Guardar archivo temporalmente
+            var rutaTemporal = Path.Combine(Path.GetTempPath(), archivoTarifasEnergia.Name);
+            
+            await using FileStream fs = new(rutaTemporal, FileMode.Create);
+            await archivoTarifasEnergia.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(fs);
+            fs.Close();
+
+            // Determinar directorio de trabajo (desarrollo vs producción)
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "importar_tarifas_energia.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "importar_tarifas_energia.py");
+            }
+
+            // Verificar que el script existe
+            if (!File.Exists(scriptPath))
+            {
+                throw new Exception($"No se encontró el script importar_tarifas_energia.py en {directorioActual} ni en {directorioTrabajo}");
+            }
+
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"importar_tarifas_energia.py \"{databaseName}\" \"{rutaTemporal}\"",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            string salida = await proceso.StandardOutput.ReadToEndAsync();
+            string errores = await proceso.StandardError.ReadToEndAsync();
+            await proceso.WaitForExitAsync();
+
+            // Debug: Mostrar salida completa
+            if (!string.IsNullOrWhiteSpace(errores))
+            {
+                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(salida))
+            {
+                mensajeError = "El script no devolvió ninguna salida. Verifica permisos y que Python esté correctamente instalado.";
+                return;
+            }
+
+            // Parsear resultado
+            resultadoTarifasEnergia = ParsearResultado(salida);
+
+            if (resultadoTarifasEnergia.Importados > 0)
+            {
+                mensajeExito = $"Importación completada: {resultadoTarifasEnergia.Importados} tarifas de energía importadas.";
+            }
+            else if (resultadoTarifasEnergia.Errores > 0)
+            {
+                mensajeError = $"Errores encontrados. Revisa los detalles.";
+            }
+            else
+            {
+                // Mostrar salida completa para debug
+                mensajeError = $"No se pudo parsear el resultado. SALIDA COMPLETA DEL SCRIPT:\n\n{salida}";
+            }
+
+            // Limpiar archivo temporal
+            if (File.Exists(rutaTemporal))
+                File.Delete(rutaTemporal);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error durante la importación: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+            tipoImportacion = string.Empty;
+        }
+    }
+
+    private async Task ImportarTarifasTelefonia()
+    {
+        if (archivoTarifasTelefonia == null) return;
+
+        procesando = true;
+        tipoImportacion = "tarifas-telefonia";
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+        resultadoTarifasTelefonia = null;
+
+        try
+        {
+            // Guardar archivo temporalmente
+            var rutaTemporal = Path.Combine(Path.GetTempPath(), archivoTarifasTelefonia.Name);
+            
+            await using FileStream fs = new(rutaTemporal, FileMode.Create);
+            await archivoTarifasTelefonia.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(fs);
+            fs.Close();
+
+            // Determinar directorio de trabajo (desarrollo vs producción)
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "importar_tarifas_telefonia.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "importar_tarifas_telefonia.py");
+            }
+
+            // Verificar que el script existe
+            if (!File.Exists(scriptPath))
+            {
+                throw new Exception($"No se encontró el script importar_tarifas_telefonia.py en {directorioActual} ni en {directorioTrabajo}");
+            }
+
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"importar_tarifas_telefonia.py \"{databaseName}\" \"{rutaTemporal}\"",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            string salida = await proceso.StandardOutput.ReadToEndAsync();
+            string errores = await proceso.StandardError.ReadToEndAsync();
+            await proceso.WaitForExitAsync();
+
+            // Debug: Mostrar salida completa
+            if (!string.IsNullOrWhiteSpace(errores))
+            {
+                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(salida))
+            {
+                mensajeError = "El script no devolvió ninguna salida. Verifica permisos y que Python esté correctamente instalado.";
+                return;
+            }
+
+            // Parsear resultado
+            resultadoTarifasTelefonia = ParsearResultado(salida);
+
+            if (resultadoTarifasTelefonia.Importados > 0)
+            {
+                mensajeExito = $"Importación completada: {resultadoTarifasTelefonia.Importados} tarifas de telefonía importadas.";
+            }
+            else if (resultadoTarifasTelefonia.Errores > 0)
             {
                 mensajeError = $"Errores encontrados. Revisa los detalles.";
             }

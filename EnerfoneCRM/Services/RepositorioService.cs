@@ -59,6 +59,42 @@ namespace EnerfoneCRM.Services
             }
         }
 
+        public async Task GuardarLogoComercializadora(string nombreComercializadora, byte[] logoContenido, string logoNombre)
+        {
+            try
+            {
+                if (logoContenido == null || logoContenido.Length == 0)
+                {
+                    Console.WriteLine($"[RepositorioService] No hay contenido de logo para guardar");
+                    return;
+                }
+
+                // Sanitizar el nombre de la comercializadora
+                var nombreSanitizado = SanitizarNombre(nombreComercializadora);
+                
+                // Obtener carpeta de energía y de la comercializadora
+                var carpetaEnergia = ObtenerOCrearCarpetaBase("Energía");
+                var rutaComercializadora = Path.Combine(carpetaEnergia, nombreSanitizado);
+                
+                // Crear la carpeta si no existe
+                if (!Directory.Exists(rutaComercializadora))
+                {
+                    Directory.CreateDirectory(rutaComercializadora);
+                }
+
+                // Guardar el logo con su nombre original
+                var rutaLogo = Path.Combine(rutaComercializadora, logoNombre);
+                await File.WriteAllBytesAsync(rutaLogo, logoContenido);
+                
+                Console.WriteLine($"[RepositorioService] Logo guardado en: {rutaLogo}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RepositorioService] Error al guardar logo de comercializadora '{nombreComercializadora}': {ex.Message}");
+                throw; // Re-lanzar para que el llamador sepa que hubo un error
+            }
+        }
+
         public void CrearCarpetaOperadora(string nombreOperadora)
         {
             try
@@ -80,6 +116,42 @@ namespace EnerfoneCRM.Services
             }
         }
 
+        public async Task GuardarLogoOperadora(string nombreOperadora, byte[] logoContenido, string logoNombre)
+        {
+            try
+            {
+                if (logoContenido == null || logoContenido.Length == 0)
+                {
+                    Console.WriteLine($"[RepositorioService] No hay contenido de logo para guardar");
+                    return;
+                }
+
+                // Sanitizar el nombre de la operadora
+                var nombreSanitizado = SanitizarNombre(nombreOperadora);
+                
+                // Obtener carpeta de telefonía y de la operadora
+                var carpetaTelefonia = ObtenerOCrearCarpetaBase("Telefonía");
+                var rutaOperadora = Path.Combine(carpetaTelefonia, nombreSanitizado);
+                
+                // Crear la carpeta si no existe
+                if (!Directory.Exists(rutaOperadora))
+                {
+                    Directory.CreateDirectory(rutaOperadora);
+                }
+
+                // Guardar el logo con su nombre original
+                var rutaLogo = Path.Combine(rutaOperadora, logoNombre);
+                await File.WriteAllBytesAsync(rutaLogo, logoContenido);
+                
+                Console.WriteLine($"[RepositorioService] Logo guardado en: {rutaLogo}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RepositorioService] Error al guardar logo de operadora '{nombreOperadora}': {ex.Message}");
+                throw; // Re-lanzar para que el llamador sepa que hubo un error
+            }
+        }
+
         public void CrearCarpetaEmpresaAlarma(string nombreEmpresa)
         {
             try
@@ -97,6 +169,42 @@ namespace EnerfoneCRM.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error al crear carpeta de empresa de alarma: {ex.Message}");
+            }
+        }
+
+        public async Task GuardarLogoEmpresaAlarma(string nombreEmpresa, byte[] logoContenido, string logoNombre)
+        {
+            try
+            {
+                if (logoContenido == null || logoContenido.Length == 0)
+                {
+                    Console.WriteLine($"[RepositorioService] No hay contenido de logo para guardar");
+                    return;
+                }
+
+                // Sanitizar el nombre de la empresa
+                var nombreSanitizado = SanitizarNombre(nombreEmpresa);
+                
+                // Obtener carpeta de alarmas y de la empresa
+                var carpetaAlarmas = ObtenerOCrearCarpetaBase("Alarmas");
+                var rutaEmpresa = Path.Combine(carpetaAlarmas, nombreSanitizado);
+                
+                // Crear la carpeta si no existe
+                if (!Directory.Exists(rutaEmpresa))
+                {
+                    Directory.CreateDirectory(rutaEmpresa);
+                }
+
+                // Guardar el logo con su nombre original
+                var rutaLogo = Path.Combine(rutaEmpresa, logoNombre);
+                await File.WriteAllBytesAsync(rutaLogo, logoContenido);
+                
+                Console.WriteLine($"[RepositorioService] Logo guardado en: {rutaLogo}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RepositorioService] Error al guardar logo de empresa de alarma '{nombreEmpresa}': {ex.Message}");
+                throw; // Re-lanzar para que el llamador sepa que hubo un error
             }
         }
 

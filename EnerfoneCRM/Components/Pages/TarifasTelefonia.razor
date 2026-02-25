@@ -137,7 +137,7 @@ else
                                                 <td><span class="badge @ObtenerColorTipo(tarifa.Tipo)">@tarifa.Tipo</span></td>
                                                 <td>@tarifa.Fibra</td>
                                                 <td>@tarifa.GbMovil</td>
-                                                <td>@tarifa.TV</td>
+                                                <td>@tarifa.Tv1</td>
                                                 <td><strong>@tarifa.PrecioNew.ToString("N2")€</strong></td>
                                                 <td><span class="badge bg-success">@tarifa.ComisionNew.ToString("N2")%</span></td>
                                                 <td class="text-end" style="white-space: nowrap;">
@@ -278,8 +278,8 @@ else
                                         <InputText class="form-control" @bind-Value="tarifaActual.GbMovil" placeholder="Ej: 80 GB" />
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold"><i class="bi bi-tv me-2"></i>TV</label>
-                                        <InputText class="form-control" @bind-Value="tarifaActual.TV" placeholder="Ej: Movistar+" />
+                                        <label class="form-label fw-bold"><i class="bi bi-tv me-2"></i>TV 1</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.Tv1" placeholder="Ej: Movistar+" />
                                     </div>
                                 </div>
 
@@ -484,13 +484,18 @@ else
                 Id = tarifa.Id,
                 Compania = tarifa.Compania,
                 Tipo = tarifa.Tipo,
+                Tarifa = tarifa.Tarifa,
                 Fibra = tarifa.Fibra,
                 GbMovil = tarifa.GbMovil,
-                TV = tarifa.TV,
+                Movil2 = tarifa.Movil2,
+                Tv1 = tarifa.Tv1,
+                Tv2 = tarifa.Tv2,
                 Precio = tarifa.Precio,
                 PrecioNew = tarifa.PrecioNew,
                 Comision = tarifa.Comision,
-                ComisionNew = tarifa.ComisionNew
+                ComisionNew = tarifa.ComisionNew,
+                Permanencia = tarifa.Permanencia,
+                FechaCarga = tarifa.FechaCarga
             };
         mostrarModal = true;
     }
@@ -502,13 +507,18 @@ else
             {
                 Compania = tarifa.Compania,
                 Tipo = tarifa.Tipo,
+                Tarifa = tarifa.Tarifa,
                 Fibra = tarifa.Fibra,
                 GbMovil = tarifa.GbMovil,
-                TV = tarifa.TV,
+                Movil2 = tarifa.Movil2,
+                Tv1 = tarifa.Tv1,
+                Tv2 = tarifa.Tv2,
                 Precio = tarifa.Precio,
                 PrecioNew = tarifa.PrecioNew,
                 Comision = tarifa.Comision,
-                ComisionNew = tarifa.ComisionNew
+                ComisionNew = tarifa.ComisionNew,
+                Permanencia = tarifa.Permanencia,
+                FechaCarga = tarifa.FechaCarga
             };
         mostrarModal = true;
     }

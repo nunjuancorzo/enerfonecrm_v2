@@ -70,7 +70,8 @@ else
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label">Estado</label>
-                        <select class="form-select" @onchange="e => FiltrarPorEstado(e.Value?.ToString())">
+                        <select class="form-select" value="@filtroEstado" @onchange="e => FiltrarPorEstado(e.Value?.ToString())">
+                            <option value="SinResolver">Sin resolver (por defecto)</option>
                             <option value="">Todos</option>
                             <option value="Pendiente">Pendiente</option>
                             <option value="Pendiente subir PRO">Pendiente subir PRO</option>
@@ -328,7 +329,7 @@ else
     private bool enviandoARevolapps = false;
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
-    private string filtroEstado = string.Empty;
+    private string filtroEstado = "SinResolver";
     private string filtroPrioridad = string.Empty;
     private string filtroBusqueda = string.Empty;
 
@@ -384,9 +385,19 @@ else
 
         if (!string.IsNullOrEmpty(filtroEstado))
         {
-            incidenciasFiltradas = incidenciasFiltradas
-                .Where(i => i.Estado == filtroEstado)
-                .ToList();
+            if (filtroEstado == "SinResolver")
+            {
+                // Filtro especial: excluir las resueltas y cerradas
+                incidenciasFiltradas = incidenciasFiltradas
+                    .Where(i => i.Estado != "Resuelta" && i.Estado != "Cerrada")
+                    .ToList();
+            }
+            else
+            {
+                incidenciasFiltradas = incidenciasFiltradas
+                    .Where(i => i.Estado == filtroEstado)
+                    .ToList();
+            }
         }
 
         if (!string.IsNullOrEmpty(filtroPrioridad))

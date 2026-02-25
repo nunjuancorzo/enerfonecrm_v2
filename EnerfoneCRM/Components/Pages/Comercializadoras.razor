@@ -472,6 +472,27 @@ else
                 {
                     // Crear carpeta en el repositorio para documentos
                     RepositorioService.CrearCarpetaComercializadora(comercializadoraSeleccionada.Nombre);
+                    
+                    // Guardar el logo en el repositorio si existe
+                    if (comercializadoraSeleccionada.LogoContenido != null && 
+                        comercializadoraSeleccionada.LogoContenido.Length > 0 && 
+                        !string.IsNullOrEmpty(comercializadoraSeleccionada.LogoArchivo))
+                    {
+                        try
+                        {
+                            await RepositorioService.GuardarLogoComercializadora(
+                                comercializadoraSeleccionada.Nombre,
+                                comercializadoraSeleccionada.LogoContenido,
+                                comercializadoraSeleccionada.LogoArchivo
+                            );
+                        }
+                        catch (Exception exLogo)
+                        {
+                            Console.WriteLine($"Error al guardar logo en repositorio: {exLogo.Message}");
+                            // No fallar la creación si solo falla guardar el logo
+                        }
+                    }
+                    
                     mensajeExito = "Comercializadora creada correctamente";
                 }
                 else
@@ -484,6 +505,26 @@ else
                 exito = await ComercializadoraService.ActualizarAsync(comercializadoraSeleccionada);
                 if (exito)
                 {
+                    // Si se actualizó el logo, guardarlo en el repositorio
+                    if (comercializadoraSeleccionada.LogoContenido != null && 
+                        comercializadoraSeleccionada.LogoContenido.Length > 0 && 
+                        !string.IsNullOrEmpty(comercializadoraSeleccionada.LogoArchivo))
+                    {
+                        try
+                        {
+                            await RepositorioService.GuardarLogoComercializadora(
+                                comercializadoraSeleccionada.Nombre,
+                                comercializadoraSeleccionada.LogoContenido,
+                                comercializadoraSeleccionada.LogoArchivo
+                            );
+                        }
+                        catch (Exception exLogo)
+                        {
+                            Console.WriteLine($"Error al guardar logo en repositorio: {exLogo.Message}");
+                            // No fallar la actualización si solo falla guardar el logo
+                        }
+                    }
+                    
                     mensajeExito = "Comercializadora actualizada correctamente";
                 }
                 else

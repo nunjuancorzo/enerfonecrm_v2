@@ -281,9 +281,9 @@ def crear_plantilla_tarifa_alarmas():
         '- Campaña: Ofertas y campañas especiales',
         '',
         'Ejemplos:',
-        'Kit Hogar: Kit Básico Hogar, 29.90€, 24 meses',
-        'Opcional: Detector de Humo, 3.50€, 0 meses',
-        'Campaña: Promoción Verano, 39.90€, 36 meses'
+        'Kit Hogar: Kit Básico Hogar, 29.90, 24 meses',
+        'Opcional: Detector de Humo, 3.50, 0 meses',
+        'Campaña: Promoción Verano, 39.90, 36 meses'
     ]
     for inst in instrucciones:
         worksheet_inst.write(row, 0, inst)

@@ -676,7 +676,10 @@ else
                                 <div class="row mb-3">
                                     <div class="col-12">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionTel" @bind="contratoSeleccionado.TitularIbanDiferente" disabled="@(!PuedeEditar())">
+                                            <input class="form-check-input" type="checkbox" id="chkTitularIbanDiferenteEdicionTel" 
+                                                   @bind="contratoSeleccionado.TitularIbanDiferente" 
+                                                   @bind:after="LimpiarCamposTitularIbanSiNoMarcado" 
+                                                   disabled="@(!PuedeEditar())">
                                             <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicionTel">
                                                 Titular IBAN Diferente
                                             </label>
@@ -1365,7 +1368,7 @@ else
 
     // Filtros
     private HashSet<string> estadosSeleccionados = new();
-    private List<string> estadosDisponibles = new() { "Pte Carga", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring" };
+    private List<string> estadosDisponibles = new() { "Pte Carga", "Solicitado", "Pte Firma", "En incidencia", "Pte Documentación", "Pte Validación", "En Curso", "En Activación", "En tramitación", "Activo", "Act/Facturable", "En Liquidación", "Liquidado", "Baja", "Cancelado", "Scoring", "Retrocomision" };
     private string tipoFechaFiltro = "Creacion";
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
@@ -2232,6 +2235,7 @@ else
         return estado?.ToLower() switch
         {
             "pte carga" => "bg-secondary text-white",
+            "solicitado" => "bg-orange text-white",
             "pte firma" => "bg-primary text-white",
             "en incidencia" => "bg-warning text-dark",
             "pte documentación" => "bg-purple text-white",
@@ -2246,6 +2250,7 @@ else
             "baja" => "bg-danger text-white",
             "cancelado" => "bg-brown text-white",
             "scoring" => "bg-dark-red text-white",
+            "retrocomision" => "bg-orange text-dark",
             _ => "bg-secondary text-white"
         };
     }
@@ -2985,6 +2990,16 @@ else
     private void OnWizardCerrado()
     {
         StateHasChanged();
+    }
+
+    private void LimpiarCamposTitularIbanSiNoMarcado()
+    {
+        if (contratoSeleccionado != null && !contratoSeleccionado.TitularIbanDiferente)
+        {
+            contratoSeleccionado.TitularIbanDni = "";
+            contratoSeleccionado.TitularIbanNombre = "";
+            contratoSeleccionado.TitularIbanNumero = "";
+        }
     }
 }
 

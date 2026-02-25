@@ -423,7 +423,7 @@
 </div>
 
 <!-- Modal Ver Contratos -->
-@if (mostrarModalContratos && contratosFacurables.Any())
+@if (mostrarModalContratos)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
@@ -436,13 +436,22 @@
                     <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalContratos"></button>
                 </div>
                 <div class="modal-body">
-                    @{
-                        var contratosEnergia = contratosFacurables.Where(c => c.Tipo == "energia").ToList();
-                        var contratosTelefonia = contratosFacurables.Where(c => c.Tipo == "telefonia").ToList();
-                        var contratosAlarmas = contratosFacurables.Where(c => c.Tipo == "alarma").ToList();
+                    @if (!contratosFacurables.Any())
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No se encontraron contratos facturables para este usuario.
+                            <br/>
+                            <small>Verifica que los contratos tengan el estado exacto "Act/Facturable" y que el comercial coincida con "@usuarioSeleccionado?.NombreUsuario"</small>
+                        </div>
                     }
+                    else
+                    {
+                        var contratosEnergia = contratosFacurables.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
+                        var contratosTelefonia = contratosFacurables.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
+                        var contratosAlarmas = contratosFacurables.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
 
-                    @if (contratosEnergia.Any())
+                        @if (contratosEnergia.Any())
                     {
                         <h6 class="mb-3">
                             <span class="badge bg-warning text-dark">Contratos de Energía (@contratosEnergia.Count)</span>
@@ -576,6 +585,7 @@
                         @if (contratosTelefonia.Any()) { <span class="ms-3">Telefonía: @contratosTelefonia.Count</span> }
                         @if (contratosAlarmas.Any()) { <span class="ms-3">Alarmas: @contratosAlarmas.Count</span> }
                     </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-info me-2" @onclick="() => ImprimirLiquidacion(usuarioSeleccionado!.Id)">
@@ -900,9 +910,9 @@
                     </div>
 
                     @{
-                        var contratosEnergia = contratosHistorico.Where(c => c.Tipo == "energia").ToList();
-                        var contratosTelefonia = contratosHistorico.Where(c => c.Tipo == "telefonia").ToList();
-                        var contratosAlarmas = contratosHistorico.Where(c => c.Tipo == "alarma").ToList();
+                        var contratosEnergia = contratosHistorico.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
+                        var contratosTelefonia = contratosHistorico.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
+                        var contratosAlarmas = contratosHistorico.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
                     }
 
                     @if (contratosEnergia.Any())
@@ -1105,12 +1115,12 @@
                         where usuario.Activo
                         let contratosFacturables = context.Contratos
                             .Where(c => c.Comercial == usuario.NombreUsuario 
-                                && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                                && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                                 && c.Estado == "Act/Facturable")
                             .Count()
                         let totalComisiones = context.Contratos
                             .Where(c => c.Comercial == usuario.NombreUsuario 
-                                && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                                && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                                 && c.Estado == "Act/Facturable")
                             .Sum(c => c.Comision ?? 0)
                         let incidenciasPendientes = context.IncidenciasLiquidacion
@@ -1163,13 +1173,31 @@
                 return;
             }
             
+            Console.WriteLine($"=== VER DETALLE USUARIO ===");
+            Console.WriteLine($"Usuario ID: {usuarioId}");
+            Console.WriteLine($"Usuario Nombre: {usuarioSeleccionado.NombreUsuario}");
+            
             // Obtener los contratos facturables del usuario (energía, telefonía y alarmas)
             contratosFacurables = context.Contratos
                 .Where(c => c.Comercial == usuarioSeleccionado.NombreUsuario 
-                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
                 .OrderByDescending(c => c.FechaCreacion)
                 .ToList();
+            
+            Console.WriteLine($"Contratos facturables encontrados: {contratosFacurables.Count}");
+            
+            // Verificar todos los contratos de este usuario
+            var todosContratos = context.Contratos
+                .Where(c => c.Comercial == usuarioSeleccionado.NombreUsuario)
+                .Select(c => new { c.Id, c.Tipo, c.Estado, c.Comercial })
+                .ToList();
+            
+            Console.WriteLine($"Total contratos del usuario: {todosContratos.Count}");
+            foreach (var c in todosContratos)
+            {
+                Console.WriteLine($"  - ID: {c.Id}, Tipo: {c.Tipo}, Estado: '{c.Estado}', Comercial: '{c.Comercial}'");
+            }
             
             mostrarModalContratos = true;
         }
@@ -1205,7 +1233,7 @@
             // Obtener los contratos facturables del usuario
             var contratos = context.Contratos
                 .Where(c => c.Comercial == usuario.NombreUsuario 
-                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
                 .OrderBy(c => c.Tipo)
                 .ThenByDescending(c => c.FechaCreacion)
@@ -1222,9 +1250,9 @@
             var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
             
             // Agrupar por tipo
-            var contratosEnergia = contratos.Where(c => c.Tipo == "energia").ToList();
-            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia").ToList();
-            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma").ToList();
+            var contratosEnergia = contratos.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
+            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
+            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
 
             // Construir HTML para impresión
             var sb = new System.Text.StringBuilder();
@@ -1435,7 +1463,7 @@
             // Obtener los contratos facturables del usuario
             var contratos = context.Contratos
                 .Where(c => c.Comercial == usuarioDb.NombreUsuario 
-                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
                 .OrderBy(c => c.Tipo)
                 .ThenByDescending(c => c.FechaCreacion)
@@ -1451,9 +1479,9 @@
             var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
             var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
             
-            var contratosEnergia = contratos.Where(c => c.Tipo == "energia").ToList();
-            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia").ToList();
-            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma").ToList();
+            var contratosEnergia = contratos.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
+            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
+            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
 
             var sb = new System.Text.StringBuilder();
             sb.Append("<html><head><meta charset='utf-8'><title>Liquidación - ");
@@ -1688,7 +1716,7 @@
             // Obtener todos los contratos facturables del usuario
             var contratos = await context.Contratos
                 .Where(c => c.Comercial == usuarioDb.NombreUsuario
-                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
                 .ToListAsync();
 
@@ -1701,10 +1729,10 @@
             }
 
             // Contar contratos por tipo
-            var contratosEnergia = contratos.Count(c => c.Tipo == "energia");
-            var contratosTelefonia = contratos.Count(c => c.Tipo == "telefonia");
-            var contratosAlarmas = contratos.Count(c => c.Tipo == "alarma");
-
+            var contratosEnergia = contratos.Count(c => c.Tipo == "energia" || c.Tipo == "Energía");
+            var contratosTelefonia = contratos.Count(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía");
+            var contratosAlarmas = contratos.Count(c => c.Tipo == "alarma" || c.Tipo == "Alarma");
+            
             // Calcular total de comisiones
             var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
 
@@ -1951,7 +1979,7 @@
             // Buscar contratos en estado Liquidado del usuario
             contratosHistorico = await context.Contratos
                 .Where(c => c.Comercial == usuario.NombreUsuario
-                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Liquidado")
                 .OrderByDescending(c => c.FechaModificacion)
                 .ToListAsync();
@@ -2004,7 +2032,7 @@
             // Buscar todos los contratos liquidados del usuario
             var contratos = await context.Contratos
                 .Where(c => c.Comercial == usuario.NombreUsuario
-                    && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Liquidado")
                 .ToListAsync();
 
@@ -2111,7 +2139,7 @@
                 {
                     var totalComisiones = await context.Contratos
                         .Where(c => c.Comercial == usuario.NombreUsuario
-                            && (c.Tipo == "energia" || c.Tipo == "telefonia" || c.Tipo == "alarma")
+                            && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                             && c.Estado == "Liquidado")
                         .SumAsync(c => c.Comision ?? 0);
                     

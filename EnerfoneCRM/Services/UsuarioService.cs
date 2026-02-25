@@ -49,6 +49,14 @@ public class UsuarioService
             .FirstOrDefaultAsync(u => u.NombreUsuario == nombreUsuario);
     }
 
+    public async Task<List<Usuario>> ObtenerAdministradoresActivosAsync()
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        return await context.Usuarios
+            .Where(u => u.Rol == "Administrador" && u.Activo && !string.IsNullOrEmpty(u.Email))
+            .ToListAsync();
+    }
+
     public async Task<(bool exito, string mensaje)> CrearAsync(Usuario usuario, string password)
     {
         await using var context = _dbContextProvider.CreateDbContext();

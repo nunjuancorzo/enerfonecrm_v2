@@ -80,7 +80,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(provincia_instalacion, '') as provincia_instalacion,
                     COALESCE(localidad_instalacion, '') as localidad_instalacion,
                     COALESCE(aclarador_instalacion, '') as aclarador_instalacion,
-                    titular_iban_diferente,
+                    COALESCE(titular_iban_diferente, FALSE) as titular_iban_diferente,
                     COALESCE(titular_iban_dni, '') as titular_iban_dni,
                     COALESCE(titular_iban_nombre, '') as titular_iban_nombre,
                     COALESCE(titular_iban_numero, '') as titular_iban_numero,

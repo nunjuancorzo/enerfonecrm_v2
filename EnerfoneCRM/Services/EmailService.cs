@@ -86,4 +86,92 @@ public class EmailService
     {
         return await EnviarEmailConAdjuntoAsync(destinatario, asunto, cuerpoHtml, Array.Empty<byte>(), string.Empty);
     }
+
+    public async Task<(bool exito, string mensaje)> EnviarEmailConAdjuntosMultiplesAsync(
+        string destinatario,
+        string asunto,
+        string cuerpoHtml,
+        List<string> rutasArchivos)
+    {
+        try
+        {
+            // Obtener configuración SMTP
+            using var context = _dbContextProvider.CreateDbContext();
+            var config = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+
+            if (config == null)
+            {
+                return (false, "No se encontró la configuración de la empresa");
+            }
+
+            if (string.IsNullOrEmpty(config.SmtpServidor) || 
+                string.IsNullOrEmpty(config.SmtpUsuario) || 
+                string.IsNullOrEmpty(config.SmtpPassword))
+            {
+                return (false, "La configuración SMTP está incompleta. Configure el servidor de email en Configuración de Empresa");
+            }
+
+            // Crear el mensaje
+            using var message = new MailMessage();
+            message.From = new MailAddress(
+                config.SmtpEmailDesde ?? config.SmtpUsuario,
+                config.SmtpNombreDesde ?? config.NombreEmpresa
+            );
+            message.To.Add(destinatario);
+            message.Subject = asunto;
+            message.Body = cuerpoHtml;
+            message.IsBodyHtml = true;
+
+            // Adjuntar múltiples archivos
+            if (rutasArchivos != null && rutasArchivos.Any())
+            {
+                foreach (var rutaArchivo in rutasArchivos)
+                {
+                    if (File.Exists(rutaArchivo))
+                    {
+                        var nombreArchivo = Path.GetFileName(rutaArchivo);
+                        var bytes = await File.ReadAllBytesAsync(rutaArchivo);
+                        var stream = new MemoryStream(bytes);
+                        var mimeType = ObtenerMimeType(nombreArchivo);
+                        var attachment = new Attachment(stream, nombreArchivo, mimeType);
+                        message.Attachments.Add(attachment);
+                    }
+                }
+            }
+
+            // Configurar el cliente SMTP
+            using var smtp = new SmtpClient(config.SmtpServidor, config.SmtpPuerto ?? 587);
+            smtp.Credentials = new NetworkCredential(config.SmtpUsuario, config.SmtpPassword);
+            smtp.EnableSsl = config.SmtpUsarSsl;
+
+            // Enviar el email
+            await smtp.SendMailAsync(message);
+
+            return (true, "Email enviado correctamente");
+        }
+        catch (SmtpException smtpEx)
+        {
+            return (false, $"Error al enviar email: {smtpEx.Message}");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error inesperado al enviar email: {ex.Message}");
+        }
+    }
+
+    private string ObtenerMimeType(string nombreArchivo)
+    {
+        var extension = Path.GetExtension(nombreArchivo).ToLowerInvariant();
+        return extension switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".xls" => "application/vnd.ms-excel",
+            ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            _ => "application/octet-stream"
+        };
+    }
 }

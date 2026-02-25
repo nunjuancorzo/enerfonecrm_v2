@@ -560,6 +560,27 @@ else
                 {
                     // Crear carpeta en el repositorio para documentos
                     RepositorioService.CrearCarpetaOperadora(operadoraSeleccionada.Nombre);
+                    
+                    // Guardar el logo en el repositorio si existe
+                    if (operadoraSeleccionada.LogoContenido != null && 
+                        operadoraSeleccionada.LogoContenido.Length > 0 && 
+                        !string.IsNullOrEmpty(operadoraSeleccionada.LogoArchivo))
+                    {
+                        try
+                        {
+                            await RepositorioService.GuardarLogoOperadora(
+                                operadoraSeleccionada.Nombre,
+                                operadoraSeleccionada.LogoContenido,
+                                operadoraSeleccionada.LogoArchivo
+                            );
+                        }
+                        catch (Exception exLogo)
+                        {
+                            Console.WriteLine($"Error al guardar logo en repositorio: {exLogo.Message}");
+                            // No fallar la creación si solo falla guardar el logo
+                        }
+                    }
+                    
                     mensajeExito = "Operadora creada correctamente";
                 }
                 else
@@ -572,6 +593,26 @@ else
                 exito = await OperadoraService.ActualizarAsync(operadoraSeleccionada);
                 if (exito)
                 {
+                    // Si se actualizó el logo, guardarlo en el repositorio
+                    if (operadoraSeleccionada.LogoContenido != null && 
+                        operadoraSeleccionada.LogoContenido.Length > 0 && 
+                        !string.IsNullOrEmpty(operadoraSeleccionada.LogoArchivo))
+                    {
+                        try
+                        {
+                            await RepositorioService.GuardarLogoOperadora(
+                                operadoraSeleccionada.Nombre,
+                                operadoraSeleccionada.LogoContenido,
+                                operadoraSeleccionada.LogoArchivo
+                            );
+                        }
+                        catch (Exception exLogo)
+                        {
+                            Console.WriteLine($"Error al guardar logo en repositorio: {exLogo.Message}");
+                            // No fallar la actualización si solo falla guardar el logo
+                        }
+                    }
+                    
                     mensajeExito = "Operadora actualizada correctamente";
                 }
                 else

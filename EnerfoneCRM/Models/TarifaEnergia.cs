@@ -25,15 +25,13 @@ namespace EnerfoneCRM.Models
         [StringLength(255)]
         public string Nombre { get; set; } = string.Empty;
 
-        [Required]
         [Column("potencia1")]
         [StringLength(255)]
-        public string Potencia1 { get; set; } = string.Empty;
+        public string? Potencia1 { get; set; }
 
-        [Required]
         [Column("energia1")]
         [StringLength(255)]
-        public string Energia1 { get; set; } = string.Empty;
+        public string? Energia1 { get; set; }
 
         [Column("precio")]
         [StringLength(255)]
@@ -108,5 +106,49 @@ namespace EnerfoneCRM.Models
 
         [Column("precio_energia_p3")]
         public decimal? PrecioEnergiaP3 { get; set; }
+
+        // Campos adicionales del Excel de tarifas (añadidos febrero 2026)
+        [Column("tipo_cliente")]
+        [StringLength(50)]
+        public string? TipoCliente { get; set; }
+
+        [Column("peaje")]
+        [StringLength(50)]
+        public string? Peaje { get; set; }
+
+        [Column("termino_fijo_gas")]
+        [StringLength(255)]
+        public string? TerminoFijoGas { get; set; }
+
+        [Column("pvd_sva")]
+        [StringLength(255)]
+        public string? PvdSva { get; set; }
+
+        [Column("termino_variable_gas")]
+        [StringLength(255)]
+        public string? TerminoVariableGas { get; set; }
+
+        [Column("descuento")]
+        [StringLength(255)]
+        public string? Descuento { get; set; }
+
+        [Column("observaciones_descuentos")]
+        [StringLength(500)]
+        public string? ObservacionesDescuentos { get; set; }
+
+        [Column("permanencia")]
+        [StringLength(100)]
+        public string? Permanencia { get; set; }
+
+        [Column("excedentes")]
+        [StringLength(100)]
+        public string? Excedentes { get; set; }
+
+        [Column("bateria_virtual")]
+        [StringLength(50)]
+        public string? BateriaVirtual { get; set; }
+
+        [Column("fecha_carga")]
+        public DateTime? FechaCarga { get; set; }
     }
 }

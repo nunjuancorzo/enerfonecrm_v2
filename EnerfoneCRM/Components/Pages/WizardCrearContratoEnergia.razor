@@ -148,41 +148,143 @@
                                                         <h6 class="border-bottom pb-2"><i class="bi bi-person-badge me-2"></i>Datos Personales</h6>
                                                     </div>
                                                     <div class="col-md-6">
-                                                        <label class="form-label fw-bold">Nombre Completo *</label>
+                                                        <label class="form-label fw-bold">Tipo Cliente <span class="text-danger">*</span></label>
+                                                        <InputSelect @bind-Value="nuevoCliente.TipoCliente" class="form-select">
+                                                            <option value="Particular">Particular</option>
+                                                            <option value="Pyme">Pyme</option>
+                                                        </InputSelect>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Nombre/Razón Social <span class="text-danger">*</span></label>
                                                         <InputText @bind-Value="nuevoCliente.Nombre" class="form-control" placeholder="Nombre del cliente" />
                                                         <ValidationMessage For="@(() => nuevoCliente.Nombre)" />
                                                     </div>
                                                     <div class="col-md-6">
-                                                        <label class="form-label fw-bold">DNI/CIF *</label>
+                                                        <label class="form-label fw-bold">
+                                                            @if (nuevoCliente.TipoCliente == "Pyme")
+                                                            {
+                                                                <text>CIF Empresa <span class="text-danger">*</span></text>
+                                                            }
+                                                            else
+                                                            {
+                                                                <text>DNI/CIF <span class="text-danger">*</span></text>
+                                                            }
+                                                        </label>
                                                         <InputText @bind-Value="nuevoCliente.DniCif" class="form-control" placeholder="DNI o CIF" />
                                                         <ValidationMessage For="@(() => nuevoCliente.DniCif)" />
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-bold">Teléfono</label>
-                                                        <InputText @bind-Value="nuevoCliente.Telefono" class="form-control" placeholder="Teléfono principal" />
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-bold">Email</label>
                                                         <InputText @bind-Value="nuevoCliente.Email" class="form-control" type="email" placeholder="correo@ejemplo.com" />
                                                     </div>
-                                                    <div class="col-12">
-                                                        <h6 class="border-bottom pb-2"><i class="bi bi-geo-alt me-2"></i>Dirección</h6>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Teléfono</label>
+                                                        <InputText @bind-Value="nuevoCliente.Telefono" class="form-control" placeholder="Teléfono principal" />
+                                                    </div>
+                                                    @if (nuevoCliente.TipoCliente == "Pyme")
+                                                    {
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-bold">Representante</label>
+                                                            <InputText @bind-Value="nuevoCliente.Representante" class="form-control" placeholder="Nombre del representante" />
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-bold">DNI Representante</label>
+                                                            <InputText @bind-Value="nuevoCliente.Dni" class="form-control" placeholder="DNI" />
+                                                        </div>
+                                                    }
+                                                    <div class="col-12 mt-3">
+                                                        <h6 class="border-bottom pb-2"><i class="bi bi-geo-alt me-2"></i>Dirección Fiscal</h6>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-bold">Tipo de Vía</label>
+                                                        <InputSelect @bind-Value="nuevoCliente.TipoVia" class="form-select">
+                                                            <option value="">-- Seleccionar --</option>
+                                                            <option value="CALLE">CALLE</option>
+                                                            <option value="AVENIDA">AVENIDA</option>
+                                                            <option value="CARRETERA">CARRETERA</option>
+                                                            <option value="CAMINO">CAMINO</option>
+                                                            <option value="PASEO">PASEO</option>
+                                                            <option value="PLAZA">PLAZA</option>
+                                                            <option value="GLORIETA">GLORIETA</option>
+                                                            <option value="ACERA">ACERA</option>
+                                                            <option value="ALAMEDA">ALAMEDA</option>
+                                                            <option value="ALDEA">ALDEA</option>
+                                                            <option value="AMPLIACIÓN">AMPLIACIÓN</option>
+                                                            <option value="ANGOSTA">ANGOSTA</option>
+                                                            <option value="APARTAMENTOS">APARTAMENTOS</option>
+                                                            <option value="ATAJO">ATAJO</option>
+                                                            <option value="BAJADA">BAJADA</option>
+                                                            <option value="BARRANCO">BARRANCO</option>
+                                                            <option value="BARRIADA">BARRIADA</option>
+                                                            <option value="BARRIO">BARRIO</option>
+                                                            <option value="BLOQUES">BLOQUES</option>
+                                                            <option value="CALLEJA">CALLEJA</option>
+                                                            <option value="CALLEJÓN">CALLEJÓN</option>
+                                                            <option value="CALLEJUELA">CALLEJUELA</option>
+                                                            <option value="CALZADA">CALZADA</option>
+                                                            <option value="CARRERA">CARRERA</option>
+                                                            <option value="CASERIO">CASERIO</option>
+                                                            <option value="CHALET">CHALET</option>
+                                                            <option value="COLONIA">COLONIA</option>
+                                                            <option value="COOPERATIVA">COOPERATIVA</option>
+                                                            <option value="CORRAL">CORRAL</option>
+                                                            <option value="COSTANILLA">COSTANILLA</option>
+                                                            <option value="CUESTA">CUESTA</option>
+                                                            <option value="EDIFICIO">EDIFICIO</option>
+                                                            <option value="ESCALA">ESCALA</option>
+                                                            <option value="ESCALERA">ESCALERA</option>
+                                                            <option value="ESCALINATA">ESCALINATA</option>
+                                                            <option value="ESTRADA">ESTRADA</option>
+                                                            <option value="GRUPO">GRUPO</option>
+                                                            <option value="LLANO">LLANO</option>
+                                                            <option value="LUGAR">LUGAR</option>
+                                                            <option value="MANZANA">MANZANA</option>
+                                                            <option value="MERCADO">MERCADO</option>
+                                                            <option value="MONTAÑA">MONTAÑA</option>
+                                                            <option value="MUNICIPIO">MUNICIPIO</option>
+                                                            <option value="PASEO ALTO">PASEO ALTO</option>
+                                                            <option value="POBLADO">POBLADO</option>
+                                                        </InputSelect>
                                                     </div>
                                                     <div class="col-md-8">
                                                         <label class="form-label fw-bold">Dirección</label>
-                                                        <InputText @bind-Value="nuevoCliente.Direccion" class="form-control" placeholder="Calle, número, piso..." />
+                                                        <InputText @bind-Value="nuevoCliente.Direccion" class="form-control" placeholder="Nombre de la calle" />
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-bold">Número</label>
+                                                        <InputText @bind-Value="nuevoCliente.Numero" class="form-control" placeholder="Nº" />
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-bold">Escalera</label>
+                                                        <InputText @bind-Value="nuevoCliente.Escalera" class="form-control" placeholder="Esc." />
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <label class="form-label fw-bold">Piso</label>
+                                                        <InputText @bind-Value="nuevoCliente.Piso" class="form-control" placeholder="Piso" />
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <label class="form-label fw-bold">Puerta</label>
+                                                        <InputText @bind-Value="nuevoCliente.Puerta" class="form-control" placeholder="Pta." />
                                                     </div>
                                                     <div class="col-md-4">
                                                         <label class="form-label fw-bold">Código Postal</label>
                                                         <InputText @bind-Value="nuevoCliente.CodigoPostal" class="form-control" placeholder="CP" />
                                                     </div>
-                                                    <div class="col-md-6">
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-bold">Aclarador</label>
+                                                        <InputText @bind-Value="nuevoCliente.Aclarador" class="form-control" placeholder="Información adicional" />
+                                                    </div>
+                                                    <div class="col-md-4">
                                                         <label class="form-label fw-bold">Población</label>
                                                         <InputText @bind-Value="nuevoCliente.Poblacion" class="form-control" placeholder="Ciudad/Pueblo" />
                                                     </div>
-                                                    <div class="col-md-6">
+                                                    <div class="col-md-4">
                                                         <label class="form-label fw-bold">Provincia</label>
                                                         <InputText @bind-Value="nuevoCliente.Provincia" class="form-control" placeholder="Provincia" />
+                                                    </div>
+                                                    <div class="col-md-12">
+                                                        <label class="form-label fw-bold">IBAN</label>
+                                                        <InputText @bind-Value="nuevoCliente.Iban" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
                                                     </div>
                                                 </div>
                                             </EditForm>
@@ -277,6 +379,7 @@
                                             <InputSelect @bind-Value="nuevoContrato.Estado" class="form-select">
                                                 <option value="">Seleccione...</option>
                                                 <option value="Pte Carga">Pte Carga</option>
+                                                <option value="Solicitado">Solicitado</option>
                                                 <option value="Pte Firma">Pte Firma</option>
                                                 <option value="En incidencia">En incidencia</option>
                                                 <option value="Pte Documentación">Pte Documentación</option>
@@ -289,6 +392,7 @@
                                                 <option value="Baja">Baja</option>
                                                 <option value="Cancelado">Cancelado</option>
                                                 <option value="Scoring">Scoring</option>
+                                                <option value="Retrocomision">Retrocomision</option>
                                             </InputSelect>
                                         </div>
                                         <div class="col-md-4">
@@ -349,7 +453,9 @@
                                         <div class="col-12 mt-3">
                                             <hr />
                                             <div class="form-check">
-                                                <InputCheckbox @bind-Value="nuevoContrato.TitularIbanDiferente" class="form-check-input" id="chkTitularIbanDiferente" />
+                                                <input type="checkbox" class="form-check-input" id="chkTitularIbanDiferente" 
+                                                       @bind="nuevoContrato.TitularIbanDiferente" 
+                                                       @bind:after="LimpiarCamposTitularIbanSiNoMarcado" />
                                                 <label class="form-check-label fw-bold" for="chkTitularIbanDiferente">
                                                     El titular del IBAN es diferente al cliente
                                                 </label>
@@ -639,7 +745,7 @@
 
     private void InicializarNuevoCliente()
     {
-        nuevoCliente = new Cliente();
+        nuevoCliente = new Cliente { TipoCliente = "Particular" };
     }
 
     private void FiltrarClientes()
@@ -680,6 +786,7 @@
             if (!exito)
             {
                 mensajeError = mensaje;
+                StateHasChanged();
                 return;
             }
             
@@ -689,10 +796,13 @@
             
             // Avanzar al siguiente paso automáticamente
             pasoActual = 2;
+            modoCrearCliente = false;
+            StateHasChanged();
         }
         catch (Exception ex)
         {
             mensajeError = $"Error al crear cliente: {ex.Message}";
+            StateHasChanged();
         }
         finally
         {
@@ -721,7 +831,7 @@
         {
             // Si estamos creando un nuevo cliente, guardarlo primero
             await CrearNuevoCliente();
-            if (!string.IsNullOrEmpty(mensajeError)) return; // No avanzar si hubo error
+            return; // No incrementar pasoActual aquí, CrearNuevoCliente() ya lo establece a 2
         }
         
         if (pasoActual == 2)
@@ -758,7 +868,11 @@
             FechaCreacion = DateTime.Now,
             FechaModificacion = DateTime.Now,
             FechaAlta = DateTime.Now,
-            Comercial = AuthService.UsuarioActual?.NombreUsuario ?? ""
+            Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
+            TitularIbanDiferente = false,
+            TitularIbanDni = "",
+            TitularIbanNombre = "",
+            TitularIbanNumero = ""
         };
     }
 
@@ -816,5 +930,15 @@
             ".webp" => "image/webp",
             _ => "image/png"
         };
+    }
+
+    private void LimpiarCamposTitularIbanSiNoMarcado()
+    {
+        if (nuevoContrato != null && !nuevoContrato.TitularIbanDiferente)
+        {
+            nuevoContrato.TitularIbanDni = "";
+            nuevoContrato.TitularIbanNombre = "";
+            nuevoContrato.TitularIbanNumero = "";
+        }
     }
 }

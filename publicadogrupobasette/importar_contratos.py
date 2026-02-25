@@ -4,9 +4,9 @@ Script para importar contratos desde archivos Excel a la base de datos MySQL
 Soporta tres tipos de contratos: Energía, Telefonía y Alarmas
 
 Uso: 
-  python3 importar_contratos.py energia plantilla_contratos_energia.xlsx
-  python3 importar_contratos.py telefonia plantilla_contratos_telefonia.xlsx
-  python3 importar_contratos.py alarmas plantilla_contratos_alarmas.xlsx
+  python3 importar_contratos.py <nombre_bd> energia plantilla_contratos_energia.xlsx
+  python3 importar_contratos.py <nombre_bd> telefonia plantilla_contratos_telefonia.xlsx
+  python3 importar_contratos.py <nombre_bd> alarmas plantilla_contratos_alarmas.xlsx
 """
 
 import sys
@@ -15,11 +15,21 @@ import mysql.connector
 from datetime import datetime
 from mysql.connector import Error
 
+# Verificar argumentos
+if len(sys.argv) < 4:
+    print("Uso: python3 importar_contratos.py <nombre_bd> <tipo> <archivo_excel>")
+    print("Tipos: energia, telefonia, alarmas")
+    sys.exit(1)
+
+database_name = sys.argv[1]
+tipo_contrato_arg = sys.argv[2]
+archivo_excel_arg = sys.argv[3]
+
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
-    'database': 'enerfonecrm',  # Cambiar según tu base de datos
-    'user': 'root',  # Cambiar según tu usuario
+    'database': database_name,
+    'user': 'root',
     'password': 'A76262136.r'  # Añadir tu contraseña
 }
 
@@ -441,27 +451,27 @@ if __name__ == "__main__":
         print("  python3 importar_contratos.py alarmas plantilla_contratos_alarmas.xlsx")
         sys.exit(1)
     
-    tipo = sys.argv[1].lower()
-    archivo = sys.argv[2]
+if __name__ == "__main__":
+    tipo = tipo_contrato_arg.lower()
     
     print(f"""
 {'='*60}
 IMPORTACIÓN DE CONTRATOS A LA BASE DE DATOS
 {'='*60}
 Tipo: {tipo.upper()}
-Archivo: {archivo}
+Archivo: {archivo_excel_arg}
 Base de datos: {DB_CONFIG['database']}
 {'='*60}
     """)
     
     if tipo == 'energia':
-        resultado = importar_contratos_energia(archivo)
+        resultado = importar_contratos_energia(archivo_excel_arg)
         mostrar_resumen(resultado, 'Energía')
     elif tipo == 'telefonia':
-        resultado = importar_contratos_telefonia(archivo)
+        resultado = importar_contratos_telefonia(archivo_excel_arg)
         mostrar_resumen(resultado, 'Telefonía')
     elif tipo == 'alarmas':
-        resultado = importar_contratos_alarmas(archivo)
+        resultado = importar_contratos_alarmas(archivo_excel_arg)
         mostrar_resumen(resultado, 'Alarmas')
     else:
         print(f"❌ Error: Tipo '{tipo}' no válido")

@@ -78,6 +78,7 @@ builder.Services.AddScoped<MensajeBienvenidaService>();
 builder.Services.AddScoped<IncidenciaLiquidacionService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
+builder.Services.AddScoped<OfertaService>();
 builder.Services.AddSingleton<RepositorioService>();
 
 // Integración externa de incidencias (INTEGRACION.md)
