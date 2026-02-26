@@ -1,0 +1,506 @@
+@page "/sips"
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Models
+@using Microsoft.AspNetCore.Components
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject SipsService SipsService
+@inject PdfSipsService PdfSipsService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>SIPS - CRM</PageTitle>
+
+@if (!cargado)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    Navigation.NavigateTo("/login", false);
+}
+else if (!AuthService.EsSuperAdmin)
+{
+    <!-- Mensaje de desarrollo para usuarios normales -->
+    <div class="container-fluid p-4">
+        <div class="row justify-content-center align-items-center" style="min-height: 70vh;">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow-lg border-0" style="border-radius: 15px; background: linear-gradient(135deg, #9C27B0 0%, #673AB7 100%);">
+                    <div class="card-body text-center text-white p-5">
+                        <div class="mb-4">
+                            <i class="bi bi-credit-card" style="font-size: 5rem; opacity: 0.9;"></i>
+                        </div>
+                        <h2 class="mb-4 fw-bold">SIPS - Módulo en Desarrollo</h2>
+                        <p class="lead mb-4" style="font-size: 1.1rem; line-height: 1.8;">
+                            Estamos trabajando en el Sistema de Integración de Pagos Seguros (SIPS) 
+                            para ofrecerle la mejor experiencia posible. Este módulo estará disponible próximamente.
+                        </p>
+                        <div class="alert alert-light text-dark mb-4" role="alert" style="border-radius: 10px;">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Nota:</strong> Esta funcionalidad permitirá gestionar pagos de forma 
+                            segura e integrada con el sistema.
+                        </div>
+                        <button @onclick="Volver" class="btn btn-light btn-lg px-5 py-3" style="border-radius: 10px; font-weight: 500; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                            <i class="bi bi-arrow-left-circle me-2"></i>Volver al Inicio
+                        </button>
+                    </div>
+                </div>
+                <div class="text-center mt-4 text-muted">
+                    <small>
+                        <i class="bi bi-clock-history me-2"></i>
+                        Gracias por su comprensión y paciencia
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Contenido para superadmin -->
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">
+                        <i class="bi bi-credit-card me-2 text-purple"></i>Análisis SIPS
+                        <span class="badge bg-warning text-dark ms-2">En Desarrollo</span>
+                    </h2>
+                    <a class="btn btn-outline-secondary" href="/sips/historico">
+                        <i class="bi bi-clock-history me-2"></i>Ver histórico
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (datosCliente != null && !string.IsNullOrWhiteSpace(fuenteDatos) && fechaDatos.HasValue)
+        {
+            <div class="alert alert-info" role="alert">
+                <i class="bi bi-clock-history me-2"></i>
+                Datos cargados desde <strong>@fuenteDatos</strong> (@fechaDatos.Value.ToString("dd/MM/yyyy HH:mm")).
+            </div>
+        }
+
+        <!-- Formulario de búsqueda -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light text-center">
+                <h5 class="mb-0"><i class="bi bi-search me-2"></i>Consultar CUPS</h5>
+            </div>
+            <div class="card-body">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">CUPS</label>
+                            <input type="text" class="form-control form-control-sm" @bind="cupsInput" />
+                            <small class="text-muted">Introduce el código CUPS para consultar la información del suministro</small>
+                        </div>
+                        <div class="text-center">
+                            <button class="btn btn-primary" @onclick="BuscarCups" disabled="@cargandoDatos">
+                                @if (cargandoDatos)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Consultando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-search me-2"></i>
+                                    <span>Consultar</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (datosCliente != null)
+        {
+            <!-- Información del Cliente -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Información del Suministro</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong><i class="bi bi-lightning-charge text-warning me-2"></i>CUPS:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.CodigoCUPS</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong><i class="bi bi-building text-info me-2"></i>Distribuidora:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.NombreEmpresaDistribuidora</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="bi bi-geo-alt text-danger me-2"></i>Provincia:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.DesProvinciaPS</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="bi bi-pin-map text-success me-2"></i>Municipio:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.DesMunicipioPS</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="bi bi-mailbox text-primary me-2"></i>Código Postal:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.CodigoPostalPS</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="bi bi-tag text-warning me-2"></i>Tarifa ATR:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.CodigoTarifaATREnVigor</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="bi bi-speedometer text-info me-2"></i>Perfil Consumo:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.TipoPerfilConsumo</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="bi bi-calendar-check text-success me-2"></i>Fecha Alta:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.FechaAltaSuministro?.ToString("dd/MM/yyyy")</p>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h6 class="mt-3 mb-3"><i class="bi bi-lightning-fill text-warning me-2"></i>Potencias Contratadas (kW)</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <span class="badge bg-info me-2">P1</span>
+                            <strong>@(datosCliente.PotenciasContratadasEnWP1?.ToString("N2")) kW</strong>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <span class="badge bg-primary me-2">P2</span>
+                            <strong>@(datosCliente.PotenciasContratadasEnWP2?.ToString("N2")) kW</strong>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <span class="badge bg-success me-2">P3</span>
+                            <strong>@(datosCliente.PotenciasContratadasEnWP3?.ToString("N2")) kW</strong>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <h6 class="mt-3 mb-3"><i class="bi bi-calendar3 text-primary me-2"></i>Fechas Importantes</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <strong>Último Movimiento Contrato:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.FechaUltimoMovimientoContrato?.ToString("dd/MM/yyyy")</p>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>Último Cambio Comercializador:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.FechaUltimoCambioComercializador?.ToString("dd/MM/yyyy")</p>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>Última Lectura:</strong>
+                            <p class="mb-0 text-muted">@datosCliente.FechaUltimaLectura?.ToString("dd/MM/yyyy")</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (datosConsumos != null && datosConsumos.Any())
+            {
+                <!-- Gráficos -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Evolución Consumo Mensual</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="graficoConsumoMensual" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Distribución por Periodos</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="graficoDistribucionPeriodos" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Consumos -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center flex-wrap">
+                        <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Histórico de Consumos (@datosConsumos.Count registros)</h5>
+                        <button class="btn btn-danger btn-lg shadow-lg mt-2 mt-md-0" @onclick="DescargarInformePdf" style="font-size: 1.1rem; padding: 12px 30px; border-radius: 10px;">
+                            <i class="bi bi-file-earmark-pdf-fill me-2" style="font-size: 1.3rem;"></i>Descargar Informe PDF
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Período</th>
+                                        <th>Fecha Inicio</th>
+                                        <th>Fecha Fin</th>
+                                        <th class="text-end">P1 (kWh)</th>
+                                        <th class="text-end">P2 (kWh)</th>
+                                        <th class="text-end">P3 (kWh)</th>
+                                        <th class="text-end bg-info text-white">Total (kWh)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var consumo in datosConsumos.OrderByDescending(c => c.FechaFin))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-secondary">@consumo.FechaInicio?.ToString("MMM yyyy")</span>
+                                            </td>
+                                            <td>@consumo.FechaInicio?.ToString("dd/MM/yyyy")</td>
+                                            <td>@consumo.FechaFin?.ToString("dd/MM/yyyy")</td>
+                                            <td class="text-end">@consumo.Activa1?.ToString("N0")</td>
+                                            <td class="text-end">@consumo.Activa2?.ToString("N0")</td>
+                                            <td class="text-end">@consumo.Activa3?.ToString("N0")</td>
+                                            <td class="text-end fw-bold bg-light">@consumo.TotalConsumo.ToString("N0")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr class="fw-bold">
+                                        <td colspan="3">TOTAL ACUMULADO</td>
+                                        <td class="text-end">@datosConsumos.Sum(c => c.Activa1 ?? 0).ToString("N0")</td>
+                                        <td class="text-end">@datosConsumos.Sum(c => c.Activa2 ?? 0).ToString("N0")</td>
+                                        <td class="text-end">@datosConsumos.Sum(c => c.Activa3 ?? 0).ToString("N0")</td>
+                                        <td class="text-end bg-success text-white">@datosConsumos.Sum(c => c.TotalConsumo).ToString("N0")</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Estadísticas -->
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center">
+                                        <h6>Consumo Promedio Mensual</h6>
+                                        <h3>@((datosConsumos.Average(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center">
+                                        <h6>Consumo Máximo Mensual</h6>
+                                        <h3>@((datosConsumos.Max(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-warning text-dark">
+                                    <div class="card-body text-center">
+                                        <h6>Consumo Mínimo Mensual</h6>
+                                        <h3>@((datosConsumos.Min(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+}
+
+<style>
+    .text-purple {
+        color: #9C27B0;
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35em 0.65em;
+    }
+    
+    .card {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .btn-light:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+        transition: all 0.3s ease;
+    }
+</style>
+
+@code {
+    private bool cargado = false;
+    private bool cargandoDatos = false;
+    private string cupsInput = string.Empty;
+    private string mensajeError = string.Empty;
+    private ClienteSips? datosCliente;
+    private List<ConsumoSips>? datosConsumos;
+    private string? fuenteDatos;
+    private DateTime? fechaDatos;
+    private bool autoBusquedaEjecutada = false;
+
+    [SupplyParameterFromQuery(Name = "cups")]
+    public string? CupsQuery { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+                return;
+            }
+            
+            cargado = true;
+            StateHasChanged();
+
+            if (!autoBusquedaEjecutada && !string.IsNullOrWhiteSpace(CupsQuery))
+            {
+                autoBusquedaEjecutada = true;
+                cupsInput = CupsQuery;
+                await BuscarCups();
+            }
+        }
+    }
+
+    private async Task BuscarCups()
+    {
+        if (string.IsNullOrWhiteSpace(cupsInput))
+        {
+            mensajeError = "Por favor, introduce un CUPS válido";
+            return;
+        }
+
+        try
+        {
+            cargandoDatos = true;
+            mensajeError = string.Empty;
+            datosCliente = null;
+            datosConsumos = null;
+            fuenteDatos = null;
+            fechaDatos = null;
+            StateHasChanged();
+
+            var consulta = await SipsService.ObtenerDatosCupsConCacheAsync(
+                cupsInput.Trim(),
+                AuthService.UsuarioActual?.Id,
+                AuthService.UsuarioActual?.NombreUsuario,
+                AuthService.UsuarioActual?.Email);
+
+            fuenteDatos = consulta.Fuente;
+            fechaDatos = consulta.FechaConsulta;
+
+            var respuesta = consulta.Respuesta;
+
+            if (respuesta != null)
+            {
+                if (respuesta.ClientesSips != null && respuesta.ClientesSips.Any())
+                {
+                    datosCliente = respuesta.ClientesSips.First();
+                }
+                else
+                {
+                    mensajeError = "No se encontró información para el CUPS especificado";
+                }
+
+                if (respuesta.ConsumosSips != null && respuesta.ConsumosSips.Any())
+                {
+                    datosConsumos = respuesta.ConsumosSips;
+                    // Esperar un momento para que el DOM se actualice antes de crear los gráficos
+                    StateHasChanged();
+                    await Task.Delay(100);
+                    await CrearGraficos();
+                }
+            }
+            else
+            {
+                mensajeError = "No se pudo obtener información del servicio SIPS";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al consultar SIPS: {ex.Message}";
+        }
+        finally
+        {
+            cargandoDatos = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CrearGraficos()
+    {
+        if (datosConsumos == null || !datosConsumos.Any())
+            return;
+
+        var consumosOrdenados = datosConsumos.OrderBy(c => c.FechaFin).ToList();
+
+        // Preparar datos para el gráfico de evolución mensual
+        var etiquetas = consumosOrdenados
+            .Select(c => c.FechaFin?.ToString("MMM yyyy") ?? "")
+            .ToList();
+
+        var valoresConsumo = consumosOrdenados
+            .Select(c => (double)c.TotalConsumo)
+            .ToList();
+
+        // Preparar datos para el gráfico de distribución por periodos
+        var totalP1 = (double)datosConsumos.Sum(c => c.Activa1 ?? 0);
+        var totalP2 = (double)datosConsumos.Sum(c => c.Activa2 ?? 0);
+        var totalP3 = (double)datosConsumos.Sum(c => c.Activa3 ?? 0);
+
+        await JSRuntime.InvokeVoidAsync("crearGraficoConsumoMensual", etiquetas, valoresConsumo);
+        await JSRuntime.InvokeVoidAsync("crearGraficoDistribucionPeriodos", totalP1, totalP2, totalP3);
+    }
+
+    private async Task DescargarInformePdf()
+    {
+        if (datosCliente == null || datosConsumos == null || !datosConsumos.Any())
+        {
+            mensajeError = "No hay datos para generar el informe";
+            return;
+        }
+
+        try
+        {
+            var pdfBytes = PdfSipsService.GenerarInformeSips(datosCliente, datosConsumos);
+            var nombreArchivo = $"Informe_SIPS_{datosCliente.CodigoCUPS}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            
+            // Convertir a Base64 para enviar al navegador
+            var base64 = Convert.ToBase64String(pdfBytes);
+            await JSRuntime.InvokeVoidAsync("descargarArchivo", nombreArchivo, base64, "application/pdf");
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al generar el PDF: {ex.Message}";
+        }
+    }
+    
+    private void Volver()
+    {
+        Navigation.NavigateTo("/home");
+    }
+}

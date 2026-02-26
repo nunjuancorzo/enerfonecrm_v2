@@ -35,4 +35,5 @@ public class ApplicationDbContext : DbContext
     public DbSet<HistoricoLiquidacion> HistoricoLiquidaciones { get; set; }
     public DbSet<Incidencia> Incidencias { get; set; }
     public DbSet<SolicitudOferta> SolicitudesOfertas { get; set; }
+    public DbSet<HistoricoSipsConsulta> HistoricoSipsConsultas { get; set; }
 }

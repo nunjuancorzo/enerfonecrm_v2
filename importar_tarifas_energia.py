@@ -24,8 +24,8 @@ archivo_excel_arg = sys.argv[2]
 DB_CONFIG = {
     'host': 'localhost',
     'database': database_name,
-    'user': 'root',
-    'password': 'A76262136.r'  # Añadir contraseña si es necesario
+    'user': 'enerfone',
+    'password': 'Salaiet6680.'  # Credenciales de producción
 }
 
 def limpiar_valor(valor):

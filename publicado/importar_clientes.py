@@ -22,8 +22,8 @@ archivo_excel_arg = sys.argv[2]
 DB_CONFIG = {
     'host': 'localhost',
     'database': database_name,
-    'user': 'root',
-    'password': 'A76262136.r'  # Añadir tu contraseña
+    'user': 'enerfone',
+    'password': 'Salaiet6680.'  # Credenciales de producción
 }
 
 def validar_email(email):

@@ -430,55 +430,8 @@ else
     {
         try
         {
-            // Generar la plantilla usando el script Python
-            var directorioActual = Directory.GetCurrentDirectory();
-            var scriptPath = Path.Combine(directorioActual, "generar_plantilla_tarifas_energia.py");
-            var directorioTrabajo = directorioActual;
-            
-            // Si el script no está en el directorio actual, buscar en el directorio padre
-            if (!File.Exists(scriptPath))
-            {
-                directorioTrabajo = Path.Combine(directorioActual, "..");
-                scriptPath = Path.Combine(directorioTrabajo, "generar_plantilla_tarifas_energia.py");
-            }
-
-            if (!File.Exists(scriptPath))
-            {
-                mensajeError = "No se encontró el script generar_plantilla_tarifas_energia.py";
-                return;
-            }
-
-            // Ejecutar script de Python
-            var proceso = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = ObtenerRutaPython(),
-                    Arguments = "generar_plantilla_tarifas_energia.py",
-                    WorkingDirectory = directorioTrabajo,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            proceso.Start();
-            await proceso.WaitForExitAsync();
-
-            // Descargar el archivo generado
-            var archivoPlantilla = Path.Combine(directorioTrabajo, "plantilla_tarifas_energia_importacion.xlsx");
-            if (File.Exists(archivoPlantilla))
-            {
-                var bytes = await File.ReadAllBytesAsync(archivoPlantilla);
-                await JS.InvokeVoidAsync("descargarArchivo", "plantilla_tarifas_energia_importacion.xlsx", 
-                    Convert.ToBase64String(bytes));
-                mensajeExito = "Plantilla de tarifas de energía descargada correctamente.";
-            }
-            else
-            {
-                mensajeError = "No se pudo generar la plantilla.";
-            }
+            await JS.InvokeVoidAsync("descargarPlantillaTarifasEnergia");
+            mensajeExito = "Plantilla de tarifas de energía descargada correctamente.";
         }
         catch (Exception ex)
         {
@@ -490,55 +443,8 @@ else
     {
         try
         {
-            // Generar la plantilla usando el script Python
-            var directorioActual = Directory.GetCurrentDirectory();
-            var scriptPath = Path.Combine(directorioActual, "generar_plantilla_tarifas_telefonia.py");
-            var directorioTrabajo = directorioActual;
-            
-            // Si el script no está en el directorio actual, buscar en el directorio padre
-            if (!File.Exists(scriptPath))
-            {
-                directorioTrabajo = Path.Combine(directorioActual, "..");
-                scriptPath = Path.Combine(directorioTrabajo, "generar_plantilla_tarifas_telefonia.py");
-            }
-
-            if (!File.Exists(scriptPath))
-            {
-                mensajeError = "No se encontró el script generar_plantilla_tarifas_telefonia.py";
-                return;
-            }
-
-            // Ejecutar script de Python
-            var proceso = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = ObtenerRutaPython(),
-                    Arguments = "generar_plantilla_tarifas_telefonia.py",
-                    WorkingDirectory = directorioTrabajo,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            proceso.Start();
-            await proceso.WaitForExitAsync();
-
-            // Descargar el archivo generado
-            var archivoPlantilla = Path.Combine(directorioTrabajo, "plantilla_tarifas_telefonia_importacion.xlsx");
-            if (File.Exists(archivoPlantilla))
-            {
-                var bytes = await File.ReadAllBytesAsync(archivoPlantilla);
-                await JS.InvokeVoidAsync("descargarArchivo", "plantilla_tarifas_telefonia_importacion.xlsx", 
-                    Convert.ToBase64String(bytes));
-                mensajeExito = "Plantilla de tarifas de telefonía descargada correctamente.";
-            }
-            else
-            {
-                mensajeError = "No se pudo generar la plantilla.";
-            }
+            await JS.InvokeVoidAsync("descargarPlantillaTarifasTelefonia");
+            mensajeExito = "Plantilla de tarifas de telefonía descargada correctamente.";
         }
         catch (Exception ex)
         {

@@ -106,12 +106,10 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
+                                        <th>Tipo Cliente</th>
+                                        <th>Peaje</th>
                                         <th>P1</th>
-                                        <th>P2</th>
-                                        <th>P3</th>
                                         <th>E1</th>
-                                        <th>E2</th>
-                                        <th>E3</th>
                                         <th style="cursor: pointer;" @onclick='() => OrdenarPor("PrecioNew")'>
                                             Precio
                                             @if (columnaOrden == "PrecioNew")
@@ -126,6 +124,8 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
+                                        <th>Permanencia</th>
+                                        <th>Batería</th>
                                         <th class="text-end">Acciones</th>
                                     </tr>
                                 </thead>
@@ -133,7 +133,7 @@ else
                                     @if (tarifas == null || !tarifas.Any())
                                     {
                                         <tr>
-                                            <td colspan="12" class="text-center text-muted py-4">
+                                            <td colspan="13" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay tarifas registradas</p>
                                             </td>
@@ -147,14 +147,23 @@ else
                                                 <td><strong>@tarifa.Empresa</strong></td>
                                                 <td><span class="badge @ObtenerColorTipo(tarifa.Tipo)">@tarifa.Tipo</span></td>
                                                 <td>@tarifa.Nombre</td>
-                                                <td><small>@tarifa.Potencia1</small></td>
-                                                <td><small>@tarifa.Potencia2</small></td>
-                                                <td><small>@tarifa.Potencia3</small></td>
-                                                <td><small>@tarifa.Energia1</small></td>
-                                                <td><small>@tarifa.Energia2</small></td>
-                                                <td><small>@tarifa.Energia3</small></td>
+                                                <td><small>@(tarifa.TipoCliente ?? "-")</small></td>
+                                                <td><small>@(tarifa.Peaje ?? "-")</small></td>
+                                                <td><small>@(tarifa.Potencia1 ?? "-")</small></td>
+                                                <td><small>@(tarifa.Energia1 ?? "-")</small></td>
                                                 <td><strong>@tarifa.PrecioNew.ToString("N2")€</strong></td>
                                                 <td><span class="badge bg-success">@tarifa.Comision.ToString("N2")%</span></td>
+                                                <td><small>@(tarifa.Permanencia ?? "-")</small></td>
+                                                <td>
+                                                    @if (!string.IsNullOrEmpty(tarifa.BateriaVirtual) && tarifa.BateriaVirtual == "SI")
+                                                    {
+                                                        <i class="bi bi-battery-charging text-success" title="Batería Virtual"></i>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">-</span>
+                                                    }
+                                                </td>
                                                 <td class="text-end" style="white-space: nowrap;">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(tarifa)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
@@ -266,9 +275,12 @@ else
                                         <ValidationMessage For="() => tarifaActual.Empresa" class="text-danger" />
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold">Tipo <span class="text-danger">*</span></label>
+                                        <label class="form-label fw-bold">Tipo Energía <span class="text-danger">*</span></label>
                                         <InputSelect class="form-select" @bind-Value="tarifaActual.Tipo">
                                             <option value="">-- Seleccionar tipo --</option>
+                                            <option value="LUZ">LUZ</option>
+                                            <option value="GAS">GAS</option>
+                                            <option value="LUZ+GAS">LUZ+GAS</option>
                                             <option value="Residencial">Residencial</option>
                                             <option value="Pyme">Pyme</option>
                                         </InputSelect>
@@ -278,6 +290,29 @@ else
                                         <label class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
                                         <InputText class="form-control" @bind-Value="tarifaActual.Nombre" placeholder="Ej: Tarifa Plana" />
                                         <ValidationMessage For="() => tarifaActual.Nombre" class="text-danger" />
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Tipo Cliente</label>
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.TipoCliente">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="RESIDENCIAL">Residencial</option>
+                                            <option value="PYMES">Pymes</option>
+                                            <option value="EMPRESA">Empresa</option>
+                                        </InputSelect>
+                                        <small class="text-muted">A quién va dirigida la tarifa</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Peaje</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.Peaje" placeholder="Ej: 2.0TD, 3.0TD, 6.1TD" />
+                                        <small class="text-muted">Tipo de peaje ATR</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Permanencia</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.Permanencia" placeholder="Ej: 0, 12M, 24M" />
+                                        <small class="text-muted">Duración del contrato</small>
                                     </div>
                                 </div>
 
@@ -355,6 +390,65 @@ else
                                             <InputNumber class="form-control" @bind-Value="tarifaActual.Comision" step="0.01" />
                                             <span class="input-group-text">%</span>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+                                <h6 class="text-info mb-3"><i class="bi bi-fire me-2"></i>Datos de Gas (Opcional)</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Término Fijo Gas</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.TerminoFijoGas" placeholder="Ej: 3.50" />
+                                        <small class="text-muted">€/día o según tarifa</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">PVD SVA</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.PvdSva" placeholder="Ej: 0.045" />
+                                        <small class="text-muted">Precio Vapor Diario SVA</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Término Variable Gas</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.TerminoVariableGas" placeholder="Ej: 0.050" />
+                                        <small class="text-muted">€/kWh</small>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+                                <h6 class="text-warning mb-3"><i class="bi bi-percent me-2"></i>Descuentos y Promociones</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Descuento Aplicable</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.Descuento" placeholder="Ej: 10% primer año" />
+                                        <small class="text-muted">Descuento o promoción</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Observaciones Descuentos</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.ObservacionesDescuentos" placeholder="Condiciones del descuento" />
+                                        <small class="text-muted">Detalles adicionales</small>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+                                <h6 class="text-success mb-3"><i class="bi bi-sun me-2"></i>Energía Solar y Batería</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Precio Excedentes</label>
+                                        <InputText class="form-control" @bind-Value="tarifaActual.Excedentes" placeholder="Ej: 0.07" />
+                                        <small class="text-muted">€/kWh para excedentes solares</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Batería Virtual</label>
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.BateriaVirtual">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="SI">Sí</option>
+                                            <option value="NO">No</option>
+                                        </InputSelect>
+                                        <small class="text-muted">¿Incluye batería virtual?</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Fecha de Carga</label>
+                                        <InputDate class="form-control" @bind-Value="tarifaActual.FechaCarga" />
+                                        <small class="text-muted">Fecha de actualización</small>
                                     </div>
                                 </div>
 

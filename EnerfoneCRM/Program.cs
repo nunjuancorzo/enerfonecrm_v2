@@ -54,6 +54,7 @@ builder.Services.AddScoped<ApplicationDbContext>(serviceProvider =>
 // Servicios
 builder.Services.AddBlazoredSessionStorage();
 builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<DbContextProvider>();
 builder.Services.AddScoped<EnvironmentService>();
 builder.Services.AddScoped<LogAccesoService>();
@@ -78,12 +79,17 @@ builder.Services.AddScoped<MensajeBienvenidaService>();
 builder.Services.AddScoped<IncidenciaLiquidacionService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
+builder.Services.AddScoped<PdfSipsService>();
 builder.Services.AddScoped<OfertaService>();
 builder.Services.AddSingleton<RepositorioService>();
 
 // Integración externa de incidencias (INTEGRACION.md)
 builder.Services.AddHttpClient<RevolappsIncidenciasService>();
 builder.Services.AddScoped<RevolappsIncidenciasService>();
+
+// Servicio SIPS
+builder.Services.AddHttpClient<SipsService>();
+builder.Services.AddScoped<SipsService>();
 
 // Configurar tamaño máximo de formularios y archivos
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
