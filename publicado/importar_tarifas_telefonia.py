@@ -17,13 +17,15 @@ if len(sys.argv) < 3:
 
 database_name = sys.argv[1]
 archivo_excel_arg = sys.argv[2]
+db_user = sys.argv[3] if len(sys.argv) > 3 else 'root'
+db_password = sys.argv[4] if len(sys.argv) > 4 else 'A76262136.r'
 
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
     'database': database_name,
-    'user': 'enerfone',
-    'password': 'Salaiet6680.'  # Credenciales de producción
+    'user': db_user,
+    'password': db_password
 }
 
 def limpiar_valor(valor):
@@ -62,11 +64,25 @@ def limpiar_fecha(valor):
         # Si no se puede parsear, devolver None
         return None
 
+def normalizar_operadora(nombre):
+    """Normaliza el nombre de operadora aplicando Title Case"""
+    if not nombre:
+        return None
+    # Aplicar Title Case: primera letra mayúscula, resto minúsculas
+    nombre = nombre.strip()
+    # Casos especiales
+    if nombre.upper() == 'O2':
+        return 'O2'
+    if nombre.upper() == 'MASMOVIL':
+        return 'Masmovil'
+    return nombre.title()
+
 def importar_tarifas_telefonia(archivo_excel):
-    """Importa tarifas de telefonía desde Excel a MySQL"""
+    """Importa tarifas de telefonía desde Excel a MySQL. Si tiene columna ID, actualiza; si no, inserta"""
     
     result = {
         'importados': 0,
+        'actualizados': 0,
         'errores': 0,
         'errores_detalle': []
     }
@@ -79,12 +95,28 @@ def importar_tarifas_telefonia(archivo_excel):
             result['errores_detalle'].append("El archivo no contiene datos")
             return result
         
+        # Verificar si tiene columna ID  
+        tiene_columna_id = 'ID' in df.columns
+        if tiene_columna_id:
+            print(f"[INFO] Columna ID detectada - Se actualizarán tarifas existentes")
+        else:
+            print(f"[INFO] Sin columna ID - Se insertarán tarifas nuevas")
+        
         print(f"[OK] Se encontraron {len(df)} filas (incluyendo encabezados)")
         
         # Conectar a la base de datos
         print(f"Conectando a la base de datos {DB_CONFIG['database']}...")
         conexion = mysql.connector.connect(**DB_CONFIG)
         cursor = conexion.cursor()
+        
+        # Obtener operadoras válidas de la base de datos
+        print("Obteniendo operadoras válidas...")
+        cursor.execute("SELECT DISTINCT Nombre FROM operadoras")
+        operadoras_validas = set(row[0] for row in cursor.fetchall())
+        print(f"Operadoras válidas encontradas: {', '.join(sorted(operadoras_validas))}")
+        
+        # Definir valores válidos para otros campos
+        tipos_validos = {'FibraMovil', 'Fibra', 'Movil', 'FibraMovilTV', 'FibraSegundaResidencia'}
         
         # Procesar cada fila
         for index, row in df.iterrows():
@@ -120,6 +152,27 @@ def importar_tarifas_telefonia(archivo_excel):
                     result['errores'] += 1
                     continue
                 
+                # Normalizar operadora
+                operadora = normalizar_operadora(operadora)
+                
+                # Validar que la operadora existe en la base de datos
+                if operadora not in operadoras_validas:
+                    result['errores_detalle'].append(
+                        f"Fila {fila_num}: La operadora '{operadora}' no existe en la base de datos. "
+                        f"Operadoras válidas: {', '.join(sorted(operadoras_validas))}"
+                    )
+                    result['errores'] += 1
+                    continue
+                
+                # Validar tipo
+                if tipo not in tipos_validos:
+                    result['errores_detalle'].append(
+                        f"Fila {fila_num}: TIPO '{tipo}' no es válido. "
+                        f"Valores válidos: {', '.join(sorted(tipos_validos))}"
+                    )
+                    result['errores'] += 1
+                    continue
+                
                 # Calcular precio y comisión numéricos
                 precio_new = 0
                 comision_new = 0
@@ -140,34 +193,82 @@ def importar_tarifas_telefonia(archivo_excel):
                     except:
                         pass
                 
-                # Preparar valores para inserción
-                sql = """
-                INSERT INTO tarifastelefonia (
-                    compania, tipo, tarifa, fibra, gbmovil, movil2,
-                    tv1, tv2, precio, comision, precioNew, comisionNew,
-                    permanencia, fecha_carga
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """
+                # Verificar si es una actualización o inserción
+                tarifa_id = None
+                es_actualizacion = False
                 
-                valores = (
-                    operadora,
-                    tipo,
-                    tarifa,
-                    fibra,
-                    movil1,
-                    movil2,
-                    tv1,
-                    tv2,
-                    precio,
-                    comision,
-                    precio_new,
-                    comision_new,
-                    permanencia,
-                    fecha_carga
-                )
+                if tiene_columna_id:
+                    tarifa_id_valor = row.get('ID')
+                    if tarifa_id_valor and not pd.isna(tarifa_id_valor):
+                        try:
+                            tarifa_id = int(tarifa_id_valor)
+                            # Verificar si existe
+                            cursor.execute("SELECT id FROM tarifastelefonia WHERE id = %s", (tarifa_id,))
+                            existe = cursor.fetchone()
+                            es_actualizacion = existe is not None
+                        except:
+                            pass
                 
-                cursor.execute(sql, valores)
-                result['importados'] += 1
+                if es_actualizacion:
+                    # UPDATE de tarifa existente
+                    sql = """
+                    UPDATE tarifastelefonia SET
+                        compania = %s, tipo = %s, tarifa = %s, fibra = %s, gbmovil = %s, movil2 = %s,
+                        tv1 = %s, tv2 = %s, precio = %s, comision = %s, precioNew = %s, comisionNew = %s,
+                        permanencia = %s, fecha_carga = %s
+                    WHERE id = %s
+                    """
+                    
+                    valores = (
+                        operadora,
+                        tipo,
+                        tarifa,
+                        fibra,
+                        movil1,
+                        movil2,
+                        tv1,
+                        tv2,
+                        precio,
+                        comision,
+                        precio_new,
+                        comision_new,
+                        permanencia,
+                        fecha_carga,
+                        tarifa_id  # WHERE id
+                    )
+                    
+                    cursor.execute(sql, valores)
+                    result['actualizados'] += 1
+                    
+                else:
+                    # INSERT nueva tarifa
+                    sql = """
+                    INSERT INTO tarifastelefonia (
+                        compania, tipo, tarifa, fibra, gbmovil, movil2,
+                        tv1, tv2, precio, comision, precioNew, comisionNew,
+                        permanencia, fecha_carga
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """
+                    
+                    valores = (
+                        operadora,
+                        tipo,
+                        tarifa,
+                        fibra,
+                        movil1,
+                        movil2,
+                        tv1,
+                        tv2,
+                        precio,
+                        comision,
+                        precio_new,
+                        comision_new,
+                        permanencia,
+                        fecha_carga
+                    )
+                    
+                    cursor.execute(sql, valores)
+                    result['importados'] += 1
                 
             except Error as e:
                 error_msg = f"Fila {fila_num}: {e.errno} ({e.sqlstate}): {e.msg}"
@@ -185,7 +286,8 @@ def importar_tarifas_telefonia(archivo_excel):
         # Confirmar cambios
         conexion.commit()
         print(f"[OK] Importación completada")
-        print(f"Importados: {result['importados']}")
+        print(f"Nuevos: {result['importados']}")
+        print(f"Actualizados: {result['actualizados']}")
         print(f"Errores: {result['errores']}")
         
         # Cerrar conexión

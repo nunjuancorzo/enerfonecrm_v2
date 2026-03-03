@@ -29,6 +29,7 @@ def generar_plantilla():
     
     # Encabezados
     headers = [
+        'ID',
         'OPERADORA',
         'TIPO',
         'TARIFA',
@@ -50,9 +51,9 @@ def generar_plantilla():
     
     # Ejemplos de datos
     ejemplos = [
-        ['Movistar', 'Fibra+Móvil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 'Netflix', '', '45,00', '50,00', '12 meses', '2026-02-24'],
-        ['Orange', 'Solo Fibra', 'Fibra 1Gb', '1 Gb', '', '', '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-24'],
-        ['Vodafone', 'Móvil', 'Tarifa Móvil 50GB', '', '50 GB', '', '', '', '20,00', '25,00', '6 meses', '2026-02-24']
+        ['', 'Movistar', 'Fibra+Móvil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 'Netflix', '', '45,00', '50,00', '12 meses', '2026-02-24'],
+        ['', 'Orange', 'Solo Fibra', 'Fibra 1Gb', '1 Gb', '', '', '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-24'],
+        ['', 'Vodafone', 'Móvil', 'Tarifa Móvil 50GB', '', '50 GB', '', '', '', '20,00', '25,00', '6 meses', '2026-02-24']
     ]
     
     for row_idx, ejemplo in enumerate(ejemplos, start=1):
@@ -68,6 +69,9 @@ def generar_plantilla():
         ['Campos obligatorios:'],
         ['- OPERADORA: Nombre de la operadora (Movistar, Orange, Vodafone, etc.)'],
         ['- TIPO: Tipo de tarifa (Fibra+Móvil, Solo Fibra, Móvil, etc.)'],
+        [''],
+        ['Campo especial:'],
+        ['- ID: Dejar vacío para tarifas nuevas. Incluir el ID para actualizar tarifas existentes.'],
         [''],
         ['Campos opcionales:'],
         ['- TARIFA: Nombre de la tarifa'],

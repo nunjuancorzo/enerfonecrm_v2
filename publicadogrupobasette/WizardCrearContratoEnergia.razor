@@ -448,7 +448,21 @@
                                                     <option value="@tarifa.Nombre">@tarifa.Nombre</option>
                                                 }
                                             </select>
-                                            @if (tarifasEnergia != null && tarifasEnergia.Any())
+                                            @if (tarifasEnergia == null || !tarifasEnergia.Any())
+                                            {
+                                                <small class="text-muted">
+                                                    @if (comercializadoraSeleccionada == null)
+                                                    {
+                                                        <span class="text-danger">No hay comercializadora seleccionada</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>Comercializadora: <strong>@comercializadoraSeleccionada.Nombre</strong> | </span>
+                                                    }
+                                                    Selecciona peaje para ver tarifas disponibles (@(todasLasTarifas?.Count ?? 0) tarifas totales, @(tarifasBase?.Count ?? 0) filtradas por comercializadora)
+                                                </small>
+                                            }
+                                            else
                                             {
                                                 <small class="text-muted">@tarifasEnergia.Count tarifas disponibles de @comercializadoraSeleccionada?.Nombre</small>
                                             }
@@ -938,7 +952,7 @@
         if (clienteSeleccionado != null && !string.IsNullOrEmpty(clienteSeleccionado.TipoCliente))
         {
             string tipoTarifa = clienteSeleccionado.TipoCliente == "Particular" ? "Residencial" : "Pyme";
-            tarifasFiltradas = tarifasFiltradas.Where(t => t.TipoCliente == tipoTarifa).ToList();
+            tarifasFiltradas = tarifasFiltradas.Where(t => t.Tipo == tipoTarifa).ToList();
         }
 
         // Guardar las tarifas base (sin filtro de peaje)

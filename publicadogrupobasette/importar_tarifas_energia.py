@@ -3,7 +3,7 @@
 Script para importar tarifas de energía desde archivos Excel a la base de datos MySQL
 
 Uso: 
-  python3 importar_tarifas_energia.py <nombre_bd> tarifas_energia.xlsx
+  python3 importar_tarifas_energia.py <nombre_bd> <archivo_excel> [db_user] [db_password]
 """
 
 import sys
@@ -14,18 +14,20 @@ from mysql.connector import Error
 
 # Verificar argumentos
 if len(sys.argv) < 3:
-    print("Uso: python3 importar_tarifas_energia.py <nombre_bd> <archivo_excel>")
+    print("Uso: python3 importar_tarifas_energia.py <nombre_bd> <archivo_excel> [db_user] [db_password]")
     sys.exit(1)
 
 database_name = sys.argv[1]
 archivo_excel_arg = sys.argv[2]
+db_user = sys.argv[3] if len(sys.argv) > 3 else 'root'
+db_password = sys.argv[4] if len(sys.argv) > 4 else 'A76262136.r'
 
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
     'database': database_name,
-    'user': 'enerfone',
-    'password': 'Salaiet6680.'  # Credenciales de producción
+    'user': db_user,
+    'password': db_password
 }
 
 def limpiar_valor(valor):
@@ -33,6 +35,13 @@ def limpiar_valor(valor):
     if pd.isna(valor) or valor == '' or valor is None:
         return None
     return str(valor).strip()
+
+def normalizar_comercializadora(nombre):
+    """Normaliza el nombre de la comercializadora a Title Case"""
+    if not nombre:
+        return nombre
+    # Convertir a Title Case (primera letra de cada palabra en mayúscula)
+    return nombre.strip().title()
 
 def limpiar_decimal(valor):
     """Limpia y convierte valores decimales"""
@@ -42,6 +51,16 @@ def limpiar_decimal(valor):
         # Reemplazar coma por punto para decimales
         valor_str = str(valor).replace(',', '.')
         return float(valor_str)
+    except:
+        return None
+
+def formatear_decimal_6(valor):
+    """Formatea un valor decimal con 6 decimales y coma como separador"""
+    if valor is None:
+        return None
+    try:
+        # Formatear con 6 decimales
+        return f"{valor:.6f}".replace('.', ',')
     except:
         return None
 
@@ -57,8 +76,8 @@ def limpiar_fecha(valor):
         return datetime.now()
 
 def importar_tarifas_energia(archivo_excel):
-    """Importa tarifas de energía desde un archivo Excel"""
-    result = {'importados': 0, 'errores': 0, 'errores_detalle': []}
+    """Importa tarifas de energía desde un archivo Excel. Si tiene columna ID, actualiza; si no, inserta"""
+    result = {'importados': 0, 'actualizados': 0, 'errores': 0, 'errores_detalle': []}
     
     try:
         print(f"Leyendo archivo: {archivo_excel}")
@@ -68,12 +87,30 @@ def importar_tarifas_energia(archivo_excel):
             result['errores_detalle'].append("El archivo no contiene datos")
             return result
         
+        # Verificar si tiene columna ID
+        tiene_columna_id = 'ID' in df.columns
+        if tiene_columna_id:
+            print(f"[INFO] Columna ID detectada - Se actualizarán tarifas existentes")
+        else:
+            print(f"[INFO] Sin columna ID - Se insertarán tarifas nuevas")
+        
         print(f"[OK] Se encontraron {len(df)} filas (incluyendo encabezados)")
         
         # Conectar a la base de datos
         print(f"Conectando a la base de datos {DB_CONFIG['database']}...")
         conexion = mysql.connector.connect(**DB_CONFIG)
         cursor = conexion.cursor()
+        
+        # Obtener comercializadoras válidas
+        cursor.execute("SELECT nombre FROM comercializadoras")
+        comercializadoras_validas = {normalizar_comercializadora(row[0]) for row in cursor.fetchall()}
+        print(f"[OK] Comercializadoras válidas: {', '.join(sorted(comercializadoras_validas))}")
+        
+        # Valores válidos para campos con opciones limitadas
+        tipos_energia_validos = {'LUZ', 'GAS', 'LUZ+GAS'}
+        tipos_cliente_validos = {'Residencial', 'Pyme'}
+        peajes_luz_validos = {'2.0', '3.0', '6.1', '6.2'}
+        peajes_gas_validos = {'RL1', 'RL2', 'RL3', 'RL4', 'RL5', 'RL6'}
         
         # Procesar cada fila
         for index, row in df.iterrows():
@@ -85,11 +122,16 @@ def importar_tarifas_energia(archivo_excel):
                 tipo_cliente = limpiar_valor(row.get('TIPO'))
                 tipo_energia = limpiar_valor(row.get('ENERGIA'))
                 tarifa = limpiar_valor(row.get('TARIFA'))
-                peaje = limpiar_valor(row.get('PEAJE'))
+                peaje = limpiar_valor(row.get('PEAJE LUZ'))
+                peaje_gas = limpiar_valor(row.get('PEAJE GAS'))
                 
                 # Saltar filas vacías
                 if not comercializadora and not tarifa:
                     continue
+                
+                # Normalizar nombre de comercializadora
+                if comercializadora:
+                    comercializadora = normalizar_comercializadora(comercializadora)
                 
                 # Validaciones básicas
                 if not comercializadora:
@@ -97,10 +139,64 @@ def importar_tarifas_energia(archivo_excel):
                     result['errores'] += 1
                     continue
                 
+                # Validar que la comercializadora existe
+                if comercializadora not in comercializadoras_validas:
+                    result['errores_detalle'].append(
+                        f"Fila {fila_num}: COMERCIALIZADORA '{comercializadora}' no existe en el sistema. "
+                        f"Valores válidos: {', '.join(sorted(comercializadoras_validas))}"
+                    )
+                    result['errores'] += 1
+                    continue
+                
                 if not tipo_energia:
                     result['errores_detalle'].append(f"Fila {fila_num}: ENERGIA es obligatorio")
                     result['errores'] += 1
                     continue
+                
+                # Validar tipo de energía
+                tipo_energia_normalizado = tipo_energia.upper().strip()
+                if tipo_energia_normalizado not in tipos_energia_validos:
+                    result['errores_detalle'].append(
+                        f"Fila {fila_num}: ENERGIA '{tipo_energia}' no es válido. "
+                        f"Valores válidos: {', '.join(sorted(tipos_energia_validos))}"
+                    )
+                    result['errores'] += 1
+                    continue
+                tipo_energia = tipo_energia_normalizado
+                
+                # Validar tipo de cliente si está presente
+                if tipo_cliente:
+                    tipo_cliente_normalizado = tipo_cliente.strip().title()
+                    if tipo_cliente_normalizado not in tipos_cliente_validos:
+                        result['errores_detalle'].append(
+                            f"Fila {fila_num}: TIPO '{tipo_cliente}' no es válido. "
+                            f"Valores válidos: {', '.join(sorted(tipos_cliente_validos))}"
+                        )
+                        result['errores'] += 1
+                        continue
+                    tipo_cliente = tipo_cliente_normalizado
+                
+                # Validar peaje luz si está presente
+                if peaje:
+                    peaje = peaje.strip()
+                    if peaje not in peajes_luz_validos:
+                        result['errores_detalle'].append(
+                            f"Fila {fila_num}: PEAJE '{peaje}' no es válido. "
+                            f"Valores válidos: {', '.join(sorted(peajes_luz_validos))}"
+                        )
+                        result['errores'] += 1
+                        continue
+                
+                # Validar peaje gas si está presente
+                if peaje_gas:
+                    peaje_gas = peaje_gas.strip().upper()
+                    if peaje_gas not in peajes_gas_validos:
+                        result['errores_detalle'].append(
+                            f"Fila {fila_num}: PEAJE GAS '{peaje_gas}' no es válido. "
+                            f"Valores válidos: {', '.join(sorted(peajes_gas_validos))}"
+                        )
+                        result['errores'] += 1
+                        continue
                 
                 if not tarifa:
                     result['errores_detalle'].append(f"Fila {fila_num}: TARIFA es obligatorio")
@@ -139,66 +235,131 @@ def importar_tarifas_energia(archivo_excel):
                 # Por ahora usamos un valor base o 0
                 precio_new = comision if comision else 0
                 
-                # Preparar valores para inserción
-                # Nota: Potencias y Energías se guardan como strings en el modelo actual
-                sql = """
-                INSERT INTO tarifasenergia (
-                    empresa, tipo, nombre, 
-                    potencia1, potencia2, potencia3, potencia4, potencia5, potencia6,
-                    energia1, energia2, energia3, energia4, energia5, energia6,
-                    comision, precioNew,
-                    tipo_cliente, peaje, termino_fijo_gas, pvd_sva, termino_variable_gas,
-                    descuento, observaciones_descuentos, permanencia, excedentes,
-                    bateria_virtual, fecha_carga,
-                    termino_fijo_diario, precio_potencia_p1, precio_potencia_p2, precio_potencia_p3,
-                    precio_energia_p1, precio_energia_p2, precio_energia_p3
-                ) VALUES (
-                    %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s,
-                    %s, %s,
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s
-                )
-                """
+                # Verificar si es una actualización o inserción
+                tarifa_id = None
+                es_actualizacion = False
                 
-                valores = (
-                    comercializadora, tipo_energia, tarifa,
-                    str(potencia1) if potencia1 else None,
-                    str(potencia2) if potencia2 else None,
-                    str(potencia3) if potencia3 else None,
-                    str(potencia4) if potencia4 else None,
-                    str(potencia5) if potencia5 else None,
-                    str(potencia6) if potencia6 else None,
-                    str(energia1) if energia1 else None,
-                    str(energia2) if energia2 else None,
-                    str(energia3) if energia3 else None,
-                    str(energia4) if energia4 else None,
-                    str(energia5) if energia5 else None,
-                    str(energia6) if energia6 else None,
-                    comision if comision else 0,
-                    precio_new,
-                    tipo_cliente, peaje, termino_fijo_gas, pvd_sva, termino_variable_gas,
-                    descuento, observaciones_descuentos, permanencia, 
-                    str(excedentes) if excedentes else None,
-                    bateria_virtual, fecha_carga,
-                    None,  # termino_fijo_diario (calculable si es necesario)
-                    potencia1,  # precio_potencia_p1
-                    potencia2,  # precio_potencia_p2
-                    potencia3,  # precio_potencia_p3
-                    energia1,   # precio_energia_p1
-                    energia2,   # precio_energia_p2
-                    energia3    # precio_energia_p3
-                )
+                if tiene_columna_id:
+                    tarifa_id_valor = row.get('ID')
+                    if tarifa_id_valor and not pd.isna(tarifa_id_valor):
+                        try:
+                            tarifa_id = int(tarifa_id_valor)
+                            # Verificar si existe
+                            cursor.execute("SELECT id FROM tarifasenergia WHERE id = %s", (tarifa_id,))
+                            existe = cursor.fetchone()
+                            es_actualizacion = existe is not None
+                        except:
+                            pass
                 
-                cursor.execute(sql, valores)
-                result['importados'] += 1
+                if es_actualizacion:
+                    # UPDATE de tarifa existente
+                    sql = """
+                    UPDATE tarifasenergia SET
+                        empresa = %s, tipo = %s, nombre = %s, 
+                        potencia1 = %s, potencia2 = %s, potencia3 = %s, potencia4 = %s, potencia5 = %s, potencia6 = %s,
+                        energia1 = %s, energia2 = %s, energia3 = %s, energia4 = %s, energia5 = %s, energia6 = %s,
+                        comision = %s, precioNew = %s,
+                        tipo_cliente = %s, peaje = %s, peaje_gas = %s, termino_fijo_gas = %s, pvd_sva = %s, termino_variable_gas = %s,
+                        descuento = %s, observaciones_descuentos = %s, permanencia = %s, excedentes = %s,
+                        bateria_virtual = %s, fecha_carga = %s,
+                        termino_fijo_diario = %s, precio_potencia_p1 = %s, precio_potencia_p2 = %s, precio_potencia_p3 = %s,
+                        precio_energia_p1 = %s, precio_energia_p2 = %s, precio_energia_p3 = %s
+                    WHERE id = %s
+                    """
+                    
+                    valores = (
+                        comercializadora, tipo_energia, tarifa,
+                        formatear_decimal_6(potencia1),
+                        formatear_decimal_6(potencia2),
+                        formatear_decimal_6(potencia3),
+                        formatear_decimal_6(potencia4),
+                        formatear_decimal_6(potencia5),
+                        formatear_decimal_6(potencia6),
+                        formatear_decimal_6(energia1),
+                        formatear_decimal_6(energia2),
+                        formatear_decimal_6(energia3),
+                        formatear_decimal_6(energia4),
+                        formatear_decimal_6(energia5),
+                        formatear_decimal_6(energia6),
+                        comision if comision else 0,
+                        precio_new,
+                        tipo_cliente, peaje, peaje_gas, termino_fijo_gas, pvd_sva, termino_variable_gas,
+                        descuento, observaciones_descuentos, permanencia, 
+                        str(excedentes) if excedentes else None,
+                        bateria_virtual, fecha_carga,
+                        None,  # termino_fijo_diario (calculable si es necesario)
+                        potencia1,  # precio_potencia_p1
+                        potencia2,  # precio_potencia_p2
+                        potencia3,  # precio_potencia_p3
+                        energia1,   # precio_energia_p1
+                        energia2,   # precio_energia_p2
+                        energia3,   # precio_energia_p3
+                        tarifa_id   # WHERE id
+                    )
+                    
+                    cursor.execute(sql, valores)
+                    result['actualizados'] += 1
+                    
+                else:
+                    # INSERT nueva tarifa
+                    sql = """
+                    INSERT INTO tarifasenergia (
+                        empresa, tipo, nombre, 
+                        potencia1, potencia2, potencia3, potencia4, potencia5, potencia6,
+                        energia1, energia2, energia3, energia4, energia5, energia6,
+                        comision, precioNew,
+                        tipo_cliente, peaje, peaje_gas, termino_fijo_gas, pvd_sva, termino_variable_gas,
+                        descuento, observaciones_descuentos, permanencia, excedentes,
+                        bateria_virtual, fecha_carga,
+                        termino_fijo_diario, precio_potencia_p1, precio_potencia_p2, precio_potencia_p3,
+                        precio_energia_p1, precio_energia_p2, precio_energia_p3
+                    ) VALUES (
+                        %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s,
+                        %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s
+                    )
+                    """
+                    
+                    valores = (
+                        comercializadora, tipo_energia, tarifa,
+                        formatear_decimal_6(potencia1),
+                        formatear_decimal_6(potencia2),
+                        formatear_decimal_6(potencia3),
+                        formatear_decimal_6(potencia4),
+                        formatear_decimal_6(potencia5),
+                        formatear_decimal_6(potencia6),
+                        formatear_decimal_6(energia1),
+                        formatear_decimal_6(energia2),
+                        formatear_decimal_6(energia3),
+                        formatear_decimal_6(energia4),
+                        formatear_decimal_6(energia5),
+                        formatear_decimal_6(energia6),
+                        comision if comision else 0,
+                        precio_new,
+                        tipo_cliente, peaje, peaje_gas, termino_fijo_gas, pvd_sva, termino_variable_gas,
+                        descuento, observaciones_descuentos, permanencia, 
+                        str(excedentes) if excedentes else None,
+                        bateria_virtual, fecha_carga,
+                        None,  # termino_fijo_diario (calculable si es necesario)
+                        potencia1,  # precio_potencia_p1
+                        potencia2,  # precio_potencia_p2
+                        potencia3,  # precio_potencia_p3
+                        energia1,   # precio_energia_p1
+                        energia2,   # precio_energia_p2
+                        energia3    # precio_energia_p3
+                    )
+                    
+                    cursor.execute(sql, valores)
+                    result['importados'] += 1
                 
-                if result['importados'] % 10 == 0:
-                    print(f"  Procesadas {result['importados']} tarifas...")
+                if (result['importados'] + result['actualizados']) % 10 == 0:
+                    print(f"  Procesadas {result['importados'] + result['actualizados']} tarifas...")
                 
             except Exception as e:
                 result['errores'] += 1
@@ -211,7 +372,8 @@ def importar_tarifas_energia(archivo_excel):
         conexion.close()
         
         print(f"\n[OK] Importación completada")
-        print(f"  Importados: {result['importados']}")
+        print(f"  Nuevos: {result['importados']}")
+        print(f"  Actualizados: {result['actualizados']}")
         print(f"  Errores: {result['errores']}")
         
     except FileNotFoundError:

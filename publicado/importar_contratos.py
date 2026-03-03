@@ -24,13 +24,15 @@ if len(sys.argv) < 4:
 database_name = sys.argv[1]
 tipo_contrato_arg = sys.argv[2]
 archivo_excel_arg = sys.argv[3]
+db_user = sys.argv[4] if len(sys.argv) > 4 else 'root'
+db_password = sys.argv[5] if len(sys.argv) > 5 else 'A76262136.r'
 
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': 'localhost',
     'database': database_name,
-    'user': 'enerfone',
-    'password': 'Salaiet6680.'  # Credenciales de producción
+    'user': db_user,
+    'password': db_password
 }
 
 def limpiar_valor(valor):

@@ -51,7 +51,8 @@ namespace EnerfoneCRM.Services
             int? usuarioId = null,
             string? usuarioNombre = null,
             string? usuarioEmail = null,
-            bool forzarApi = false)
+            bool forzarApi = false,
+            bool esGas = false)
         {
             try
             {
@@ -149,6 +150,12 @@ namespace EnerfoneCRM.Services
 
                     // 4) Llamada a API (de pago)
                     var url = $"{API_URL}?id={Uri.EscapeDataString(cupsNormalizado)}&key={API_KEY}";
+                    
+                    // Añadir parámetro &g=1 para CUPS de gas
+                    if (esGas)
+                    {
+                        url += "&g=1";
+                    }
 
                     HttpResponseMessage? response = null;
                     string? jsonString = null;

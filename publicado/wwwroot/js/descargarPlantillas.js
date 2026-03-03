@@ -39,7 +39,7 @@ window.descargarPlantillaContratosAlarmas = function() {
 window.descargarPlantillaTarifasEnergia = function() {
     const rows = [
         [
-            'COMERCIALIZADORA', 'TIPO', 'ENERGIA', 'TARIFA', 'PEAJE',
+            'ID', 'COMERCIALIZADORA', 'TIPO', 'ENERGIA', 'TARIFA', 'PEAJE LUZ', 'PEAJE GAS',
             'POTENCIA 1', 'POTENCIA 2', 'POTENCIA 3', 'POTENCIA 4', 'POTENCIA 5', 'POTENCIA 6',
             'T. FIJO GAS', 'PVD SVA',
             'ENERGIA 1', 'ENERGIA 2', 'ENERGIA 3', 'ENERGIA 4', 'ENERGIA 5', 'ENERGIA 6',
@@ -47,7 +47,7 @@ window.descargarPlantillaTarifasEnergia = function() {
             'COMISION', 'PERMANENCIA', 'EXCEDENTES', 'BATERIA VIRTUAL', 'FECHA CARGA'
         ],
         [
-            'NATURGY', 'RESIDENCIAL', 'LUZ', 'Tarifa Por Uso Luz', '2.0',
+            '', 'NATURGY', 'RESIDENCIAL', 'LUZ', 'Tarifa Por Uso Luz', '2.0', '',
             0.110970, 0.033677, '', '', '', '',
             '', '',
             0.119900, 0.119900, 0.119900, '', '', '',
@@ -55,7 +55,7 @@ window.descargarPlantillaTarifasEnergia = function() {
             70, 0, 0.07, 'SI', '2026-02-25'
         ],
         [
-            'IBERDROLA', 'PYMES', 'LUZ+GAS', 'Plan Estable', '2.0',
+            '', 'IBERDROLA', 'PYMES', 'LUZ+GAS', 'Plan Estable', '2.0', 'RL3',
             0.115000, 0.035000, '', '', '', '',
             '3.50', '',
             0.125000, 0.120000, 0.085000, '', '', '',
@@ -70,19 +70,19 @@ window.descargarPlantillaTarifasEnergia = function() {
 window.descargarPlantillaTarifasTelefonia = function() {
     const rows = [
         [
-            'OPERADORA', 'TIPO', 'TARIFA', 'FIBRA', 'MOVIL 1', 'MOVIL 2', 
+            'ID', 'OPERADORA', 'TIPO', 'TARIFA', 'FIBRA', 'MOVIL 1', 'MOVIL 2', 
             'TV1', 'TV2', 'PRECIO', 'COMISION', 'PERMANENCIA', 'FECHA CARGA'
         ],
         [
-            'Movistar', 'Fibra+Móvil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 
+            '', 'Movistar', 'Fibra+Móvil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 
             'Netflix', '', '45,00', '50,00', '12 meses', '2026-02-25'
         ],
         [
-            'Orange', 'Solo Fibra', 'Fibra 1Gb', '1 Gb', '', '', 
+            '', 'Orange', 'Solo Fibra', 'Fibra 1Gb', '1 Gb', '', '', 
             '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-25'
         ],
         [
-            'Vodafone', 'Móvil', 'Tarifa Móvil 50GB', '', '50 GB', '', 
+            '', 'Vodafone', 'Móvil', 'Tarifa Móvil 50GB', '', '50 GB', '', 
             '', '', '20,00', '25,00', '6 meses', '2026-02-25'
         ]
     ];

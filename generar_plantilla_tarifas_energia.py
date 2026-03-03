@@ -35,7 +35,7 @@ def crear_plantilla_tarifas_energia():
     
     # Definir encabezados (igual que el Excel del usuario)
     headers = [
-        'COMERCIALIZADORA', 'TIPO', 'ENERGIA', 'TARIFA', 'PEAJE',
+        'ID', 'COMERCIALIZADORA', 'TIPO', 'ENERGIA', 'TARIFA', 'PEAJE LUZ', 'PEAJE GAS',
         'POTENCIA 1', 'POTENCIA 2', 'POTENCIA 3', 'POTENCIA 4', 'POTENCIA 5', 'POTENCIA 6',
         'T. FIJO GAS', 'PVD SVA',
         'ENERGIA 1', 'ENERGIA 2', 'ENERGIA 3', 'ENERGIA 4', 'ENERGIA 5', 'ENERGIA 6',
@@ -48,27 +48,29 @@ def crear_plantilla_tarifas_energia():
         worksheet.write(0, col, header, header_format)
     
     # Ajustar ancho de columnas
-    worksheet.set_column(0, 0, 20)  # COMERCIALIZADORA
-    worksheet.set_column(1, 1, 15)  # TIPO
-    worksheet.set_column(2, 2, 12)  # ENERGIA
-    worksheet.set_column(3, 3, 30)  # TARIFA
-    worksheet.set_column(4, 4, 10)  # PEAJE
-    worksheet.set_column(5, 10, 12)  # POTENCIAS
-    worksheet.set_column(11, 12, 12)  # T. FIJO GAS, PVD SVA
-    worksheet.set_column(13, 18, 12)  # ENERGIAS
-    worksheet.set_column(19, 19, 15)  # T. VARIABLE GAS
-    worksheet.set_column(20, 20, 12)  # DESCUENTO
-    worksheet.set_column(21, 21, 30)  # OBSERVACIONES DESCUENTOS
-    worksheet.set_column(22, 22, 12)  # COMISION
-    worksheet.set_column(23, 23, 15)  # PERMANENCIA
-    worksheet.set_column(24, 24, 12)  # EXCEDENTES
-    worksheet.set_column(25, 25, 15)  # BATERIA VIRTUAL
-    worksheet.set_column(26, 26, 20)  # FECHA CARGA
+    worksheet.set_column(0, 0, 10)  # ID
+    worksheet.set_column(1, 1, 20)  # COMERCIALIZADORA
+    worksheet.set_column(2, 2, 15)  # TIPO
+    worksheet.set_column(3, 3, 12)  # ENERGIA
+    worksheet.set_column(4, 4, 30)  # TARIFA
+    worksheet.set_column(5, 5, 12)  # PEAJE LUZ
+    worksheet.set_column(6, 6, 12)  # PEAJE GAS
+    worksheet.set_column(7, 12, 12)  # POTENCIAS
+    worksheet.set_column(13, 14, 12)  # T. FIJO GAS, PVD SVA
+    worksheet.set_column(15, 20, 12)  # ENERGIAS
+    worksheet.set_column(21, 21, 15)  # T. VARIABLE GAS
+    worksheet.set_column(22, 22, 12)  # DESCUENTO
+    worksheet.set_column(23, 23, 30)  # OBSERVACIONES DESCUENTOS
+    worksheet.set_column(24, 24, 12)  # COMISION
+    worksheet.set_column(25, 25, 15)  # PERMANENCIA
+    worksheet.set_column(26, 26, 12)  # EXCEDENTES
+    worksheet.set_column(27, 27, 15)  # BATERIA VIRTUAL
+    worksheet.set_column(28, 28, 20)  # FECHA CARGA
     
     # Datos de ejemplo
     ejemplos = [
         [
-            'NATURGY', 'RESIDENCIAL', 'LUZ', 'Tarifa Por Uso Luz', '2.0',
+            '', 'NATURGY', 'RESIDENCIAL', 'LUZ', 'Tarifa Por Uso Luz', '2.0', '',
             0.110970, 0.033677, '', '', '', '',
             '', '',
             0.119900, 0.119900, 0.119900, '', '', '',
@@ -76,7 +78,7 @@ def crear_plantilla_tarifas_energia():
             70, 0, 0.07, 'SI', datetime.now().strftime('%Y-%m-%d')
         ],
         [
-            'IBERDROLA', 'PYMES', 'LUZ+GAS', 'Plan Estable', '2.0',
+            '', 'IBERDROLA', 'PYMES', 'LUZ+GAS', 'Plan Estable', '2.0', 'RL3',
             0.115000, 0.035000, '', '', '', '',
             '3.50', '',
             0.125000, 0.120000, 0.085000, '', '', '',
@@ -108,11 +110,15 @@ def crear_plantilla_tarifas_energia():
         '- ENERGIA: Tipo de energía (LUZ, GAS, LUZ+GAS)',
         '- TARIFA: Nombre de la tarifa',
         '',
+        'Campo especial:',
+        '- ID: Dejar vacío para tarifas nuevas. Incluir el ID para actualizar tarifas existentes.',
+        '',
         'Campos opcionales:', 
-        '- TIPO: Tipo de cliente (RESIDENCIAL, PYMES, etc.)',
-        '- PEAJE: Tipo de peaje (2.0, 3.0, 6.1, etc.)',
-        '- POTENCIA 1-6: Precios de potencia por periodo (valores decimales)',
-        '- ENERGIA 1-6: Precios de energía por periodo (valores decimales)',
+        '- TIPO: Tipo de cliente (Residencial, Pyme)',
+        '- PEAJE LUZ: Tipo de peaje luz (2.0, 3.0, 6.1, 6.2)',
+        '- PEAJE GAS: Tipo de peaje gas (RL1, RL2, RL3, RL4, RL5, RL6)',
+        '- POTENCIA 1-6: Precios de potencia por periodo (valores decimales con 6 decimales)',
+        '- ENERGIA 1-6: Precios de energía por periodo (valores decimales con 6 decimales)',
         '- T. FIJO GAS: Término fijo de gas (texto)',
         '- PVD SVA: Precio Vapor Diario SVA (texto)',
         '- T. VARIABLE GAS: Término variable de gas (texto)',

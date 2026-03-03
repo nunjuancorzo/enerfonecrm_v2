@@ -116,6 +116,10 @@ namespace EnerfoneCRM.Models
         [StringLength(50)]
         public string? Peaje { get; set; }
 
+        [Column("peaje_gas")]
+        [StringLength(50)]
+        public string? PeajeGas { get; set; }
+
         [Column("termino_fijo_gas")]
         [StringLength(255)]
         public string? TerminoFijoGas { get; set; }

@@ -67,6 +67,8 @@ namespace EnerfoneCRM.Services
                     potencia_contratada_p1,
                     potencia_contratada_p2,
                     consumo_ultimos_12_meses,
+                    COALESCE(peaje_luz, '') as peaje_luz,
+                    COALESCE(peaje_gas, '') as peaje_gas,
                     COALESCE(tipo_linea_movil_principal, '') as tipo_linea_movil_principal,
                     COALESCE(codigo_icc_principal, '') as codigo_icc_principal,
                     COALESCE(linea_movil_principal_2, '') as linea_movil_principal_2,

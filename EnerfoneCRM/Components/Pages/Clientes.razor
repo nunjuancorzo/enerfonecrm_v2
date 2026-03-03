@@ -708,15 +708,6 @@ else
                                         <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold">Tipo de Operación</label>
-                                        <InputSelect @bind-Value="nuevoContrato.TipoOperacion" class="form-select">
-                                            <option value="">Seleccione...</option>
-                                            <option value="Cambio comercializadora">Cambio comercializadora</option>
-                                            <option value="Cambio de Comercializadora con Cambio de titularidad">Cambio de Comercializadora con Cambio de titularidad</option>
-                                            <option value="Alta nueva">Alta nueva</option>
-                                        </InputSelect>
-                                    </div>
-                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Servicio (opcional)</label>
                                         <select @bind="nuevoContrato.ServicioId" class="form-select">
                                             <option value="">Sin servicio</option>
@@ -725,6 +716,61 @@ else
                                                 <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio</option>
                                             }
                                         </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Comercializadora</label>
+                                        <select @bind="nuevoContrato.EnComercializadora" @bind:after="OnComercializadoraEnergiaChanged" class="form-select">
+                                            <option value="">Seleccionar comercializadora...</option>
+                                            @foreach (var comercializadora in comercializadorasEnergia)
+                                            {
+                                                <option value="@comercializadora">@comercializadora</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Peaje Luz</label>
+                                        <select @bind="nuevoContrato.PeajeLuz" 
+                                                @bind:after="OnPeajeEnergiaChanged"
+                                                class="form-select">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="2.0">2.0</option>
+                                            <option value="3.0">3.0</option>
+                                            <option value="6.1">6.1</option>
+                                            <option value="6.2">6.2</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Peaje Gas</label>
+                                        <select @bind="nuevoContrato.PeajeGas" 
+                                                @bind:after="OnPeajeEnergiaChanged"
+                                                class="form-select">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="RL1">RL1</option>
+                                            <option value="RL2">RL2</option>
+                                            <option value="RL3">RL3</option>
+                                            <option value="RL4">RL4</option>
+                                            <option value="RL5">RL5</option>
+                                            <option value="RL6">RL6</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Tarifa</label>
+                                        <select @bind="nuevoContrato.EnTarifa" class="form-select" disabled="@string.IsNullOrEmpty(nuevoContrato.EnComercializadora)">
+                                            <option value="">Seleccionar tarifa...</option>
+                                            @foreach (var tarifa in tarifasEnergiaDisponibles)
+                                            {
+                                                <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Tipo de Operación</label>
+                                        <InputSelect @bind-Value="nuevoContrato.TipoOperacion" class="form-select">
+                                            <option value="">Seleccione...</option>
+                                            <option value="Cambio comercializadora">Cambio comercializadora</option>
+                                            <option value="Cambio de Comercializadora con Cambio de titularidad">Cambio de Comercializadora con Cambio de titularidad</option>
+                                            <option value="Alta nueva">Alta nueva</option>
+                                        </InputSelect>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">CUPS Luz</label>
@@ -741,27 +787,6 @@ else
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Consumo Anual (kWh)</label>
                                         <InputNumber @bind-Value="nuevoContrato.ConsumoAnual" class="form-control" step="0.01" />
-                                    </div>
-                                    
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Comercializadora</label>
-                                        <select @bind="nuevoContrato.EnComercializadora" @bind:after="OnComercializadoraEnergiaChanged" class="form-select">
-                                            <option value="">Seleccionar comercializadora...</option>
-                                            @foreach (var comercializadora in comercializadorasEnergia)
-                                            {
-                                                <option value="@comercializadora">@comercializadora</option>
-                                            }
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">Tarifa</label>
-                                        <select @bind="nuevoContrato.EnTarifa" class="form-select" disabled="@string.IsNullOrEmpty(nuevoContrato.EnComercializadora)">
-                                            <option value="">Seleccionar tarifa...</option>
-                                            @foreach (var tarifa in tarifasEnergiaDisponibles)
-                                            {
-                                                <option value="@tarifa.Nombre">@tarifa.Nombre</option>
-                                            }
-                                        </select>
                                     </div>
                                     @* Titular IBAN *@
                                     <div class="col-12 mt-3">
@@ -1912,6 +1937,7 @@ else
     private List<string> comercializadorasEnergia = new();
     private List<Comercializadora> comercializadorasObjetos = new();
     private List<TarifaEnergia> tarifasEnergiaDisponibles = new();
+    private List<TarifaEnergia> tarifasEnergiaBase = new();
     private List<Usuario> usuariosComercializadoraFiltrados = new();
     private List<Servicio> serviciosDisponibles = new();
     private List<string> operadorasTelefonia = new();
@@ -1988,7 +2014,10 @@ else
         {
             try
             {
-                tarifasEnergiaDisponibles = await TarifaEnergiaService.ObtenerPorEmpresaAsync(nuevoContrato.EnComercializadora);
+                tarifasEnergiaBase = await TarifaEnergiaService.ObtenerPorEmpresaAsync(nuevoContrato.EnComercializadora);
+                
+                // Aplicar filtrado adicional por peajes si están seleccionados
+                await FiltrarPorPeajesEnergia();
                 
                 // Cargar usuarios comercializadora filtrados por la comercializadora seleccionada
                 var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
@@ -2010,11 +2039,13 @@ else
             catch (Exception ex)
             {
                 mensajeError = $"Error al cargar tarifas de energía: {ex.Message}";
+                tarifasEnergiaBase = new();
                 tarifasEnergiaDisponibles = new();
             }
         }
         else
         {
+            tarifasEnergiaBase = new();
             tarifasEnergiaDisponibles = new();
             serviciosDisponibles = new();
             if (nuevoContrato != null)
@@ -2022,6 +2053,49 @@ else
                 nuevoContrato.EnTarifa = string.Empty;
             }
         }
+    }
+
+    private async Task OnPeajeEnergiaChanged()
+    {
+        await FiltrarPorPeajesEnergia();
+        
+        // Limpiar la tarifa si no está en la lista de tarifas disponibles
+        if (nuevoContrato != null && !string.IsNullOrEmpty(nuevoContrato.EnTarifa))
+        {
+            if (!tarifasEnergiaDisponibles.Any(t => t.Nombre == nuevoContrato.EnTarifa))
+            {
+                nuevoContrato.EnTarifa = string.Empty;
+            }
+        }
+    }
+
+    private async Task FiltrarPorPeajesEnergia()
+    {
+        if (nuevoContrato == null || tarifasEnergiaBase == null || !tarifasEnergiaBase.Any())
+        {
+            tarifasEnergiaDisponibles = new();
+            return;
+        }
+
+        var tarifasFiltradas = tarifasEnergiaBase.AsEnumerable();
+
+        // Filtrar por Peaje Luz si está seleccionado
+        if (!string.IsNullOrEmpty(nuevoContrato.PeajeLuz))
+        {
+            tarifasFiltradas = tarifasFiltradas.Where(t => 
+                t.Peaje != null && t.Peaje.Equals(nuevoContrato.PeajeLuz, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        // Filtrar por Peaje Gas si está seleccionado
+        if (!string.IsNullOrEmpty(nuevoContrato.PeajeGas))
+        {
+            tarifasFiltradas = tarifasFiltradas.Where(t => 
+                t.PeajeGas != null && t.PeajeGas.Equals(nuevoContrato.PeajeGas, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        tarifasEnergiaDisponibles = tarifasFiltradas.ToList();
     }
 
     private async Task OnOperadoraTelefoniaChanged()

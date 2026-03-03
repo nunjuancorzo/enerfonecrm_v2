@@ -102,6 +102,14 @@ namespace EnerfoneCRM.Models
         [Column("consumo_ultimos_12_meses")]
         public decimal? ConsumoAnual { get; set; }
 
+        [Column("peaje_luz")]
+        [MaxLength(50)]
+        public string? PeajeLuz { get; set; }
+
+        [Column("peaje_gas")]
+        [MaxLength(50)]
+        public string? PeajeGas { get; set; }
+
         // Campos específicos de TELEFONÍA
         [Column("operadora_tel")]
         [MaxLength(100)]

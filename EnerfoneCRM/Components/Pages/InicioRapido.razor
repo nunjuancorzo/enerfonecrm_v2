@@ -189,9 +189,22 @@ else
                             Descarga la plantilla o usa el formato estándar con las columnas requeridas.
                         </p>
                         
+                        <div class="alert alert-success py-2 mb-3" role="alert">
+                            <strong><i class="bi bi-file-earmark-excel me-2"></i>Nuevo:</strong>
+                            Exporta tus tarifas actuales con ID incluido para poder actualizarlas después.
+                        </div>
+                        
                         <div class="d-grid gap-2">
+                            <button class="btn btn-success" @onclick="ExportarTarifasEnergia" disabled="@procesando">
+                                @if (procesando && tipoImportacion == "exportar-energia")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-file-earmark-excel me-2"></i>Exportar Tarifas Actuales (con ID)
+                            </button>
+                            
                             <button class="btn btn-outline-warning" @onclick="DescargarPlantillaTarifasEnergia">
-                                <i class="bi bi-download me-2"></i>Descargar Plantilla
+                                <i class="bi bi-download me-2"></i>Descargar Plantilla Vacía
                             </button>
                             
                             <div class="mt-3">
@@ -249,9 +262,22 @@ else
                             Descarga la plantilla o usa el formato estándar con las columnas requeridas.
                         </p>
                         
+                        <div class="alert alert-success py-2 mb-3" role="alert">
+                            <strong><i class="bi bi-file-earmark-excel me-2"></i>Nuevo:</strong>
+                            Exporta tus tarifas actuales con ID incluido para poder actualizarlas después.
+                        </div>
+                        
                         <div class="d-grid gap-2">
+                            <button class="btn btn-success" @onclick="ExportarTarifasTelefonia" disabled="@procesando">
+                                @if (procesando && tipoImportacion == "exportar-telefonia")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-file-earmark-excel me-2"></i>Exportar Tarifas Actuales (con ID)
+                            </button>
+                            
                             <button class="btn btn-outline-info" @onclick="DescargarPlantillaTarifasTelefonia">
-                                <i class="bi bi-download me-2"></i>Descargar Plantilla
+                                <i class="bi bi-download me-2"></i>Descargar Plantilla Vacía
                             </button>
                             
                             <div class="mt-3">
@@ -523,6 +549,8 @@ else
 
             // Obtener nombre de base de datos según entorno
             var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -530,7 +558,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_clientes.py \"{databaseName}\" \"{rutaTemporal}\"",
+                    Arguments = $"importar_clientes.py \"{databaseName}\" \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -628,6 +656,8 @@ else
 
             // Obtener nombre de base de datos según entorno
             var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -635,7 +665,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_contratos.py \"{databaseName}\" {tipoContratoSeleccionado} \"{rutaTemporal}\"",
+                    Arguments = $"importar_contratos.py \"{databaseName}\" {tipoContratoSeleccionado} \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -733,6 +763,8 @@ else
 
             // Obtener nombre de base de datos según entorno
             var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -740,7 +772,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_tarifas_energia.py \"{databaseName}\" \"{rutaTemporal}\"",
+                    Arguments = $"importar_tarifas_energia.py \"{databaseName}\" \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -838,6 +870,8 @@ else
 
             // Obtener nombre de base de datos según entorno
             var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -845,7 +879,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_tarifas_telefonia.py \"{databaseName}\" \"{rutaTemporal}\"",
+                    Arguments = $"importar_tarifas_telefonia.py \"{databaseName}\" \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -936,6 +970,276 @@ else
 
         resultado.DetalleErrores = erroresLista;
         return resultado;
+    }
+
+    private async Task ExportarTarifasEnergia()
+    {
+        try
+        {
+            procesando = true;
+            tipoImportacion = "exportar-energia";
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+            StateHasChanged();
+
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "exportar_tarifas_energia.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "exportar_tarifas_energia.py");
+            }
+
+            // Verificar que el script existe
+            if (!File.Exists(scriptPath))
+            {
+                throw new Exception($"No se encontró el script exportar_tarifas_energia.py");
+            }
+
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"exportar_tarifas_energia.py \"{databaseName}\" \"{dbUser}\" \"{dbPassword}\"",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            string salida = await proceso.StandardOutput.ReadToEndAsync();
+            string errores = await proceso.StandardError.ReadToEndAsync();
+            await proceso.WaitForExitAsync();
+
+            // Debug: Mostrar toda la salida
+            Console.WriteLine($"[EXPORTAR ENERGIA] Salida completa del script: {salida}");
+            Console.WriteLine($"[EXPORTAR ENERGIA] Errores: {errores}");
+            Console.WriteLine($"[EXPORTAR ENERGIA] Código de salida: {proceso.ExitCode}");
+
+            if (!string.IsNullOrWhiteSpace(errores))
+            {
+                mensajeError = $"Error al exportar: {errores}";
+                return;
+            }
+
+            // Buscar el nombre del archivo generado en la salida
+            var lineas = salida.Split('\n');
+            string? nombreArchivo = null;
+            foreach (var linea in lineas)
+            {
+                Console.WriteLine($"[EXPORTAR ENERGIA] Procesando línea: '{linea}'");
+                if (linea.Contains("tarifas_energia_exportacion_") && linea.Contains(".xlsx"))
+                {
+                    var inicio = linea.IndexOf("tarifas_energia_exportacion_");
+                    var fin = linea.IndexOf(".xlsx", inicio);
+                    Console.WriteLine($"[EXPORTAR ENERGIA] Encontrado en línea - inicio: {inicio}, fin: {fin}");
+                    if (inicio >= 0 && fin > inicio)
+                    {
+                        nombreArchivo = linea.Substring(inicio, fin - inicio + 5);
+                        Console.WriteLine($"[EXPORTAR ENERGIA] Nombre extraído: {nombreArchivo}");
+                        break;
+                    }
+                }
+            }
+
+            // Si no se encontró, intentar buscar en todo el directorio
+            if (nombreArchivo == null)
+            {
+                Console.WriteLine($"[EXPORTAR ENERGIA] Buscando archivos en: {directorioTrabajo}");
+                var archivos = Directory.GetFiles(directorioTrabajo, "tarifas_energia_exportacion_*.xlsx")
+                    .OrderByDescending(f => File.GetCreationTime(f))
+                    .ToList();
+                Console.WriteLine($"[EXPORTAR ENERGIA] Archivos encontrados: {archivos.Count}");
+                if (archivos.Any())
+                {
+                    nombreArchivo = Path.GetFileName(archivos.First());
+                    Console.WriteLine($"[EXPORTAR ENERGIA] Usando archivo: {nombreArchivo}");
+                }
+            }
+
+            if (nombreArchivo != null)
+            {
+                // El archivo se genera en el directorio de trabajo
+                var rutaArchivo = Path.Combine(directorioTrabajo, nombreArchivo);
+                
+                if (File.Exists(rutaArchivo))
+                {
+                    // Descargar archivo
+                    var bytes = await File.ReadAllBytesAsync(rutaArchivo);
+                    await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    
+                    mensajeExito = $"Tarifas de energía exportadas correctamente: {nombreArchivo}";
+                    
+                    // Opcional: eliminar el archivo temporal del servidor
+                    File.Delete(rutaArchivo);
+                }
+                else
+                {
+                    mensajeError = $"Archivo generado pero no encontrado: {rutaArchivo}";
+                }
+            }
+            else
+            {
+                mensajeError = "No se pudo determinar el nombre del archivo exportado";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error durante la exportación: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+            tipoImportacion = string.Empty;
+        }
+    }
+
+    private async Task ExportarTarifasTelefonia()
+    {
+        try
+        {
+            procesando = true;
+            tipoImportacion = "exportar-telefonia";
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+            StateHasChanged();
+
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "exportar_tarifas_telefonia.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "exportar_tarifas_telefonia.py");
+            }
+
+            // Verificar que el script existe
+            if (!File.Exists(scriptPath))
+            {
+                throw new Exception($"No se encontró el script exportar_tarifas_telefonia.py");
+            }
+
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"exportar_tarifas_telefonia.py \"{databaseName}\" \"{dbUser}\" \"{dbPassword}\"",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            string salida = await proceso.StandardOutput.ReadToEndAsync();
+            string errores = await proceso.StandardError.ReadToEndAsync();
+            await proceso.WaitForExitAsync();
+
+            // Debug: Mostrar toda la salida
+            Console.WriteLine($"[EXPORTAR TELEFONIA] Salida completa del script: {salida}");
+            Console.WriteLine($"[EXPORTAR TELEFONIA] Errores: {errores}");
+            Console.WriteLine($"[EXPORTAR TELEFONIA] Código de salida: {proceso.ExitCode}");
+
+            if (!string.IsNullOrWhiteSpace(errores))
+            {
+                mensajeError = $"Error al exportar: {errores}";
+                return;
+            }
+
+            // Buscar el nombre del archivo generado en la salida
+            var lineas = salida.Split('\n');
+            string? nombreArchivo = null;
+            foreach (var linea in lineas)
+            {
+                Console.WriteLine($"[EXPORTAR TELEFONIA] Procesando línea: '{linea}'");
+                if (linea.Contains("tarifas_telefonia_exportacion_") && linea.Contains(".xlsx"))
+                {
+                    var inicio = linea.IndexOf("tarifas_telefonia_exportacion_");
+                    var fin = linea.IndexOf(".xlsx", inicio);
+                    Console.WriteLine($"[EXPORTAR TELEFONIA] Encontrado en línea - inicio: {inicio}, fin: {fin}");
+                    if (inicio >= 0 && fin > inicio)
+                    {
+                        nombreArchivo = linea.Substring(inicio, fin - inicio + 5);
+                        Console.WriteLine($"[EXPORTAR TELEFONIA] Nombre extraído: {nombreArchivo}");
+                        break;
+                    }
+                }
+            }
+
+            // Si no se encontró, intentar buscar en todo el directorio
+            if (nombreArchivo == null)
+            {
+                Console.WriteLine($"[EXPORTAR TELEFONIA] Buscando archivos en: {directorioTrabajo}");
+                var archivos = Directory.GetFiles(directorioTrabajo, "tarifas_telefonia_exportacion_*.xlsx")
+                    .OrderByDescending(f => File.GetCreationTime(f))
+                    .ToList();
+                Console.WriteLine($"[EXPORTAR TELEFONIA] Archivos encontrados: {archivos.Count}");
+                if (archivos.Any())
+                {
+                    nombreArchivo = Path.GetFileName(archivos.First());
+                    Console.WriteLine($"[EXPORTAR TELEFONIA] Usando archivo: {nombreArchivo}");
+                }
+            }
+
+            if (nombreArchivo != null)
+            {
+                // El archivo se genera en el directorio de trabajo
+                var rutaArchivo = Path.Combine(directorioTrabajo, nombreArchivo);
+                
+                if (File.Exists(rutaArchivo))
+                {
+                    // Descargar archivo
+                    var bytes = await File.ReadAllBytesAsync(rutaArchivo);
+                    await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    
+                    mensajeExito = $"Tarifas de telefonía exportadas correctamente: {nombreArchivo}";
+                    
+                    // Opcional: eliminar el archivo temporal del servidor
+                    File.Delete(rutaArchivo);
+                }
+                else
+                {
+                    mensajeError = $"Archivo generado pero no encontrado: {rutaArchivo}";
+                }
+            }
+            else
+            {
+                mensajeError = "No se pudo determinar el nombre del archivo exportado";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error durante la exportación: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+            tipoImportacion = string.Empty;
+        }
     }
 
     private class ResultadoImportacion

@@ -100,11 +100,34 @@ else
             </div>
             <div class="card-body">
                 <div class="row justify-content-center">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">CUPS</label>
-                            <input type="text" class="form-control form-control-sm" @bind="cupsInput" />
-                            <small class="text-muted">Introduce el código CUPS para consultar la información del suministro</small>
+                    <div class="col-md-8">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-lightning-charge text-warning me-2"></i>CUPS LUZ
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-sm" 
+                                       @bind="cupsLuzInput" 
+                                       @oninput="OnCupsLuzInput"
+                                       disabled="@(!string.IsNullOrWhiteSpace(cupsGasInput))" />
+                                <small class="text-muted">Código CUPS de electricidad</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-fire text-danger me-2"></i>CUPS GAS
+                                </label>
+                                <input type="text" 
+                                       class="form-control form-control-sm" 
+                                       @bind="cupsGasInput" 
+                                       @oninput="OnCupsGasInput"
+                                       disabled="@(!string.IsNullOrWhiteSpace(cupsLuzInput))" />
+                                <small class="text-muted">Código CUPS de gas</small>
+                            </div>
+                        </div>
+                        <div class="alert alert-info py-2 mb-3" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>Solo puedes consultar un tipo de CUPS a la vez (luz o gas)</small>
                         </div>
                         <div class="text-center">
                             <button class="btn btn-primary" @onclick="BuscarCups" disabled="@cargandoDatos">
@@ -351,7 +374,8 @@ else
 @code {
     private bool cargado = false;
     private bool cargandoDatos = false;
-    private string cupsInput = string.Empty;
+    private string? cupsLuzInput;
+    private string? cupsGasInput;
     private string mensajeError = string.Empty;
     private ClienteSips? datosCliente;
     private List<ConsumoSips>? datosConsumos;
@@ -380,19 +404,41 @@ else
             if (!autoBusquedaEjecutada && !string.IsNullOrWhiteSpace(CupsQuery))
             {
                 autoBusquedaEjecutada = true;
-                cupsInput = CupsQuery;
+                cupsLuzInput = CupsQuery;
                 await BuscarCups();
             }
         }
     }
 
+    private void OnCupsLuzInput(ChangeEventArgs e)
+    {
+        cupsLuzInput = e.Value?.ToString();
+    }
+
+    private void OnCupsGasInput(ChangeEventArgs e)
+    {
+        cupsGasInput = e.Value?.ToString();
+    }
+
     private async Task BuscarCups()
     {
-        if (string.IsNullOrWhiteSpace(cupsInput))
+        var cupsLuz = cupsLuzInput?.Trim();
+        var cupsGas = cupsGasInput?.Trim();
+        
+        if (string.IsNullOrWhiteSpace(cupsLuz) && string.IsNullOrWhiteSpace(cupsGas))
         {
-            mensajeError = "Por favor, introduce un CUPS válido";
+            mensajeError = "Por favor, introduce un CUPS de luz o gas";
             return;
         }
+
+        if (!string.IsNullOrWhiteSpace(cupsLuz) && !string.IsNullOrWhiteSpace(cupsGas))
+        {
+            mensajeError = "Solo puedes consultar un CUPS a la vez (luz o gas)";
+            return;
+        }
+
+        var cups = !string.IsNullOrWhiteSpace(cupsLuz) ? cupsLuz : cupsGas;
+        var esGas = !string.IsNullOrWhiteSpace(cupsGas);
 
         try
         {
@@ -405,10 +451,11 @@ else
             StateHasChanged();
 
             var consulta = await SipsService.ObtenerDatosCupsConCacheAsync(
-                cupsInput.Trim(),
+                cups!,
                 AuthService.UsuarioActual?.Id,
                 AuthService.UsuarioActual?.NombreUsuario,
-                AuthService.UsuarioActual?.Email);
+                AuthService.UsuarioActual?.Email,
+                esGas: esGas);
 
             fuenteDatos = consulta.Fuente;
             fechaDatos = consulta.FechaConsulta;
