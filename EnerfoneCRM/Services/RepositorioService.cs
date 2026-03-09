@@ -82,8 +82,13 @@ namespace EnerfoneCRM.Services
                     Directory.CreateDirectory(rutaComercializadora);
                 }
 
-                // Guardar el logo con su nombre original
-                var rutaLogo = Path.Combine(rutaComercializadora, logoNombre);
+                // Eliminar logo anterior si existe
+                EliminarLogoAnterior(rutaComercializadora);
+
+                // Guardar el logo con nombre estandarizado .logo + extensión
+                var extension = Path.GetExtension(logoNombre);
+                var nombreLogoEstandar = ".logo" + extension;
+                var rutaLogo = Path.Combine(rutaComercializadora, nombreLogoEstandar);
                 await File.WriteAllBytesAsync(rutaLogo, logoContenido);
                 
                 Console.WriteLine($"[RepositorioService] Logo guardado en: {rutaLogo}");
@@ -139,8 +144,13 @@ namespace EnerfoneCRM.Services
                     Directory.CreateDirectory(rutaOperadora);
                 }
 
-                // Guardar el logo con su nombre original
-                var rutaLogo = Path.Combine(rutaOperadora, logoNombre);
+                // Eliminar logo anterior si existe
+                EliminarLogoAnterior(rutaOperadora);
+
+                // Guardar el logo con nombre estandarizado .logo + extensión
+                var extension = Path.GetExtension(logoNombre);
+                var nombreLogoEstandar = ".logo" + extension;
+                var rutaLogo = Path.Combine(rutaOperadora, nombreLogoEstandar);
                 await File.WriteAllBytesAsync(rutaLogo, logoContenido);
                 
                 Console.WriteLine($"[RepositorioService] Logo guardado en: {rutaLogo}");
@@ -195,8 +205,13 @@ namespace EnerfoneCRM.Services
                     Directory.CreateDirectory(rutaEmpresa);
                 }
 
-                // Guardar el logo con su nombre original
-                var rutaLogo = Path.Combine(rutaEmpresa, logoNombre);
+                // Eliminar logo anterior si existe
+                EliminarLogoAnterior(rutaEmpresa);
+
+                // Guardar el logo con nombre estandarizado .logo + extensión
+                var extension = Path.GetExtension(logoNombre);
+                var nombreLogoEstandar = ".logo" + extension;
+                var rutaLogo = Path.Combine(rutaEmpresa, nombreLogoEstandar);
                 await File.WriteAllBytesAsync(rutaLogo, logoContenido);
                 
                 Console.WriteLine($"[RepositorioService] Logo guardado en: {rutaLogo}");
@@ -316,6 +331,174 @@ namespace EnerfoneCRM.Services
             Directory.CreateDirectory(rutaNueva);
             Console.WriteLine($"[RepositorioService] Carpeta base creada: {rutaNueva}");
             return rutaNueva;
+        }
+
+        /// <summary>
+        /// Elimina el logo anterior de una carpeta (archivos que empiezan con .logo)
+        /// </summary>
+        private void EliminarLogoAnterior(string rutaCarpeta)
+        {
+            try
+            {
+                if (Directory.Exists(rutaCarpeta))
+                {
+                    var archivos = Directory.GetFiles(rutaCarpeta, ".logo*");
+                    foreach (var archivo in archivos)
+                    {
+                        File.Delete(archivo);
+                        Console.WriteLine($"[RepositorioService] Logo anterior eliminado: {archivo}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RepositorioService] Error al eliminar logo anterior: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Migra todos los logos antiguos (archivos de imagen sin formato .logo*) al nuevo formato .logo*
+        /// Solo para ser ejecutado por el superadministrador
+        /// </summary>
+        public async Task<(int migracionesExitosas, int errores, List<string> detalles)> MigrarLogosAntiguosANuevoFormato()
+        {
+            var migracionesExitosas = 0;
+            var errores = 0;
+            var detalles = new List<string>();
+
+            try
+            {
+                Console.WriteLine("[RepositorioService] Iniciando migración de logos antiguos...");
+
+                // Extensiones de imagen comunes
+                var extensionesImagen = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".webp" };
+
+                // Procesar carpetas de Energía (comercializadoras)
+                var carpetaEnergia = Path.Combine(directorioBase, "Energía");
+                if (Directory.Exists(carpetaEnergia))
+                {
+                    var carpetasComercializadoras = Directory.GetDirectories(carpetaEnergia);
+                    foreach (var carpetaComercializadora in carpetasComercializadoras)
+                    {
+                        var resultado = await MigrarLogoEnCarpeta(carpetaComercializadora, extensionesImagen);
+                        migracionesExitosas += resultado.exito ? 1 : 0;
+                        errores += resultado.error ? 1 : 0;
+                        if (!string.IsNullOrEmpty(resultado.detalle))
+                        {
+                            detalles.Add(resultado.detalle);
+                        }
+                    }
+                }
+
+                // Procesar carpetas de Telefonía (operadoras)
+                var carpetaTelefonia = Path.Combine(directorioBase, "Telefonía");
+                if (Directory.Exists(carpetaTelefonia))
+                {
+                    var carpetasOperadoras = Directory.GetDirectories(carpetaTelefonia);
+                    foreach (var carpetaOperadora in carpetasOperadoras)
+                    {
+                        var resultado = await MigrarLogoEnCarpeta(carpetaOperadora, extensionesImagen);
+                        migracionesExitosas += resultado.exito ? 1 : 0;
+                        errores += resultado.error ? 1 : 0;
+                        if (!string.IsNullOrEmpty(resultado.detalle))
+                        {
+                            detalles.Add(resultado.detalle);
+                        }
+                    }
+                }
+
+                // Procesar carpetas de Alarmas (empresas)
+                var carpetaAlarmas = Path.Combine(directorioBase, "Alarmas");
+                if (Directory.Exists(carpetaAlarmas))
+                {
+                    var carpetasEmpresas = Directory.GetDirectories(carpetaAlarmas);
+                    foreach (var carpetaEmpresa in carpetasEmpresas)
+                    {
+                        var resultado = await MigrarLogoEnCarpeta(carpetaEmpresa, extensionesImagen);
+                        migracionesExitosas += resultado.exito ? 1 : 0;
+                        errores += resultado.error ? 1 : 0;
+                        if (!string.IsNullOrEmpty(resultado.detalle))
+                        {
+                            detalles.Add(resultado.detalle);
+                        }
+                    }
+                }
+
+                Console.WriteLine($"[RepositorioService] Migración completada: {migracionesExitosas} exitosas, {errores} errores");
+            }
+            catch (Exception ex)
+            {
+                errores++;
+                detalles.Add($"Error general en migración: {ex.Message}");
+                Console.WriteLine($"[RepositorioService] Error en migración masiva: {ex.Message}");
+            }
+
+            return (migracionesExitosas, errores, detalles);
+        }
+
+        /// <summary>
+        /// Migra el logo de una carpeta específica al nuevo formato .logo*
+        /// </summary>
+        private async Task<(bool exito, bool error, string detalle)> MigrarLogoEnCarpeta(string rutaCarpeta, string[] extensionesImagen)
+        {
+            try
+            {
+                var nombreCarpeta = Path.GetFileName(rutaCarpeta);
+
+                // Verificar si ya existe un logo con el nuevo formato
+                var logosExistentes = Directory.GetFiles(rutaCarpeta, ".logo*");
+                if (logosExistentes.Any())
+                {
+                    return (false, false, null); // Ya tiene logo en nuevo formato, no hacer nada
+                }
+
+                // Buscar archivos de imagen en la carpeta (que no empiecen con .logo)
+                var archivosImagen = Directory.GetFiles(rutaCarpeta)
+                    .Where(f => extensionesImagen.Contains(Path.GetExtension(f).ToLower()) && 
+                                !Path.GetFileName(f).StartsWith(".logo"))
+                    .ToList();
+
+                if (!archivosImagen.Any())
+                {
+                    return (false, false, null); // No hay logos para migrar
+                }
+
+                // Tomar el primer archivo de imagen como logo
+                var archivoAntiguo = archivosImagen.First();
+                var extension = Path.GetExtension(archivoAntiguo);
+                var archivoNuevo = Path.Combine(rutaCarpeta, $".logo{extension}");
+
+                // Renombrar el archivo
+                File.Move(archivoAntiguo, archivoNuevo);
+
+                var detalle = $"✓ {nombreCarpeta}: '{Path.GetFileName(archivoAntiguo)}' → '.logo{extension}'";
+                Console.WriteLine($"[RepositorioService] {detalle}");
+
+                // Si había más de un archivo de imagen, eliminar los demás
+                if (archivosImagen.Count > 1)
+                {
+                    for (int i = 1; i < archivosImagen.Count; i++)
+                    {
+                        try
+                        {
+                            File.Delete(archivosImagen[i]);
+                            Console.WriteLine($"[RepositorioService] Logo duplicado eliminado: {Path.GetFileName(archivosImagen[i])}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[RepositorioService] Error al eliminar logo duplicado: {ex.Message}");
+                        }
+                    }
+                }
+
+                return (true, false, detalle);
+            }
+            catch (Exception ex)
+            {
+                var detalle = $"✗ {Path.GetFileName(rutaCarpeta)}: Error - {ex.Message}";
+                Console.WriteLine($"[RepositorioService] {detalle}");
+                return (false, true, detalle);
+            }
         }
     }
 }

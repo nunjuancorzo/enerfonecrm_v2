@@ -141,6 +141,25 @@ public class OfertaService
             </div>
 
             <div class='section'>
+                <div class='section-title'>👤 Datos del Interesado</div>
+                {(!string.IsNullOrEmpty(oferta.NombreInteresado) ? $@"
+                <div class='info-row'>
+                    <span class='label'>Nombre:</span>
+                    <span class='value'>{oferta.NombreInteresado}</span>
+                </div>" : "")}
+                {(!string.IsNullOrEmpty(oferta.TelefonoInteresado) ? $@"
+                <div class='info-row'>
+                    <span class='label'>Teléfono:</span>
+                    <span class='value'>{oferta.TelefonoInteresado}</span>
+                </div>" : "")}
+                {(!string.IsNullOrEmpty(oferta.EmailInteresado) ? $@"
+                <div class='info-row'>
+                    <span class='label'>Email:</span>
+                    <span class='value'>{oferta.EmailInteresado}</span>
+                </div>" : "")}
+            </div>
+
+            <div class='section'>
                 <div class='section-title'>Tipos de Oferta Solicitados</div>
                 <div>
                     {string.Join("", tiposSeleccionados.Select(t => $"<span class='tipos-badge'>{t}</span>"))}
@@ -153,6 +172,11 @@ public class OfertaService
                 cuerpoHtml += $@"
             <div class='section'>
                 <div class='section-title'>📊 Luz / Gas</div>
+                {(!string.IsNullOrEmpty(oferta.LuzGasTipoCliente) ? $@"
+                <div class='info-row'>
+                    <span class='label'>Tipo de Cliente:</span>
+                    <span class='value'>{oferta.LuzGasTipoCliente}</span>
+                </div>" : "")}
                 <div class='info-row'>
                     <span class='label'>Factura adjunta:</span>
                     <span class='value'>{(string.IsNullOrEmpty(oferta.LuzGasRutaFactura) ? "No" : "Sí")}</span>
@@ -277,6 +301,207 @@ public class OfertaService
         catch (Exception ex)
         {
             return (false, $"Error al enviar email: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool exito, string mensaje)> EnviarEmailConfirmacionComercialAsync(SolicitudOferta oferta)
+    {
+        try
+        {
+            var tiposSeleccionados = new List<string>();
+            if (oferta.TipoLuz) tiposSeleccionados.Add("Luz");
+            if (oferta.TipoGas) tiposSeleccionados.Add("Gas");
+            if (oferta.TipoFotovoltaica) tiposSeleccionados.Add("Fotovoltaica");
+            if (oferta.TipoFibra) tiposSeleccionados.Add("Fibra");
+            if (oferta.TipoMovil) tiposSeleccionados.Add("Móvil");
+            if (oferta.TipoFibraMovil) tiposSeleccionados.Add("Fibra + Móvil");
+            if (oferta.TipoFibraMovilTv) tiposSeleccionados.Add("Fibra + Móvil + TV");
+            if (oferta.TipoAlarma) tiposSeleccionados.Add("Alarma");
+
+            var cuerpoHtml = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 700px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #28a745; color: white; padding: 20px; border-radius: 5px; text-align: center; }}
+        .content {{ background-color: #f8f9fa; padding: 20px; margin-top: 20px; border-radius: 5px; }}
+        .section {{ margin-bottom: 15px; padding: 15px; background-color: white; border-left: 4px solid #28a745; }}
+        .section-title {{ font-weight: bold; color: #28a745; margin-bottom: 10px; }}
+        .info-row {{ margin-bottom: 8px; }}
+        .label {{ font-weight: bold; }}
+        .tipos-badge {{ display: inline-block; background-color: #28a745; color: white; padding: 5px 10px; border-radius: 3px; margin: 2px; }}
+        .footer {{ margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 5px; text-align: center; font-size: 0.9rem; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h2>✅ Solicitud de Oferta Registrada</h2>
+        </div>
+        <div class='content'>
+            <p>Hola <strong>{oferta.NombreComercial}</strong>,</p>
+            <p>Tu solicitud de oferta ha sido registrada correctamente y será revisada por nuestro equipo.</p>
+            
+            <div class='section'>
+                <div class='section-title'>📋 Resumen de tu Solicitud</div>
+                <div class='info-row'>
+                    <span class='label'>Fecha:</span> {oferta.FechaCreacion:dd/MM/yyyy HH:mm}
+                </div>
+                <div class='info-row'>
+                    <span class='label'>Cliente:</span> {oferta.NombreInteresado}
+                </div>
+                <div class='info-row'>
+                    <span class='label'>Teléfono:</span> {oferta.TelefonoInteresado}
+                </div>
+                <div class='info-row'>
+                    <span class='label'>Email:</span> {oferta.EmailInteresado}
+                </div>
+            </div>
+
+            <div class='section'>
+                <div class='section-title'>📦 Servicios Solicitados</div>
+                <div>
+                    {string.Join("", tiposSeleccionados.Select(t => $"<span class='tipos-badge'>{t}</span>"))}
+                </div>
+            </div>
+
+            <div class='section'>
+                <div class='section-title'>⏳ Próximos Pasos</div>
+                <p>Nuestro equipo revisará tu solicitud y te contactará con las mejores ofertas disponibles para tu cliente.</p>
+                <p>Puedes ver el estado de esta solicitud en cualquier momento desde el panel de Ofertas en el CRM.</p>
+            </div>
+        </div>
+        <div class='footer'>
+            <p>Este es un mensaje automático. Por favor, no respondas a este correo.</p>
+            <p>Si tienes alguna duda, contacta con el administrador.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+            var resultado = await _emailService.EnviarEmailSimpleAsync(
+                oferta.EmailComercial,
+                $"Confirmación: Solicitud de Oferta Registrada - {oferta.NombreInteresado}",
+                cuerpoHtml
+            );
+
+            return resultado;
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error al enviar email de confirmación: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool exito, string mensaje)> EnviarEmailCambioEstadoAsync(SolicitudOferta oferta)
+    {
+        try
+        {
+            var colorEstado = oferta.Estado switch
+            {
+                "Pendiente" => "#ffc107",
+                "En Proceso" => "#17a2b8",
+                "Completada" => "#28a745",
+                _ => "#6c757d"
+            };
+
+            var iconoEstado = oferta.Estado switch
+            {
+                "Pendiente" => "⏳",
+                "En Proceso" => "🔄",
+                "Completada" => "✅",
+                _ => "📋"
+            };
+
+            var cuerpoHtml = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 700px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: {colorEstado}; color: white; padding: 20px; border-radius: 5px; text-align: center; }}
+        .content {{ background-color: #f8f9fa; padding: 20px; margin-top: 20px; border-radius: 5px; }}
+        .section {{ margin-bottom: 15px; padding: 15px; background-color: white; border-left: 4px solid {colorEstado}; }}
+        .section-title {{ font-weight: bold; color: {colorEstado}; margin-bottom: 10px; }}
+        .estado-badge {{ display: inline-block; background-color: {colorEstado}; color: white; padding: 8px 15px; border-radius: 5px; font-weight: bold; }}
+        .info-row {{ margin-bottom: 8px; }}
+        .label {{ font-weight: bold; }}
+        .observaciones {{ background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-top: 15px; border-radius: 3px; }}
+        .footer {{ margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 5px; text-align: center; font-size: 0.9rem; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h2>{iconoEstado} Actualización de tu Solicitud de Oferta</h2>
+        </div>
+        <div class='content'>
+            <p>Hola <strong>{oferta.NombreComercial}</strong>,</p>
+            <p>Tu solicitud de oferta ha sido actualizada.</p>
+            
+            <div class='section'>
+                <div class='section-title'>📋 Información de la Solicitud</div>
+                <div class='info-row'>
+                    <span class='label'>Solicitud #:</span> {oferta.Id}
+                </div>
+                <div class='info-row'>
+                    <span class='label'>Cliente:</span> {oferta.NombreInteresado}
+                </div>
+                <div class='info-row'>
+                    <span class='label'>Fecha de Creación:</span> {oferta.FechaCreacion:dd/MM/yyyy HH:mm}
+                </div>
+            </div>
+
+            <div class='section'>
+                <div class='section-title'>📊 Estado Actual</div>
+                <div style='text-align: center; margin: 15px 0;'>
+                    <span class='estado-badge'>{iconoEstado} {oferta.Estado.ToUpper()}</span>
+                </div>
+                {(oferta.FechaProcesado.HasValue ? $@"
+                <div class='info-row' style='text-align: center; color: #666; font-size: 0.9rem;'>
+                    Actualizado: {oferta.FechaProcesado.Value:dd/MM/yyyy HH:mm}
+                </div>" : "")}
+            </div>
+
+            {(!string.IsNullOrEmpty(oferta.ObservacionesAdmin) ? $@"
+            <div class='observaciones'>
+                <div style='font-weight: bold; margin-bottom: 10px;'>💬 Comentarios del Administrador:</div>
+                <div>{oferta.ObservacionesAdmin.Replace("\n", "<br/>")}</div>
+            </div>" : "")}
+
+            <div class='section'>
+                <div class='section-title'>ℹ️ ¿Qué significa cada estado?</div>
+                <ul style='line-height: 1.8;'>
+                    <li><strong>Pendiente:</strong> Tu solicitud está en cola para ser revisada</li>
+                    <li><strong>En Proceso:</strong> Estamos trabajando en conseguir las mejores ofertas</li>
+                    <li><strong>Completada:</strong> Las ofertas están listas o han sido enviadas</li>
+                </ul>
+            </div>
+        </div>
+        <div class='footer'>
+            <p>Puedes ver más detalles en el panel de Ofertas del CRM.</p>
+            <p>Este es un mensaje automático. Por favor, no respondas a este correo.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+            var resultado = await _emailService.EnviarEmailSimpleAsync(
+                oferta.EmailComercial,
+                $"Actualización: Solicitud #{oferta.Id} - {oferta.Estado} - {oferta.NombreInteresado}",
+                cuerpoHtml
+            );
+
+            return resultado;
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error al enviar email de notificación: {ex.Message}");
         }
     }
 

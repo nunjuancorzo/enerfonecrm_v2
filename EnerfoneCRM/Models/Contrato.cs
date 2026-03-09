@@ -63,6 +63,9 @@ namespace EnerfoneCRM.Models
         [Column("servicio_id")]
         public int? ServicioId { get; set; }
 
+        [Column("historico_liquidacion_id")]
+        public int? HistoricoLiquidacionId { get; set; }
+
         // Campos específicos de ENERGÍA
         [Column("estadoServicio")]
         [MaxLength(100)]

@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
+@inject RepositorioService RepositorioService
 @rendermode InteractiveServer
 
 <PageTitle>Repositorio de Archivos</PageTitle>
@@ -31,6 +32,20 @@
                         {
                             <button class="btn btn-secondary" @onclick="VolverCarpetaAnterior">
                                 <i class="bi bi-arrow-left me-2"></i>Volver
+                            </button>
+                        }
+                        @if (AuthService.EsSuperAdmin)
+                        {
+                            <button class="btn btn-warning" @onclick="MigrarLogosAntiguos" disabled="@migrandoLogos">
+                                @if (migrandoLogos)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-arrow-repeat me-2"></i>
+                                }
+                                Migrar Logos Antiguos
                             </button>
                         }
                         @if (AuthService.EsAdministrador)
@@ -116,7 +131,7 @@
                                         <tr>
                                             <th style="width: 50px;"><i class="bi bi-file-earmark"></i></th>
                                             <th>Nombre</th>
-                                            <th style="width: 80px;"></th>
+                                            <th style="width: 120px;">Vista Previa</th>
                                             <th style="width: 250px;">Descripción</th>
                                             <th>Tamaño</th>
                                             <th>Fecha de modificación</th>
@@ -134,6 +149,10 @@
                                                     {
                                                         <img src="data:@carpeta.LogoMimeType;base64,@carpeta.LogoBase64" alt="Logo" style="max-height: 80px; max-width: 120px; object-fit: contain; display: block;" />
                                                     }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">-</span>
+                                                    }
                                                 </td>
                                                 <td>-</td>
                                                 <td>-</td>
@@ -150,10 +169,27 @@
                                         }
                                         @foreach (var archivo in archivos)
                                         {
+                                            var esImagen = EsArchivoImagen(archivo.Nombre);
                                             <tr>
                                                 <td><i class="@ObtenerIconoArchivo(archivo.Nombre)" style="font-size: 1.5rem;"></i></td>
                                                 <td>@archivo.Nombre</td>
-                                                <td>-</td>
+                                                <td>
+                                                    @if (esImagen)
+                                                    {
+                                                        var rutaCompleta = Path.Combine(directorioBase, rutaActual, archivo.Nombre);
+                                                        if (File.Exists(rutaCompleta))
+                                                        {
+                                                            var bytes = File.ReadAllBytes(rutaCompleta);
+                                                            var base64 = Convert.ToBase64String(bytes);
+                                                            var mimeType = ObtenerMimeType(archivo.Nombre);
+                                                            <img src="data:@mimeType;base64,@base64" alt="Vista previa" style="max-height: 80px; max-width: 120px; object-fit: contain; display: block; cursor: zoom-in;" @onclick="@(() => MostrarImagenCompleta(archivo.Nombre))" />
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted small">-</span>
+                                                    }
+                                                </td>
                                                 <td>
                                                     <small class="text-muted">@(string.IsNullOrEmpty(archivo.Descripcion) ? "-" : archivo.Descripcion)</small>
                                                 </td>
@@ -277,6 +313,56 @@
     </div>
 }
 
+<!-- Modal Resultado Migración de Logos -->
+@if (mostrarResultadoMigracion)
+{
+    <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-arrow-repeat me-2"></i>
+                        Resultado de Migración de Logos
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarResultadoMigracion"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>Resumen:</strong><br/>
+                        ✓ Migraciones exitosas: <strong>@migracionesExitosas</strong><br/>
+                        @if (migracionesErrores > 0)
+                        {
+                            <span class="text-danger">✗ Errores: <strong>@migracionesErrores</strong></span>
+                        }
+                    </div>
+                    
+                    @if (detallesMigracion.Any())
+                    {
+                        <h6>Detalles:</h6>
+                        <div style="max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 0.9rem;">
+                            @foreach (var detalle in detallesMigracion)
+                            {
+                                <div class="mb-1" style="@(detalle.StartsWith("✓") ? "color: green;" : "color: red;")">
+                                    @detalle
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            No se encontraron logos para migrar. Todas las entidades ya tienen logos en el formato correcto (.logo*) o no tienen logos.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" @onclick="CerrarResultadoMigracion">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <script>
     function downloadFile(fileName, mimeType, base64String) {
         const linkSource = `data:${mimeType};base64,${base64String}`;
@@ -310,6 +396,12 @@
 
     private string directorioBase = "";
     private bool inicializado = false;
+    
+    private bool migrandoLogos = false;
+    private bool mostrarResultadoMigracion = false;
+    private int migracionesExitosas = 0;
+    private int migracionesErrores = 0;
+    private List<string> detallesMigracion = new();
 
     protected override void OnInitialized()
     {
@@ -697,29 +789,27 @@
     {
         try
         {
-            // Buscar archivos de imagen en la carpeta
-            var extensionesLogo = new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg" };
-            var archivosEnCarpeta = Directory.GetFiles(rutaCarpeta);
+            // Buscar archivos que empiezan con .logo en la carpeta
+            var archivosLogo = Directory.GetFiles(rutaCarpeta, ".logo*");
             
-            foreach (var archivo in archivosEnCarpeta)
+            if (archivosLogo.Length > 0)
             {
-                var extension = Path.GetExtension(archivo).ToLower();
-                if (extensionesLogo.Contains(extension))
+                var archivoLogo = archivosLogo[0]; // Tomar el primero
+                var extension = Path.GetExtension(archivoLogo).ToLower();
+                
+                // Leer el archivo y convertirlo a base64
+                var bytes = File.ReadAllBytes(archivoLogo);
+                var base64 = Convert.ToBase64String(bytes);
+                var mimeType = extension switch
                 {
-                    // Leer el archivo y convertirlo a base64
-                    var bytes = File.ReadAllBytes(archivo);
-                    var base64 = Convert.ToBase64String(bytes);
-                    var mimeType = extension switch
-                    {
-                        ".png" => "image/png",
-                        ".jpg" or ".jpeg" => "image/jpeg",
-                        ".gif" => "image/gif",
-                        ".svg" => "image/svg+xml",
-                        _ => "image/png"
-                    };
-                    
-                    return (base64, mimeType);
-                }
+                    ".png" => "image/png",
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".gif" => "image/gif",
+                    ".svg" => "image/svg+xml",
+                    _ => "image/png"
+                };
+                
+                return (base64, mimeType);
             }
         }
         catch (Exception ex)
@@ -732,28 +822,40 @@
     
     private bool EsArchivoLogoDeEntidad(string nombreArchivo)
     {
-        // Verificar si estamos en una subcarpeta de Energía, Telefonía o Alarmas
-        var partesRuta = rutaActual.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
-        
-        if (partesRuta.Length >= 2)
+        // Excluir solo archivos que empiecen con .logo
+        return nombreArchivo.StartsWith(".logo", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool EsArchivoImagen(string nombreArchivo)
+    {
+        var extension = Path.GetExtension(nombreArchivo).ToLower();
+        var extensionesImagen = new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg", ".bmp", ".webp" };
+        return extensionesImagen.Contains(extension);
+    }
+
+    private async Task MostrarImagenCompleta(string nombreArchivo)
+    {
+        try
         {
-            var carpetaPrincipal = partesRuta[0];
-            // Normalizar para comparación Unicode consistente
-            var carpetaNormalizada = carpetaPrincipal.Normalize(System.Text.NormalizationForm.FormC);
-            var energia = "Energía".Normalize(System.Text.NormalizationForm.FormC);
-            var telefonia = "Telefonía".Normalize(System.Text.NormalizationForm.FormC);
-            var alarmas = "Alarmas".Normalize(System.Text.NormalizationForm.FormC);
+            var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
             
-            if (carpetaNormalizada == energia || carpetaNormalizada == telefonia || carpetaNormalizada == alarmas)
+            if (!File.Exists(rutaCompleta))
             {
-                // Está en una subcarpeta de entidad, verificar si es una imagen
-                var extension = Path.GetExtension(nombreArchivo).ToLower();
-                var extensionesLogo = new[] { ".png", ".jpg", ".jpeg", ".gif", ".svg" };
-                return extensionesLogo.Contains(extension);
+                await JSRuntime.InvokeVoidAsync("alert", "El archivo no existe");
+                return;
             }
+
+            var bytes = await File.ReadAllBytesAsync(rutaCompleta);
+            var base64 = Convert.ToBase64String(bytes);
+            var mimeType = ObtenerMimeType(nombreArchivo);
+            
+            // Abrir imagen en nueva ventana
+            await JSRuntime.InvokeVoidAsync("open", $"data:{mimeType};base64,{base64}", "_blank");
         }
-        
-        return false;
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al mostrar imagen: {ex.Message}");
+        }
     }
 
     private void MostrarModalEditarDescripcionArchivo(string nombreArchivo, string? descripcionActual)
@@ -838,6 +940,39 @@
         }
         
         return null;
+    }
+
+    private async Task MigrarLogosAntiguos()
+    {
+        try
+        {
+            migrandoLogos = true;
+            StateHasChanged();
+
+            var resultado = await RepositorioService.MigrarLogosAntiguosANuevoFormato();
+            migracionesExitosas = resultado.migracionesExitosas;
+            migracionesErrores = resultado.errores;
+            detallesMigracion = resultado.detalles;
+            mostrarResultadoMigracion = true;
+
+            // Recargar el contenido para mostrar los logos migrados
+            await CargarContenido();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error en migración: {ex.Message}");
+        }
+        finally
+        {
+            migrandoLogos = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CerrarResultadoMigracion()
+    {
+        mostrarResultadoMigracion = false;
+        detallesMigracion.Clear();
     }
 
     private class ElementoRepositorio

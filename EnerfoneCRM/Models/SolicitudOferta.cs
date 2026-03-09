@@ -21,6 +21,19 @@ public class SolicitudOferta
     [StringLength(100)]
     public string EmailComercial { get; set; } = string.Empty;
 
+    // Datos del interesado
+    [Column("nombre_interesado")]
+    [StringLength(200)]
+    public string? NombreInteresado { get; set; }
+
+    [Column("telefono_interesado")]
+    [StringLength(20)]
+    public string? TelefonoInteresado { get; set; }
+
+    [Column("email_interesado")]
+    [StringLength(100)]
+    public string? EmailInteresado { get; set; }
+
     // Tipos de oferta seleccionados (pueden ser múltiples)
     [Column("tipo_luz")]
     public bool TipoLuz { get; set; }
@@ -47,6 +60,10 @@ public class SolicitudOferta
     public bool TipoAlarma { get; set; }
 
     // Campos comunes para Luz y Gas
+    [Column("luz_gas_tipo_cliente")]
+    [StringLength(50)]
+    public string? LuzGasTipoCliente { get; set; } // "Residencial" o "PYME"
+
     [Column("luz_gas_ruta_factura")]
     [StringLength(500)]
     public string? LuzGasRutaFactura { get; set; }

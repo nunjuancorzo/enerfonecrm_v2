@@ -1736,12 +1736,6 @@
             // Calcular total de comisiones
             var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
 
-            // Cambiar el estado de todos los contratos a Liquidado
-            foreach (var contrato in contratos)
-            {
-                contrato.Estado = "Liquidado";
-            }
-
             // Guardar en el histórico (excepto si es superadmin)
             if (AuthService.UsuarioActual?.NombreUsuario != "superadmin")
             {
@@ -1764,9 +1758,25 @@
 
                 context.HistoricoLiquidaciones.Add(historico);
                 await context.SaveChangesAsync();
+
+                // Vincular contratos a esta liquidación y cambiar estado
+                foreach (var contrato in contratos)
+                {
+                    contrato.Estado = "Liquidado";
+                    contrato.HistoricoLiquidacionId = historico.Id;
+                }
+                
+                await context.SaveChangesAsync();
             }
             else
             {
+                // Cambiar el estado de todos los contratos a Liquidado (superadmin sin histórico)
+                foreach (var contrato in contratos)
+                {
+                    contrato.Estado = "Liquidado";
+                }
+                
+                await context.SaveChangesAsync();
                 Console.WriteLine($"[Liquidaciones] SUPERADMIN - Histórico NO registrado (modo invisible)");
             }
 
@@ -2029,10 +2039,9 @@
                 return;
             }
 
-            // Buscar todos los contratos liquidados del usuario
+            // Buscar solo los contratos vinculados a esta liquidación específica
             var contratos = await context.Contratos
-                .Where(c => c.Comercial == usuario.NombreUsuario
-                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                .Where(c => c.HistoricoLiquidacionId == historicoId
                     && c.Estado == "Liquidado")
                 .ToListAsync();
 
@@ -2044,10 +2053,11 @@
                 return;
             }
 
-            // Cambiar el estado de los contratos a Act/Facturable
+            // Cambiar el estado de los contratos a Act/Facturable y limpiar vínculo
             foreach (var contrato in contratos)
             {
                 contrato.Estado = "Act/Facturable";
+                contrato.HistoricoLiquidacionId = null;
             }
 
             // Eliminar el registro del histórico
@@ -2137,10 +2147,9 @@
                 var usuario = await context.Usuarios.FindAsync(liq.UsuarioId);
                 if (usuario != null)
                 {
+                    // Calcular total de comisiones SOLO de los contratos vinculados a esta liquidación específica
                     var totalComisiones = await context.Contratos
-                        .Where(c => c.Comercial == usuario.NombreUsuario
-                            && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
-                            && c.Estado == "Liquidado")
+                        .Where(c => c.HistoricoLiquidacionId == liq.Id)
                         .SumAsync(c => c.Comision ?? 0);
                     
                     liq.TotalComisiones = totalComisiones;

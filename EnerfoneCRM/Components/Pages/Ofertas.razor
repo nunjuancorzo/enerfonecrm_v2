@@ -84,16 +84,18 @@ else
                             <thead class="table-light">
                                 <tr>
                                     <th>Fecha</th>
+                                    <th>Usuario</th>
                                     <th>Tipos Solicitados</th>
                                     <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var solicitud in solicitudes)
+                                @foreach (var solicitud in ObtenerSolicitudesPaginadas())
                                 {
                                     <tr>
                                         <td>@solicitud.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td><strong>@solicitud.NombreComercial</strong></td>
                                         <td>
                                             @if (solicitud.TipoLuz) { <span class="badge bg-warning text-dark me-1">Luz</span> }
                                             @if (solicitud.TipoGas) { <span class="badge bg-danger me-1">Gas</span> }
@@ -119,14 +121,50 @@ else
                                             }
                                         </td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => VerDetalleSolicitud(solicitud)">
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => VerDetalleSolicitud(solicitud)">
                                                 <i class="bi bi-eye me-1"></i>Ver
                                             </button>
+                                            @if (AuthService.EsAdministrador)
+                                            {
+                                                <button class="btn btn-sm btn-outline-success" @onclick="() => AbrirModalEdicion(solicitud)">
+                                                    <i class="bi bi-pencil me-1"></i>Editar
+                                                </button>
+                                            }
                                         </td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <small class="text-muted">
+                                Mostrando @((paginaActual - 1) * itemsPorPagina + 1) - @Math.Min(paginaActual * itemsPorPagina, solicitudes.Count) de @solicitudes.Count ofertas
+                            </small>
+                        </div>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)" disabled="@(paginaActual == 1)">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                </li>
+                                @for (int i = 1; i <= TotalPaginas; i++)
+                                {
+                                    var pagina = i;
+                                    <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(pagina)">@pagina</button>
+                                    </li>
+                                }
+                                <li class="page-item @(paginaActual == TotalPaginas ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)" disabled="@(paginaActual == TotalPaginas)">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </nav>
                     </div>
                 }
             </div>
@@ -218,6 +256,32 @@ else
                             </div>
                         </div>
 
+                        <!-- Datos del Interesado -->
+                        <div class="card mb-4 border-info">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-person-fill text-info me-2"></i>
+                                    Datos del Interesado
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="nombreInteresado" class="form-label">Nombre del Interesado <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="nombreInteresado" @bind="nuevaSolicitud.NombreInteresado" placeholder="Nombre completo" required />
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="telefonoInteresado" class="form-label">Teléfono <span class="text-danger">*</span></label>
+                                        <input type="tel" class="form-control" id="telefonoInteresado" @bind="nuevaSolicitud.TelefonoInteresado" placeholder="Ej: 600123456" required />
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="emailInteresado" class="form-label">Email <span class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" id="emailInteresado" @bind="nuevaSolicitud.EmailInteresado" placeholder="correo@ejemplo.com" required />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Formulario para Luz/Gas -->
                         @if (nuevaSolicitud.TipoLuz || nuevaSolicitud.TipoGas)
                         {
@@ -229,6 +293,21 @@ else
                                     </h6>
                                 </div>
                                 <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tipo de Cliente <span class="text-danger">*</span></label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="luzGasTipoCliente" id="luzGasResidencial" value="Residencial" @onchange="@(() => nuevaSolicitud.LuzGasTipoCliente = "Residencial")" checked="@(nuevaSolicitud.LuzGasTipoCliente == "Residencial")">
+                                            <label class="form-check-label" for="luzGasResidencial">
+                                                <i class="bi bi-house-fill me-1"></i>Residencial
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="luzGasTipoCliente" id="luzGasPyme" value="PYME" @onchange="@(() => nuevaSolicitud.LuzGasTipoCliente = "PYME")" checked="@(nuevaSolicitud.LuzGasTipoCliente == "PYME")">
+                                            <label class="form-check-label" for="luzGasPyme">
+                                                <i class="bi bi-building me-1"></i>PYME
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div class="mb-3">
                                         <label for="luzGasFactura" class="form-label">Última Factura</label>
                                         <InputFile OnChange="@(e => CargarFacturaLuzGas(e))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" id="luzGasFactura" />
@@ -421,6 +500,22 @@ else
                         }
                     </div>
 
+                    <h6 class="text-primary mt-4">Datos del Interesado:</h6>
+                    <div class="ps-3 mb-3">
+                        @if (!string.IsNullOrEmpty(solicitudSeleccionada.NombreInteresado))
+                        {
+                            <p><strong>Nombre:</strong> @solicitudSeleccionada.NombreInteresado</p>
+                        }
+                        @if (!string.IsNullOrEmpty(solicitudSeleccionada.TelefonoInteresado))
+                        {
+                            <p><strong>Teléfono:</strong> @solicitudSeleccionada.TelefonoInteresado</p>
+                        }
+                        @if (!string.IsNullOrEmpty(solicitudSeleccionada.EmailInteresado))
+                        {
+                            <p><strong>Email:</strong> @solicitudSeleccionada.EmailInteresado</p>
+                        }
+                    </div>
+
                     <h6 class="text-primary mt-4">Tipos Solicitados:</h6>
                     <div class="mb-3">
                         @if (solicitudSeleccionada.TipoLuz) { <span class="badge bg-warning text-dark me-1">Luz</span> }
@@ -437,6 +532,10 @@ else
                     {
                         <h6 class="text-primary mt-4">Luz / Gas:</h6>
                         <div class="ps-3">
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.LuzGasTipoCliente))
+                            {
+                                <p><strong>Tipo de Cliente:</strong> @solicitudSeleccionada.LuzGasTipoCliente</p>
+                            }
                             <p>
                                 <strong>Factura:</strong> 
                                 @if (string.IsNullOrEmpty(solicitudSeleccionada.LuzGasRutaFactura))
@@ -548,6 +647,72 @@ else
                     <button type="button" class="btn btn-secondary" @onclick="CerrarModalDetalle">
                         <i class="bi bi-x-circle me-1"></i>Cerrar
                     </button>
+                    @if (AuthService.EsAdministrador)
+                    {
+                        <button type="button" class="btn btn-success" @onclick="() => AbrirModalEdicion(solicitudSeleccionada)">
+                            <i class="bi bi-pencil me-1"></i>Editar Estado y Comentarios
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal para editar estado y comentarios -->
+@if (mostrarModalEdicion && solicitudEditar != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Solicitud</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalEdicion"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Solicitud #@solicitudEditar.Id</label>
+                        <div class="text-muted small">@solicitudEditar.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="estadoSelect" class="form-label fw-bold">Estado</label>
+                        <select id="estadoSelect" class="form-select" @bind="solicitudEditar.Estado">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Completada">Completada</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="observacionesAdmin" class="form-label fw-bold">Observaciones del Administrador</label>
+                        <textarea id="observacionesAdmin" class="form-control" rows="4" @bind="solicitudEditar.ObservacionesAdmin" placeholder="Añade comentarios o notas sobre esta solicitud..."></textarea>
+                        <small class="text-muted">Estos comentarios serán visibles para el comercial</small>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(mensajeErrorEdicion))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-1"></i>@mensajeErrorEdicion
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalEdicion" disabled="@guardandoEdicion">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" @onclick="GuardarEdicion" disabled="@guardandoEdicion">
+                        @if (guardandoEdicion)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span>Guardar Cambios</span>
+                        }
+                    </button>
                 </div>
             </div>
         </div>
@@ -570,13 +735,22 @@ else
     private bool cargandoSolicitudes = false;
     private bool mostrarFormulario = false;
     private bool mostrarModalDetalle = false;
+    private bool mostrarModalEdicion = false;
     private bool enviando = false;
+    private bool guardandoEdicion = false;
     private string mensajeError = string.Empty;
     private string mensajeExito = string.Empty;
+    private string mensajeErrorEdicion = string.Empty;
 
     private SolicitudOferta nuevaSolicitud = new();
     private List<SolicitudOferta> solicitudes = new();
     private SolicitudOferta? solicitudSeleccionada;
+    private SolicitudOferta? solicitudEditar;
+
+    // Paginación
+    private int paginaActual = 1;
+    private int itemsPorPagina = 10;
+    private int TotalPaginas => (int)Math.Ceiling((double)solicitudes.Count / itemsPorPagina);
 
     // Archivos cargados
     private IBrowserFile? facturaLuzGas;
@@ -610,7 +784,8 @@ else
                 NombreComercial = AuthService.UsuarioActual.NombreUsuario,
                 EmailComercial = AuthService.UsuarioActual.Email,
                 TelefoniaTipoSolicitud = "Alta Nueva",
-                AlarmaTipo = "Residencial"
+                AlarmaTipo = "Residencial",
+                LuzGasTipoCliente = "Residencial"
             };
         }
     }
@@ -631,6 +806,8 @@ else
                     solicitudes = await OfertaService.ObtenerPorUsuarioAsync(AuthService.UsuarioActual.Id);
                 }
             }
+            // Resetear a la primera página cuando se recargan las solicitudes
+            paginaActual = 1;
         }
         catch (Exception ex)
         {
@@ -639,6 +816,22 @@ else
         finally
         {
             cargandoSolicitudes = false;
+        }
+    }
+
+    private List<SolicitudOferta> ObtenerSolicitudesPaginadas()
+    {
+        return solicitudes
+            .Skip((paginaActual - 1) * itemsPorPagina)
+            .Take(itemsPorPagina)
+            .ToList();
+    }
+
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= TotalPaginas)
+        {
+            paginaActual = nuevaPagina;
         }
     }
 
@@ -721,6 +914,22 @@ else
                 return;
             }
 
+            // Validar datos del interesado
+            if (string.IsNullOrWhiteSpace(nuevaSolicitud.NombreInteresado) || 
+                string.IsNullOrWhiteSpace(nuevaSolicitud.TelefonoInteresado) || 
+                string.IsNullOrWhiteSpace(nuevaSolicitud.EmailInteresado))
+            {
+                mensajeError = "Debes completar los datos del interesado (Nombre, Teléfono y Email)";
+                return;
+            }
+
+            // Validar tipo de cliente para Luz/Gas
+            if ((nuevaSolicitud.TipoLuz || nuevaSolicitud.TipoGas) && string.IsNullOrWhiteSpace(nuevaSolicitud.LuzGasTipoCliente))
+            {
+                mensajeError = "Debes seleccionar el tipo de cliente (Residencial o PYME) para Luz/Gas";
+                return;
+            }
+
             enviando = true;
 
             // Guardar archivos
@@ -744,19 +953,30 @@ else
 
             if (exito)
             {
-                // Obtener email del administrador
-                var emailAdmin = await ObtenerEmailAdministrador();
-                if (!string.IsNullOrEmpty(emailAdmin))
+                // Obtener emails de todos los administradores
+                var emailsAdmin = await ObtenerEmailsAdministradores();
+                
+                // Enviar email a todos los administradores
+                if (emailsAdmin.Any())
                 {
-                    // Enviar email al administrador
-                    var (exitoEmail, mensajeEmail) = await OfertaService.EnviarEmailSolicitudAsync(nuevaSolicitud, emailAdmin);
-                    if (!exitoEmail)
+                    foreach (var emailAdmin in emailsAdmin)
                     {
-                        Console.WriteLine($"Error al enviar email: {mensajeEmail}");
+                        var (exitoEmail, mensajeEmail) = await OfertaService.EnviarEmailSolicitudAsync(nuevaSolicitud, emailAdmin);
+                        if (!exitoEmail)
+                        {
+                            Console.WriteLine($"Error al enviar email a {emailAdmin}: {mensajeEmail}");
+                        }
                     }
                 }
 
-                mensajeExito = "Solicitud enviada correctamente. El administrador recibirá un email con los detalles.";
+                // Enviar email de confirmación al comercial
+                var (exitoConfirmacion, _) = await OfertaService.EnviarEmailConfirmacionComercialAsync(nuevaSolicitud);
+                if (!exitoConfirmacion)
+                {
+                    Console.WriteLine("Error al enviar email de confirmación al comercial");
+                }
+
+                mensajeExito = "Solicitud enviada correctamente. Recibirás un email de confirmación y el administrador revisará tu solicitud.";
                 mostrarFormulario = false;
                 await CargarSolicitudes();
                 InicializarNuevaSolicitud();
@@ -797,6 +1017,23 @@ else
         }
     }
 
+    private async Task<List<string>> ObtenerEmailsAdministradores()
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var emails = await context.Usuarios
+                .Where(u => u.Rol == "Administrador" && u.Activo && !string.IsNullOrEmpty(u.Email))
+                .Select(u => u.Email)
+                .ToListAsync();
+            return emails!;
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+
     private void VerDetalleSolicitud(SolicitudOferta solicitud)
     {
         solicitudSeleccionada = solicitud;
@@ -806,7 +1043,104 @@ else
     private void CerrarModalDetalle()
     {
         mostrarModalDetalle = false;
-        solicitudSeleccionada = null;
+    }
+
+    private void AbrirModalEdicion(SolicitudOferta? solicitud)
+    {
+        if (solicitud == null) return;
+        
+        // Crear una copia para editar
+        solicitudEditar = new SolicitudOferta
+        {
+            Id = solicitud.Id,
+            UsuarioId = solicitud.UsuarioId,
+            NombreComercial = solicitud.NombreComercial,
+            EmailComercial = solicitud.EmailComercial,
+            NombreInteresado = solicitud.NombreInteresado,
+            TelefonoInteresado = solicitud.TelefonoInteresado,
+            EmailInteresado = solicitud.EmailInteresado,
+            TipoLuz = solicitud.TipoLuz,
+            TipoGas = solicitud.TipoGas,
+            TipoFotovoltaica = solicitud.TipoFotovoltaica,
+            TipoFibra = solicitud.TipoFibra,
+            TipoMovil = solicitud.TipoMovil,
+            TipoFibraMovil = solicitud.TipoFibraMovil,
+            TipoFibraMovilTv = solicitud.TipoFibraMovilTv,
+            TipoAlarma = solicitud.TipoAlarma,
+            LuzGasTipoCliente = solicitud.LuzGasTipoCliente,
+            LuzGasRutaFactura = solicitud.LuzGasRutaFactura,
+            LuzGasObservaciones = solicitud.LuzGasObservaciones,
+            FotovoltaicaRutaFactura = solicitud.FotovoltaicaRutaFactura,
+            FotovoltaicaEnlaceMaps = solicitud.FotovoltaicaEnlaceMaps,
+            FotovoltaicaObservaciones = solicitud.FotovoltaicaObservaciones,
+            TelefoniaTipoSolicitud = solicitud.TelefoniaTipoSolicitud,
+            TelefoniaRutaFactura = solicitud.TelefoniaRutaFactura,
+            TelefoniaContratoActual = solicitud.TelefoniaContratoActual,
+            TelefoniaObservaciones = solicitud.TelefoniaObservaciones,
+            AlarmaTipo = solicitud.AlarmaTipo,
+            AlarmaTieneActual = solicitud.AlarmaTieneActual,
+            AlarmaObservaciones = solicitud.AlarmaObservaciones,
+            FechaCreacion = solicitud.FechaCreacion,
+            Estado = solicitud.Estado,
+            ObservacionesAdmin = solicitud.ObservacionesAdmin,
+            FechaProcesado = solicitud.FechaProcesado
+        };
+        
+        mensajeErrorEdicion = string.Empty;
+        mostrarModalDetalle = false;
+        mostrarModalEdicion = true;
+    }
+
+    private void CerrarModalEdicion()
+    {
+        mostrarModalEdicion = false;
+        solicitudEditar = null;
+        mensajeErrorEdicion = string.Empty;
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (solicitudEditar == null) return;
+
+        try
+        {
+            guardandoEdicion = true;
+            mensajeErrorEdicion = string.Empty;
+
+            // Actualizar fecha de procesado si cambió a Completada o En Proceso
+            if (solicitudEditar.Estado != "Pendiente" && !solicitudEditar.FechaProcesado.HasValue)
+            {
+                solicitudEditar.FechaProcesado = DateTime.Now;
+            }
+
+            var exito = await OfertaService.ActualizarAsync(solicitudEditar);
+
+            if (exito)
+            {
+                // Notificar al comercial sobre el cambio
+                var (exitoNotificacion, _) = await OfertaService.EnviarEmailCambioEstadoAsync(solicitudEditar);
+                if (!exitoNotificacion)
+                {
+                    Console.WriteLine("Error al enviar notificación al comercial");
+                }
+
+                mensajeExito = "Solicitud actualizada correctamente. El comercial ha sido notificado.";
+                await CargarSolicitudes();
+                CerrarModalEdicion();
+            }
+            else
+            {
+                mensajeErrorEdicion = "Error al actualizar la solicitud";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeErrorEdicion = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            guardandoEdicion = false;
+        }
     }
 
     private async Task DescargarArchivo(string? rutaArchivo)

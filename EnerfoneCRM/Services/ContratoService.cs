@@ -64,6 +64,7 @@ namespace EnerfoneCRM.Services
                     fecha_permanencia_anterior,
                     usuario_comercializadora_id,
                     servicio_id,
+                    historico_liquidacion_id,
                     potencia_contratada_p1,
                     potencia_contratada_p2,
                     consumo_ultimos_12_meses,

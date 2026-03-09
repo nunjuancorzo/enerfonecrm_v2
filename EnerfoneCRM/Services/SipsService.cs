@@ -151,10 +151,10 @@ namespace EnerfoneCRM.Services
                     // 4) Llamada a API (de pago)
                     var url = $"{API_URL}?id={Uri.EscapeDataString(cupsNormalizado)}&key={API_KEY}";
                     
-                    // Añadir parámetro &g=1 para CUPS de gas
+                    // Añadir parámetro &gas=1 para CUPS de gas
                     if (esGas)
                     {
-                        url += "&g=1";
+                        url += "&gas=1";
                     }
 
                     HttpResponseMessage? response = null;

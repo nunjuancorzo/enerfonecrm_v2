@@ -5,6 +5,8 @@
 @inject OperadoraService OperadoraService
 @inject ContratoService ContratoService
 @inject TarifaTelefoniaService TarifaTelefoniaService
+@inject FicheroClienteService FicheroClienteService
+@inject FicheroContratoService FicheroContratoService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -285,6 +287,67 @@
                                                         <label class="form-label fw-bold">IBAN</label>
                                                         <InputText @bind-Value="nuevoCliente.Iban" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
                                                     </div>
+                                                    
+                                                    @* Sección de Archivos Adjuntos *@
+                                                    <div class="col-md-12 mt-4">
+                                                        <h6 class="border-bottom pb-2">
+                                                            <i class="bi bi-paperclip me-2"></i>Archivos Adjuntos
+                                                        </h6>
+                                                    </div>
+
+                                                    @foreach (var tipo in new[] { "DNIParticular", "DNIPyme", "CIFPyme", "EscriturasPyme" })
+                                                    {
+                                                        var archivosPendientes = archivosPendientesCliente.ContainsKey(tipo) 
+                                                            ? archivosPendientesCliente[tipo] 
+                                                            : new List<(string nombreArchivo, byte[] contenido)>();
+                                                        
+                                                        <div class="col-md-6">
+                                                            <div class="card h-100">
+                                                                <div class="card-body p-3">
+                                                                    <h6 class="mb-3">
+                                                                        <i class="bi @FicheroClienteService.ObtenerIconoTipoFichero(tipo) me-2"></i>
+                                                                        @FicheroClienteService.ObtenerEtiquetaTipoFichero(tipo)
+                                                                    </h6>
+                                                                    
+                                                                    @* Lista de archivos pendientes *@
+                                                                    @if (archivosPendientes.Any())
+                                                                    {
+                                                                        <div class="mb-3" style="max-height: 200px; overflow-y: auto;">
+                                                                            @for (int i = 0; i < archivosPendientes.Count; i++)
+                                                                            {
+                                                                                var index = i;
+                                                                                var archivo = archivosPendientes[i];
+                                                                                <div class="border rounded p-2 mb-2 bg-warning bg-opacity-10">
+                                                                                    <div class="d-flex align-items-start justify-content-between">
+                                                                                        <div class="flex-grow-1 small">
+                                                                                            <div class="text-truncate fw-bold">
+                                                                                                <i class="bi bi-file-earmark text-warning me-1"></i>@archivo.nombreArchivo
+                                                                                            </div>
+                                                                                            <div class="text-muted">
+                                                                                                <small>(pendiente de guardar)</small>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <button type="button" class="btn btn-outline-danger btn-sm ms-2" 
+                                                                                                @onclick="() => EliminarArchivoPendiente(tipo, index)" 
+                                                                                                title="Eliminar">
+                                                                                            <i class="bi bi-trash"></i>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            }
+                                                                        </div>
+                                                                    }
+                                                                    
+                                                                    @* Campo para subir nuevos archivos *@
+                                                                    <div>
+                                                                        <label class="form-label small mb-1">Agregar archivo:</label>
+                                                                        <InputFile OnChange="(e) => SubirArchivo(e, tipo)" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png" />
+                                                                        <small class="text-muted">PDF, JPG o PNG (máx. 10MB)</small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    }
                                                 </div>
                                             </EditForm>
                                         }
@@ -742,6 +805,34 @@
                                             <label class="form-label fw-bold">Observaciones</label>
                                             <InputTextArea @bind-Value="nuevoContrato.ObservacionesEstado" class="form-control" rows="3" />
                                         </div>
+                                        
+                                        <!-- Documentos Adjuntos -->
+                                        <div class="col-12 mt-3">
+                                            <hr />
+                                            <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-paperclip me-2"></i>Documentos Adjuntos del Contrato</h6>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Factura de Telefonía</label>
+                                            <small class="text-muted d-block mb-1">(PDF, JPG, PNG, DOC o DOCX - máx. 10MB)</small>
+                                            <InputFile OnChange="CargarFacturaTelefonia" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple />
+                                            @if (facturasPendientes.Any())
+                                            {
+                                                <div class="mt-2">
+                                                    @for (int i = 0; i < facturasPendientes.Count; i++)
+                                                    {
+                                                        int index = i;
+                                                        var archivo = facturasPendientes[i];
+                                                        <div class="d-inline-flex align-items-center badge bg-success me-2 mb-1 p-2">
+                                                            <i class="bi bi-file-earmark-check me-1"></i>
+                                                            <span class="me-2">@archivo.nombreArchivo</span>
+                                                            <button type="button" class="btn btn-sm btn-link text-white p-0" @onclick="() => EliminarFacturaPendiente(index)">
+                                                                <i class="bi bi-x"></i>
+                                                            </button>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -817,6 +908,11 @@
     private int numeroLineasActivas = 0;
     private bool tieneFibraSegundaResidencia = false;
 
+    // Archivos adjuntos
+    private Dictionary<string, List<(string nombreArchivo, byte[] contenido)>> archivosPendientesCliente = new();
+    private List<FicheroCliente> ficherosCliente = new();
+    private List<(string nombreArchivo, byte[] contenido)> facturasPendientes = new();
+
     public async Task Abrir()
     {
         pasoActual = 1;
@@ -827,6 +923,7 @@
         mensajeError = string.Empty;
         numeroLineasActivas = 0;
         tieneFibraSegundaResidencia = false;
+        archivosPendientesCliente.Clear();
         
         // Cargar datos iniciales
         await CargarClientes();
@@ -996,6 +1093,25 @@
                 return;
             }
             
+            // Si hay archivos pendientes, guardarlos
+            if (archivosPendientesCliente.Any() && nuevoCliente.Id > 0)
+            {
+                foreach (var tipoArchivos in archivosPendientesCliente)
+                {
+                    foreach (var archivo in tipoArchivos.Value)
+                    {
+                        await FicheroClienteService.GuardarArchivoAsync(
+                            nuevoCliente.Id,
+                            tipoArchivos.Key,
+                            archivo.nombreArchivo,
+                            archivo.contenido
+                        );
+                    }
+                }
+                // Limpiar archivos pendientes
+                archivosPendientesCliente.Clear();
+            }
+            
             // Recargar clientes y seleccionar el recién creado
             await CargarClientes();
             clienteSeleccionado = todosLosClientes.OrderByDescending(c => c.Id).FirstOrDefault();
@@ -1095,6 +1211,19 @@
                 mensajeError = "Error al guardar el contrato";
                 return;
             }
+
+            // Guardar facturas pendientes si existen
+            if (nuevoContrato.Id > 0 && facturasPendientes.Any())
+            {
+                foreach (var factura in facturasPendientes)
+                {
+                    await FicheroContratoService.GuardarFacturaAsync(
+                        nuevoContrato.Id,
+                        factura.nombreArchivo,
+                        factura.contenido
+                    );
+                }
+            }
             
             await OnContratoCreado.InvokeAsync();
             await CerrarWizard();
@@ -1116,6 +1245,8 @@
         clienteSeleccionado = null;
         operadoraSeleccionada = null;
         nuevoContrato = null;
+        archivosPendientesCliente.Clear();
+        facturasPendientes.Clear();
         await OnCerrar.InvokeAsync();
     }
 
@@ -1289,6 +1420,95 @@
             nuevoContrato.TitularIbanDni = "";
             nuevoContrato.TitularIbanNombre = "";
             nuevoContrato.TitularIbanNumero = "";
+        }
+    }
+
+    // Métodos para manejo de archivos adjuntos
+    private async Task SubirArchivo(InputFileChangeEventArgs e, string tipoFichero)
+    {
+        try
+        {
+            var archivo = e.File;
+            
+            // Validar tamaño (máx 10MB)
+            if (archivo.Size > 10 * 1024 * 1024)
+            {
+                mensajeError = "El archivo no puede superar los 10 MB";
+                return;
+            }
+
+            // Leer contenido del archivo
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+            var contenido = ms.ToArray();
+
+            // Guardar en lista temporal (se guardará al crear el cliente)
+            if (!archivosPendientesCliente.ContainsKey(tipoFichero))
+            {
+                archivosPendientesCliente[tipoFichero] = new List<(string, byte[])>();
+            }
+            archivosPendientesCliente[tipoFichero].Add((archivo.Name, contenido));
+            
+            mensajeError = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al subir archivo: {ex.Message}";
+        }
+    }
+
+    private void EliminarArchivoPendiente(string tipoFichero, int index)
+    {
+        if (archivosPendientesCliente.ContainsKey(tipoFichero) && 
+            index >= 0 && 
+            index < archivosPendientesCliente[tipoFichero].Count)
+        {
+            var nombreArchivo = archivosPendientesCliente[tipoFichero][index].nombreArchivo;
+            archivosPendientesCliente[tipoFichero].RemoveAt(index);
+            
+            // Si ya no hay archivos de este tipo, eliminar la clave del diccionario
+            if (!archivosPendientesCliente[tipoFichero].Any())
+            {
+                archivosPendientesCliente.Remove(tipoFichero);
+            }
+            
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarFacturaTelefonia(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var archivo = e.File;
+            if (archivo.Size > 10 * 1024 * 1024)
+            {
+                mensajeError = "El archivo no debe superar los 10MB";
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+            var contenido = ms.ToArray();
+
+            facturasPendientes.Add((archivo.Name, contenido));
+            mensajeError = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar el archivo: {ex.Message}";
+        }
+    }
+
+    private void EliminarFacturaPendiente(int index)
+    {
+        if (index >= 0 && index < facturasPendientes.Count)
+        {
+            var nombreArchivo = facturasPendientes[index].nombreArchivo;
+            facturasPendientes.RemoveAt(index);
+            StateHasChanged();
         }
     }
 }

@@ -711,9 +711,12 @@ else
                                         <label class="form-label fw-bold">Servicio (opcional)</label>
                                         <select @bind="nuevoContrato.ServicioId" class="form-select">
                                             <option value="">Sin servicio</option>
-                                            @foreach (var servicio in serviciosDisponibles)
+                                            @if (serviciosDisponibles != null)
                                             {
-                                                <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio</option>
+                                                @foreach (var servicio in serviciosDisponibles)
+                                                {
+                                                    <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio</option>
+                                                }
                                             }
                                         </select>
                                     </div>
@@ -721,9 +724,12 @@ else
                                         <label class="form-label fw-bold">Comercializadora</label>
                                         <select @bind="nuevoContrato.EnComercializadora" @bind:after="OnComercializadoraEnergiaChanged" class="form-select">
                                             <option value="">Seleccionar comercializadora...</option>
-                                            @foreach (var comercializadora in comercializadorasEnergia)
+                                            @if (comercializadorasEnergia != null)
                                             {
-                                                <option value="@comercializadora">@comercializadora</option>
+                                                @foreach (var comercializadora in comercializadorasEnergia)
+                                                {
+                                                    <option value="@comercializadora">@comercializadora</option>
+                                                }
                                             }
                                         </select>
                                     </div>
@@ -757,9 +763,12 @@ else
                                         <label class="form-label fw-bold">Tarifa</label>
                                         <select @bind="nuevoContrato.EnTarifa" class="form-select" disabled="@string.IsNullOrEmpty(nuevoContrato.EnComercializadora)">
                                             <option value="">Seleccionar tarifa...</option>
-                                            @foreach (var tarifa in tarifasEnergiaDisponibles)
+                                            @if (tarifasEnergiaDisponibles != null)
                                             {
-                                                <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                                @foreach (var tarifa in tarifasEnergiaDisponibles)
+                                                {
+                                                    <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                                }
                                             }
                                         </select>
                                     </div>
@@ -2005,6 +2014,10 @@ else
         catch (Exception ex)
         {
             mensajeError = $"Error al cargar comercializadoras y operadoras: {ex.Message}";
+            // Asegurar que las listas nunca sean null
+            comercializadorasEnergia ??= new List<string>();
+            comercializadorasObjetos ??= new List<Models.Comercializadora>();
+            operadorasTelefonia ??= new List<string>();
         }
     }
 
@@ -2026,7 +2039,11 @@ else
                     .ToList();
                 
                 // Recargar servicios filtrados por comercializadora y tipo de cliente
-                await CargarServiciosSegunTipoCliente();
+                var exitoCarga = await CargarServiciosSegunTipoCliente();
+                if (!exitoCarga)
+                {
+                    Console.WriteLine("Error al cargar servicios por tipo de cliente");
+                }
                 
                 if (!string.IsNullOrEmpty(nuevoContrato.EnTarifa))
                 {
@@ -2875,7 +2892,22 @@ else
 
     private void MostrarModalCrearContrato(Cliente cliente)
     {
-        clienteParaContrato = cliente;
+        // Limpiar mensajes anteriores
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+        
+        // Buscar el cliente actualizado en la lista para asegurar que tiene todos los datos
+        var clienteActualizado = clientes.FirstOrDefault(c => c.Id == cliente.Id);
+        clienteParaContrato = clienteActualizado ?? cliente;
+        
+        // Validar que el cliente tenga tipo de cliente definido
+        if (string.IsNullOrEmpty(clienteParaContrato.TipoCliente))
+        {
+            mensajeError = "El cliente debe tener un tipo (Particular o Pyme) antes de crear un contrato. Por favor, edita el cliente y selecciona el tipo.";
+            StateHasChanged();
+            return;
+        }
+        
         mostrarModalTipoContrato = true;
     }
 
@@ -2883,47 +2915,92 @@ else
     {
         mostrarModalTipoContrato = false;
         clienteParaContrato = null;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
     }
 
     private async Task CrearContratoEnergia()
     {
         if (clienteParaContrato == null) return;
 
+        // Limpiar mensajes anteriores
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        // Validar que el cliente tenga tipo antes de continuar
+        if (string.IsNullOrEmpty(clienteParaContrato.TipoCliente))
+        {
+            mensajeError = "El cliente no tiene un tipo definido (Particular o Pyme). Por favor, edita el cliente primero.";
+            mostrarModalTipoContrato = false;
+            StateHasChanged();
+            return;
+        }
+
         nuevoContrato = new Contrato
         {
             Tipo = "energia",
             IdCliente = clienteParaContrato.Id,
-            NombreCliente = clienteParaContrato.Nombre,
-            Dni = clienteParaContrato.DniCif,
-            Direccion = clienteParaContrato.Direccion,
-            Iban = clienteParaContrato.Iban,
+            NombreCliente = clienteParaContrato.Nombre ?? "",
+            Dni = clienteParaContrato.DniCif ?? "",
+            Direccion = clienteParaContrato.Direccion ?? "",
+            Iban = clienteParaContrato.Iban ?? "",
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
             FechaCreacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
             EstadoServicio = "No quiere",
-            Comision = 0
+            Comision = 0,
+            // Inicializar campos de dirección de instalación con datos del cliente
+            DireccionInstalacionAlarma = clienteParaContrato.Direccion ?? "",
+            NumeroInstalacion = clienteParaContrato.Numero ?? "",
+            CodigoPostalInstalacion = clienteParaContrato.CodigoPostal ?? "",
+            ProvinciaInstalacion = clienteParaContrato.Provincia ?? "",
+            LocalidadInstalacion = clienteParaContrato.Poblacion ?? ""
         };
 
-        // Asegurarse de que las comercializadoras están cargadas
-        if (comercializadorasEnergia == null || !comercializadorasEnergia.Any())
+        try
         {
-            await CargarComercializadorasYOperadoras();
+            // Asegurarse de que las comercializadoras están cargadas
+            if (comercializadorasEnergia == null || !comercializadorasEnergia.Any())
+            {
+                await CargarComercializadorasYOperadoras();
+            }
+
+            // Cargar servicios según el tipo de cliente
+            var cargaExitosa = await CargarServiciosSegunTipoCliente();
+            if (!cargaExitosa)
+            {
+                mostrarModalTipoContrato = false;
+                StateHasChanged();
+                return;
+            }
+
+            mostrarModalTipoContrato = false;
+            mostrarModalContratoEnergia = true;
         }
-
-        // Cargar servicios según el tipo de cliente
-        await CargarServiciosSegunTipoCliente();
-
-        mostrarModalTipoContrato = false;
-        mostrarModalContratoEnergia = true;
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al preparar el formulario de contrato: {ex.Message}";
+            mostrarModalTipoContrato = false;
+            StateHasChanged();
+        }
     }
 
-    private async Task CargarServiciosSegunTipoCliente()
+    private async Task<bool> CargarServiciosSegunTipoCliente()
     {
         if (clienteParaContrato == null)
         {
             serviciosDisponibles = new List<Servicio>();
-            return;
+            mensajeError = "No se puede cargar servicios: cliente no seleccionado.";
+            return false;
+        }
+
+        // Validar que el tipo de cliente esté definido
+        if (string.IsNullOrEmpty(clienteParaContrato.TipoCliente))
+        {
+            mensajeError = "El cliente no tiene un tipo definido. Por favor, edita el cliente y selecciona el tipo (Particular o Pyme).";
+            serviciosDisponibles = new List<Servicio>();
+            return false;
         }
 
         try
@@ -2941,17 +3018,23 @@ else
                 // Si no hay comercializadora seleccionada, solo filtrar por tipo
                 serviciosDisponibles = await ServicioService.ObtenerPorTipoAsync(tipoServicio);
             }
+            return true;
         }
         catch (Exception ex)
         {
             mensajeError = $"Error al cargar servicios: {ex.Message}";
             serviciosDisponibles = new List<Servicio>();
+            return false;
         }
     }
 
     private async Task CrearContratoTelefonia()
     {
         if (clienteParaContrato == null) return;
+
+        // Limpiar mensajes anteriores
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
 
         nuevoContrato = new Contrato
         {
@@ -2987,6 +3070,10 @@ else
     private async Task CrearContratoAlarmas()
     {
         if (clienteParaContrato == null) return;
+
+        // Limpiar mensajes anteriores
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
 
         nuevoContrato = new Contrato
         {
