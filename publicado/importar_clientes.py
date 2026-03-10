@@ -1,32 +1,69 @@
 #!/usr/bin/env python3
 """
 Script para importar clientes desde un archivo Excel a la base de datos MySQL
-Uso: python3 importar_clientes.py <nombre_bd> plantilla_clientes.xlsx
+
+Lee automáticamente la base de datos desde appsettings.Production.json
+
+Uso: python3 importar_clientes.py <archivo_excel>
 """
 
 import sys
+import os
+import json
+import re
 import pandas as pd
 import mysql.connector
 from datetime import datetime
 from mysql.connector import Error
 
+def obtener_config_bd():
+    """Lee la configuración de la base de datos desde appsettings.Production.json"""
+    try:
+        config_file = 'appsettings.Production.json'
+        if not os.path.exists(config_file):
+            print(f"❌ Error: No se encuentra {config_file} en el directorio actual")
+            print(f"   Directorio actual: {os.getcwd()}")
+            print(f"   Ejecuta el script desde la carpeta donde está appsettings.Production.json")
+            sys.exit(1)
+        
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        connection_string = config.get('ConnectionStrings', {}).get('DefaultConnection', '')
+        if not connection_string:
+            print(f"❌ Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
+            sys.exit(1)
+        
+        # Extraer información de la cadena de conexión
+        db_match = re.search(r'Database=([^;]+)', connection_string)
+        user_match = re.search(r'User=([^;]+)', connection_string)
+        password_match = re.search(r'Password=([^;]+)', connection_string)
+        host_match = re.search(r'Server=([^;]+)', connection_string)
+        
+        if not db_match:
+            print(f"❌ Error: No se pudo extraer el nombre de la base de datos")
+            sys.exit(1)
+        
+        return {
+            'host': host_match.group(1) if host_match else 'localhost',
+            'database': db_match.group(1),
+            'user': user_match.group(1) if user_match else 'root',
+            'password': password_match.group(1) if password_match else ''
+        }
+    except Exception as e:
+        print(f"❌ Error al leer configuración: {str(e)}")
+        sys.exit(1)
+
 # Verificar argumentos
-if len(sys.argv) < 3:
-    print("Uso: python3 importar_clientes.py <nombre_bd> <archivo_excel>")
+if len(sys.argv) < 2:
+    print("Uso: python3 importar_clientes.py <archivo_excel>")
+    print("\nNOTA: El script lee automáticamente la base de datos desde appsettings.Production.json")
     sys.exit(1)
 
-database_name = sys.argv[1]
-archivo_excel_arg = sys.argv[2]
-db_user = sys.argv[3] if len(sys.argv) > 3 else 'root'
-db_password = sys.argv[4] if len(sys.argv) > 4 else 'A76262136.r'
+archivo_excel_arg = sys.argv[1]
 
-# Configuración de la base de datos
-DB_CONFIG = {
-    'host': 'localhost',
-    'database': database_name,
-    'user': db_user,
-    'password': db_password
-}
+# Configuración de la base de datos (automática)
+DB_CONFIG = obtener_config_bd()
 
 def validar_email(email):
     """Valida formato básico de email"""

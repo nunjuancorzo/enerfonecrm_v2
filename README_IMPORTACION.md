@@ -60,36 +60,32 @@ Abre las plantillas Excel y rellena con tus datos:
 - Cada plantilla tiene una hoja de "Instrucciones" con ayuda detallada
 - **NO elimines** la fila de encabezados
 
-### 4. Configurar Conexión a Base de Datos
+### 4. Ejecutar Importaciones
 
-Edita los archivos de importación y configura tu base de datos:
-
-**En `importar_clientes.py`, `importar_contratos.py` y `importar_tarifas_servicios.py`:**
-```python
-DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'enerfone_pre',  # Tu base de datos
-    'user': 'root',              # Tu usuario
-    'password': 'tu_password'    # Tu contraseña
-}
-```
-
-### 5. Ejecutar Importaciones
+⚠️ **IMPORTANTE**: Especifica siempre el nombre de la base de datos correcta:
+- **Enerfone**: `enerfone_pre`
+- **Grupo Basette**: `crmgrupobasette`
 
 ```bash
 # 1. PRIMERO: Importar clientes
-python3 importar_clientes.py plantilla_clientes.xlsx
+python3 importar_clientes.py <nombre_bd> plantilla_clientes.xlsx
 
 # 2. DESPUÉS: Importar contratos (en cualquier orden)
-python3 importar_contratos.py energia plantilla_contratos_energia.xlsx
-python3 importar_contratos.py telefonia plantilla_contratos_telefonia.xlsx
-python3 importar_contratos.py alarmas plantilla_contratos_alarmas.xlsx
+python3 importar_contratos.py <nombre_bd> energia plantilla_contratos_energia.xlsx
+python3 importar_contratos.py <nombre_bd> telefonia plantilla_contratos_telefonia.xlsx
+python3 importar_contratos.py <nombre_bd> alarmas plantilla_contratos_alarmas.xlsx
 
 # 3. DESPUÉS: Importar tarifas y servicios (en cualquier orden)
-python3 importar_tarifas_servicios.py tarifa-energia plantilla_tarifas_energia.xlsx
-python3 importar_tarifas_servicios.py tarifa-telefonia plantilla_tarifas_telefonia.xlsx
-python3 importar_tarifas_servicios.py tarifa-alarmas plantilla_tarifas_alarmas.xlsx
-python3 importar_tarifas_servicios.py servicios plantilla_servicios.xlsx
+python3 importar_tarifas_servicios.py <nombre_bd> tarifa-energia plantilla_tarifas_energia.xlsx
+python3 importar_tarifas_servicios.py <nombre_bd> tarifa-telefonia plantilla_tarifas_telefonia.xlsx
+python3 importar_tarifas_servicios.py <nombre_bd> tarifa-alarmas plantilla_tarifas_alarmas.xlsx
+python3 importar_tarifas_servicios.py <nombre_bd> servicios plantilla_servicios.xlsx
+```
+
+**Ejemplos para Grupo Basette:**
+```bash
+python3 importar_clientes.py crmgrupobasette plantilla_clientes.xlsx
+python3 importar_tarifas_servicios.py crmgrupobasette tarifa-energia plantilla_tarifas_energia.xlsx
 ```
 
 ## 📋 Guía Rápida por Tipo de Dato

@@ -547,10 +547,8 @@ else
                 throw new Exception($"No se encontró el script importar_clientes.py en {directorioActual} ni en {directorioTrabajo}");
             }
 
-            // Obtener nombre de base de datos según entorno
-            var databaseName = EnvironmentService.GetDatabaseName();
-            var dbUser = EnvironmentService.GetDatabaseUser();
-            var dbPassword = EnvironmentService.GetDatabasePassword();
+            // Los scripts ahora leen la BD automáticamente desde appsettings.Production.json
+            // Ya no se necesitan parámetros de base de datos
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -558,7 +556,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_clientes.py \"{databaseName}\" \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
+                    Arguments = $"importar_clientes.py \"{rutaTemporal}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -654,10 +652,8 @@ else
                 throw new Exception($"No se encontró el script importar_contratos.py en {directorioActual} ni en {directorioTrabajo}");
             }
 
-            // Obtener nombre de base de datos según entorno
-            var databaseName = EnvironmentService.GetDatabaseName();
-            var dbUser = EnvironmentService.GetDatabaseUser();
-            var dbPassword = EnvironmentService.GetDatabasePassword();
+            // Los scripts ahora leen la BD automáticamente desde appsettings.Production.json
+            // Ya no se necesitan parámetros de base de datos
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -665,7 +661,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_contratos.py \"{databaseName}\" {tipoContratoSeleccionado} \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
+                    Arguments = $"importar_contratos.py {tipoContratoSeleccionado} \"{rutaTemporal}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -761,10 +757,8 @@ else
                 throw new Exception($"No se encontró el script importar_tarifas_energia.py en {directorioActual} ni en {directorioTrabajo}");
             }
 
-            // Obtener nombre de base de datos según entorno
-            var databaseName = EnvironmentService.GetDatabaseName();
-            var dbUser = EnvironmentService.GetDatabaseUser();
-            var dbPassword = EnvironmentService.GetDatabasePassword();
+            // Los scripts ahora leen la BD automáticamente desde appsettings.Production.json
+            // Ya no se necesitan parámetros de base de datos
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -772,7 +766,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_tarifas_energia.py \"{databaseName}\" \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
+                    Arguments = $"importar_tarifas_energia.py \"{rutaTemporal}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -868,10 +862,8 @@ else
                 throw new Exception($"No se encontró el script importar_tarifas_telefonia.py en {directorioActual} ni en {directorioTrabajo}");
             }
 
-            // Obtener nombre de base de datos según entorno
-            var databaseName = EnvironmentService.GetDatabaseName();
-            var dbUser = EnvironmentService.GetDatabaseUser();
-            var dbPassword = EnvironmentService.GetDatabasePassword();
+            // Los scripts ahora leen la BD automáticamente desde appsettings.Production.json
+            // Ya no se necesitan parámetros de base de datos
 
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
@@ -879,7 +871,7 @@ else
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_tarifas_telefonia.py \"{databaseName}\" \"{rutaTemporal}\" \"{dbUser}\" \"{dbPassword}\"",
+                    Arguments = $"importar_tarifas_telefonia.py \"{rutaTemporal}\"",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

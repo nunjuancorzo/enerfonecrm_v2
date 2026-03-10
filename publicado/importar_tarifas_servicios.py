@@ -3,6 +3,8 @@
 Script para importar tarifas y servicios desde archivos Excel a la base de datos MySQL
 Soporta: Tarifas de Energía, Tarifas de Telefonía, Tarifas de Alarmas y Servicios
 
+Lee automáticamente la base de datos desde appsettings.Production.json
+
 Uso: 
   python3 importar_tarifas_servicios.py tarifa-energia plantilla_tarifas_energia.xlsx
   python3 importar_tarifas_servicios.py tarifa-telefonia plantilla_tarifas_telefonia.xlsx
@@ -11,18 +13,71 @@ Uso:
 """
 
 import sys
+import os
+import json
+import re
 import pandas as pd
 import mysql.connector
 from datetime import datetime
 from mysql.connector import Error
 
-# Configuración de la base de datos
-DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'enerfone_pre',  # Cambiar según tu base de datos
-    'user': 'root',  # Cambiar según tu usuario
-    'password': ''  # Añadir tu contraseña
-}
+def obtener_config_bd():
+    """Lee la configuración de la base de datos desde appsettings.Production.json"""
+    try:
+        # Buscar appsettings.Production.json en el directorio actual
+        config_file = 'appsettings.Production.json'
+        if not os.path.exists(config_file):
+            print(f"❌ Error: No se encuentra {config_file} en el directorio actual")
+            print(f"   Directorio actual: {os.getcwd()}")
+            print(f"   Ejecuta el script desde la carpeta donde está appsettings.Production.json")
+            sys.exit(1)
+        
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        connection_string = config.get('ConnectionStrings', {}).get('DefaultConnection', '')
+        if not connection_string:
+            print(f"❌ Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
+            sys.exit(1)
+        
+        # Extraer información de la cadena de conexión
+        # Formato: Server=localhost;Port=3306;Database=nombre_bd;User=usuario;Password=contraseña;...
+        db_match = re.search(r'Database=([^;]+)', connection_string)
+        user_match = re.search(r'User=([^;]+)', connection_string)
+        password_match = re.search(r'Password=([^;]+)', connection_string)
+        host_match = re.search(r'Server=([^;]+)', connection_string)
+        
+        if not db_match:
+            print(f"❌ Error: No se pudo extraer el nombre de la base de datos")
+            sys.exit(1)
+        
+        database_name = db_match.group(1)
+        db_user = user_match.group(1) if user_match else 'root'
+        db_password = password_match.group(1) if password_match else ''
+        db_host = host_match.group(1) if host_match else 'localhost'
+        
+        return {
+            'host': db_host,
+            'database': database_name,
+            'user': db_user,
+            'password': db_password
+        }
+    except Exception as e:
+        print(f"❌ Error al leer configuración: {str(e)}")
+        sys.exit(1)
+
+# Verificar argumentos mínimos
+if len(sys.argv) < 3:
+    print("Uso: python3 importar_tarifas_servicios.py <tipo> <archivo_excel>")
+    print("\nTipos válidos: tarifa-energia, tarifa-telefonia, tarifa-alarmas, servicios")
+    print("\nEjemplos:")
+    print("  python3 importar_tarifas_servicios.py tarifa-energia plantilla_tarifas_energia.xlsx")
+    print("  python3 importar_tarifas_servicios.py tarifa-telefonia plantilla_tarifas_telefonia.xlsx")
+    print("\nNOTA: El script lee automáticamente la base de datos desde appsettings.Production.json")
+    sys.exit(1)
+
+# Obtener configuración automáticamente
+DB_CONFIG = obtener_config_bd()
 
 def limpiar_valor(valor):
     """Limpia valores None, NaN o vacíos"""
@@ -523,6 +578,7 @@ if __name__ == "__main__":
         print("  python3 importar_tarifas_servicios.py tarifa-telefonia plantilla_tarifas_telefonia.xlsx")
         print("  python3 importar_tarifas_servicios.py tarifa-alarmas plantilla_tarifas_alarmas.xlsx")
         print("  python3 importar_tarifas_servicios.py servicios plantilla_servicios.xlsx")
+        print("\nNOTA: El script lee automáticamente la base de datos desde appsettings.Production.json")
         sys.exit(1)
     
     tipo = sys.argv[1].lower()
@@ -534,7 +590,7 @@ IMPORTACIÓN A LA BASE DE DATOS
 {'='*60}
 Tipo: {tipo.upper()}
 Archivo: {archivo}
-Base de datos: {DB_CONFIG['database']}
+Base de datos: {DB_CONFIG['database']} (detectada automáticamente)
 {'='*60}
     """)
     
