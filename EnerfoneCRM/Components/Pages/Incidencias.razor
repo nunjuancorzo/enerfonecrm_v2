@@ -157,16 +157,18 @@ else
                                         @incidencia.Estado
                                     </span>
                                 </td>
-                                <td>
-                                    <button class="btn btn-sm btn-info" @onclick="() => MostrarDetalle(incidencia)">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    @if (AuthService.EsAdministrador)
-                                    {
-                                        <button class="btn btn-sm btn-warning ms-1" @onclick="() => EditarIncidencia(incidencia)">
-                                            <i class="bi bi-pencil"></i>
+                                <td class="text-nowrap">
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-info" @onclick="() => MostrarDetalle(incidencia)">
+                                            <i class="bi bi-eye"></i>
                                         </button>
-                                    }
+                                        @if (AuthService.EsAdministrador)
+                                        {
+                                            <button class="btn btn-sm btn-warning" @onclick="() => EditarIncidencia(incidencia)">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        }
+                                    </div>
                                 </td>
                             </tr>
                         }

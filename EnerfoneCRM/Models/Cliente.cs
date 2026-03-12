@@ -24,6 +24,10 @@ namespace EnerfoneCRM.Models
         [MaxLength(50)]
         public string? DniCif { get; set; }
 
+        [Column("cnae")]
+        [MaxLength(10)]
+        public string? Cnae { get; set; }
+
         [Column("dni_representante")]
         [MaxLength(50)]
         public string? Dni { get; set; }

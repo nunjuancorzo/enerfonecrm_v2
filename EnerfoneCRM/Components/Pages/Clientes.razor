@@ -204,10 +204,18 @@ else
 
                         @* Paginación *@
                         <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
-                            <div>
+                            <div class="d-flex align-items-center gap-3">
                                 <small class="text-muted">
                                     Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos clientes
                                 </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted">Mostrar:</small>
+                                    <select class="form-select form-select-sm" style="width: auto;" @onchange="CambiarElementosPorPaginaEvento">
+                                        <option value="10" selected="@(elementosPorPagina == 10)">10</option>
+                                        <option value="25" selected="@(elementosPorPagina == 25)">25</option>
+                                        <option value="50" selected="@(elementosPorPagina == 50)">50</option>
+                                    </select>
+                                </div>
                             </div>
                             @if (totalPaginas > 1)
                             {
@@ -345,6 +353,10 @@ else
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">DNI Representante</label>
                                             <InputText @bind-Value="clienteSeleccionado.Dni" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">CNAE <small class="text-muted">(Código de Actividad Económica)</small></label>
+                                            <InputText @bind-Value="clienteSeleccionado.Cnae" class="form-control" placeholder="Ej: 4321" />
                                         </div>
                                     }
                                     else
@@ -708,6 +720,10 @@ else
                                         <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
                                     </div>
                                     <div class="col-md-4">
+                                        <label class="form-label fw-bold">ID Contrato Externo <small class="text-muted">(opcional)</small></label>
+                                        <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID proporcionado por la comercializadora" />
+                                    </div>
+                                    <div class="col-md-4">
                                         <label class="form-label fw-bold">Servicio (opcional)</label>
                                         <select @bind="nuevoContrato.ServicioId" class="form-select">
                                             <option value="">Sin servicio</option>
@@ -827,6 +843,14 @@ else
                                     <div class="col-12 mt-3">
                                         <hr />
                                         <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
+                                    </div>
+                                    <div class="col-12 mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox class="form-check-input" id="usarDireccionClienteEnergia" @bind-Value="usarDireccionCliente" @bind-Value:after="OnUsarDireccionClienteChanged" />
+                                            <label class="form-check-label" for="usarDireccionClienteEnergia">
+                                                <i class="bi bi-house-check me-1"></i>Usar la misma dirección del cliente
+                                            </label>
+                                        </div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Tipo de Vía</label>
@@ -1037,6 +1061,10 @@ else
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Fecha Alta</label>
                                         <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">ID Contrato Externo <small class="text-muted">(opcional)</small></label>
+                                        <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID proporcionado por la operadora" />
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Operadora</label>
@@ -1369,6 +1397,14 @@ else
                                         <hr />
                                         <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
                                     </div>
+                                    <div class="col-12 mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox class="form-check-input" id="usarDireccionClienteTelefonia" @bind-Value="usarDireccionCliente" @bind-Value:after="OnUsarDireccionClienteChanged" />
+                                            <label class="form-check-label" for="usarDireccionClienteTelefonia">
+                                                <i class="bi bi-house-check me-1"></i>Usar la misma dirección del cliente
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Tipo de Vía</label>
                                         <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoViaInstalacion">
@@ -1578,6 +1614,10 @@ else
                                         <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
                                     </div>
                                     <div class="col-md-6">
+                                        <label class="form-label fw-bold">ID Contrato Externo <small class="text-muted">(opcional)</small></label>
+                                        <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID proporcionado por la empresa" />
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo de Inmueble</label>
                                         <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoAlarma">
                                             <option value="">-- Seleccionar --</option>
@@ -1718,6 +1758,14 @@ else
                                     <!-- Instalación -->
                                     <div class="col-12 mt-3">
                                         <h6 class="border-bottom pb-2"><i class="bi bi-geo-alt me-2"></i>Dirección de Instalación</h6>
+                                    </div>
+                                    <div class="col-12 mb-3">
+                                        <div class="form-check">
+                                            <InputCheckbox class="form-check-input" id="usarDireccionClienteAlarmas" @bind-Value="usarDireccionCliente" @bind-Value:after="OnUsarDireccionClienteChanged" />
+                                            <label class="form-check-label" for="usarDireccionClienteAlarmas">
+                                                <i class="bi bi-house-check me-1"></i>Usar la misma dirección del cliente
+                                            </label>
+                                        </div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Tipo de Vía</label>
@@ -1959,6 +2007,9 @@ else
     private int numeroLineasActivasTelefonia = 0;
     private bool tieneFibraSegundaResidencia = false;
     private Operadora? operadoraTelefoniaSeleccionada = null;
+    
+    // Checkbox para usar dirección del cliente
+    private bool usarDireccionCliente = false;
 
     private string filtroNombre = string.Empty;
     private string filtroDni = string.Empty;
@@ -2619,6 +2670,16 @@ else
         AplicarFiltros();
     }
 
+    private void CambiarElementosPorPaginaEvento(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevaCantidad))
+        {
+            elementosPorPagina = nuevaCantidad;
+            paginaActual = 1;
+            AplicarFiltros();
+        }
+    }
+
     private void CambiarPagina(int nuevaPagina)
     {
         if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
@@ -2976,6 +3037,7 @@ else
             }
 
             mostrarModalTipoContrato = false;
+            usarDireccionCliente = false;
             mostrarModalContratoEnergia = true;
         }
         catch (Exception ex)
@@ -3064,6 +3126,7 @@ else
         }
 
         mostrarModalTipoContrato = false;
+        usarDireccionCliente = false;
         mostrarModalContratoTelefonia = true;
     }
 
@@ -3096,6 +3159,7 @@ else
         await CargarTarifasAlarmas();
 
         mostrarModalTipoContrato = false;
+        usarDireccionCliente = false;
         mostrarModalContratoAlarmas = true;
     }
 
@@ -3999,5 +4063,53 @@ else
         {
             mensajeError = $"Error al eliminar archivo: {ex.Message}";
         }
+    }
+    
+    private void OnUsarDireccionClienteChanged()
+    {
+        if (usarDireccionCliente)
+        {
+            CopiarDireccionCliente();
+        }
+        else
+        {
+            LimpiarDireccionSuministro();
+        }
+    }
+    
+    private void CopiarDireccionCliente()
+    {
+        if (nuevoContrato == null || clienteParaContrato == null) return;
+        
+        nuevoContrato.TipoViaInstalacion = clienteParaContrato.TipoVia;
+        nuevoContrato.DireccionInstalacionAlarma = clienteParaContrato.Direccion;
+        nuevoContrato.NumeroInstalacion = clienteParaContrato.Numero;
+        nuevoContrato.EscaleraInstalacion = clienteParaContrato.Escalera;
+        nuevoContrato.PisoInstalacion = clienteParaContrato.Piso;
+        nuevoContrato.PuertaInstalacion = clienteParaContrato.Puerta;
+        nuevoContrato.CodigoPostalInstalacion = clienteParaContrato.CodigoPostal;
+        nuevoContrato.AclaradorInstalacion = clienteParaContrato.Aclarador;
+        nuevoContrato.LocalidadInstalacion = clienteParaContrato.Poblacion;
+        nuevoContrato.ProvinciaInstalacion = clienteParaContrato.Provincia;
+        
+        StateHasChanged();
+    }
+    
+    private void LimpiarDireccionSuministro()
+    {
+        if (nuevoContrato == null) return;
+        
+        nuevoContrato.TipoViaInstalacion = string.Empty;
+        nuevoContrato.DireccionInstalacionAlarma = string.Empty;
+        nuevoContrato.NumeroInstalacion = string.Empty;
+        nuevoContrato.EscaleraInstalacion = string.Empty;
+        nuevoContrato.PisoInstalacion = string.Empty;
+        nuevoContrato.PuertaInstalacion = string.Empty;
+        nuevoContrato.CodigoPostalInstalacion = string.Empty;
+        nuevoContrato.AclaradorInstalacion = string.Empty;
+        nuevoContrato.LocalidadInstalacion = string.Empty;
+        nuevoContrato.ProvinciaInstalacion = string.Empty;
+        
+        StateHasChanged();
     }
 }

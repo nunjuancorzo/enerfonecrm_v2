@@ -5,6 +5,7 @@
 @using EnerfoneCRM.Components.Pages.Usuarios
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
+@inject EmailService EmailService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -181,10 +182,16 @@ else
                                             </span>
                                         </td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await MostrarModalEditar(usuario)">
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await MostrarModalEditar(usuario)" title="Editar">
                                                 <span class="bi bi-pencil"></span>
                                             </button>
-                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(usuario)">
+                                            @if (AuthService.EsAdministrador || AuthService.EsSuperAdmin)
+                                            {
+                                                <button class="btn btn-sm btn-outline-info me-1" @onclick="() => EnviarCredencialesEmail(usuario)" title="Enviar credenciales por email" disabled="@enviandoEmail">
+                                                    <span class="bi bi-envelope"></span>
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(usuario)" title="Eliminar">
                                                 <span class="bi bi-trash"></span>
                                             </button>
                                         </td>
@@ -198,8 +205,18 @@ else
                     @if (usuarios.Any() && totalPaginas > 1)
                     {
                         <div class="d-flex justify-content-between align-items-center p-3 border-top">
-                            <div class="text-muted">
-                                Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos usuarios
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="text-muted">
+                                    Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos usuarios
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted">Mostrar:</small>
+                                    <select class="form-select form-select-sm" style="width: auto;" @onchange="CambiarElementosPorPaginaEvento">
+                                        <option value="10" selected="@(elementosPorPagina == 10)">10</option>
+                                        <option value="25" selected="@(elementosPorPagina == 25)">25</option>
+                                        <option value="50" selected="@(elementosPorPagina == 50)">50</option>
+                                    </select>
+                                </div>
                             </div>
                             <nav>
                                 <ul class="pagination mb-0">
@@ -298,6 +315,7 @@ else
     private bool mostrarModalEditar = false;
     private bool mostrarModalCrear = false;
     private bool mostrarModalEliminar = false;
+    private bool enviandoEmail = false;
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
 
@@ -420,6 +438,16 @@ else
         FiltrarUsuarios();
     }
     
+    private void CambiarElementosPorPaginaEvento(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevaCantidad))
+        {
+            elementosPorPagina = nuevaCantidad;
+            paginaActual = 1;
+            AplicarOrdenamiento();
+        }
+    }
+
     private void CambiarPagina(int nuevaPagina)
     {
         if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
@@ -454,6 +482,118 @@ else
     {
         usuarioSeleccionado = usuario;
         mostrarModalEliminar = true;
+    }
+
+    private async Task EnviarCredencialesEmail(Usuario usuario)
+    {
+        // Verificar que solo Admin o SuperAdmin puedan enviar credenciales
+        if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+        {
+            mensajeError = "No tienes permisos para enviar credenciales";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(usuario.Email))
+        {
+            mensajeError = "El usuario no tiene un email configurado";
+            return;
+        }
+
+        enviandoEmail = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            string nombreCompleto = string.IsNullOrWhiteSpace(usuario.Nombre) 
+                ? usuario.NombreUsuario 
+                : $"{usuario.Nombre} {usuario.Apellidos}";
+
+            string cuerpoHtml = $@"
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+                        .content {{ background-color: #f8f9fa; padding: 30px; border-radius: 0 0 5px 5px; }}
+                        .credentials {{ background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #007bff; border-radius: 4px; }}
+                        .credential-item {{ margin: 10px 0; }}
+                        .credential-label {{ font-weight: bold; color: #555; }}
+                        .credential-value {{ color: #007bff; font-size: 18px; font-family: 'Courier New', monospace; }}
+                        .instructions {{ background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }}
+                        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <div class='header'>
+                            <h2>Credenciales de Acceso - Enerfone CRM</h2>
+                        </div>
+                        <div class='content'>
+                            <p>Hola <strong>{nombreCompleto}</strong>,</p>
+                            <p>A continuaci&oacute;n encontrar&aacute;s tus credenciales de acceso al sistema Enerfone CRM:</p>
+                            
+                            <div class='credentials'>
+                                <div class='credential-item'>
+                                    <span class='credential-label'>Usuario:</span><br>
+                                    <span class='credential-value'>{usuario.NombreUsuario}</span>
+                                </div>
+                                <div class='credential-item'>
+                                    <span class='credential-label'>Contrase&ntilde;a provisional:</span><br>
+                                    <span class='credential-value'>{usuario.PasswordHash}</span>
+                                </div>
+                            </div>
+
+                            <div class='instructions'>
+                                <h4 style='margin-top: 0; color: #856404;'>&#9888; Importante - Cambio de Contrase&ntilde;a</h4>
+                                <p style='margin-bottom: 10px;'><strong>Se recomienda cambiar tu contrase&ntilde;a al iniciar sesi&oacute;n por primera vez.</strong></p>
+                                <p style='margin-bottom: 5px;'>Para cambiar tu contrase&ntilde;a:</p>
+                                <ol style='margin: 10px 0;'>
+                                    <li>Inicia sesi&oacute;n en la aplicaci&oacute;n con las credenciales proporcionadas</li>
+                                    <li>Haz clic en tu nombre de usuario en la esquina superior derecha</li>
+                                    <li>Selecciona <strong>Mi Perfil</strong></li>
+                                    <li>En la secci&oacute;n de perfil, encontrar&aacute;s la opci&oacute;n para <strong>Cambiar Contrase&ntilde;a</strong></li>
+                                    <li>Introduce tu contrase&ntilde;a actual y define una nueva contrase&ntilde;a segura</li>
+                                </ol>
+                            </div>
+
+                            <p style='margin-top: 20px;'><strong>Nota de seguridad:</strong> No compartas tus credenciales con nadie y aseg&uacute;rate de cambiar tu contrase&ntilde;a regularmente.</p>
+                        </div>
+                        <div class='footer'>
+                            <p>Este es un mensaje autom&aacute;tico. Por favor, no respondas a este correo.</p>
+                            <p>&copy; {DateTime.Now.Year} Enerfone CRM - Sistema de Gesti&oacute;n</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            ";
+
+            var (exito, mensaje) = await EmailService.EnviarEmailSimpleAsync(
+                usuario.Email,
+                "Credenciales de Acceso - Enerfone CRM",
+                cuerpoHtml
+            );
+
+            if (exito)
+            {
+                mensajeExito = $"Credenciales enviadas correctamente a {usuario.Email}";
+            }
+            else
+            {
+                mensajeError = $"Error al enviar el email: {mensaje}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al enviar credenciales: {ex.Message}";
+        }
+        finally
+        {
+            enviandoEmail = false;
+            StateHasChanged();
+        }
     }
 
     private void CerrarModal()

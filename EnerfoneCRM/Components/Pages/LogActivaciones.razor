@@ -191,10 +191,18 @@ else
                                     </li>
                                 </ul>
                             </nav>
-                            <div class="text-center mt-2">
+                            <div class="d-flex justify-content-center align-items-center gap-3 mt-2">
                                 <small class="text-muted">
                                     Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @Math.Min(paginaActual * elementosPorPagina, totalElementos) de @totalElementos registros
                                 </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted">Mostrar:</small>
+                                    <select class="form-select form-select-sm" style="width: auto;" @onchange="CambiarElementosPorPaginaEvento">
+                                        <option value="10" selected="@(elementosPorPagina == 10)">10</option>
+                                        <option value="20" selected="@(elementosPorPagina == 20)">20</option>
+                                        <option value="50" selected="@(elementosPorPagina == 50)">50</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     }
@@ -341,6 +349,16 @@ else
             .ToList();
         
         StateHasChanged();
+    }
+
+    private void CambiarElementosPorPaginaEvento(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevaCantidad))
+        {
+            elementosPorPagina = nuevaCantidad;
+            paginaActual = 1;
+            AplicarOrdenamiento();
+        }
     }
 
     private void CambiarPagina(int nuevaPagina)

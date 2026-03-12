@@ -17,10 +17,17 @@ namespace EnerfoneCRM.Services
         {
             await using var context = _dbContextProvider.CreateDbContext();
             
+            Console.WriteLine($"[DEBUG ContratoService] ObtenerTodosPorTipoAsync llamado");
+            Console.WriteLine($"[DEBUG ContratoService] Tipo: {tipo}");
+            Console.WriteLine($"[DEBUG ContratoService] Rol: {rolUsuario}");
+            Console.WriteLine($"[DEBUG ContratoService] Usuario: {nombreUsuario}");
+            Console.WriteLine($"[DEBUG ContratoService] UsuarioId: {usuarioId}");
+            
             // Todos los campos VARCHAR/TEXT envueltos en COALESCE para evitar NULL casting
             var sql = @"
                 SELECT 
                     id, 
+                    COALESCE(id_contrato_externo, '') as id_contrato_externo,
                     COALESCE(tipo, '') as tipo,
                     COALESCE(estado, '') as estado,
                     COALESCE(estadoServicio, '') as estadoServicio,
@@ -115,6 +122,46 @@ namespace EnerfoneCRM.Services
                     COALESCE(tarifa_linea5_tel, '') as tarifa_linea5_tel,
                     COALESCE(tipo_linea5_tel, '') as tipo_linea5_tel,
                     COALESCE(codigo_icc_linea5_tel, '') as codigo_icc_linea5_tel,
+                    COALESCE(telefono_linea6_tel, '') as telefono_linea6_tel,
+                    COALESCE(tarifa_linea6_tel, '') as tarifa_linea6_tel,
+                    COALESCE(tipo_linea6_tel, '') as tipo_linea6_tel,
+                    COALESCE(codigo_icc_linea6_tel, '') as codigo_icc_linea6_tel,
+                    COALESCE(telefono_linea7_tel, '') as telefono_linea7_tel,
+                    COALESCE(tarifa_linea7_tel, '') as tarifa_linea7_tel,
+                    COALESCE(tipo_linea7_tel, '') as tipo_linea7_tel,
+                    COALESCE(codigo_icc_linea7_tel, '') as codigo_icc_linea7_tel,
+                    COALESCE(telefono_linea8_tel, '') as telefono_linea8_tel,
+                    COALESCE(tarifa_linea8_tel, '') as tarifa_linea8_tel,
+                    COALESCE(tipo_linea8_tel, '') as tipo_linea8_tel,
+                    COALESCE(codigo_icc_linea8_tel, '') as codigo_icc_linea8_tel,
+                    COALESCE(telefono_linea9_tel, '') as telefono_linea9_tel,
+                    COALESCE(tarifa_linea9_tel, '') as tarifa_linea9_tel,
+                    COALESCE(tipo_linea9_tel, '') as tipo_linea9_tel,
+                    COALESCE(codigo_icc_linea9_tel, '') as codigo_icc_linea9_tel,
+                    COALESCE(telefono_linea10_tel, '') as telefono_linea10_tel,
+                    COALESCE(tarifa_linea10_tel, '') as tarifa_linea10_tel,
+                    COALESCE(tipo_linea10_tel, '') as tipo_linea10_tel,
+                    COALESCE(codigo_icc_linea10_tel, '') as codigo_icc_linea10_tel,
+                    COALESCE(telefono_linea11_tel, '') as telefono_linea11_tel,
+                    COALESCE(tarifa_linea11_tel, '') as tarifa_linea11_tel,
+                    COALESCE(tipo_linea11_tel, '') as tipo_linea11_tel,
+                    COALESCE(codigo_icc_linea11_tel, '') as codigo_icc_linea11_tel,
+                    COALESCE(telefono_linea12_tel, '') as telefono_linea12_tel,
+                    COALESCE(tarifa_linea12_tel, '') as tarifa_linea12_tel,
+                    COALESCE(tipo_linea12_tel, '') as tipo_linea12_tel,
+                    COALESCE(codigo_icc_linea12_tel, '') as codigo_icc_linea12_tel,
+                    COALESCE(telefono_linea13_tel, '') as telefono_linea13_tel,
+                    COALESCE(tarifa_linea13_tel, '') as tarifa_linea13_tel,
+                    COALESCE(tipo_linea13_tel, '') as tipo_linea13_tel,
+                    COALESCE(codigo_icc_linea13_tel, '') as codigo_icc_linea13_tel,
+                    COALESCE(telefono_linea14_tel, '') as telefono_linea14_tel,
+                    COALESCE(tarifa_linea14_tel, '') as tarifa_linea14_tel,
+                    COALESCE(tipo_linea14_tel, '') as tipo_linea14_tel,
+                    COALESCE(codigo_icc_linea14_tel, '') as codigo_icc_linea14_tel,
+                    COALESCE(telefono_linea15_tel, '') as telefono_linea15_tel,
+                    COALESCE(tarifa_linea15_tel, '') as tarifa_linea15_tel,
+                    COALESCE(tipo_linea15_tel, '') as tipo_linea15_tel,
+                    COALESCE(codigo_icc_linea15_tel, '') as codigo_icc_linea15_tel,
                     COALESCE(direccion, '') as direccion,
                     COALESCE(observaciones, '') as observaciones,
                     COALESCE(en_Tarifa, '') as en_Tarifa,
@@ -301,10 +348,16 @@ namespace EnerfoneCRM.Services
             
             sql += " ORDER BY COALESCE(fecha_modificacion, fecha_creacion, '1900-01-01') DESC";
             
+            Console.WriteLine($"[DEBUG ContratoService] SQL Query: {sql}");
+            Console.WriteLine($"[DEBUG ContratoService] Parámetros: {string.Join(", ", parameters)}");
+            Console.WriteLine($"[DEBUG ContratoService] Condiciones WHERE: {whereConditions.Count}");
+            
             var contratos = await context.Contratos
                 .FromSqlRaw(sql, parameters.ToArray())
                 .AsNoTracking()
                 .ToListAsync();
+            
+            Console.WriteLine($"[DEBUG ContratoService] Contratos devueltos: {contratos.Count}");
             
             // Cargar los nombres de cliente para los que tengan IdCliente pero nombre_cliente vacío
             var idsClientes = contratos
@@ -347,7 +400,11 @@ namespace EnerfoneCRM.Services
             
             var contrato = contratos.First();
             
+            // Log temporal para depuración
+            Console.WriteLine($"[DEBUG] Contrato ID {contrato.Id} cargado - IdContratoExterno: '{contrato.IdContratoExterno}' (es null: {contrato.IdContratoExterno == null})");
+            
             // Normalizar todos los campos string NULL a cadena vacía
+            contrato.IdContratoExterno ??= string.Empty;
             contrato.Tipo ??= string.Empty;
             contrato.Estado ??= string.Empty;
             contrato.Comercial ??= string.Empty;
@@ -494,6 +551,11 @@ namespace EnerfoneCRM.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error al crear contrato: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                    Console.WriteLine($"Stack Trace: {ex.InnerException.StackTrace}");
+                }
                 return false;
             }
         }

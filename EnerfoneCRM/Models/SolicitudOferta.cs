@@ -125,6 +125,10 @@ public class SolicitudOferta
     [StringLength(2000)]
     public string? ObservacionesAdmin { get; set; }
 
+    [Column("ruta_archivo_respuesta")]
+    [StringLength(500)]
+    public string? RutaArchivoRespuesta { get; set; }
+
     [Column("fecha_procesado")]
     public DateTime? FechaProcesado { get; set; }
 }

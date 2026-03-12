@@ -192,6 +192,10 @@
                                                             <label class="form-label fw-bold">DNI Representante</label>
                                                             <InputText @bind-Value="nuevoCliente.Dni" class="form-control" placeholder="DNI" />
                                                         </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-bold">CNAE <small class="text-muted">(Código de Actividad Económica)</small></label>
+                                                            <InputText @bind-Value="nuevoCliente.Cnae" class="form-control" placeholder="Ej: 4321" />
+                                                        </div>
                                                     }
                                                     <div class="col-12 mt-3">
                                                         <h6 class="border-bottom pb-2"><i class="bi bi-geo-alt me-2"></i>Dirección Fiscal</h6>
@@ -448,6 +452,10 @@
                                             <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
                                         </div>
                                         <div class="col-md-4">
+                                            <label class="form-label fw-bold">ID Contrato Externo <small class="text-muted">(opcional)</small></label>
+                                            <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID proporcionado por la empresa" />
+                                        </div>
+                                        <div class="col-md-4">
                                             <label class="form-label fw-bold">Comercial</label>
                                             <InputText @bind-Value="nuevoContrato.Comercial" class="form-control" />
                                         </div>
@@ -561,6 +569,14 @@
                                         <div class="col-12 mt-3">
                                             <hr />
                                             <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Instalación</h6>
+                                        </div>
+                                        <div class="col-12 mb-3">
+                                            <div class="form-check">
+                                                <InputCheckbox class="form-check-input" id="usarDireccionCliente" @bind-Value="usarDireccionCliente" @bind-Value:after="OnUsarDireccionClienteChanged" />
+                                                <label class="form-check-label" for="usarDireccionCliente">
+                                                    <i class="bi bi-house-check me-1"></i>Usar la misma dirección del cliente
+                                                </label>
+                                            </div>
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Tipo de Vía</label>
@@ -710,6 +726,9 @@
     private Dictionary<string, List<(string nombreArchivo, byte[] contenido)>> archivosPendientesCliente = new();
     private List<FicheroCliente> ficherosCliente = new();
     private List<(string nombreArchivo, byte[] contenido)> facturasPendientes = new();
+    
+    // Checkbox para usar dirección del cliente
+    private bool usarDireccionCliente = false;
 
     public async Task Abrir()
     {
@@ -719,6 +738,7 @@
         clienteSeleccionado = null;
         empresaSeleccionada = null;
         mensajeError = string.Empty;
+        usarDireccionCliente = false;
         archivosPendientesCliente.Clear();
         
         // Cargar datos iniciales
@@ -790,7 +810,11 @@
 
     private void InicializarNuevoCliente()
     {
-        nuevoCliente = new Cliente { TipoCliente = "Particular" };
+        nuevoCliente = new Cliente 
+        { 
+            TipoCliente = "Particular",
+            IdUsuario = AuthService.UsuarioActual?.Id
+        };
     }
 
     private void FiltrarClientes()
@@ -928,6 +952,8 @@
             Iban = clienteSeleccionado?.Iban,
             EmpresaAlarma = empresaSeleccionada?.Nombre,
             Estado = "Pte Carga",
+            EstadoServicio = "No quiere",
+            Comision = 0,
             FechaCreacion = DateTime.Now,
             FechaModificacion = DateTime.Now,
             FechaAlta = DateTime.Now,
@@ -1098,5 +1124,57 @@
             facturasPendientes.RemoveAt(index);
             StateHasChanged();
         }
+    }
+    
+    private void OnUsarDireccionClienteChanged()
+    {
+        if (usarDireccionCliente)
+        {
+            CopiarDireccionCliente();
+        }
+        else
+        {
+            LimpiarDireccionSuministro();
+        }
+    }
+    
+    private void CopiarDireccionCliente()
+    {
+        if (nuevoContrato == null) return;
+        
+        // Priorizar clienteSeleccionado (cliente existente), sino usar nuevoCliente (cliente nuevo)
+        var cliente = clienteSeleccionado ?? nuevoCliente;
+        if (cliente == null) return;
+        
+        nuevoContrato.TipoViaInstalacion = cliente.TipoVia;
+        nuevoContrato.DireccionInstalacionAlarma = cliente.Direccion;
+        nuevoContrato.NumeroInstalacion = cliente.Numero;
+        nuevoContrato.EscaleraInstalacion = cliente.Escalera;
+        nuevoContrato.PisoInstalacion = cliente.Piso;
+        nuevoContrato.PuertaInstalacion = cliente.Puerta;
+        nuevoContrato.CodigoPostalInstalacion = cliente.CodigoPostal;
+        nuevoContrato.AclaradorInstalacion = cliente.Aclarador;
+        nuevoContrato.LocalidadInstalacion = cliente.Poblacion;
+        nuevoContrato.ProvinciaInstalacion = cliente.Provincia;
+        
+        StateHasChanged();
+    }
+    
+    private void LimpiarDireccionSuministro()
+    {
+        if (nuevoContrato == null) return;
+        
+        nuevoContrato.TipoViaInstalacion = string.Empty;
+        nuevoContrato.DireccionInstalacionAlarma = string.Empty;
+        nuevoContrato.NumeroInstalacion = string.Empty;
+        nuevoContrato.EscaleraInstalacion = string.Empty;
+        nuevoContrato.PisoInstalacion = string.Empty;
+        nuevoContrato.PuertaInstalacion = string.Empty;
+        nuevoContrato.CodigoPostalInstalacion = string.Empty;
+        nuevoContrato.AclaradorInstalacion = string.Empty;
+        nuevoContrato.LocalidadInstalacion = string.Empty;
+        nuevoContrato.ProvinciaInstalacion = string.Empty;
+        
+        StateHasChanged();
     }
 }

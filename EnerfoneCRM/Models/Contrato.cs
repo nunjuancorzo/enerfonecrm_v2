@@ -11,6 +11,10 @@ namespace EnerfoneCRM.Models
         [Column("id")]
         public int Id { get; set; }
 
+        [Column("id_contrato_externo")]
+        [MaxLength(100)]
+        public string? IdContratoExterno { get; set; }
+
         [Column("tipo")]
         [MaxLength(50)]
         public string? Tipo { get; set; }
@@ -236,6 +240,166 @@ namespace EnerfoneCRM.Models
         [Column("codigo_icc_linea5_tel")]
         [MaxLength(19)]
         public string? CodigoIccLinea5Tel { get; set; }
+
+        [Column("telefono_linea6_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea6Tel { get; set; }
+
+        [Column("tarifa_linea6_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea6Tel { get; set; }
+
+        [Column("tipo_linea6_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea6Tel { get; set; }
+
+        [Column("codigo_icc_linea6_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea6Tel { get; set; }
+
+        [Column("telefono_linea7_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea7Tel { get; set; }
+
+        [Column("tarifa_linea7_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea7Tel { get; set; }
+
+        [Column("tipo_linea7_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea7Tel { get; set; }
+
+        [Column("codigo_icc_linea7_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea7Tel { get; set; }
+
+        [Column("telefono_linea8_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea8Tel { get; set; }
+
+        [Column("tarifa_linea8_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea8Tel { get; set; }
+
+        [Column("tipo_linea8_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea8Tel { get; set; }
+
+        [Column("codigo_icc_linea8_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea8Tel { get; set; }
+
+        [Column("telefono_linea9_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea9Tel { get; set; }
+
+        [Column("tarifa_linea9_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea9Tel { get; set; }
+
+        [Column("tipo_linea9_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea9Tel { get; set; }
+
+        [Column("codigo_icc_linea9_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea9Tel { get; set; }
+
+        [Column("telefono_linea10_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea10Tel { get; set; }
+
+        [Column("tarifa_linea10_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea10Tel { get; set; }
+
+        [Column("tipo_linea10_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea10Tel { get; set; }
+
+        [Column("codigo_icc_linea10_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea10Tel { get; set; }
+
+        [Column("telefono_linea11_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea11Tel { get; set; }
+
+        [Column("tarifa_linea11_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea11Tel { get; set; }
+
+        [Column("tipo_linea11_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea11Tel { get; set; }
+
+        [Column("codigo_icc_linea11_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea11Tel { get; set; }
+
+        [Column("telefono_linea12_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea12Tel { get; set; }
+
+        [Column("tarifa_linea12_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea12Tel { get; set; }
+
+        [Column("tipo_linea12_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea12Tel { get; set; }
+
+        [Column("codigo_icc_linea12_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea12Tel { get; set; }
+
+        [Column("telefono_linea13_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea13Tel { get; set; }
+
+        [Column("tarifa_linea13_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea13Tel { get; set; }
+
+        [Column("tipo_linea13_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea13Tel { get; set; }
+
+        [Column("codigo_icc_linea13_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea13Tel { get; set; }
+
+        [Column("telefono_linea14_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea14Tel { get; set; }
+
+        [Column("tarifa_linea14_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea14Tel { get; set; }
+
+        [Column("tipo_linea14_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea14Tel { get; set; }
+
+        [Column("codigo_icc_linea14_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea14Tel { get; set; }
+
+        [Column("telefono_linea15_tel")]
+        [MaxLength(50)]
+        public string? TelefonoLinea15Tel { get; set; }
+
+        [Column("tarifa_linea15_tel")]
+        [MaxLength(255)]
+        public string? TarifaLinea15Tel { get; set; }
+
+        [Column("tipo_linea15_tel")]
+        [MaxLength(20)]
+        public string? TipoLinea15Tel { get; set; }
+
+        [Column("codigo_icc_linea15_tel")]
+        [MaxLength(19)]
+        public string? CodigoIccLinea15Tel { get; set; }
 
         [Column("fecha_instalacion_tel")]
         public DateTime? FechaInstalacionTel { get; set; }

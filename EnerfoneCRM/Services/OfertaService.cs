@@ -405,6 +405,7 @@ public class OfertaService
                 "Pendiente" => "#ffc107",
                 "En Proceso" => "#17a2b8",
                 "Completada" => "#28a745",
+                "Rechazada" => "#dc3545",
                 _ => "#6c757d"
             };
 
@@ -413,6 +414,7 @@ public class OfertaService
                 "Pendiente" => "⏳",
                 "En Proceso" => "🔄",
                 "Completada" => "✅",
+                "Rechazada" => "❌",
                 _ => "📋"
             };
 
@@ -480,6 +482,7 @@ public class OfertaService
                     <li><strong>Pendiente:</strong> Tu solicitud está en cola para ser revisada</li>
                     <li><strong>En Proceso:</strong> Estamos trabajando en conseguir las mejores ofertas</li>
                     <li><strong>Completada:</strong> Las ofertas están listas o han sido enviadas</li>
+                    <li><strong>Rechazada:</strong> La solicitud no puede ser procesada o ha sido rechazada</li>
                 </ul>
             </div>
         </div>
@@ -491,11 +494,32 @@ public class OfertaService
 </body>
 </html>";
 
-            var resultado = await _emailService.EnviarEmailSimpleAsync(
-                oferta.EmailComercial,
-                $"Actualización: Solicitud #{oferta.Id} - {oferta.Estado} - {oferta.NombreInteresado}",
-                cuerpoHtml
-            );
+            // Verificar si hay archivo adjunto de respuesta
+            var archivosAdjuntos = new List<string>();
+            if (!string.IsNullOrEmpty(oferta.RutaArchivoRespuesta) && File.Exists(oferta.RutaArchivoRespuesta))
+            {
+                archivosAdjuntos.Add(oferta.RutaArchivoRespuesta);
+            }
+
+            // Enviar email con o sin adjuntos según corresponda
+            (bool exito, string mensaje) resultado;
+            if (archivosAdjuntos.Any())
+            {
+                resultado = await _emailService.EnviarEmailConAdjuntosMultiplesAsync(
+                    oferta.EmailComercial,
+                    $"Actualización: Solicitud #{oferta.Id} - {oferta.Estado} - {oferta.NombreInteresado}",
+                    cuerpoHtml,
+                    archivosAdjuntos
+                );
+            }
+            else
+            {
+                resultado = await _emailService.EnviarEmailSimpleAsync(
+                    oferta.EmailComercial,
+                    $"Actualización: Solicitud #{oferta.Id} - {oferta.Estado} - {oferta.NombreInteresado}",
+                    cuerpoHtml
+                );
+            }
 
             return resultado;
         }

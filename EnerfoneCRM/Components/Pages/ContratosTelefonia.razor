@@ -438,10 +438,18 @@ else
 
                         @* Paginación *@
                         <div class="d-flex justify-content-between align-items-center mt-3 px-3 pb-3">
-                            <div>
+                            <div class="d-flex align-items-center gap-3">
                                 <small class="text-muted">
                                     Mostrando @((paginaActual - 1) * elementosPorPagina + 1) - @(Math.Min(paginaActual * elementosPorPagina, totalElementos)) de @totalElementos contratos
                                 </small>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted">Mostrar:</small>
+                                    <select class="form-select form-select-sm" style="width: auto;" @onchange="CambiarElementosPorPaginaEvento">
+                                        <option value="10" selected="@(elementosPorPagina == 10)">10</option>
+                                        <option value="25" selected="@(elementosPorPagina == 25)">25</option>
+                                        <option value="50" selected="@(elementosPorPagina == 50)">50</option>
+                                    </select>
+                                </div>
                             </div>
                             @if (totalPaginas > 1)
                             {
@@ -548,6 +556,13 @@ else
                                     </div>
                                 </div>
 
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold"><i class="bi bi-tag me-1"></i>ID Contrato Externo</label>
+                                        <InputText @bind-Value="contratoSeleccionado.IdContratoExterno" class="form-control" placeholder="ID de la operadora" disabled="@(!PuedeEditar())" />
+                                    </div>
+                                </div>
+
                                 <hr class="my-3" />
 
                                 <!-- DATOS DEL CLIENTE -->
@@ -575,6 +590,24 @@ else
                                         }
                                     </div>
                                 </div>
+
+                                @if (clienteSeleccionadoInfo != null && clienteSeleccionadoInfo.TipoCliente == "Pyme")
+                                {
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Representante</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Representante" disabled />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">DNI Representante</label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Dni" disabled />
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
 
                                 @if (clienteSeleccionadoInfo != null)
                                 {
@@ -713,7 +746,7 @@ else
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Estado</label>
-                                            <InputSelect @bind-Value="contratoSeleccionado.Estado" class="form-select" disabled="@(!PuedeEditar())">
+                                            <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditar())">
                                                 <option value="">-- Seleccionar Estado --</option>
                                                 @foreach (var estado in estadosDisponibles)
                                                 {
@@ -721,6 +754,21 @@ else
                                                 }
                                             </InputSelect>
                                         </div>
+                                        @if (contratoSeleccionado.Estado == "Activo" && mostrarCampoFechaActivo)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Fecha de Activación <span class="text-danger">*</span></label>
+                                                <input type="date" 
+                                                       class="form-control" 
+                                                       @bind="fechaActivacion" 
+                                                       @bind:event="oninput"
+                                                       disabled="@(!PuedeEditar())" />
+                                                @if (mostrarErrorFechaActivo)
+                                                {
+                                                    <div class="text-danger small mt-1">La fecha de activación es obligatoria</div>
+                                                }
+                                            </div>
+                                        }
                                         <div class="mb-3">
                                             <label class="form-label fw-bold">Tipo</label>
                                             <InputText @bind-Value="contratoSeleccionado.Tipo" class="form-control" readonly />
@@ -909,17 +957,17 @@ else
                                 {
                                     <hr />
                                     <h6 class="mb-3">
-                                        <i class="bi bi-sim me-2"></i>Líneas Móviles Adicionales (hasta 5)
+                                        <i class="bi bi-sim me-2"></i>Líneas Móviles Adicionales (hasta 15)
                                         @if (PuedeEditar())
                                         {
-                                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="AgregarLineaAdicional" disabled="@(numeroLineasActivas >= 5)">
+                                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="AgregarLineaAdicional" disabled="@(numeroLineasActivas >= 15)">
                                                 <i class="bi bi-plus-circle me-1"></i>Agregar Línea
                                             </button>
                                         }
                                     </h6>
                                     
                                     <div class="row">
-                                        @for (int i = 1; i <= 5; i++)
+                                        @for (int i = 1; i <= 15; i++)
                                         {
                                             var lineaIndex = i;
                                             var telefono = ObtenerTelefonoLinea(lineaIndex);
@@ -1360,6 +1408,12 @@ else
     private bool tieneFibraSegundaResidencia = false;
     private Operadora? operadoraSeleccionada = null;
 
+    // Variables para fecha de activación
+    private DateTime? fechaActivacion;
+    private bool mostrarCampoFechaActivo = false;
+    private bool mostrarErrorFechaActivo = false;
+    private string estadoAnterior = string.Empty;
+
     // Facturas del contrato
     private List<FicheroContrato> facturasContrato = new();
     
@@ -1435,12 +1489,19 @@ else
         cargando = true;
         try
         {
+            Console.WriteLine($"[DEBUG ContratosTelefonia] Cargando contratos...");
+            Console.WriteLine($"[DEBUG ContratosTelefonia] Usuario: {AuthService.UsuarioActual?.NombreUsuario}");
+            Console.WriteLine($"[DEBUG ContratosTelefonia] Rol: {AuthService.UsuarioActual?.Rol}");
+            Console.WriteLine($"[DEBUG ContratosTelefonia] Id: {AuthService.UsuarioActual?.Id}");
+            
             contratos = await ContratoService.ObtenerTodosPorTipoAsync(
                 "telefonia",
                 AuthService.UsuarioActual?.Rol,
                 AuthService.UsuarioActual?.NombreUsuario,
                 AuthService.UsuarioActual?.Id
             );
+            
+            Console.WriteLine($"[DEBUG ContratosTelefonia] Contratos cargados: {contratos.Count}");
             
             // Cargar todos los clientes para el dropdown
             todosLosClientes = await ClienteService.ObtenerTodosAsync();
@@ -1453,9 +1514,13 @@ else
             
             await CargarConteoObservaciones();
             AplicarFiltros();
+            
+            Console.WriteLine($"[DEBUG ContratosTelefonia] Contratos después de filtros: {contratosFiltrados.Count}");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[ERROR ContratosTelefonia] Error: {ex.Message}");
+            Console.WriteLine($"[ERROR ContratosTelefonia] StackTrace: {ex.StackTrace}");
             mensajeError = $"Error al cargar contratos: {ex.Message}";
         }
         finally
@@ -1570,11 +1635,62 @@ else
             };
         }
 
-        // Guardar en contratosParaPaginar en lugar de contratosFiltrados
-        contratosParaPaginar = listaTemp;
+        // Aplicar ordenamiento
+        listaTemp = columnaOrden switch
+        {
+            "Id" => ordenAscendente 
+                ? listaTemp.OrderBy(c => c.Id).ToList()
+                : listaTemp.OrderByDescending(c => c.Id).ToList(),
+            "FechaCreacion" => ordenAscendente 
+                ? listaTemp.OrderBy(c => c.FechaCreacion).ToList()
+                : listaTemp.OrderByDescending(c => c.FechaCreacion).ToList(),
+            "FechaModificacion" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.FechaModificacion).ToList()
+                : listaTemp.OrderByDescending(c => c.FechaModificacion).ToList(),
+            "Estado" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.Estado).ToList()
+                : listaTemp.OrderByDescending(c => c.Estado).ToList(),
+            "Comercial" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.Comercial).ToList()
+                : listaTemp.OrderByDescending(c => c.Comercial).ToList(),
+            "OperadoraTel" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.OperadoraTel).ToList()
+                : listaTemp.OrderByDescending(c => c.OperadoraTel).ToList(),
+            "TarifaTel" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.TarifaTel).ToList()
+                : listaTemp.OrderByDescending(c => c.TarifaTel).ToList(),
+            "NombreCliente" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.NombreCliente).ToList()
+                : listaTemp.OrderByDescending(c => c.NombreCliente).ToList(),
+            "Dni" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.Dni).ToList()
+                : listaTemp.OrderByDescending(c => c.Dni).ToList(),
+            "Comision" => ordenAscendente
+                ? listaTemp.OrderBy(c => c.Comision).ToList()
+                : listaTemp.OrderByDescending(c => c.Comision).ToList(),
+            _ => listaTemp
+        };
 
-        // Aplicar ordenamiento y paginación
-        AplicarOrdenamiento();
+        // Calcular paginación
+        contratosParaPaginar = listaTemp;
+        totalElementos = contratosParaPaginar.Count;
+        totalPaginas = totalElementos > 0 ? (int)Math.Ceiling(totalElementos / (double)elementosPorPagina) : 0;
+        
+        // Asegurar que la página actual esté dentro del rango
+        if (totalPaginas == 0)
+            paginaActual = 1;
+        else if (paginaActual > totalPaginas)
+            paginaActual = totalPaginas;
+        else if (paginaActual < 1)
+            paginaActual = 1;
+
+        // Aplicar paginación a contratosFiltrados
+        contratosFiltrados = contratosParaPaginar
+            .Skip((paginaActual - 1) * elementosPorPagina)
+            .Take(elementosPorPagina)
+            .ToList();
+        
+        StateHasChanged();
     }
 
     private void LimpiarFiltros()
@@ -1651,7 +1767,7 @@ else
         }
 
         paginaActual = 1; // Resetear a la primera página al ordenar
-        AplicarOrdenamiento();
+        AplicarFiltros();
     }
 
     private void AplicarOrdenamiento()
@@ -1712,6 +1828,8 @@ else
             .Skip((paginaActual - 1) * elementosPorPagina)
             .Take(elementosPorPagina)
             .ToList();
+        
+        StateHasChanged();
     }
 
     private void ToggleEstado(string estado)
@@ -1734,13 +1852,22 @@ else
         }
     }
 
+    private void CambiarElementosPorPaginaEvento(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevaCantidad))
+        {
+            elementosPorPagina = nuevaCantidad;
+            paginaActual = 1;
+            AplicarFiltros();
+        }
+    }
+
     private void CambiarPagina(int nuevaPagina)
     {
         if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
         {
             paginaActual = nuevaPagina;
-            AplicarOrdenamiento();
-            StateHasChanged();
+            AplicarFiltros();
         }
     }
 
@@ -1908,11 +2035,55 @@ else
         }
     }
 
+    private void OnEstadoChanged()
+    {
+        if (contratoSeleccionado == null) return;
+
+        // Si el estado cambió a "Activo" y no estaba activo antes
+        if (contratoSeleccionado.Estado == "Activo" && estadoAnterior != "Activo")
+        {
+            mostrarCampoFechaActivo = true;
+            // Si no hay fecha activo guardada, proponer la fecha de hoy
+            if (!contratoSeleccionado.FechaActivo.HasValue)
+            {
+                fechaActivacion = DateTime.Today;
+            }
+        }
+        // Si dejó de ser "Activo"
+        else if (contratoSeleccionado.Estado != "Activo")
+        {
+            mostrarCampoFechaActivo = false;
+            mostrarErrorFechaActivo = false;
+        }
+        // Si ya estaba activo y sigue activo, mantener el campo visible
+        else if (contratoSeleccionado.Estado == "Activo" && estadoAnterior == "Activo")
+        {
+            mostrarCampoFechaActivo = true;
+        }
+    }
+
     private async Task MostrarModalEditar(Contrato contrato)
     {
+        // Guardar el estado anterior
+        estadoAnterior = contrato.Estado;
+        
+        // Inicializar fecha de activación si el contrato ya está activo
+        if (contrato.Estado == "Activo" && contrato.FechaActivo.HasValue)
+        {
+            fechaActivacion = contrato.FechaActivo.Value;
+            mostrarCampoFechaActivo = true;
+        }
+        else
+        {
+            fechaActivacion = null;
+            mostrarCampoFechaActivo = false;
+        }
+        mostrarErrorFechaActivo = false;
+
         contratoSeleccionado = new Contrato
         {
             Id = contrato.Id,
+            IdContratoExterno = contrato.IdContratoExterno,
             Tipo = contrato.Tipo,
             Estado = contrato.Estado,
             ObservacionesEstado = contrato.ObservacionesEstado,
@@ -1920,6 +2091,7 @@ else
             FechaCreacion = contrato.FechaCreacion,
             FechaModificacion = contrato.FechaModificacion,
             FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion,
+            FechaActivo = contrato.FechaActivo,
             IdCliente = contrato.IdCliente,
             NombreCliente = contrato.NombreCliente,
             Dni = contrato.Dni,
@@ -1962,6 +2134,46 @@ else
             TarifaLinea5Tel = contrato.TarifaLinea5Tel,
             TipoLinea5Tel = contrato.TipoLinea5Tel,
             CodigoIccLinea5Tel = contrato.CodigoIccLinea5Tel,
+            TelefonoLinea6Tel = contrato.TelefonoLinea6Tel,
+            TarifaLinea6Tel = contrato.TarifaLinea6Tel,
+            TipoLinea6Tel = contrato.TipoLinea6Tel,
+            CodigoIccLinea6Tel = contrato.CodigoIccLinea6Tel,
+            TelefonoLinea7Tel = contrato.TelefonoLinea7Tel,
+            TarifaLinea7Tel = contrato.TarifaLinea7Tel,
+            TipoLinea7Tel = contrato.TipoLinea7Tel,
+            CodigoIccLinea7Tel = contrato.CodigoIccLinea7Tel,
+            TelefonoLinea8Tel = contrato.TelefonoLinea8Tel,
+            TarifaLinea8Tel = contrato.TarifaLinea8Tel,
+            TipoLinea8Tel = contrato.TipoLinea8Tel,
+            CodigoIccLinea8Tel = contrato.CodigoIccLinea8Tel,
+            TelefonoLinea9Tel = contrato.TelefonoLinea9Tel,
+            TarifaLinea9Tel = contrato.TarifaLinea9Tel,
+            TipoLinea9Tel = contrato.TipoLinea9Tel,
+            CodigoIccLinea9Tel = contrato.CodigoIccLinea9Tel,
+            TelefonoLinea10Tel = contrato.TelefonoLinea10Tel,
+            TarifaLinea10Tel = contrato.TarifaLinea10Tel,
+            TipoLinea10Tel = contrato.TipoLinea10Tel,
+            CodigoIccLinea10Tel = contrato.CodigoIccLinea10Tel,
+            TelefonoLinea11Tel = contrato.TelefonoLinea11Tel,
+            TarifaLinea11Tel = contrato.TarifaLinea11Tel,
+            TipoLinea11Tel = contrato.TipoLinea11Tel,
+            CodigoIccLinea11Tel = contrato.CodigoIccLinea11Tel,
+            TelefonoLinea12Tel = contrato.TelefonoLinea12Tel,
+            TarifaLinea12Tel = contrato.TarifaLinea12Tel,
+            TipoLinea12Tel = contrato.TipoLinea12Tel,
+            CodigoIccLinea12Tel = contrato.CodigoIccLinea12Tel,
+            TelefonoLinea13Tel = contrato.TelefonoLinea13Tel,
+            TarifaLinea13Tel = contrato.TarifaLinea13Tel,
+            TipoLinea13Tel = contrato.TipoLinea13Tel,
+            CodigoIccLinea13Tel = contrato.CodigoIccLinea13Tel,
+            TelefonoLinea14Tel = contrato.TelefonoLinea14Tel,
+            TarifaLinea14Tel = contrato.TarifaLinea14Tel,
+            TipoLinea14Tel = contrato.TipoLinea14Tel,
+            CodigoIccLinea14Tel = contrato.CodigoIccLinea14Tel,
+            TelefonoLinea15Tel = contrato.TelefonoLinea15Tel,
+            TarifaLinea15Tel = contrato.TarifaLinea15Tel,
+            TipoLinea15Tel = contrato.TipoLinea15Tel,
+            CodigoIccLinea15Tel = contrato.CodigoIccLinea15Tel,
             TipoViaInstalacion = contrato.TipoViaInstalacion,
             DireccionInstalacionAlarma = contrato.DireccionInstalacionAlarma,
             NumeroInstalacion = contrato.NumeroInstalacion,
@@ -2025,6 +2237,17 @@ else
         {
             mensajeError = "La tarifa es obligatoria";
             return;
+        }
+
+        // Validar fecha de activación si el estado es "Activo"
+        if (contratoSeleccionado.Estado == "Activo")
+        {
+            if (!fechaActivacion.HasValue)
+            {
+                mostrarErrorFechaActivo = true;
+                mensajeError = "La fecha de activación es obligatoria cuando el estado es Activo";
+                return;
+            }
         }
 
         // Validar campos de titular IBAN si está marcado
@@ -2103,7 +2326,7 @@ else
         }
 
         // Validar líneas adicionales prepago o que requieran ICC por operadora
-        for (int i = 1; i <= 5; i++)
+        for (int i = 1; i <= 15; i++)
         {
             var tipoLinea = ObtenerTipoLinea(i);
             var codigoIcc = ObtenerCodigoIcc(i);
@@ -2152,6 +2375,13 @@ else
                     contratoSeleccionado.Direccion = cliente.Direccion;
                     contratoSeleccionado.Iban = cliente.Iban;
                 }
+            }
+
+            // Si el estado cambió a "Activo", guardar la fecha
+            bool cambioAActivo = estadoAnterior != "Activo" && contratoSeleccionado.Estado == "Activo";
+            if (cambioAActivo && fechaActivacion.HasValue)
+            {
+                contratoSeleccionado.FechaActivo = fechaActivacion.Value;
             }
 
             var resultado = await ContratoService.ActualizarAsync(contratoSeleccionado);
@@ -2430,7 +2660,7 @@ else
 
     private void AgregarLineaAdicional()
     {
-        if (numeroLineasActivas < 5)
+        if (numeroLineasActivas < 15)
         {
             numeroLineasActivas++;
             
@@ -2454,6 +2684,36 @@ else
                     case 5:
                         contratoSeleccionado.TipoLinea5Tel = "Contrato";
                         break;
+                    case 6:
+                        contratoSeleccionado.TipoLinea6Tel = "Contrato";
+                        break;
+                    case 7:
+                        contratoSeleccionado.TipoLinea7Tel = "Contrato";
+                        break;
+                    case 8:
+                        contratoSeleccionado.TipoLinea8Tel = "Contrato";
+                        break;
+                    case 9:
+                        contratoSeleccionado.TipoLinea9Tel = "Contrato";
+                        break;
+                    case 10:
+                        contratoSeleccionado.TipoLinea10Tel = "Contrato";
+                        break;
+                    case 11:
+                        contratoSeleccionado.TipoLinea11Tel = "Contrato";
+                        break;
+                    case 12:
+                        contratoSeleccionado.TipoLinea12Tel = "Contrato";
+                        break;
+                    case 13:
+                        contratoSeleccionado.TipoLinea13Tel = "Contrato";
+                        break;
+                    case 14:
+                        contratoSeleccionado.TipoLinea14Tel = "Contrato";
+                        break;
+                    case 15:
+                        contratoSeleccionado.TipoLinea15Tel = "Contrato";
+                        break;
                 }
             }
             
@@ -2474,7 +2734,7 @@ else
     private void RecalcularNumeroLineasActivas()
     {
         numeroLineasActivas = 0;
-        for (int i = 1; i <= 5; i++)
+        for (int i = 1; i <= 15; i++)
         {
             if (!string.IsNullOrEmpty(ObtenerTelefonoLinea(i)))
             {
@@ -2494,6 +2754,16 @@ else
             3 => contratoSeleccionado.TelefonoLinea3Tel,
             4 => contratoSeleccionado.TelefonoLinea4Tel,
             5 => contratoSeleccionado.TelefonoLinea5Tel,
+            6 => contratoSeleccionado.TelefonoLinea6Tel,
+            7 => contratoSeleccionado.TelefonoLinea7Tel,
+            8 => contratoSeleccionado.TelefonoLinea8Tel,
+            9 => contratoSeleccionado.TelefonoLinea9Tel,
+            10 => contratoSeleccionado.TelefonoLinea10Tel,
+            11 => contratoSeleccionado.TelefonoLinea11Tel,
+            12 => contratoSeleccionado.TelefonoLinea12Tel,
+            13 => contratoSeleccionado.TelefonoLinea13Tel,
+            14 => contratoSeleccionado.TelefonoLinea14Tel,
+            15 => contratoSeleccionado.TelefonoLinea15Tel,
             _ => null
         };
     }
@@ -2509,6 +2779,16 @@ else
             3 => contratoSeleccionado.TarifaLinea3Tel,
             4 => contratoSeleccionado.TarifaLinea4Tel,
             5 => contratoSeleccionado.TarifaLinea5Tel,
+            6 => contratoSeleccionado.TarifaLinea6Tel,
+            7 => contratoSeleccionado.TarifaLinea7Tel,
+            8 => contratoSeleccionado.TarifaLinea8Tel,
+            9 => contratoSeleccionado.TarifaLinea9Tel,
+            10 => contratoSeleccionado.TarifaLinea10Tel,
+            11 => contratoSeleccionado.TarifaLinea11Tel,
+            12 => contratoSeleccionado.TarifaLinea12Tel,
+            13 => contratoSeleccionado.TarifaLinea13Tel,
+            14 => contratoSeleccionado.TarifaLinea14Tel,
+            15 => contratoSeleccionado.TarifaLinea15Tel,
             _ => null
         };
     }
@@ -2524,6 +2804,16 @@ else
             case 3: contratoSeleccionado.TelefonoLinea3Tel = valor; break;
             case 4: contratoSeleccionado.TelefonoLinea4Tel = valor; break;
             case 5: contratoSeleccionado.TelefonoLinea5Tel = valor; break;
+            case 6: contratoSeleccionado.TelefonoLinea6Tel = valor; break;
+            case 7: contratoSeleccionado.TelefonoLinea7Tel = valor; break;
+            case 8: contratoSeleccionado.TelefonoLinea8Tel = valor; break;
+            case 9: contratoSeleccionado.TelefonoLinea9Tel = valor; break;
+            case 10: contratoSeleccionado.TelefonoLinea10Tel = valor; break;
+            case 11: contratoSeleccionado.TelefonoLinea11Tel = valor; break;
+            case 12: contratoSeleccionado.TelefonoLinea12Tel = valor; break;
+            case 13: contratoSeleccionado.TelefonoLinea13Tel = valor; break;
+            case 14: contratoSeleccionado.TelefonoLinea14Tel = valor; break;
+            case 15: contratoSeleccionado.TelefonoLinea15Tel = valor; break;
         }
         
         RecalcularNumeroLineasActivas();
@@ -2540,6 +2830,16 @@ else
             case 3: contratoSeleccionado.TarifaLinea3Tel = valor; break;
             case 4: contratoSeleccionado.TarifaLinea4Tel = valor; break;
             case 5: contratoSeleccionado.TarifaLinea5Tel = valor; break;
+            case 6: contratoSeleccionado.TarifaLinea6Tel = valor; break;
+            case 7: contratoSeleccionado.TarifaLinea7Tel = valor; break;
+            case 8: contratoSeleccionado.TarifaLinea8Tel = valor; break;
+            case 9: contratoSeleccionado.TarifaLinea9Tel = valor; break;
+            case 10: contratoSeleccionado.TarifaLinea10Tel = valor; break;
+            case 11: contratoSeleccionado.TarifaLinea11Tel = valor; break;
+            case 12: contratoSeleccionado.TarifaLinea12Tel = valor; break;
+            case 13: contratoSeleccionado.TarifaLinea13Tel = valor; break;
+            case 14: contratoSeleccionado.TarifaLinea14Tel = valor; break;
+            case 15: contratoSeleccionado.TarifaLinea15Tel = valor; break;
         }
     }
 
@@ -2554,6 +2854,16 @@ else
             3 => contratoSeleccionado.TipoLinea3Tel,
             4 => contratoSeleccionado.TipoLinea4Tel,
             5 => contratoSeleccionado.TipoLinea5Tel,
+            6 => contratoSeleccionado.TipoLinea6Tel,
+            7 => contratoSeleccionado.TipoLinea7Tel,
+            8 => contratoSeleccionado.TipoLinea8Tel,
+            9 => contratoSeleccionado.TipoLinea9Tel,
+            10 => contratoSeleccionado.TipoLinea10Tel,
+            11 => contratoSeleccionado.TipoLinea11Tel,
+            12 => contratoSeleccionado.TipoLinea12Tel,
+            13 => contratoSeleccionado.TipoLinea13Tel,
+            14 => contratoSeleccionado.TipoLinea14Tel,
+            15 => contratoSeleccionado.TipoLinea15Tel,
             _ => null
         };
     }
@@ -2569,6 +2879,16 @@ else
             case 3: contratoSeleccionado.TipoLinea3Tel = valor; break;
             case 4: contratoSeleccionado.TipoLinea4Tel = valor; break;
             case 5: contratoSeleccionado.TipoLinea5Tel = valor; break;
+            case 6: contratoSeleccionado.TipoLinea6Tel = valor; break;
+            case 7: contratoSeleccionado.TipoLinea7Tel = valor; break;
+            case 8: contratoSeleccionado.TipoLinea8Tel = valor; break;
+            case 9: contratoSeleccionado.TipoLinea9Tel = valor; break;
+            case 10: contratoSeleccionado.TipoLinea10Tel = valor; break;
+            case 11: contratoSeleccionado.TipoLinea11Tel = valor; break;
+            case 12: contratoSeleccionado.TipoLinea12Tel = valor; break;
+            case 13: contratoSeleccionado.TipoLinea13Tel = valor; break;
+            case 14: contratoSeleccionado.TipoLinea14Tel = valor; break;
+            case 15: contratoSeleccionado.TipoLinea15Tel = valor; break;
         }
         StateHasChanged();
     }
@@ -2584,6 +2904,16 @@ else
             3 => contratoSeleccionado.CodigoIccLinea3Tel,
             4 => contratoSeleccionado.CodigoIccLinea4Tel,
             5 => contratoSeleccionado.CodigoIccLinea5Tel,
+            6 => contratoSeleccionado.CodigoIccLinea6Tel,
+            7 => contratoSeleccionado.CodigoIccLinea7Tel,
+            8 => contratoSeleccionado.CodigoIccLinea8Tel,
+            9 => contratoSeleccionado.CodigoIccLinea9Tel,
+            10 => contratoSeleccionado.CodigoIccLinea10Tel,
+            11 => contratoSeleccionado.CodigoIccLinea11Tel,
+            12 => contratoSeleccionado.CodigoIccLinea12Tel,
+            13 => contratoSeleccionado.CodigoIccLinea13Tel,
+            14 => contratoSeleccionado.CodigoIccLinea14Tel,
+            15 => contratoSeleccionado.CodigoIccLinea15Tel,
             _ => null
         };
     }
@@ -2599,6 +2929,16 @@ else
             case 3: contratoSeleccionado.CodigoIccLinea3Tel = valor; break;
             case 4: contratoSeleccionado.CodigoIccLinea4Tel = valor; break;
             case 5: contratoSeleccionado.CodigoIccLinea5Tel = valor; break;
+            case 6: contratoSeleccionado.CodigoIccLinea6Tel = valor; break;
+            case 7: contratoSeleccionado.CodigoIccLinea7Tel = valor; break;
+            case 8: contratoSeleccionado.CodigoIccLinea8Tel = valor; break;
+            case 9:contratoSeleccionado.CodigoIccLinea9Tel = valor; break;
+            case 10: contratoSeleccionado.CodigoIccLinea10Tel = valor; break;
+            case 11: contratoSeleccionado.CodigoIccLinea11Tel = valor; break;
+            case 12: contratoSeleccionado.CodigoIccLinea12Tel = valor; break;
+            case 13: contratoSeleccionado.CodigoIccLinea13Tel = valor; break;
+            case 14: contratoSeleccionado.CodigoIccLinea14Tel = valor; break;
+            case 15: contratoSeleccionado.CodigoIccLinea15Tel = valor; break;
         }
     }
 
