@@ -22,7 +22,7 @@ def obtener_config_bd():
     try:
         config_file = 'appsettings.Production.json'
         if not os.path.exists(config_file):
-            print(f"❌ Error: No se encuentra {config_file} en el directorio actual")
+            print(f"[ERROR] Error: No se encuentra {config_file} en el directorio actual")
             print(f"   Directorio actual: {os.getcwd()}")
             print(f"   Ejecuta el script desde la carpeta donde está appsettings.Production.json")
             sys.exit(1)
@@ -32,7 +32,7 @@ def obtener_config_bd():
         
         connection_string = config.get('ConnectionStrings', {}).get('DefaultConnection', '')
         if not connection_string:
-            print(f"❌ Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
+            print(f"[ERROR] Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
             sys.exit(1)
         
         # Extraer información de la cadena de conexión
@@ -42,7 +42,7 @@ def obtener_config_bd():
         host_match = re.search(r'Server=([^;]+)', connection_string)
         
         if not db_match:
-            print(f"❌ Error: No se pudo extraer el nombre de la base de datos")
+            print(f"[ERROR] Error: No se pudo extraer el nombre de la base de datos")
             sys.exit(1)
         
         return {
@@ -52,7 +52,7 @@ def obtener_config_bd():
             'password': password_match.group(1) if password_match else ''
         }
     except Exception as e:
-        print(f"❌ Error al leer configuración: {str(e)}")
+        print(f"[ERROR] Error al leer configuración: {str(e)}")
         sys.exit(1)
 
 # Verificar argumentos

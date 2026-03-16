@@ -126,7 +126,7 @@ else
                                                 </span>
                                             </td>
                                             <td><strong>@servicio.NombreServicio</strong></td>
-                                            <td>@servicio.Precio</td>
+                                            <td>@(servicio.Precio?.Replace(".", ","))</td>
                                             <td>@(servicio.Empresa ?? "-")</td>
                                             <td class="text-end">
                                                 <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(servicio)">
@@ -219,7 +219,8 @@ else
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Precio <span class="text-danger">*</span></label>
-                                    <InputText @bind-Value="servicioSeleccionado.Precio" class="form-control" placeholder="Ej: 50€/mes" />
+                                    <input type="text" @bind="precioEditando" @oninput="FormatearPrecio" class="form-control" placeholder="Ej: 50,00€/mes" />
+                                    <small class="text-muted">Use coma (,) como separador decimal</small>
                                     <ValidationMessage For="() => servicioSeleccionado.Precio" class="text-danger" />
                                 </div>
                                 <div class="mb-3">
@@ -278,6 +279,7 @@ else
     private List<Servicio> servicios = new();
     private List<Servicio> serviciosFiltrados = new();
     private List<Comercializadora> comercializadoras = new();
+    private string precioEditando = "";
     private Servicio servicioSeleccionado = new();
     private bool mostrarModal = false;
     private bool mostrarModalEliminar = false;
@@ -397,6 +399,7 @@ else
     private void MostrarModalCrear()
     {
         servicioSeleccionado = new Servicio();
+        precioEditando = "";
         esNuevo = true;
         mostrarModal = true;
     }
@@ -411,6 +414,8 @@ else
             Precio = servicio.Precio,
             Empresa = servicio.Empresa
         };
+        // Convertir punto a coma para mostrar
+        precioEditando = servicio.Precio?.Replace(".", ",") ?? "";
         esNuevo = false;
         mostrarModal = true;
     }
@@ -433,6 +438,9 @@ else
     {
         try
         {
+            // Convertir coma a punto antes de guardar
+            servicioSeleccionado.Precio = precioEditando.Replace(",", ".");
+            
             var (exito, mensaje) = esNuevo
                 ? await ServicioService.CrearAsync(servicioSeleccionado)
                 : await ServicioService.ActualizarAsync(servicioSeleccionado);
@@ -451,6 +459,17 @@ else
         catch (Exception ex)
         {
             mensajeError = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private void FormatearPrecio(ChangeEventArgs e)
+    {
+        // Reemplazar punto por coma automáticamente y actualizar el modelo
+        if (e.Value != null)
+        {
+            precioEditando = e.Value.ToString()?.Replace(".", ",") ?? "";
+            // Actualizar el modelo para que pase la validación
+            servicioSeleccionado.Precio = precioEditando.Replace(",", ".");
         }
     }
 

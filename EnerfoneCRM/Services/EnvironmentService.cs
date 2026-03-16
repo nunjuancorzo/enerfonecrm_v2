@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 
 namespace EnerfoneCRM.Services
 {
@@ -7,11 +8,13 @@ namespace EnerfoneCRM.Services
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IWebHostEnvironment _environment;
+        private readonly IConfiguration _configuration;
 
-        public EnvironmentService(IHttpContextAccessor httpContextAccessor, IWebHostEnvironment environment)
+        public EnvironmentService(IHttpContextAccessor httpContextAccessor, IWebHostEnvironment environment, IConfiguration configuration)
         {
             _httpContextAccessor = httpContextAccessor;
             _environment = environment;
+            _configuration = configuration;
         }
 
         public bool IsDemo()
@@ -27,7 +30,24 @@ namespace EnerfoneCRM.Services
 
         public string GetDatabaseName()
         {
-            // Si es entorno de desarrollo, usar la base de datos de desarrollo
+            // Leer de la cadena de conexión
+            var connectionString = _configuration.GetConnectionString("DefaultConnection");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                // Extraer el nombre de la base de datos de la cadena de conexión
+                var dbNameIndex = connectionString.IndexOf("Database=", StringComparison.OrdinalIgnoreCase);
+                if (dbNameIndex >= 0)
+                {
+                    var start = dbNameIndex + "Database=".Length;
+                    var end = connectionString.IndexOf(";", start);
+                    if (end > start)
+                    {
+                        return connectionString.Substring(start, end - start);
+                    }
+                }
+            }
+
+            // Fallback a valores por defecto si no se puede leer de la configuración
             if (_environment.IsDevelopment())
             {
                 return "enerfonecrm";
@@ -38,25 +58,55 @@ namespace EnerfoneCRM.Services
 
         public string GetDatabaseUser()
         {
-            // Si es entorno de desarrollo, usar root
+            // Leer de la cadena de conexión
+            var connectionString = _configuration.GetConnectionString("DefaultConnection");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                var userIndex = connectionString.IndexOf("User=", StringComparison.OrdinalIgnoreCase);
+                if (userIndex >= 0)
+                {
+                    var start = userIndex + "User=".Length;
+                    var end = connectionString.IndexOf(";", start);
+                    if (end > start)
+                    {
+                        return connectionString.Substring(start, end - start);
+                    }
+                }
+            }
+
+            // Fallback
             if (_environment.IsDevelopment())
             {
                 return "root";
             }
             
-            // En producci\u00f3n y demo usar enerfone
             return "enerfone";
         }
 
         public string GetDatabasePassword()
         {
-            // Si es entorno de desarrollo, usar la contrase\u00f1a de desarrollo
+            // Leer de la cadena de conexión
+            var connectionString = _configuration.GetConnectionString("DefaultConnection");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                var passwordIndex = connectionString.IndexOf("Password=", StringComparison.OrdinalIgnoreCase);
+                if (passwordIndex >= 0)
+                {
+                    var start = passwordIndex + "Password=".Length;
+                    var end = connectionString.IndexOf(";", start);
+                    if (end > start)
+                    {
+                        return connectionString.Substring(start, end - start);
+                    }
+                }
+            }
+
+            // Fallback
             if (_environment.IsDevelopment())
             {
                 return "A76262136.r";
             }
             
-            // En producci\u00f3n y demo usar Salaiet6680.
             return "Salaiet6680.";
         }
     }

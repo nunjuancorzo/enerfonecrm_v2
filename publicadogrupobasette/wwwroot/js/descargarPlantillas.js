@@ -90,6 +90,28 @@ window.descargarPlantillaTarifasTelefonia = function() {
     descargarExcel(rows, 'plantilla_tarifas_telefonia_importacion.xlsx', 'Tarifas Telefonía');
 };
 
+window.descargarPlantillaServicios = function() {
+    const rows = [
+        [
+            'ID', 'Tipo', 'NombreServicio', 'Precio', 'Empresa'
+        ],
+        [
+            '', 'Residencial', 'Mantenimiento Caldera', '15,00', 'Naturgy'
+        ],
+        [
+            '', 'Residencial', 'Seguro Hogar Eléctrico', '8,50', 'Iberdrola'
+        ],
+        [
+            '', 'Pyme', 'Servicio Técnico Premium', '5,00', 'Endesa'
+        ],
+        [
+            '', 'Pyme', 'Mantenimiento Anual', '25,00', 'Iberdrola'
+        ]
+    ];
+    
+    descargarExcel(rows, 'plantilla_servicios_importacion.xlsx', 'Servicios');
+};
+
 function descargarExcel(rows, nombreArchivo, nombreHoja) {
     // Usar SheetJS para crear el archivo Excel
     if (typeof XLSX === 'undefined') {

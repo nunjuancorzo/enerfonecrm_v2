@@ -4,9 +4,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>20260203</Version>
-    <AssemblyVersion>2026.01.28.0</AssemblyVersion>
-    <FileVersion>2026.01.28.0</FileVersion>
+    <Version>20260316</Version>
+    <AssemblyVersion>2026.03.16.0</AssemblyVersion>
+    <FileVersion>2026.03.16.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +19,14 @@
     </PackageReference>
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.4" />
     <PackageReference Include="QuestPDF" Version="2024.12.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copiar scripts Python al publicar -->
+    <Content Include="../*.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

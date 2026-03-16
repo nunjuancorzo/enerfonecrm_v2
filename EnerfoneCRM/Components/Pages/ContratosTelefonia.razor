@@ -372,10 +372,12 @@ else
                                     {
                                         @foreach (var contrato in contratosFiltrados)
                                         {
+                                            var tieneArchivo = contratosConFicheros.Contains(contrato.Id);
+                                            var textoClass = tieneArchivo ? "text-primary" : "";
                                             <tr style="font-size: 0.875rem;">
-                                                <td><small class="text-muted">@contrato.Id</small></td>
-                                                <td><small>@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
-                                                <td><small class="text-muted">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
+                                                <td><small class="@textoClass">@contrato.Id</small></td>
+                                                <td><small class="@textoClass">@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
+                                                <td><small class="@textoClass">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
                                                 <td>
                                                     <span class="badge @ObtenerColorEstado(contrato.Estado)" style="font-size: 0.75rem;">@contrato.Estado</span>
                                                     @if (conteoObservacionesPorContrato.ContainsKey(contrato.Id) && conteoObservacionesPorContrato[contrato.Id] > 0)
@@ -386,7 +388,7 @@ else
                                                            title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
                                                     }
                                                 </td>
-                                                <td><small>@contrato.Comercial</small></td>
+                                                <td><small class="@textoClass">@contrato.Comercial</small></td>
                                                 <td>
                                                     @{
                                                         var operadora = operadorasObjetos.FirstOrDefault(o => 
@@ -402,14 +404,14 @@ else
                                                         }
                                                         else
                                                         {
-                                                            <small>@contrato.OperadoraTel</small>
+                                                            <small class="@textoClass">@contrato.OperadoraTel</small>
                                                         }
                                                     }
                                                 </td>
                                                 <td><span class="badge @ObtenerColorTipo(contrato.TipoTarifaTel)" style="font-size: 0.75rem;">@contrato.TipoTarifaTel</span></td>
-                                                <td><small>@contrato.LineaMovilPrincipal</small></td>
-                                                <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@contrato.NombreCliente</small></td>
-                                                <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small>@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
+                                                <td><small class="@textoClass">@contrato.LineaMovilPrincipal</small></td>
+                                                <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass">@contrato.NombreCliente</small></td>
+                                                <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass">@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
                                                 @if (PuedeMostrarComision(contrato.Estado))
                                                 {
                                                     <td><span class="badge bg-primary" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
@@ -1399,6 +1401,9 @@ else
     private List<ObservacionContrato> observacionesHistoricasModal = new();
     private Dictionary<int, int> conteoObservacionesPorContrato = new();
 
+    // Contratos con ficheros adjuntos
+    private HashSet<int> contratosConFicheros = new();
+
     // Tarifas dinámicas
     private List<TarifaTelefonia> tarifasDisponibles = new();
     private List<TarifaTelefonia> tarifasMovilSolo = new();
@@ -1513,6 +1518,7 @@ else
             );
             
             await CargarConteoObservaciones();
+            contratosConFicheros = await FicheroContratoService.ObtenerIdsContratosConFicherosAsync();
             AplicarFiltros();
             
             Console.WriteLine($"[DEBUG ContratosTelefonia] Contratos después de filtros: {contratosFiltrados.Count}");

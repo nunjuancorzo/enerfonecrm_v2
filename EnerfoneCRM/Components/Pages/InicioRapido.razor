@@ -323,6 +323,79 @@ else
                         }
                     </div>
                 </div>
+
+                <!-- Tarjeta de Servicios Energía -->
+                <div class="card shadow-sm mt-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="bi bi-gear me-2"></i>Importar Servicios Energía</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Importa servicios de energía de forma masiva desde un archivo Excel.
+                            Descarga la plantilla o usa el formato estándar con las columnas requeridas.
+                        </p>
+                        
+                        <div class="alert alert-success py-2 mb-3" role="alert">
+                            <strong><i class="bi bi-file-earmark-excel me-2"></i>Nuevo:</strong>
+                            Exporta tus servicios actuales con ID incluido para poder actualizarlos después.
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" @onclick="ExportarServicios" disabled="@procesando">
+                                @if (procesando && tipoImportacion == "exportar-servicios")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-file-earmark-excel me-2"></i>Exportar Servicios Actuales (con ID)
+                            </button>
+                            
+                            <button class="btn btn-outline-secondary" @onclick="DescargarPlantillaServicios">
+                                <i class="bi bi-download me-2"></i>Descargar Plantilla Vacía
+                            </button>
+                            
+                            <div class="mt-3">
+                                <label class="form-label fw-bold">Seleccionar archivo Excel</label>
+                                <InputFile OnChange="@(e => CargarArchivoServicios(e))" class="form-control" accept=".xlsx,.xls" />
+                            </div>
+                            
+                            <button class="btn btn-secondary mt-2" @onclick="ImportarServicios" disabled="@(archivoServicios == null || procesando)">
+                                @if (procesando && tipoImportacion == "servicios")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                <i class="bi bi-upload me-2"></i>Importar Servicios
+                            </button>
+                        </div>
+
+                        @if (resultadoServicios != null)
+                        {
+                            <div class="mt-3">
+                                <div class="alert alert-info">
+                                    <strong>Resultado:</strong><br/>
+                                    ✓ Importados: @resultadoServicios.Importados<br/>
+                                    ✗ Errores: @resultadoServicios.Errores
+                                </div>
+                                
+                                @if (resultadoServicios.DetalleErrores.Any())
+                                {
+                                    <div class="alert alert-warning">
+                                        <strong>Detalles de errores:</strong>
+                                        <ul class="mb-0 mt-2">
+                                            @foreach (var error in resultadoServicios.DetalleErrores.Take(10))
+                                            {
+                                                <li><small>@error</small></li>
+                                            }
+                                            @if (resultadoServicios.DetalleErrores.Count > 10)
+                                            {
+                                                <li><small><em>... y @(resultadoServicios.DetalleErrores.Count - 10) errores más</em></small></li>
+                                            }
+                                        </ul>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -375,12 +448,14 @@ else
     private IBrowserFile? archivoContratos;
     private IBrowserFile? archivoTarifasEnergia;
     private IBrowserFile? archivoTarifasTelefonia;
+    private IBrowserFile? archivoServicios;
     private string tipoContratoSeleccionado = string.Empty;
     
     private ResultadoImportacion? resultadoClientes;
     private ResultadoImportacion? resultadoContratos;
     private ResultadoImportacion? resultadoTarifasEnergia;
     private ResultadoImportacion? resultadoTarifasTelefonia;
+    private ResultadoImportacion? resultadoServicios;
     private bool verificacionRealizada = false;
 
     // Función para obtener la ruta de Python según el sistema operativo
@@ -478,6 +553,19 @@ else
         }
     }
 
+    private async Task DescargarPlantillaServicios()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("descargarPlantillaServicios");
+            mensajeExito = "Plantilla de servicios descargada correctamente.";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al descargar plantilla: {ex.Message}";
+        }
+    }
+
     private void CargarArchivoClientes(InputFileChangeEventArgs e)
     {
         archivoClientes = e.File;
@@ -506,6 +594,14 @@ else
     {
         archivoTarifasTelefonia = e.File;
         resultadoTarifasTelefonia = null;
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+    }
+
+    private void CargarArchivoServicios(InputFileChangeEventArgs e)
+    {
+        archivoServicios = e.File;
+        resultadoServicios = null;
         mensajeExito = string.Empty;
         mensajeError = string.Empty;
     }
@@ -946,6 +1042,15 @@ else
                     resultado.Importados = importados;
                 }
             }
+            else if (linea.Contains("actualizados:", StringComparison.OrdinalIgnoreCase) || linea.Contains("Actualizados:", StringComparison.OrdinalIgnoreCase))
+            {
+                var partes = linea.Split(':');
+                if (partes.Length > 1 && int.TryParse(partes[1].Trim(), out int actualizados))
+                {
+                    // Sumar actualizados a importados para el total
+                    resultado.Importados += actualizados;
+                }
+            }
             else if (linea.Contains("errores:", StringComparison.OrdinalIgnoreCase) || linea.Contains("Errores:", StringComparison.OrdinalIgnoreCase))
             {
                 var partes = linea.Split(':');
@@ -1209,6 +1314,258 @@ else
                     await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
                     
                     mensajeExito = $"Tarifas de telefonía exportadas correctamente: {nombreArchivo}";
+                    
+                    // Opcional: eliminar el archivo temporal del servidor
+                    File.Delete(rutaArchivo);
+                }
+                else
+                {
+                    mensajeError = $"Archivo generado pero no encontrado: {rutaArchivo}";
+                }
+            }
+            else
+            {
+                mensajeError = "No se pudo determinar el nombre del archivo exportado";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error durante la exportación: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+            tipoImportacion = string.Empty;
+        }
+    }
+
+    private async Task ImportarServicios()
+    {
+        if (archivoServicios == null) return;
+
+        procesando = true;
+        tipoImportacion = "servicios";
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+        resultadoServicios = null;
+
+        try
+        {
+            // Guardar archivo temporalmente
+            var rutaTemporal = Path.Combine(Path.GetTempPath(), archivoServicios.Name);
+            
+            await using FileStream fs = new(rutaTemporal, FileMode.Create);
+            await archivoServicios.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(fs);
+            fs.Close();
+
+            // Determinar directorio de trabajo (desarrollo vs producción)
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "importar_tarifas_servicios.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "importar_tarifas_servicios.py");
+            }
+
+            // Verificar que el script existe
+            if (!File.Exists(scriptPath))
+            {
+                throw new Exception($"No se encontró el script importar_tarifas_servicios.py en {directorioActual} ni en {directorioTrabajo}");
+            }
+
+            // Ejecutar script de Python con el tipo "servicios"
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"importar_tarifas_servicios.py servicios \"{rutaTemporal}\"",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            string salida = await proceso.StandardOutput.ReadToEndAsync();
+            string errores = await proceso.StandardError.ReadToEndAsync();
+            await proceso.WaitForExitAsync();
+
+            // Debug: Mostrar salida completa
+            if (!string.IsNullOrWhiteSpace(errores))
+            {
+                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(salida))
+            {
+                mensajeError = "El script no devolvió ninguna salida. Verifica permisos y que Python esté correctamente instalado.";
+                return;
+            }
+
+            // Parsear resultado
+            resultadoServicios = ParsearResultado(salida);
+
+            // DEBUG: Mostrar salida completa del script en consola (no en pantalla)
+            Console.WriteLine("=== SALIDA COMPLETA DEL SCRIPT ===");
+            Console.WriteLine(salida);
+            Console.WriteLine("=== FIN SALIDA ===");
+
+            if (resultadoServicios.Importados > 0)
+            {
+                mensajeExito = $"Importación completada: {resultadoServicios.Importados} servicios importados.";
+            }
+            else if (resultadoServicios.Errores > 0 || resultadoServicios.DetalleErrores.Any())
+            {
+                mensajeError = $"Errores encontrados. Revisa los detalles.\n\n--- DEBUG OUTPUT ---\n{salida}";
+            }
+            else
+            {
+                mensajeExito = "Importación procesada. No se importaron registros nuevos.";
+            }
+
+            // Limpiar archivo temporal
+            if (File.Exists(rutaTemporal))
+                File.Delete(rutaTemporal);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error durante la importación: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+            tipoImportacion = string.Empty;
+        }
+    }
+
+    private async Task ExportarServicios()
+    {
+        try
+        {
+            procesando = true;
+            tipoImportacion = "exportar-servicios";
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+            StateHasChanged();
+
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "exportar_servicios.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "exportar_servicios.py");
+            }
+
+            // Verificar que el script existe
+            if (!File.Exists(scriptPath))
+            {
+                throw new Exception($"No se encontró el script exportar_servicios.py");
+            }
+
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"exportar_servicios.py \"{databaseName}\" \"{dbUser}\" \"{dbPassword}\"",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            string salida = await proceso.StandardOutput.ReadToEndAsync();
+            string errores = await proceso.StandardError.ReadToEndAsync();
+            await proceso.WaitForExitAsync();
+
+            // Debug: Mostrar toda la salida
+            Console.WriteLine($"[EXPORTAR SERVICIOS] Salida completa del script: {salida}");
+            Console.WriteLine($"[EXPORTAR SERVICIOS] Errores: {errores}");
+            Console.WriteLine($"[EXPORTAR SERVICIOS] Código de salida: {proceso.ExitCode}");
+
+            if (!string.IsNullOrWhiteSpace(errores))
+            {
+                mensajeError = $"Error al exportar: {errores}";
+                return;
+            }
+
+            // Verificar si hay errores en la salida del script
+            if (salida.Contains("[ERROR]"))
+            {
+                var lineasError = salida.Split('\n')
+                    .Where(l => l.Contains("[ERROR]"))
+                    .Select(l => l.Replace("[ERROR]", "").Trim())
+                    .ToList();
+                mensajeError = $"Error al exportar: {string.Join("\n", lineasError)}";
+                return;
+            }
+
+            // Buscar el nombre del archivo generado en la salida
+            var lineas = salida.Split('\n');
+            string? nombreArchivo = null;
+            foreach (var linea in lineas)
+            {
+                Console.WriteLine($"[EXPORTAR SERVICIOS] Procesando línea: '{linea}'");
+                if (linea.Contains("servicios_exportados_") && linea.Contains(".xlsx"))
+                {
+                    var inicio = linea.IndexOf("servicios_exportados_");
+                    var fin = linea.IndexOf(".xlsx", inicio);
+                    Console.WriteLine($"[EXPORTAR SERVICIOS] Encontrado en línea - inicio: {inicio}, fin: {fin}");
+                    if (inicio >= 0 && fin > inicio)
+                    {
+                        nombreArchivo = linea.Substring(inicio, fin - inicio + 5);
+                        Console.WriteLine($"[EXPORTAR SERVICIOS] Nombre extraído: {nombreArchivo}");
+                        break;
+                    }
+                }
+            }
+
+            // Si no se encontró, intentar buscar en todo el directorio
+            if (nombreArchivo == null)
+            {
+                Console.WriteLine($"[EXPORTAR SERVICIOS] Buscando archivos en: {directorioTrabajo}");
+                var archivos = Directory.GetFiles(directorioTrabajo, "servicios_exportados_*.xlsx")
+                    .OrderByDescending(f => File.GetCreationTime(f))
+                    .ToList();
+                Console.WriteLine($"[EXPORTAR SERVICIOS] Archivos encontrados: {archivos.Count}");
+                if (archivos.Any())
+                {
+                    nombreArchivo = Path.GetFileName(archivos.First());
+                    Console.WriteLine($"[EXPORTAR SERVICIOS] Usando archivo: {nombreArchivo}");
+                }
+            }
+
+            if (nombreArchivo != null)
+            {
+                // El archivo se genera en el directorio de trabajo
+                var rutaArchivo = Path.Combine(directorioTrabajo, nombreArchivo);
+                
+                if (File.Exists(rutaArchivo))
+                {
+                    // Descargar archivo
+                    var bytes = await File.ReadAllBytesAsync(rutaArchivo);
+                    await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    
+                    mensajeExito = $"Servicios exportados correctamente: {nombreArchivo}";
                     
                     // Opcional: eliminar el archivo temporal del servidor
                     File.Delete(rutaArchivo);

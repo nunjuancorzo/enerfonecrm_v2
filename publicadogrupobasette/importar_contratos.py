@@ -25,7 +25,7 @@ def obtener_config_bd():
     try:
         config_file = 'appsettings.Production.json'
         if not os.path.exists(config_file):
-            print(f"❌ Error: No se encuentra {config_file} en el directorio actual")
+            print(f"[ERROR] Error: No se encuentra {config_file} en el directorio actual")
             print(f"   Directorio actual: {os.getcwd()}")
             print(f"   Ejecuta el script desde la carpeta donde está appsettings.Production.json")
             sys.exit(1)
@@ -35,7 +35,7 @@ def obtener_config_bd():
         
         connection_string = config.get('ConnectionStrings', {}).get('DefaultConnection', '')
         if not connection_string:
-            print(f"❌ Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
+            print(f"[ERROR] Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
             sys.exit(1)
         
         # Extraer información de la cadena de conexión
@@ -45,7 +45,7 @@ def obtener_config_bd():
         host_match = re.search(r'Server=([^;]+)', connection_string)
         
         if not db_match:
-            print(f"❌ Error: No se pudo extraer el nombre de la base de datos")
+            print(f"[ERROR] Error: No se pudo extraer el nombre de la base de datos")
             sys.exit(1)
         
         return {
@@ -55,7 +55,7 @@ def obtener_config_bd():
             'password': password_match.group(1) if password_match else ''
         }
     except Exception as e:
-        print(f"❌ Error al leer configuración: {str(e)}")
+        print(f"[ERROR] Error al leer configuración: {str(e)}")
         sys.exit(1)
 
 # Verificar argumentos
@@ -214,7 +214,7 @@ def importar_contratos_energia(archivo_excel):
                 result['errores'] += 1
                 error_msg = f"Fila {fila_num}: Error - {str(e)}"
                 result['errores_detalle'].append(error_msg)
-                print(f"❌ {error_msg}")
+                print(f"[ERROR] {error_msg}")
         
         if result['importados'] > 0:
             conexion.commit()
@@ -348,7 +348,7 @@ def importar_contratos_telefonia(archivo_excel):
                 result['errores'] += 1
                 error_msg = f"Fila {fila_num}: Error - {str(e)}"
                 result['errores_detalle'].append(error_msg)
-                print(f"❌ {error_msg}")
+                print(f"[ERROR] {error_msg}")
         
         if result['importados'] > 0:
             conexion.commit()
@@ -454,7 +454,7 @@ def importar_contratos_alarmas(archivo_excel):
                 result['errores'] += 1
                 error_msg = f"Fila {fila_num}: Error - {str(e)}"
                 result['errores_detalle'].append(error_msg)
-                print(f"❌ {error_msg}")
+                print(f"[ERROR] {error_msg}")
         
         if result['importados'] > 0:
             conexion.commit()
@@ -474,7 +474,7 @@ def mostrar_resumen(resultado, tipo):
     
     if resultado['errores_detalle']:
         for error in resultado['errores_detalle']:
-            print(f"❌ {error}")
+            print(f"[ERROR] {error}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
@@ -512,6 +512,6 @@ Base de datos: {DB_CONFIG['database']}
         resultado = importar_contratos_alarmas(archivo_excel_arg)
         mostrar_resumen(resultado, 'Alarmas')
     else:
-        print(f"❌ Error: Tipo '{tipo}' no válido")
+        print(f"[ERROR] Error: Tipo '{tipo}' no válido")
         print("Tipos válidos: energia, telefonia, alarmas")
         sys.exit(1)

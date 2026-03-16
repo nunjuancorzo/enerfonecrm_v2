@@ -88,5 +88,17 @@ namespace EnerfoneCRM.Services
                 return (false, $"Error al eliminar la factura: {ex.Message}");
             }
         }
+
+        // Obtener los IDs de contratos que tienen ficheros adjuntos
+        public async Task<HashSet<int>> ObtenerIdsContratosConFicherosAsync()
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            var idsConFicheros = await context.FicherosContratos
+                .Select(f => f.IdContrato)
+                .Distinct()
+                .ToListAsync();
+            
+            return new HashSet<int>(idsConFicheros);
+        }
     }
 }

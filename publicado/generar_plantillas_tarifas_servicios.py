@@ -414,7 +414,7 @@ if __name__ == "__main__":
     
     print()
     print("="*60)
-    print("✅ PLANTILLAS CREADAS EXITOSAMENTE")
+    print("[OK] PLANTILLAS CREADAS EXITOSAMENTE")
     print("="*60)
     print()
     print("Archivos generados:")

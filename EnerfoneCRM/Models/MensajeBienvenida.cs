@@ -16,7 +16,6 @@ public class MensajeBienvenida
     public string Titulo { get; set; } = string.Empty;
 
     [Column("contenido")]
-    [Required]
     public string Contenido { get; set; } = string.Empty;
 
     [Column("imagen_url")]
@@ -44,4 +43,7 @@ public class MensajeBienvenida
 
     [ForeignKey("UsuarioCreacionId")]
     public Usuario? UsuarioCreacion { get; set; }
+
+    // Relación con imágenes
+    public ICollection<NoticiaImagen>? Imagenes { get; set; }
 }

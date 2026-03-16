@@ -21,7 +21,7 @@ def obtener_config_bd():
     try:
         config_file = 'appsettings.Production.json'
         if not os.path.exists(config_file):
-            print(f"❌ Error: No se encuentra {config_file} en el directorio actual")
+            print(f"[ERROR] Error: No se encuentra {config_file} en el directorio actual")
             print(f"   Directorio actual: {os.getcwd()}")
             print(f"   Ejecuta el script desde la carpeta donde está appsettings.Production.json")
             sys.exit(1)
@@ -31,7 +31,7 @@ def obtener_config_bd():
         
         connection_string = config.get('ConnectionStrings', {}).get('DefaultConnection', '')
         if not connection_string:
-            print(f"❌ Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
+            print(f"[ERROR] Error: No se encontró ConnectionStrings.DefaultConnection en {config_file}")
             sys.exit(1)
         
         # Extraer información de la cadena de conexión
@@ -41,7 +41,7 @@ def obtener_config_bd():
         host_match = re.search(r'Server=([^;]+)', connection_string)
         
         if not db_match:
-            print(f"❌ Error: No se pudo extraer el nombre de la base de datos")
+            print(f"[ERROR] Error: No se pudo extraer el nombre de la base de datos")
             sys.exit(1)
         
         return {
@@ -51,7 +51,7 @@ def obtener_config_bd():
             'password': password_match.group(1) if password_match else ''
         }
     except Exception as e:
-        print(f"❌ Error al leer configuración: {str(e)}")
+        print(f"[ERROR] Error al leer configuración: {str(e)}")
         sys.exit(1)
 
 # Verificar argumentos
@@ -97,7 +97,7 @@ def importar_clientes(archivo_excel, id_usuario=1):
         
         # Verificar que tiene datos
         if df.empty:
-            print("❌ El archivo no contiene datos")
+            print("[ERROR] El archivo no contiene datos")
             return
         
         print(f"✓ Se encontraron {len(df)} filas")
@@ -231,7 +231,7 @@ def importar_clientes(archivo_excel, id_usuario=1):
                 errores += 1
                 error_msg = f"Fila {fila_num}: Error al procesar - {str(e)}"
                 errores_detalle.append(error_msg)
-                print(f"❌ {error_msg}")
+                print(f"[ERROR] {error_msg}")
         
         # Confirmar cambios
         if importados > 0:
@@ -246,14 +246,14 @@ def importar_clientes(archivo_excel, id_usuario=1):
         print(f"Errores: {errores}")
         if errores_detalle:
             for error in errores_detalle:
-                print(f"❌ {error}")
+                print(f"[ERROR] {error}")
         
     except FileNotFoundError:
-        print(f"❌ Error: No se encontró el archivo '{archivo_excel}'")
+        print(f"[ERROR] Error: No se encontró el archivo '{archivo_excel}'")
         print("Importados: 0")
         print("Errores: 1")
     except Exception as e:
-        print(f"❌ Error general: {str(e)}")
+        print(f"[ERROR] Error general: {str(e)}")
         print("Importados: 0")
         print("Errores: 1")
         import traceback
