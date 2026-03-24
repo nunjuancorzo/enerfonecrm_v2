@@ -236,6 +236,7 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
+                                        <th>Estado</th>
                                         <th class="text-end">Acciones</th>
                                     </tr>
                                 </thead>
@@ -243,7 +244,7 @@ else
                                     @if (tarifas == null || !tarifas.Any())
                                     {
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted py-4">
+                                            <td colspan="9" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay tarifas registradas</p>
                                             </td>
@@ -261,6 +262,16 @@ else
                                                 <td>@tarifa.Tv1</td>
                                                 <td><strong>@tarifa.PrecioNew.ToString("N2")€</strong></td>
                                                 <td><span class="badge bg-success">@tarifa.ComisionNew.ToString("N2")%</span></td>
+                                                <td>
+                                                    @if (tarifa.Activa)
+                                                    {
+                                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Activa</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactiva</span>
+                                                    }
+                                                </td>
                                                 <td class="text-end" style="white-space: nowrap;">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(tarifa)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
@@ -268,6 +279,18 @@ else
                                                     <button class="btn btn-sm btn-outline-info me-1" @onclick="() => MostrarModalDuplicar(tarifa)" title="Duplicar">
                                                         <i class="bi bi-files"></i>
                                                     </button>
+                                                    @if (tarifa.Activa)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-warning me-1" @onclick="() => CambiarEstadoTarifa(tarifa)" title="Desactivar">
+                                                            <i class="bi bi-toggle-on"></i>
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => CambiarEstadoTarifa(tarifa)" title="Activar">
+                                                            <i class="bi bi-toggle-off"></i>
+                                                        </button>
+                                                    }
                                                     <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(tarifa)" title="Eliminar">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
@@ -374,12 +397,10 @@ else
                                         <label class="form-label fw-bold">Compañía <span class="text-danger">*</span></label>
                                         <InputSelect class="form-select" @bind-Value="tarifaActual.Compania">
                                             <option value="">-- Seleccionar --</option>
-                                            <option value="O2">O2</option>
-                                            <option value="Jazztel">Jazztel</option>
-                                            <option value="Lowi">Lowi</option>
-                                            <option value="Simyo">Simyo</option>
-                                            <option value="Masmovil">Masmovil</option>
-                                            <option value="Pepephone">Pepephone</option>
+                                            @foreach (var operadora in operadorasActivas)
+                                            {
+                                                <option value="@operadora.Nombre">@operadora.Nombre</option>
+                                            }
                                         </InputSelect>
                                         <ValidationMessage For="() => tarifaActual.Compania" class="text-danger" />
                                     </div>
@@ -394,6 +415,19 @@ else
                                             <option value="FibraSegundaResidencia">Fibra Segunda Residencia</option>
                                         </InputSelect>
                                         <ValidationMessage For="() => tarifaActual.Tipo" class="text-danger" />
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <InputCheckbox class="form-check-input" @bind-Value="tarifaActual.Activa" id="switchActiva" style="cursor: pointer;" />
+                                            <label class="form-check-label fw-bold" for="switchActiva" style="cursor: pointer;">
+                                                <i class="bi bi-@(tarifaActual.Activa ? "toggle-on text-success" : "toggle-off text-secondary") me-2"></i>
+                                                Tarifa @(tarifaActual.Activa ? "Activa" : "Inactiva")
+                                            </label>
+                                            <small class="text-muted d-block">Las tarifas inactivas no aparecerán al crear nuevos contratos</small>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -499,6 +533,7 @@ else
     private TarifaTelefonia tarifaActual = new();
     private TarifaTelefonia? tarifaAEliminar;
     private List<Operadora> operadoras = new();
+    private List<Operadora> operadorasActivas = new();
     
     // Ordenamiento
     private string columnaOrden = "Compania";
@@ -544,6 +579,7 @@ else
         try
         {
             operadoras = await OperadoraService.ObtenerTodasAsync();
+            operadorasActivas = await OperadoraService.ObtenerActivasAsync();
         }
         catch (Exception ex)
         {
@@ -865,6 +901,42 @@ else
         {
             eliminando = false;
             tarifaAEliminar = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CambiarEstadoTarifa(TarifaTelefonia tarifa)
+    {
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            tarifa.Activa = !tarifa.Activa;
+            var (exito, mensaje) = await TarifaService.ActualizarAsync(tarifa);
+
+            if (exito)
+            {
+                mensajeExito = tarifa.Activa 
+                    ? $"Tarifa '{tarifa.Tarifa}' activada correctamente" 
+                    : $"Tarifa '{tarifa.Tarifa}' desactivada correctamente";
+                await CargarTarifas();
+            }
+            else
+            {
+                // Revertir cambio si falla
+                tarifa.Activa = !tarifa.Activa;
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Revertir cambio si hay error
+            tarifa.Activa = !tarifa.Activa;
+            mensajeError = $"Error al cambiar estado: {ex.Message}";
+        }
+        finally
+        {
             StateHasChanged();
         }
     }

@@ -87,155 +87,91 @@ public class UsuarioService
 
     public async Task<(bool exito, string mensaje)> ActualizarAsync(Usuario usuario)
     {
-        await using var context = _dbContextProvider.CreateDbContext();
-        
-        // Obtener el usuario actual de la BD para comparar si cambió el nombre
-        var usuarioAnterior = await context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuario.Id);
-        if (usuarioAnterior == null)
+        try
         {
-            return (false, "Usuario no encontrado");
-        }
-        
-        var nombreAnterior = usuarioAnterior.NombreUsuario;
-        var nombreNuevo = usuario.NombreUsuario;
-        var nombreCambio = nombreAnterior != nombreNuevo;
-        
-        var existeNombreUsuario = await context.Usuarios
-            .AnyAsync(u => u.NombreUsuario == usuario.NombreUsuario && u.Id != usuario.Id);
+            await using var context = _dbContextProvider.CreateDbContext();
+            
+            // Obtener el usuario actual de la BD para comparar si cambió el nombre
+            var usuarioAnterior = await context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuario.Id);
+            if (usuarioAnterior == null)
+            {
+                return (false, "Usuario no encontrado");
+            }
+            
+            var nombreAnterior = usuarioAnterior.NombreUsuario?.Trim() ?? "";
+            var nombreNuevo = usuario.NombreUsuario?.Trim() ?? "";
+            var nombreCambio = !string.Equals(nombreAnterior, nombreNuevo, StringComparison.OrdinalIgnoreCase);
+            
+            Console.WriteLine($"[UsuarioService] Usuario ID: {usuario.Id}, Nombre anterior: '{nombreAnterior}', Nombre nuevo: '{nombreNuevo}', ¿Cambió?: {nombreCambio}");
+            
+            // Validar que no exista otro usuario con el mismo nombre
+            var existeNombreUsuario = await context.Usuarios
+                .AnyAsync(u => u.NombreUsuario == usuario.NombreUsuario && u.Id != usuario.Id);
 
-        if (existeNombreUsuario)
+            if (existeNombreUsuario)
+            {
+                Console.WriteLine($"[UsuarioService] ERROR: Ya existe otro usuario con el nombre '{usuario.NombreUsuario}'");
+                return (false, "Ya existe otro usuario con este nombre de usuario");
+            }
+
+            // Validar que no exista otro usuario con el mismo email
+            var existeEmail = await context.Usuarios
+                .AnyAsync(u => u.Email == usuario.Email && u.Id != usuario.Id);
+
+            if (existeEmail)
+            {
+                Console.WriteLine($"[UsuarioService] ERROR: Ya existe otro usuario con el email '{usuario.Email}'");
+                return (false, "Ya existe otro usuario con este email");
+            }
+
+            // Si el nombre de usuario cambió, validar que no existan relaciones
+            if (nombreCambio)
+            {
+                Console.WriteLine($"[UsuarioService] Validando cambio de nombre de '{nombreAnterior}' a '{nombreNuevo}'");
+                
+                // Verificar si existen contratos relacionados (por nombre de usuario, no por ID)
+                var contratosCount = await context.Contratos
+                    .Where(c => c.Comercial == nombreAnterior)
+                    .CountAsync();
+                
+                Console.WriteLine($"[UsuarioService] Contratos encontrados con comercial '{nombreAnterior}': {contratosCount}");
+                
+                if (contratosCount > 0)
+                {
+                    return (false, $"No se puede cambiar el nombre del usuario porque tiene {contratosCount} contrato(s) asociado(s). El usuario '{nombreAnterior}' aparece como comercial en estos contratos.");
+                }
+                
+                // Verificar si existen clientes relacionados
+                var clientesCount = await context.Clientes
+                    .Where(c => c.Comercial == nombreAnterior)
+                    .CountAsync();
+                
+                Console.WriteLine($"[UsuarioService] Clientes encontrados con comercial '{nombreAnterior}': {clientesCount}");
+                
+                if (clientesCount > 0)
+                {
+                    return (false, $"No se puede cambiar el nombre del usuario porque tiene {clientesCount} cliente(s) asociado(s). El usuario '{nombreAnterior}' aparece en estos clientes.");
+                }
+                
+                Console.WriteLine($"[UsuarioService] No se encontraron relaciones. Permitiendo cambio de nombre.");
+            }
+
+            context.Usuarios.Update(usuario);
+            await context.SaveChangesAsync();
+
+            var mensaje = nombreCambio 
+                ? $"Usuario actualizado exitosamente. El nombre de usuario cambió de '{nombreAnterior}' a '{nombreNuevo}'"
+                : "Usuario actualizado exitosamente";
+            
+            Console.WriteLine($"[UsuarioService] {mensaje}");
+            return (true, mensaje);
+        }
+        catch (Exception ex)
         {
-            return (false, "Ya existe otro usuario con este nombre de usuario");
+            Console.WriteLine($"[UsuarioService] ERROR INESPERADO al actualizar usuario: {ex.Message}");
+            Console.WriteLine($"[UsuarioService] StackTrace: {ex.StackTrace}");
+            return (false, $"Error al actualizar el usuario: {ex.Message}");
         }
-
-        var existeEmail = await context.Usuarios
-            .AnyAsync(u => u.Email == usuario.Email && u.Id != usuario.Id);
-
-        if (existeEmail)
-        {
-            return (false, "Ya existe otro usuario con este email");
-        }
-
-        // Si el nombre de usuario cambió, actualizar todas las referencias
-        if (nombreCambio)
-        {
-            Console.WriteLine($"[UsuarioService] Actualizando referencias de '{nombreAnterior}' a '{nombreNuevo}'");
-            
-            // 1. Actualizar Contratos.Comercial
-            var contratos = await context.Contratos
-                .Where(c => c.Comercial == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var contrato in contratos)
-            {
-                contrato.Comercial = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizados {contratos.Count} contratos");
-            
-            // 2. Actualizar Clientes.NombreUsuario
-            var clientes = await context.Clientes
-                .Where(c => c.NombreUsuario == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var cliente in clientes)
-            {
-                cliente.NombreUsuario = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizados {clientes.Count} clientes");
-            
-            // 3. Actualizar TareaPendiente (ambos campos)
-            var tareasAsignado = await context.TareasPendientes
-                .Where(t => t.NombreUsuarioAsignado == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var tarea in tareasAsignado)
-            {
-                tarea.NombreUsuarioAsignado = nombreNuevo;
-            }
-            
-            var tareasCreador = await context.TareasPendientes
-                .Where(t => t.NombreUsuarioCreador == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var tarea in tareasCreador)
-            {
-                tarea.NombreUsuarioCreador = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizadas {tareasAsignado.Count + tareasCreador.Count} tareas pendientes");
-            
-            // 4. Actualizar Incidencia.NombreUsuario
-            var incidencias = await context.Incidencias
-                .Where(i => i.NombreUsuario == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var incidencia in incidencias)
-            {
-                incidencia.NombreUsuario = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizadas {incidencias.Count} incidencias");
-            
-            // 5. Actualizar HistoricoLiquidacion (ambos campos)
-            var liquidacionesUsuario = await context.HistoricoLiquidaciones
-                .Where(h => h.UsuarioNombre == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var liquidacion in liquidacionesUsuario)
-            {
-                liquidacion.UsuarioNombre = nombreNuevo;
-            }
-            
-            var liquidacionesAprobador = await context.HistoricoLiquidaciones
-                .Where(h => h.AprobadoPorNombre == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var liquidacion in liquidacionesAprobador)
-            {
-                liquidacion.AprobadoPorNombre = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizadas {liquidacionesUsuario.Count + liquidacionesAprobador.Count} liquidaciones");
-            
-            // 6. Actualizar LogAcceso.NombreUsuario
-            var logAccesos = await context.LogAccesos
-                .Where(l => l.NombreUsuario == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var log in logAccesos)
-            {
-                log.NombreUsuario = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizados {logAccesos.Count} registros de acceso");
-            
-            // 7. Actualizar ObservacionContrato.Usuario
-            var observaciones = await context.ObservacionesContratos
-                .Where(o => o.Usuario == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var observacion in observaciones)
-            {
-                observacion.Usuario = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizadas {observaciones.Count} observaciones de contratos");
-            
-            // 8. Actualizar LogActivacionContrato.Usuario
-            var logActivaciones = await context.LogActivacionesContratos
-                .Where(l => l.Usuario == nombreAnterior)
-                .ToListAsync();
-            
-            foreach (var log in logActivaciones)
-            {
-                log.Usuario = nombreNuevo;
-            }
-            Console.WriteLine($"[UsuarioService] Actualizados {logActivaciones.Count} logs de activación");
-        }
-
-        context.Usuarios.Update(usuario);
-        await context.SaveChangesAsync();
-
-        var mensaje = nombreCambio 
-            ? $"Usuario actualizado exitosamente. Se actualizaron todas las referencias de '{nombreAnterior}' a '{nombreNuevo}'"
-            : "Usuario actualizado exitosamente";
-        
-        return (true, mensaje);
     }
 
     // Métodos para gestionar comercializadoras permitidas

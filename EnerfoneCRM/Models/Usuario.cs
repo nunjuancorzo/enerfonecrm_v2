@@ -38,6 +38,10 @@ public class Usuario
     [StringLength(45)]
     public string Email { get; set; } = string.Empty;
 
+    [Column("telefono")]
+    [StringLength(20)]
+    public string? Telefono { get; set; }
+
     [Column("password")]
     [StringLength(50)]
     public string PasswordHash { get; set; } = string.Empty;

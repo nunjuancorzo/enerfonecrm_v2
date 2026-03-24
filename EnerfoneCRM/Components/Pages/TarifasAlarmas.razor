@@ -315,11 +315,11 @@ else
                                                 <td>
                                                     @if (tarifa.Activa)
                                                     {
-                                                        <span class="badge bg-success">Activa</span>
+                                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Activa</span>
                                                     }
                                                     else
                                                     {
-                                                        <span class="badge bg-secondary">Inactiva</span>
+                                                        <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactiva</span>
                                                     }
                                                 </td>
                                                 <td class="text-end" style="white-space: nowrap;">
@@ -329,6 +329,18 @@ else
                                                     <button class="btn btn-sm btn-outline-info me-1" @onclick="() => MostrarModalDuplicar(tarifa)" title="Duplicar">
                                                         <i class="bi bi-files"></i>
                                                     </button>
+                                                    @if (tarifa.Activa)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-warning me-1" @onclick="() => CambiarEstadoTarifa(tarifa)" title="Desactivar">
+                                                            <i class="bi bi-toggle-on"></i>
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => CambiarEstadoTarifa(tarifa)" title="Activar">
+                                                            <i class="bi bi-toggle-off"></i>
+                                                        </button>
+                                                    }
                                                     <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(tarifa)" title="Eliminar">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
@@ -467,6 +479,19 @@ else
                                                 <option value="@empresa.Nombre">@empresa.Nombre</option>
                                             }
                                         </InputSelect>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <InputCheckbox class="form-check-input" @bind-Value="tarifaActual.Activa" id="switchActiva" style="cursor: pointer;" />
+                                            <label class="form-check-label fw-bold" for="switchActiva" style="cursor: pointer;">
+                                                <i class="bi bi-@(tarifaActual.Activa ? "toggle-on text-success" : "toggle-off text-secondary") me-2"></i>
+                                                Tarifa @(tarifaActual.Activa ? "Activa" : "Inactiva")
+                                            </label>
+                                            <small class="text-muted d-block">Las tarifas inactivas no aparecerán al crear nuevos contratos</small>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -967,6 +992,42 @@ else
         finally
         {
             guardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CambiarEstadoTarifa(TarifaAlarma tarifa)
+    {
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            tarifa.Activa = !tarifa.Activa;
+            var (exito, mensaje) = await TarifaService.ActualizarAsync(tarifa);
+
+            if (exito)
+            {
+                mensajeExito = tarifa.Activa 
+                    ? $"Tarifa '{tarifa.NombreTarifa}' activada correctamente" 
+                    : $"Tarifa '{tarifa.NombreTarifa}' desactivada correctamente";
+                await CargarTarifas();
+            }
+            else
+            {
+                // Revertir cambio si falla
+                tarifa.Activa = !tarifa.Activa;
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Revertir cambio si hay error
+            tarifa.Activa = !tarifa.Activa;
+            mensajeError = $"Error al cambiar estado: {ex.Message}";
+        }
+        finally
+        {
             StateHasChanged();
         }
     }

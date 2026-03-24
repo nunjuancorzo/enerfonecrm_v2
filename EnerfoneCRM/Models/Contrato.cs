@@ -109,6 +109,9 @@ namespace EnerfoneCRM.Models
         [Column("consumo_ultimos_12_meses")]
         public decimal? ConsumoAnual { get; set; }
 
+        [Column("consumo_anual_gas")]
+        public decimal? ConsumoAnualGas { get; set; }
+
         [Column("peaje_luz")]
         [MaxLength(50)]
         public string? PeajeLuz { get; set; }

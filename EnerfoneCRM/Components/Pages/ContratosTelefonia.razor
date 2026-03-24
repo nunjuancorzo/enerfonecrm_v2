@@ -742,233 +742,314 @@ else
 
                                 <hr class="my-3" />
 
-                                <!-- DATOS DEL CONTRATO -->
-                                <h6 class="mb-3"><i class="bi bi-file-text me-2"></i>Datos del Contrato</h6>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Estado</label>
-                                            <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditar())">
-                                                <option value="">-- Seleccionar Estado --</option>
-                                                @foreach (var estado in estadosDisponibles)
-                                                {
-                                                    <option value="@estado">@estado</option>
-                                                }
-                                            </InputSelect>
-                                        </div>
-                                        @if (contratoSeleccionado.Estado == "Activo" && mostrarCampoFechaActivo)
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Fecha de Activación <span class="text-danger">*</span></label>
-                                                <input type="date" 
-                                                       class="form-control" 
-                                                       @bind="fechaActivacion" 
-                                                       @bind:event="oninput"
-                                                       disabled="@(!PuedeEditar())" />
-                                                @if (mostrarErrorFechaActivo)
-                                                {
-                                                    <div class="text-danger small mt-1">La fecha de activación es obligatoria</div>
-                                                }
-                                            </div>
-                                        }
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Tipo</label>
-                                            <InputText @bind-Value="contratoSeleccionado.Tipo" class="form-control" readonly />
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Comercial</label>
-                                            @if (AuthService.UsuarioActual?.Rol == "Administrador")
-                                            {
-                                                <select @bind="contratoSeleccionado.Comercial" class="form-select">
-                                                    <option value="">Seleccionar comercial...</option>
-                                                    @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
-                                                    {
-                                                        <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
-                                                    }
-                                                </select>
-                                            }
-                                            else
-                                            {
-                                                <InputText @bind-Value="contratoSeleccionado.Comercial" class="form-control" readonly />
-                                            }
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Operadora</label>
-                                            <InputSelect @bind-Value="contratoSeleccionado.OperadoraTel" @bind-Value:after="CargarTarifasDisponibles" class="form-select" disabled="@(!PuedeEditar())">
-                                                <option value="">-- Seleccionar --</option>
-                                                <option value="O2">O2</option>
-                                                <option value="Lowi">Lowi</option>
-                                                <option value="Symio">Symio</option>
-                                                <option value="Jazztel">Jazztel</option>
-                                                <option value="Masmovil">Masmovil</option>
-                                                <option value="Pepephone">Pepephone</option>
-                                                <option value="Vodafone">Vodafone</option>
-                                            </InputSelect>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Tipo de Tarifa</label>
-                                            <InputSelect @bind-Value="contratoSeleccionado.TipoTarifaTel" @bind-Value:after="CargarTarifasDisponibles" class="form-select" disabled="@(!PuedeEditar())">
-                                                <option value="">-- Seleccionar --</option>
-                                                <option value="Fibra">Solo Fibra</option>
-                                                <option value="Movil">Solo Móvil</option>
-                                                <option value="FibraMovil">Fibra + Móvil</option>
-                                                <option value="FibraMovilTV">Fibra + Móvil + TV</option>
-                                            </InputSelect>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Tarifa Principal</label>
-                                            @if (tarifasDisponibles.Any())
-                                            {
-                                                <InputSelect @bind-Value="contratoSeleccionado.TarifaTel" @bind-Value:after="ActualizarDatosTarifa" class="form-select" disabled="@(!PuedeEditar())">
-                                                    <option value="">-- Seleccionar tarifa --</option>
-                                                    @foreach (var tarifa in tarifasDisponibles)
-                                                    {
-                                                        var descripcion = ObtenerDescripcionTarifa(tarifa);
-                                                        <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
-                                                    }
-                                                </InputSelect>
-                                            }
-                                            else
-                                            {
-                                                <InputText @bind-Value="contratoSeleccionado.TarifaTel" class="form-control" disabled="@(!PuedeEditar())" placeholder="Seleccione operadora y tipo" />
-                                            }
-                                        </div>
+                                <!-- PRIMERA PARTE: INFORMACIÓN GENERAL -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #d4edda; color: #155724;">
+                                        <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>1. Información General</h6>
                                     </div>
-                                    <div class="col-md-6">
-                                        @* Mostrar campos relacionados con fibra *@
-                                        @if (TieneComponenteFibra())
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Teléfono Fijo</label>
-                                                <InputText @bind-Value="contratoSeleccionado.FijoTel" class="form-control" disabled="@(!PuedeEditar())" />
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Estado</label>
+                                                    <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditar())">
+                                                        <option value="">-- Seleccionar Estado --</option>
+                                                        @foreach (var estado in estadosDisponibles)
+                                                        {
+                                                            <option value="@estado">@estado</option>
+                                                        }
+                                                    </InputSelect>
+                                                </div>
                                             </div>
-                                        }
-                                        
-                                        @* Mostrar campos relacionados con móvil *@
-                                        @if (TieneComponenteMovil())
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Línea Móvil Principal <span class="text-danger">*</span></label>
-                                                <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal" class="form-control mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
-                                                
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-bold small">Tipo de Línea</label>
-                                                        <InputSelect @bind-Value="contratoSeleccionado.TipoLineaMovilPrincipal" class="form-select form-select-sm" disabled="@(!PuedeEditar())">
-                                                            <option value="">-- Seleccionar --</option>
-                                                            <option value="Contrato">Contrato</option>
-                                                            <option value="Prepago">Prepago</option>
-                                                        </InputSelect>
-                                                    </div>
-                                                    
-                                                    @if (contratoSeleccionado.TipoLineaMovilPrincipal == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Tipo</label>
+                                                    <InputText @bind-Value="contratoSeleccionado.Tipo" class="form-control" readonly />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Comercial</label>
+                                                    @if (AuthService.UsuarioActual?.Rol == "Administrador")
                                                     {
-                                                        <div class="col-md-6">
-                                                            <label class="form-label fw-bold small">
-                                                                Código ICC (19 dígitos) <span class="text-danger">*</span>
-                                                                @if (operadoraSeleccionada?.RequiereICC == true && contratoSeleccionado.TipoLineaMovilPrincipal != "Prepago")
-                                                                {
-                                                                    <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
-                                                                }
-                                                            </label>
-                                                            <InputText @bind-Value="contratoSeleccionado.CodigoIccPrincipal" 
-                                                                      class="form-control form-control-sm" 
-                                                                      disabled="@(!PuedeEditar())" 
-                                                                      placeholder="89 34 XX..." 
-                                                                      maxlength="19" />
-                                                            @if (!string.IsNullOrEmpty(contratoSeleccionado.CodigoIccPrincipal) && contratoSeleccionado.CodigoIccPrincipal.Length != 19)
+                                                        <select @bind="contratoSeleccionado.Comercial" class="form-select">
+                                                            <option value="">Seleccionar comercial...</option>
+                                                            @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                                             {
-                                                                <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
+                                                                <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
                                                             }
-                                                        </div>
+                                                        </select>
+                                                    }
+                                                    else
+                                                    {
+                                                        <InputText @bind-Value="contratoSeleccionado.Comercial" class="form-control" readonly />
                                                     }
                                                 </div>
-                                                
-                                                @if (!string.IsNullOrEmpty(contratoSeleccionado.TarifaTel))
-                                                {
-                                                    <small class="text-muted">Tarifa: @contratoSeleccionado.TarifaTel</small>
-                                                }
                                             </div>
-                                            
-                                            @* Segunda línea móvil principal (opcional) *@
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">
-                                                    Segunda Línea Móvil Principal <small class="text-muted">(Opcional)</small>
-                                                </label>
-                                                <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal2" class="form-control mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
-                                                
-                                                @if (!string.IsNullOrWhiteSpace(contratoSeleccionado.LineaMovilPrincipal2))
-                                                {
-                                                    <div class="row">
-                                                        <div class="col-md-6">
-                                                            <label class="form-label fw-bold small">Tipo de Línea</label>
-                                                            <InputSelect @bind-Value="contratoSeleccionado.TipoLineaMovilPrincipal2" class="form-select form-select-sm" disabled="@(!PuedeEditar())">
-                                                                <option value="">-- Seleccionar --</option>
-                                                                <option value="Contrato">Contrato</option>
-                                                                <option value="Prepago">Prepago</option>
-                                                            </InputSelect>
-                                                        </div>
-                                                        
-                                                        @if (contratoSeleccionado.TipoLineaMovilPrincipal2 == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
+                                        </div>
+                                        
+                                        @if (contratoSeleccionado.Estado == "Activo" && mostrarCampoFechaActivo)
+                                        {
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Fecha de Activación <span class="text-danger">*</span></label>
+                                                        <input type="date" 
+                                                               class="form-control" 
+                                                               @bind="fechaActivacion" 
+                                                               @bind:event="oninput"
+                                                               disabled="@(!PuedeEditar())" />
+                                                        @if (mostrarErrorFechaActivo)
                                                         {
-                                                            <div class="col-md-6">
-                                                                <label class="form-label fw-bold small">
-                                                                    Código ICC (19 dígitos) <span class="text-danger">*</span>
-                                                                    @if (operadoraSeleccionada?.RequiereICC == true && contratoSeleccionado.TipoLineaMovilPrincipal2 != "Prepago")
-                                                                    {
-                                                                        <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
-                                                                    }
-                                                                </label>
-                                                                <InputText @bind-Value="contratoSeleccionado.CodigoIccPrincipal2" 
-                                                                          class="form-control form-control-sm" 
-                                                                          disabled="@(!PuedeEditar())" 
-                                                                          placeholder="89 34 XX..." 
-                                                                          maxlength="19" />
-                                                                @if (!string.IsNullOrEmpty(contratoSeleccionado.CodigoIccPrincipal2) && contratoSeleccionado.CodigoIccPrincipal2.Length != 19)
-                                                                {
-                                                                    <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
-                                                                }
-                                                            </div>
+                                                            <div class="text-danger small mt-1">La fecha de activación es obligatoria</div>
                                                         }
                                                     </div>
-                                                }
-                                            </div>
-                                        }
-                                        
-                                        @* Mostrar TV solo si el tipo incluye TV *@
-                                        @if (TieneComponenteTV())
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">TV</label>
-                                                <InputText @bind-Value="contratoSeleccionado.Tv" class="form-control" disabled="@(!PuedeEditar())" />
+                                                </div>
                                             </div>
                                         }
                                         
                                         @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
                                         {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Comisión (€)</label>
-                                                <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(!PuedeEditar())" />
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-0">
+                                                        <label class="form-label fw-bold">Comisión (€)</label>
+                                                        <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(!PuedeEditar())" />
+                                                    </div>
+                                                </div>
                                             </div>
                                         }
+                                    </div>
+                                </div>
+
+                                <hr class="my-3" />
+
+                                <!-- SEGUNDA PARTE: CONFIGURACIÓN DEL SERVICIO -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #d1ecf1; color: #0c5460;">
+                                        <h6 class="mb-0"><i class="bi bi-phone me-2"></i>2. Configuración del Servicio</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Operadora y Tarifa Principal -->
+                                        <div class="row mb-3">
+                                            <div class="col-md-12">
+                                                <div class="card border-info">
+                                                    <div class="card-header py-2" style="background-color: #d1ecf1; color: #0c5460;">
+                                                        <h6 class="mb-0"><i class="bi bi-building me-2"></i>Operadora y Tarifa</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-4">
+                                                                <div class="mb-0">
+                                                                    <label class="form-label fw-bold">Operadora</label>
+                                                                    <InputSelect @bind-Value="contratoSeleccionado.OperadoraTel" @bind-Value:after="CargarTarifasDisponibles" class="form-select" disabled="@(!PuedeEditar())">
+                                                                        <option value="">-- Seleccionar --</option>
+                                                                        @foreach (var operadora in operadorasObjetos.Where(o => o.Activo).OrderBy(o => o.Nombre))
+                                                                        {
+                                                                            <option value="@operadora.Nombre">@operadora.Nombre</option>
+                                                                        }
+                                                                    </InputSelect>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="mb-0">
+                                                                    <label class="form-label fw-bold">Tipo de Tarifa</label>
+                                                                    <InputSelect @bind-Value="contratoSeleccionado.TipoTarifaTel" @bind-Value:after="CargarTarifasDisponibles" class="form-select" disabled="@(!PuedeEditar())">
+                                                                        <option value="">-- Seleccionar --</option>
+                                                                        <option value="Fibra">Solo Fibra</option>
+                                                                        <option value="Movil">Solo Móvil</option>
+                                                                        <option value="FibraMovil">Fibra + Móvil</option>
+                                                                        <option value="FibraMovilTV">Fibra + Móvil + TV</option>
+                                                                    </InputSelect>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="mb-0">
+                                                                    <label class="form-label fw-bold">Tarifa Principal</label>
+                                                                    @if (tarifasDisponibles.Any())
+                                                                    {
+                                                                        <InputSelect @bind-Value="contratoSeleccionado.TarifaTel" @bind-Value:after="ActualizarDatosTarifa" class="form-select" disabled="@(!PuedeEditar())">
+                                                                            <option value="">-- Seleccionar tarifa --</option>
+                                                                            @foreach (var tarifa in tarifasDisponibles)
+                                                                            {
+                                                                                var descripcion = ObtenerDescripcionTarifa(tarifa);
+                                                                                <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
+                                                                            }
+                                                                        </InputSelect>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <InputText @bind-Value="contratoSeleccionado.TarifaTel" class="form-control" disabled="@(!PuedeEditar())" placeholder="Seleccione operadora y tipo" />
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Componentes del servicio: Fibra, Móvil, TV -->
+                                        <div class="row">
+                                            @* Columna FIBRA *@
+                                            @if (TieneComponenteFibra())
+                                            {
+                                                <div class="col-md-4">
+                                                    <div class="card border-primary h-100">
+                                                        <div class="card-header py-2" style="background-color: #cce5ff; color: #004085;">
+                                                            <h6 class="mb-0"><i class="bi bi-wifi me-2"></i>Fibra</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="mb-0">
+                                                                <label class="form-label fw-bold">Teléfono Fijo</label>
+                                                                <InputText @bind-Value="contratoSeleccionado.FijoTel" class="form-control" disabled="@(!PuedeEditar())" placeholder="Número fijo" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                            
+                                            @* Columna MÓVIL *@
+                                            @if (TieneComponenteMovil())
+                                            {
+                                                <div class="@(TieneComponenteTV() ? "col-md-4" : (TieneComponenteFibra() ? "col-md-8" : "col-md-12"))">
+                                                    <div class="card border-success h-100">
+                                                        <div class="card-header py-2" style="background-color: #d4edda; color: #155724;">
+                                                            <h6 class="mb-0"><i class="bi bi-phone me-2"></i>Móvil - Líneas Principales</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="mb-3">
+                                                                <label class="form-label fw-bold">Línea Móvil Principal <span class="text-danger">*</span></label>
+                                                                <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal" class="form-control mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                                
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <label class="form-label fw-bold small">Tipo de Línea</label>
+                                                                        <InputSelect @bind-Value="contratoSeleccionado.TipoLineaMovilPrincipal" class="form-select form-select-sm" disabled="@(!PuedeEditar())">
+                                                                            <option value="">-- Seleccionar --</option>
+                                                                            <option value="Contrato">Contrato</option>
+                                                                            <option value="Prepago">Prepago</option>
+                                                                        </InputSelect>
+                                                                    </div>
+                                                                    
+                                                                    @if (contratoSeleccionado.TipoLineaMovilPrincipal == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
+                                                                    {
+                                                                        <div class="col-md-6">
+                                                                            <label class="form-label fw-bold small">
+                                                                                Código ICC (19 dígitos) <span class="text-danger">*</span>
+                                                                                @if (operadoraSeleccionada?.RequiereICC == true && contratoSeleccionado.TipoLineaMovilPrincipal != "Prepago")
+                                                                                {
+                                                                                    <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
+                                                                                }
+                                                                            </label>
+                                                                            <InputText @bind-Value="contratoSeleccionado.CodigoIccPrincipal" 
+                                                                                      class="form-control form-control-sm" 
+                                                                                      disabled="@(!PuedeEditar())" 
+                                                                                      placeholder="89 34 XX..." 
+                                                                                      maxlength="19" />
+                                                                            @if (!string.IsNullOrEmpty(contratoSeleccionado.CodigoIccPrincipal) && contratoSeleccionado.CodigoIccPrincipal.Length != 19)
+                                                                            {
+                                                                                <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
+                                                                            }
+                                                                        </div>
+                                                                    }
+                                                                </div>
+                                                                
+                                                                @if (!string.IsNullOrEmpty(contratoSeleccionado.TarifaTel))
+                                                                {
+                                                                    <small class="text-muted">Tarifa: @contratoSeleccionado.TarifaTel</small>
+                                                                }
+                                                            </div>
+                                                            
+                                                            @* Segunda línea móvil principal (opcional) *@
+                                                            <div class="mb-0">
+                                                                <label class="form-label fw-bold">
+                                                                    Segunda Línea Móvil Principal <small class="text-muted">(Opcional)</small>
+                                                                </label>
+                                                                <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal2" class="form-control mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                                
+                                                                @if (!string.IsNullOrWhiteSpace(contratoSeleccionado.LineaMovilPrincipal2))
+                                                                {
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <label class="form-label fw-bold small">Tipo de Línea</label>
+                                                                            <InputSelect @bind-Value="contratoSeleccionado.TipoLineaMovilPrincipal2" class="form-select form-select-sm" disabled="@(!PuedeEditar())">
+                                                                                <option value="">-- Seleccionar --</option>
+                                                                                <option value="Contrato">Contrato</option>
+                                                                                <option value="Prepago">Prepago</option>
+                                                                            </InputSelect>
+                                                                        </div>
+                                                                        
+                                                                        @if (contratoSeleccionado.TipoLineaMovilPrincipal2 == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
+                                                                        {
+                                                                            <div class="col-md-6">
+                                                                                <label class="form-label fw-bold small">
+                                                                                    Código ICC (19 dígitos) <span class="text-danger">*</span>
+                                                                                    @if (operadoraSeleccionada?.RequiereICC == true && contratoSeleccionado.TipoLineaMovilPrincipal2 != "Prepago")
+                                                                                    {
+                                                                                        <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
+                                                                                    }
+                                                                                </label>
+                                                                                <InputText @bind-Value="contratoSeleccionado.CodigoIccPrincipal2" 
+                                                                                          class="form-control form-control-sm" 
+                                                                                          disabled="@(!PuedeEditar())" 
+                                                                                          placeholder="89 34 XX..." 
+                                                                                          maxlength="19" />
+                                                                                @if (!string.IsNullOrEmpty(contratoSeleccionado.CodigoIccPrincipal2) && contratoSeleccionado.CodigoIccPrincipal2.Length != 19)
+                                                                                {
+                                                                                    <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
+                                                                                }
+                                                                            </div>
+                                                                        }
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                            
+                                            @* Columna TV *@
+                                            @if (TieneComponenteTV())
+                                            {
+                                                <div class="col-md-4">
+                                                    <div class="card border-warning h-100">
+                                                        <div class="card-header py-2" style="background-color: #fff3cd; color: #856404;">
+                                                            <h6 class="mb-0"><i class="bi bi-tv me-2"></i>TV</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="mb-0">
+                                                                <label class="form-label fw-bold">TV</label>
+                                                                <InputText @bind-Value="contratoSeleccionado.Tv" class="form-control" disabled="@(!PuedeEditar())" placeholder="Servicio de TV" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
 
                                 @* Sección de líneas móviles adicionales (solo si tiene componente móvil) *@
                                 @if (TieneComponenteMovil())
                                 {
-                                    <hr />
-                                    <h6 class="mb-3">
-                                        <i class="bi bi-sim me-2"></i>Líneas Móviles Adicionales (hasta 15)
-                                        @if (PuedeEditar())
-                                        {
-                                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="AgregarLineaAdicional" disabled="@(numeroLineasActivas >= 15)">
-                                                <i class="bi bi-plus-circle me-1"></i>Agregar Línea
-                                            </button>
-                                        }
-                                    </h6>
-                                    
-                                    <div class="row">
+                                    <hr class="my-3" />
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header" style="background-color: #d4edda; color: #155724;">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">
+                                                    <i class="bi bi-sim me-2"></i>3. Líneas Móviles Adicionales (hasta 15)
+                                                </h6>
+                                                @if (PuedeEditar())
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-success" @onclick="AgregarLineaAdicional" disabled="@(numeroLineasActivas >= 15)">
+                                                        <i class="bi bi-plus-circle me-1"></i>Agregar Línea
+                                                    </button>
+                                                }
+                                            </div>
+                                        </div>
+                                        <div class="card-body" style="background-color: #f8f9fa;">
+                                            <div class="row">
                                         @for (int i = 1; i <= 15; i++)
                                         {
                                             var lineaIndex = i;
@@ -1049,16 +1130,20 @@ else
                                                 </div>
                                             }
                                         }
+                                            </div>
+                                        </div>
                                     </div>
                                 }
 
                                 @* Resto del formulario *@
-                                <hr />
+                                <hr class="my-3" />
 
-                                <!-- Facturas del Contrato -->
-                                <h6 class="mb-3"><i class="bi bi-receipt me-2"></i>Facturas del Contrato</h6>
-                                <div class="row mb-3">
-                                    <div class="col-12">
+                                <!-- FACTURAS DEL CONTRATO -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #fff3cd; color: #856404;">
+                                        <h6 class="mb-0"><i class="bi bi-receipt me-2"></i>4. Facturas del Contrato</h6>
+                                    </div>
+                                    <div class="card-body">
                                         @if (facturasContrato.Any())
                                         {
                                             <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
@@ -1090,83 +1175,109 @@ else
                                         {
                                             <p class="text-muted fst-italic">No hay facturas adjuntas</p>
                                         }
+
+                                        @if (PuedeEditar())
+                                        {
+                                            <div class="mt-3">
+                                                <label class="form-label fw-bold">Adjuntar Factura</label>
+                                                <InputFile OnChange="CargarFactura" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                                <small class="text-muted">Formatos permitidos: PDF, JPG, PNG, DOC, DOCX (máx. 10MB)</small>
+                                            </div>
+                                        }
                                     </div>
                                 </div>
 
-                                @if (PuedeEditar())
-                                {
-                                    <div class="row mb-3">
-                                        <div class="col-12">
-                                            <label class="form-label fw-bold">Adjuntar Factura</label>
-                                            <InputFile OnChange="CargarFactura" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                                            <small class="text-muted">Formatos permitidos: PDF, JPG, PNG, DOC, DOCX (máx. 10MB)</small>
-                                        </div>
-                                    </div>
-                                }
-
-                                <hr />
+                                <hr class="my-3" />
 
                                 @* Dirección de Suministro *@
-                                <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Tipo de Vía</label>
-                                        <select class="form-select" @bind="contratoSeleccionado.TipoViaInstalacion" disabled="@(!PuedeEditar())">
-                                            <option value="">-- Seleccionar --</option>
-                                            <option value="CALLE">CALLE</option>
-                                            <option value="AVENIDA">AVENIDA</option>
-                                            <option value="CARRETERA">CARRETERA</option>
-                                            <option value="CAMINO">CAMINO</option>
-                                            <option value="PASEO">PASEO</option>
-                                            <option value="PLAZA">PLAZA</option>
-                                            <option value="GLORIETA">GLORIETA</option>
-                                            <option value="EDIFICIO">EDIFICIO</option>
-                                            <option value="LUGAR">LUGAR</option>
-                                        </select>
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #e7f1ff; color: #004085;">
+                                        <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>5. Dirección de Suministro</h6>
                                     </div>
-                                    <div class="col-md-8">
-                                        <label class="form-label fw-bold">Dirección</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.DireccionInstalacionAlarma" placeholder="Nombre de la calle" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Número</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.NumeroInstalacion" placeholder="Nº" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Escalera <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.EscaleraInstalacion" placeholder="Esc." disabled="@(!PuedeEditar())" />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PisoInstalacion" placeholder="Piso" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PuertaInstalacion" placeholder="Puerta" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Código Postal</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" placeholder="CP" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Localidad</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" disabled="@(!PuedeEditar())" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditar())" />
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Tipo de Vía</label>
+                                                    <select class="form-select" @bind="contratoSeleccionado.TipoViaInstalacion" disabled="@(!PuedeEditar())">
+                                                        <option value="">-- Seleccionar --</option>
+                                                        <option value="CALLE">CALLE</option>
+                                                        <option value="AVENIDA">AVENIDA</option>
+                                                        <option value="CARRETERA">CARRETERA</option>
+                                                        <option value="CAMINO">CAMINO</option>
+                                                        <option value="PASEO">PASEO</option>
+                                                        <option value="PLAZA">PLAZA</option>
+                                                        <option value="GLORIETA">GLORIETA</option>
+                                                        <option value="EDIFICIO">EDIFICIO</option>
+                                                        <option value="LUGAR">LUGAR</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Dirección</label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.DireccionInstalacionAlarma" placeholder="Nombre de la calle" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Número</label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.NumeroInstalacion" placeholder="Nº" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Escalera <small class="text-muted">(opcional)</small></label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.EscaleraInstalacion" placeholder="Esc." disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.PisoInstalacion" placeholder="Piso" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.PuertaInstalacion" placeholder="Puerta" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Código Postal</label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" placeholder="CP" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Localidad</label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Provincia</label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <div class="mb-0">
+                                                    <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
+                                                    <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" disabled="@(!PuedeEditar())" />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <hr />
+                                <hr class="my-3" />
 
                                 <!-- Histórico de Observaciones -->
                                 <h6 class="mb-3">
@@ -2531,11 +2642,12 @@ else
             // Cargar información de la operadora
             operadoraSeleccionada = await OperadoraService.ObtenerPorNombreAsync(contratoSeleccionado.OperadoraTel);
             
-            // Cargar tarifas según el tipo seleccionado
-            tarifasDisponibles = await TarifaTelefoniaService.ObtenerPorCompaniaYTipoAsync(
+            // Cargar tarifas según el tipo seleccionado (solo activas)
+            var todasTarifasDisponibles = await TarifaTelefoniaService.ObtenerPorCompaniaYTipoAsync(
                 contratoSeleccionado.OperadoraTel,
                 contratoSeleccionado.TipoTarifaTel
             );
+            tarifasDisponibles = todasTarifasDisponibles.Where(t => t.Activa).ToList();
             
             // Si tiene componente móvil, también cargar las tarifas de solo móvil para líneas adicionales
             if (TieneComponenteMovil())
@@ -2567,8 +2679,10 @@ else
         try
         {
             var todasLasTarifas = await TarifaTelefoniaService.ObtenerPorEmpresaAsync(contratoSeleccionado.OperadoraTel);
-            // Filtrar solo tarifas de tipo "FibraSegundaResidencia"
-            tarifasFibraSegundaResidenciaDisponibles = todasLasTarifas.Where(t => t.Tipo == "FibraSegundaResidencia").ToList();
+            // Filtrar solo tarifas activas de tipo "FibraSegundaResidencia"
+            tarifasFibraSegundaResidenciaDisponibles = todasLasTarifas
+                .Where(t => t.Tipo == "FibraSegundaResidencia" && t.Activa)
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -2653,10 +2767,12 @@ else
 
         try
         {
-            tarifasMovilSolo = await TarifaTelefoniaService.ObtenerPorCompaniaYTipoAsync(
+            var todasTarifasMovil = await TarifaTelefoniaService.ObtenerPorCompaniaYTipoAsync(
                 contratoSeleccionado.OperadoraTel,
                 "Movil"
             );
+            // Filtrar solo tarifas activas
+            tarifasMovilSolo = todasTarifasMovil.Where(t => t.Activa).ToList();
         }
         catch (Exception ex)
         {

@@ -75,10 +75,19 @@ else
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">Email *</label>
-                            <input type="email" class="form-control" @bind="model.Email" placeholder="tucorreo@ejemplo.com" />
-                            <ValidationMessage For="@(() => model.Email)" />
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email *</label>
+                                <input type="email" class="form-control" @bind="model.Email" placeholder="tucorreo@ejemplo.com" />
+                                <ValidationMessage For="@(() => model.Email)" />
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" @bind="model.Telefono" placeholder="+34612345678" />
+                                <ValidationMessage For="@(() => model.Telefono)" />
+                                <div class="form-text">Formato recomendado: +34612345678 (para WhatsApp)</div>
+                            </div>
                         </div>
 
                         <hr class="my-4" />
@@ -192,6 +201,7 @@ else
                 model.Nombre = usuario.Nombre ?? string.Empty;
                 model.Apellidos = usuario.Apellidos ?? string.Empty;
                 model.Email = usuario.Email;
+                model.Telefono = usuario.Telefono ?? string.Empty;
                 model.Direccion = usuario.Direccion ?? string.Empty;
                 model.CodigoPostal = usuario.CodigoPostal ?? string.Empty;
                 model.Localidad = usuario.Localidad ?? string.Empty;
@@ -230,6 +240,7 @@ else
             usuario.Nombre = model.Nombre;
             usuario.Apellidos = model.Apellidos;
             usuario.Email = model.Email;
+            usuario.Telefono = model.Telefono;
             usuario.Direccion = model.Direccion;
             usuario.CodigoPostal = model.CodigoPostal;
             usuario.Localidad = model.Localidad;
@@ -280,6 +291,9 @@ else
         [EmailAddress(ErrorMessage = "El formato del email no es válido")]
         [StringLength(45, ErrorMessage = "El email no puede exceder 45 caracteres")]
         public string Email { get; set; } = string.Empty;
+
+        [StringLength(20, ErrorMessage = "El teléfono no puede exceder 20 caracteres")]
+        public string Telefono { get; set; } = string.Empty;
 
         [StringLength(255, ErrorMessage = "La dirección no puede exceder 255 caracteres")]
         public string Direccion { get; set; } = string.Empty;

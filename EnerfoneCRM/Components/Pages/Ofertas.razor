@@ -107,18 +107,7 @@ else
                                             @if (solicitud.TipoAlarma) { <span class="badge bg-danger me-1">Alarma</span> }
                                         </td>
                                         <td>
-                                            @if (solicitud.Estado == "Pendiente")
-                                            {
-                                                <span class="badge bg-warning">@solicitud.Estado</span>
-                                            }
-                                            else if (solicitud.Estado == "En Proceso")
-                                            {
-                                                <span class="badge bg-info">@solicitud.Estado</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-success">@solicitud.Estado</span>
-                                            }
+                                            <span class="badge @ObtenerColorEstado(solicitud.Estado)">@solicitud.Estado</span>
                                         </td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => VerDetalleSolicitud(solicitud)">
@@ -494,18 +483,7 @@ else
                     </div>
                     <div class="mb-3">
                         <strong>Estado:</strong>
-                        @if (solicitudSeleccionada.Estado == "Pendiente")
-                        {
-                            <span class="badge bg-warning">@solicitudSeleccionada.Estado</span>
-                        }
-                        else if (solicitudSeleccionada.Estado == "En Proceso")
-                        {
-                            <span class="badge bg-info">@solicitudSeleccionada.Estado</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-success">@solicitudSeleccionada.Estado</span>
-                        }
+                        <span class="badge @ObtenerColorEstado(solicitudSeleccionada.Estado)">@solicitudSeleccionada.Estado</span>
                     </div>
 
                     <h6 class="text-primary mt-4">Datos del Interesado:</h6>
@@ -1295,6 +1273,21 @@ else
         {
             mensajeError = $"Error al descargar archivo: {ex.Message}";
         }
+    }
+
+    // Mapear estados a colores distintivos
+    private string ObtenerColorEstado(string? estado)
+    {
+        return estado?.ToLower() switch
+        {
+            "pendiente" => "bg-warning text-dark",
+            "en proceso" => "bg-primary",
+            "completada" => "bg-success",
+            "rechazada" => "bg-danger",
+            "cancelada" => "bg-danger",
+            "archivada" => "bg-secondary",
+            _ => "bg-info"
+        };
     }
 
     public void Dispose()

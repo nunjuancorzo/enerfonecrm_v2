@@ -152,6 +152,7 @@
                                                         <InputSelect @bind-Value="nuevoCliente.TipoCliente" class="form-select">
                                                             <option value="Particular">Particular</option>
                                                             <option value="Pyme">Pyme</option>
+                                                            <option value="Autonomo">Autónomo</option>
                                                         </InputSelect>
                                                     </div>
                                                     <div class="col-md-6">
@@ -161,7 +162,7 @@
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-bold">
-                                                            @if (nuevoCliente.TipoCliente == "Pyme")
+                                                            @if (nuevoCliente.TipoCliente == "Pyme" || nuevoCliente.TipoCliente == "Autonomo")
                                                             {
                                                                 <text>CIF Empresa <span class="text-danger">*</span></text>
                                                             }
@@ -181,7 +182,7 @@
                                                         <label class="form-label fw-bold">Teléfono</label>
                                                         <InputText @bind-Value="nuevoCliente.Telefono" class="form-control" placeholder="Teléfono principal" />
                                                     </div>
-                                                    @if (nuevoCliente.TipoCliente == "Pyme")
+                                                    @if (nuevoCliente.TipoCliente == "Pyme" || nuevoCliente.TipoCliente == "Autonomo")
                                                     {
                                                         <div class="col-md-6">
                                                             <label class="form-label fw-bold">Representante</label>
@@ -951,7 +952,7 @@
         // Filtrar por tipo de cliente si hay uno seleccionado
         if (clienteSeleccionado != null && !string.IsNullOrEmpty(clienteSeleccionado.TipoCliente))
         {
-            string tipoTarifa = clienteSeleccionado.TipoCliente == "Particular" ? "Residencial" : "Pyme";
+            string tipoTarifa = clienteSeleccionado.TipoCliente == "Particular" ? "Residencial" : "Pyme"; // Autónomo también usa tipo Pyme
             tarifasFiltradas = tarifasFiltradas.Where(t => t.Tipo == tipoTarifa).ToList();
         }
 

@@ -64,6 +64,12 @@
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <InputText class="form-control" @bind-Value="usuario.Telefono" type="tel" placeholder="+34612345678" />
+                        <small class="form-text text-muted">Formato recomendado: +34612345678 (para WhatsApp)</small>
+                    </div>
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Nombre</label>
@@ -383,7 +389,7 @@
                                 <label class="form-label">Tipo de Entidad</label>
                                 <InputSelect class="form-select" @bind-Value="usuario.TipoEntidad">
                                     <option value="N/A">N/A</option>
-                                    <option value="Autónomo">Autónomo</option>
+                                    <option value="Autonomo">Autónomo</option>
                                     <option value="PYME">PYME</option>
                                 </InputSelect>
                             </div>
@@ -542,6 +548,7 @@
 
 @code {
     [Parameter] public Usuario? Usuario { get; set; }
+    [Parameter] public string? MensajeError { get; set; }
     [Parameter] public EventCallback<(Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds)> OnGuardar { get; set; }
     [Parameter] public EventCallback OnCancelar { get; set; }
 
@@ -689,6 +696,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        // Sincronizar mensaje de error del padre
+        if (!string.IsNullOrEmpty(MensajeError))
+        {
+            mensajeError = MensajeError;
+        }
+        
         if (Usuario != null)
         {
             usuario = new Usuario
@@ -698,6 +711,7 @@
                 Email = Usuario.Email,
                 Nombre = Usuario.Nombre,
                 Apellidos = Usuario.Apellidos,
+                Telefono = Usuario.Telefono,
                 Direccion = Usuario.Direccion,
                 CodigoPostal = Usuario.CodigoPostal,
                 Localidad = Usuario.Localidad,

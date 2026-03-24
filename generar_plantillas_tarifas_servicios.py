@@ -124,10 +124,11 @@ def crear_plantilla_tarifa_telefonia():
     # === HOJA DE TARIFAS ===
     worksheet = workbook.add_worksheet('Tarifas Telefonía')
     
-    # Encabezados
+    # Encabezados (deben coincidir exactamente con exportar_tarifas_telefonia.py)
     headers = [
-        'Compania*', 'Tipo*', 'Fibra', 'GbMovil',
-        'Precio', 'Comision', 'PrecioNew*', 'ComisionNew*', 'TV'
+        'ID', 'OPERADORA', 'TIPO', 'TARIFA', 'FIBRA',
+        'MOVIL 1', 'MOVIL 2', 'TV1', 'TV2', 'PRECIO',
+        'COMISION', 'PERMANENCIA', 'FECHA CARGA'
     ]
     
     # Escribir encabezados
@@ -135,18 +136,19 @@ def crear_plantilla_tarifa_telefonia():
         worksheet.write(0, col, header, header_format)
     
     # Datos de ejemplo
-    ejemplo = [
-        'Movistar', 'Fibra + Móvil', '600Mb', '50GB',
-        '49.90', '40.00', '49.90', '40.00', 'Netflix incluido'
+    ejemplos = [
+        ['', 'Movistar', 'Fibra+Móvil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 'Netflix', '', '45,00', '50,00', '12 meses', '2026-02-24'],
+        ['', 'Orange', 'Solo Fibra', 'Fibra 1Gb', '1 Gb', '', '', '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-24'],
+        ['', 'Vodafone', 'Móvil', 'Tarifa Móvil 50GB', '', '50 GB', '', '', '', '20,00', '25,00', '6 meses', '2026-02-24']
     ]
     
-    for col, value in enumerate(ejemplo):
-        worksheet.write(1, col, value, example_format)
+    for row_idx, ejemplo in enumerate(ejemplos, start=1):
+        for col_idx, value in enumerate(ejemplo):
+            worksheet.write(row_idx, col_idx, value, example_format)
     
     # Ajustar anchos
-    column_widths = [20, 20, 15, 15, 12, 12, 15, 15, 25]
-    for col, width in enumerate(column_widths):
-        worksheet.set_column(col, col, width)
+    for col in range(len(headers)):
+        worksheet.set_column(col, col, 18)
     
     # === HOJA DE INSTRUCCIONES ===
     worksheet_inst = workbook.add_worksheet('Instrucciones')
@@ -160,26 +162,32 @@ def crear_plantilla_tarifa_telefonia():
     worksheet_inst.write(row, 0, 'INSTRUCCIONES - IMPORTACIÓN TARIFAS DE TELEFONÍA', title_format)
     row += 2
     
-    worksheet_inst.write(row, 0, 'Campos obligatorios (marcados con *):', subtitle_format)
+    worksheet_inst.write(row, 0, 'Campos obligatorios:', subtitle_format)
     row += 1
     instrucciones = [
-        '- Compania*: Nombre de la operadora (Movistar, Vodafone, Orange, MásMóvil, etc.)',
-        '- Tipo*: Tipo de tarifa (Solo Fibra, Solo Móvil, Fibra + Móvil, Convergente)',
-        '- PrecioNew*: Precio mensual (decimal, usar punto como separador)',
-        '- ComisionNew*: Comisión de la tarifa (decimal)',
+        '- OPERADORA: Nombre de la operadora (Movistar, Orange, Vodafone, etc.)',
+        '- TIPO: Tipo de tarifa (Fibra+Móvil, Solo Fibra, Móvil, etc.)',
+        '',
+        'Campo especial:',
+        '- ID: Dejar vacío para tarifas nuevas. Incluir el ID para actualizar tarifas existentes.',
         '',
         'Campos opcionales:',
-        '- Fibra: Velocidad de fibra (100Mb, 300Mb, 600Mb, 1Gb)',
-        '- GbMovil: Datos móviles incluidos (20GB, 50GB, Ilimitado)',
-        '- Precio: Precio alternativo (texto)',
-        '- Comision: Comisión alternativa (texto)',
-        '- TV: Servicios de TV incluidos',
+        '- TARIFA: Nombre de la tarifa',
+        '- FIBRA: Velocidad de fibra (600 Mb, 1 Gb, etc.)',
+        '- MOVIL 1: GB del primer móvil',
+        '- MOVIL 2: GB del segundo móvil',
+        '- TV1: Primer servicio de TV',
+        '- TV2: Segundo servicio de TV',
+        '- PRECIO: Precio mensual (sin símbolo €)',
+        '- COMISION: Comisión (sin símbolo €)',
+        '- PERMANENCIA: Permanencia del contrato',
+        '- FECHA CARGA: Fecha de carga (formato: YYYY-MM-DD)',
         '',
-        'Ejemplos:',
-        'Compania: Movistar, Vodafone, Orange',
-        'Tipo: Fibra + Móvil, Solo Fibra, Solo Móvil',
-        'Fibra: 600Mb, 1Gb',
-        'GbMovil: 50GB, 100GB, Ilimitado'
+        'Notas:',
+        '- La primera fila con los encabezados NO se debe eliminar',
+        '- Los campos OPERADORA y TIPO son obligatorios',
+        '- Los precios pueden llevar comas o puntos como separadores decimales',
+        '- Las filas completamente vacías se ignorarán'
     ]
     for inst in instrucciones:
         worksheet_inst.write(row, 0, inst)

@@ -615,7 +615,7 @@ else
                                     </div>
                                 </div>
 
-                                @if (clienteSeleccionadoInfo != null && clienteSeleccionadoInfo.TipoCliente == "Pyme")
+                                @if (clienteSeleccionadoInfo != null && (clienteSeleccionadoInfo.TipoCliente == "Pyme" || clienteSeleccionadoInfo.TipoCliente == "Autonomo"))
                                 {
                                     <div class="row mb-3">
                                         <div class="col-md-6">
@@ -1306,8 +1306,11 @@ else
                 empresasAlarmas = await EmpresaAlarmaService.ObtenerActivasAsync();
             }
             
-            tarifasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
-            tarifasCampana = await TarifaAlarmaService.ObtenerPorTipoAsync("Campaña");
+            var todasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
+            var todasCampana = await TarifaAlarmaService.ObtenerPorTipoAsync("Campaña");
+            // Filtrar solo tarifas activas
+            tarifasKit = todasKit.Where(t => t.Activa).ToList();
+            tarifasCampana = todasCampana.Where(t => t.Activa).ToList();
             
             await CargarConteoObservaciones();
             contratosConFicheros = await FicheroContratoService.ObtenerIdsContratosConFicherosAsync();
@@ -1334,16 +1337,20 @@ else
         {
             if (string.IsNullOrEmpty(contratoSeleccionado?.EmpresaAlarma))
             {
-                tarifasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
-                tarifasCampana = await TarifaAlarmaService.ObtenerPorTipoAsync("Campaña");
+                var todasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
+                var todasCampana = await TarifaAlarmaService.ObtenerPorTipoAsync("Campaña");
+                // Filtrar solo tarifas activas
+                tarifasKit = todasKit.Where(t => t.Activa).ToList();
+                tarifasCampana = todasCampana.Where(t => t.Activa).ToList();
                 return;
             }
 
             var todasTarifas = await TarifaAlarmaService.ObtenerTodasAsync();
             var tarifasFiltradas = todasTarifas.Where(t => t.Empresa == contratoSeleccionado.EmpresaAlarma).ToList();
             
-            tarifasKit = tarifasFiltradas.Where(t => t.Tipo == "Kit").ToList();
-            tarifasCampana = tarifasFiltradas.Where(t => t.Tipo == "Campaña").ToList();
+            // Filtrar solo tarifas activas de la empresa
+            tarifasKit = tarifasFiltradas.Where(t => t.Tipo == "Kit" && t.Activa).ToList();
+            tarifasCampana = tarifasFiltradas.Where(t => t.Tipo == "Campaña" && t.Activa).ToList();
         }
         catch (Exception ex)
         {

@@ -3,10 +3,12 @@
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
 @using EnerfoneCRM.Components.Pages.Usuarios
+@using Microsoft.JSInterop
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject EmailService EmailService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Enerfone CRM</PageTitle>
@@ -44,6 +46,9 @@ else
                 <h2>Gestión de Usuarios</h2>
             </div>
             <div class="col text-end">
+                <button class="btn btn-success me-2" @onclick="ExportarExcel">
+                    <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+                </button>
                 <button class="btn btn-info me-2" @onclick="IrALogAccesos">
                     <i class="bi bi-clock-history"></i> Accesos
                 </button>
@@ -88,7 +93,7 @@ else
                                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                                 <input type="text" 
                                        class="form-control" 
-                                       placeholder="Buscar por nombre, usuario o email..." 
+                                       placeholder="Buscar por nombre, usuario, email o teléfono..." 
                                        @bind="textoBusqueda" 
                                        @bind:event="oninput"
                                        @onkeyup="FiltrarUsuarios" />
@@ -121,6 +126,13 @@ else
                                     <th style="cursor: pointer;" @onclick='() => OrdenarPor("Email")'>
                                         Email
                                         @if (columnaOrden == "Email")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("Telefono")'>
+                                        Teléfono
+                                        @if (columnaOrden == "Telefono")
                                         {
                                             <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                         }
@@ -162,6 +174,7 @@ else
                                     <tr>
                                         <td><strong>@usuario.NombreUsuario</strong></td>
                                         <td>@usuario.Email</td>
+                                        <td>@(string.IsNullOrEmpty(usuario.Telefono) ? "-" : usuario.Telefono)</td>
                                         <td>
                                             <span class="badge bg-@ObtenerColorRol(usuario.Rol)">@usuario.Rol</span>
                                         </td>
@@ -260,6 +273,7 @@ else
     {
         <ModalEditarUsuario 
             Usuario="usuarioSeleccionado" 
+            MensajeError="@mensajeError"
             OnGuardar="GuardarUsuario" 
             OnCancelar="CerrarModal" />
     }
@@ -297,6 +311,7 @@ else
 @code {
     private List<Usuario> usuarios = new();
     private List<Usuario> usuariosFiltrados = new();
+    private List<Usuario> usuariosCompletos = new(); // Todos los usuarios filtrados sin paginación
     private string textoBusqueda = string.Empty;
     
     // Ordenamiento
@@ -386,6 +401,7 @@ else
             : usuarios.Where(u => 
                 (u.NombreUsuario?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.Email?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.Telefono?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.Nombre?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.Apellidos?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.Rol?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false)
@@ -400,6 +416,9 @@ else
             "Email" => ordenAscendente
                 ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Email).ToList()
                 : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Email).ToList(),
+            "Telefono" => ordenAscendente
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Telefono).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Telefono).ToList(),
             "Rol" => ordenAscendente
                 ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Rol).ToList()
                 : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Rol).ToList(),
@@ -418,6 +437,10 @@ else
         totalElementos = usuariosParaPaginar.Count;
         totalPaginas = (int)Math.Ceiling((double)totalElementos / elementosPorPagina);
         
+        // Guardar todos los usuarios filtrados para exportación
+        usuariosCompletos = usuariosParaPaginar;
+        
+        // Aplicar paginación solo para la vista
         usuariosFiltrados = usuariosParaPaginar
             .Skip((paginaActual - 1) * elementosPorPagina)
             .Take(elementosPorPagina)
@@ -602,43 +625,64 @@ else
         mostrarModalCrear = false;
         mostrarModalEliminar = false;
         usuarioSeleccionado = null;
+        mensajeError = string.Empty;
     }
 
     private async Task GuardarUsuario((Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds) datos)
     {
-        var (exito, mensaje) = await UsuarioService.ActualizarAsync(datos.usuario);
-        if (exito)
+        try
         {
-            // Actualizar comercializadoras permitidas
-            await UsuarioService.ActualizarComercializadorasPermitidasAsync(datos.usuario.Id, datos.comercializadorasIds);
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
             
-            // Actualizar operadoras permitidas
-            await UsuarioService.ActualizarOperadorasPermitidasAsync(datos.usuario.Id, datos.operadorasIds);
+            Console.WriteLine($"[ListaUsuarios] Iniciando actualización de usuario ID: {datos.usuario.Id}, Nombre: '{datos.usuario.NombreUsuario}'");
             
-            // Actualizar empresas de alarmas permitidas
-            await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(datos.usuario.Id, datos.empresasAlarmasIds);
-            
-            // Si es gestor, actualizar colaboradores asignados
-            if (datos.usuario.Rol == "Gestor")
+            var (exito, mensaje) = await UsuarioService.ActualizarAsync(datos.usuario);
+            if (exito)
             {
-                await UsuarioService.ActualizarColaboradoresDeGestorAsync(datos.usuario.Id, datos.colaboradoresIds);
+                // Actualizar comercializadoras permitidas
+                await UsuarioService.ActualizarComercializadorasPermitidasAsync(datos.usuario.Id, datos.comercializadorasIds);
+                
+                // Actualizar operadoras permitidas
+                await UsuarioService.ActualizarOperadorasPermitidasAsync(datos.usuario.Id, datos.operadorasIds);
+                
+                // Actualizar empresas de alarmas permitidas
+                await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(datos.usuario.Id, datos.empresasAlarmasIds);
+                
+                // Si es gestor, actualizar colaboradores asignados
+                if (datos.usuario.Rol == "Gestor")
+                {
+                    await UsuarioService.ActualizarColaboradoresDeGestorAsync(datos.usuario.Id, datos.colaboradoresIds);
+                }
+                
+                // Si es jefe de ventas, actualizar gestores y colaboradores asignados
+                if (datos.usuario.Rol == "Jefe de ventas")
+                {
+                    await UsuarioService.ActualizarGestoresDeJefeVentasAsync(datos.usuario.Id, datos.gestoresIds);
+                    await UsuarioService.ActualizarColaboradoresDeJefeVentasAsync(datos.usuario.Id, datos.colaboradoresIds);
+                }
+                
+                mensajeExito = mensaje;
+                Console.WriteLine($"[ListaUsuarios] Usuario actualizado correctamente: {mensaje}");
+                
+                await CargarUsuarios();
+                CerrarModal();
+            }
+            else
+            {
+                mensajeError = mensaje;
+                Console.WriteLine($"[ListaUsuarios] Error al actualizar usuario: {mensaje}");
+                // NO cerramos el modal para que el usuario vea el error
             }
             
-            // Si es jefe de ventas, actualizar gestores y colaboradores asignados
-            if (datos.usuario.Rol == "Jefe de ventas")
-            {
-                await UsuarioService.ActualizarGestoresDeJefeVentasAsync(datos.usuario.Id, datos.gestoresIds);
-                await UsuarioService.ActualizarColaboradoresDeJefeVentasAsync(datos.usuario.Id, datos.colaboradoresIds);
-            }
-            
-            mensajeExito = mensaje;
-            await CargarUsuarios();
             StateHasChanged();
-            CerrarModal();
         }
-        else
+        catch (Exception ex)
         {
-            mensajeError = mensaje;
+            mensajeError = $"Error inesperado al guardar el usuario: {ex.Message}";
+            Console.WriteLine($"[ListaUsuarios] EXCEPCIÓN al guardar usuario: {ex.Message}");
+            Console.WriteLine($"[ListaUsuarios] StackTrace: {ex.StackTrace}");
+            StateHasChanged();
         }
     }
 
@@ -717,6 +761,108 @@ else
                 mensajeError = mensaje;
             }
             CerrarModal();
+        }
+    }
+
+    private void ExportarExcel()
+    {
+        try
+        {
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Usuarios");
+
+            // Encabezados - TODA la información del usuario
+            worksheet.Cell(1, 1).Value = "ID";
+            worksheet.Cell(1, 2).Value = "Usuario";
+            worksheet.Cell(1, 3).Value = "Nombre";
+            worksheet.Cell(1, 4).Value = "Apellidos";
+            worksheet.Cell(1, 5).Value = "Email";
+            worksheet.Cell(1, 6).Value = "Teléfono";
+            worksheet.Cell(1, 7).Value = "Dirección";
+            worksheet.Cell(1, 8).Value = "Código Postal";
+            worksheet.Cell(1, 9).Value = "Localidad";
+            worksheet.Cell(1, 10).Value = "Rol";
+            worksheet.Cell(1, 11).Value = "Comisión (%)";
+            worksheet.Cell(1, 12).Value = "Activo";
+            worksheet.Cell(1, 13).Value = "Recibir Notificaciones";
+            worksheet.Cell(1, 14).Value = "Excluir Log Acceso";
+            worksheet.Cell(1, 15).Value = "Comercializadora";
+            worksheet.Cell(1, 16).Value = "Gestor ID";
+            worksheet.Cell(1, 17).Value = "Jefe Ventas ID";
+            worksheet.Cell(1, 18).Value = "Director Comercial ID";
+            worksheet.Cell(1, 19).Value = "Número Cuenta";
+            worksheet.Cell(1, 20).Value = "Tipo Entidad";
+            worksheet.Cell(1, 21).Value = "Archivo DNI";
+            worksheet.Cell(1, 22).Value = "Archivo CIF";
+            worksheet.Cell(1, 23).Value = "Archivo Poder";
+            worksheet.Cell(1, 24).Value = "Archivo Contrato";
+            worksheet.Cell(1, 25).Value = "Total Contratos";
+            worksheet.Cell(1, 26).Value = "Fecha Creación";
+            worksheet.Cell(1, 27).Value = "Último Acceso";
+
+            // Estilo de encabezados
+            var headerRange = worksheet.Range(1, 1, 1, 27);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+            headerRange.Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Center;
+
+            // Datos - usar usuariosCompletos para exportar TODOS los usuarios filtrados (sin paginación)
+            int row = 2;
+            foreach (var usuario in usuariosCompletos)
+            {
+                worksheet.Cell(row, 1).Value = usuario.Id;
+                worksheet.Cell(row, 2).Value = usuario.NombreUsuario ?? "";
+                worksheet.Cell(row, 3).Value = usuario.Nombre ?? "";
+                worksheet.Cell(row, 4).Value = usuario.Apellidos ?? "";
+                worksheet.Cell(row, 5).Value = usuario.Email ?? "";
+                worksheet.Cell(row, 6).Value = usuario.Telefono ?? "";
+                worksheet.Cell(row, 7).Value = usuario.Direccion ?? "";
+                worksheet.Cell(row, 8).Value = usuario.CodigoPostal ?? "";
+                worksheet.Cell(row, 9).Value = usuario.Localidad ?? "";
+                worksheet.Cell(row, 10).Value = usuario.Rol ?? "";
+                worksheet.Cell(row, 11).Value = usuario.Comision.ToString("F2");
+                worksheet.Cell(row, 12).Value = usuario.Activo ? "Sí" : "No";
+                worksheet.Cell(row, 13).Value = usuario.RecibirNotificaciones ? "Sí" : "No";
+                worksheet.Cell(row, 14).Value = usuario.ExcluirLogAcceso ? "Sí" : "No";
+                worksheet.Cell(row, 15).Value = usuario.Comercializadora ?? "";
+                worksheet.Cell(row, 16).Value = usuario.GestorId?.ToString() ?? "";
+                worksheet.Cell(row, 17).Value = usuario.JefeVentasId?.ToString() ?? "";
+                worksheet.Cell(row, 18).Value = usuario.DirectorComercialId?.ToString() ?? "";
+                worksheet.Cell(row, 19).Value = usuario.NumeroCuenta ?? "";
+                worksheet.Cell(row, 20).Value = usuario.TipoEntidad ?? "";
+                worksheet.Cell(row, 21).Value = usuario.ArchivoDni ?? "";
+                worksheet.Cell(row, 22).Value = usuario.ArchivoCif ?? "";
+                worksheet.Cell(row, 23).Value = usuario.ArchivoPoder ?? "";
+                worksheet.Cell(row, 24).Value = usuario.ArchivoContrato ?? "";
+                worksheet.Cell(row, 25).Value = usuario.TotalContratos;
+                worksheet.Cell(row, 26).Value = usuario.FechaCreacion.ToString("dd/MM/yyyy HH:mm");
+                worksheet.Cell(row, 27).Value = usuario.UltimoAcceso?.ToString("dd/MM/yyyy HH:mm") ?? "";
+                row++;
+            }
+
+            // Ajustar ancho de columnas
+            worksheet.Columns().AdjustToContents();
+
+            // Guardar en memoria y descargar
+            using var stream = new System.IO.MemoryStream();
+            workbook.SaveAs(stream);
+            var bytes = stream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            var fileName = $"usuarios_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+            // Descargar usando JavaScript
+            JS.InvokeVoidAsync("eval", $@"
+                const link = document.createElement('a');
+                link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{base64}';
+                link.download = '{fileName}';
+                link.click();
+            ");
+
+            mensajeExito = $"Exportados {usuariosCompletos.Count} usuarios a Excel (XLSX)";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al exportar: {ex.Message}";
         }
     }
 

@@ -156,6 +156,11 @@ namespace EnerfoneCRM.Services
                     {
                         url += "&gas=1";
                     }
+                    
+                    // Log de la llamada (ocultando parte de la API key por seguridad)
+                    var urlParaLog = url.Replace(API_KEY, $"{API_KEY.Substring(0, Math.Min(4, API_KEY.Length))}***");
+                    Console.WriteLine($"[SIPS] Consultando API: {urlParaLog}");
+                    Console.WriteLine($"[SIPS] CUPS: {cupsNormalizado}, Es Gas: {esGas}");
 
                     HttpResponseMessage? response = null;
                     string? jsonString = null;
@@ -163,6 +168,21 @@ namespace EnerfoneCRM.Services
                     {
                         response = await _httpClient.GetAsync(url);
                         jsonString = await response.Content.ReadAsStringAsync();
+                        
+                        // Log de la respuesta recibida
+                        Console.WriteLine($"[SIPS] HTTP Status: {(int)response.StatusCode} {response.StatusCode}");
+                        Console.WriteLine($"[SIPS] Content-Length: {response.Content.Headers.ContentLength}");
+                        Console.WriteLine($"[SIPS] Response length: {jsonString?.Length ?? 0} caracteres");
+                        
+                        if (!string.IsNullOrWhiteSpace(jsonString))
+                        {
+                            var preview = jsonString.Length > 200 ? jsonString.Substring(0, 200) + "..." : jsonString;
+                            Console.WriteLine($"[SIPS] Response preview: {preview}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[SIPS] ADVERTENCIA: La respuesta HTTP está vacía");
+                        }
 
                         if (!response.IsSuccessStatusCode)
                         {
@@ -177,6 +197,25 @@ namespace EnerfoneCRM.Services
                                 responseJson: jsonString);
 
                             response.EnsureSuccessStatusCode();
+                        }
+                        
+                        // Verificar que hay contenido antes de deserializar
+                        if (string.IsNullOrWhiteSpace(jsonString))
+                        {
+                            var errorMsg = "La API de SIPS devolvió una respuesta vacía. El CUPS podría no existir o ser inválido.";
+                            Console.WriteLine($"[SIPS] ERROR: {errorMsg}");
+                            
+                            await GuardarHistoricoAsync(
+                                cupsNormalizado,
+                                usuarioId,
+                                usuarioNombre,
+                                usuarioEmail,
+                                success: false,
+                                httpStatusCode: (int)response.StatusCode,
+                                errorMessage: errorMsg,
+                                responseJson: jsonString);
+                                
+                            throw new Exception(errorMsg);
                         }
 
                         var datos = DeserializarRespuesta(jsonString);
@@ -219,7 +258,18 @@ namespace EnerfoneCRM.Services
                     }
                     catch (JsonException ex)
                     {
-                        Console.WriteLine($"[SIPS] Error al procesar respuesta: {ex.Message}");
+                        Console.WriteLine($"[SIPS] Error al procesar respuesta JSON");
+                        Console.WriteLine($"[SIPS] Detalles del error: {ex.Message}");
+                        Console.WriteLine($"[SIPS] Path: {ex.Path}");
+                        Console.WriteLine($"[SIPS] LineNumber: {ex.LineNumber}");
+                        Console.WriteLine($"[SIPS] BytePositionInLine: {ex.BytePositionInLine}");
+                        
+                        // Log del JSON completo (primeros 1000 caracteres para debug)
+                        var jsonPreview = jsonString?.Length > 1000 
+                            ? jsonString.Substring(0, 1000) + "..." 
+                            : jsonString ?? "(vacío)";
+                        Console.WriteLine($"[SIPS] JSON recibido: {jsonPreview}");
+                        
                         await GuardarHistoricoAsync(
                             cupsNormalizado,
                             usuarioId,
@@ -227,9 +277,10 @@ namespace EnerfoneCRM.Services
                             usuarioEmail,
                             success: false,
                             httpStatusCode: response != null ? (int?)response.StatusCode : (int?)HttpStatusCode.OK,
-                            errorMessage: ex.Message,
+                            errorMessage: $"Error JSON: {ex.Message} (Path: {ex.Path}, Line: {ex.LineNumber})",
                             responseJson: jsonString);
-                        throw new Exception("Error al procesar los datos del servicio SIPS", ex);
+                        
+                        throw new Exception($"Error al procesar los datos del servicio SIPS. Detalles: {ex.Message} en {ex.Path ?? "raíz"}", ex);
                     }
                 }
                 finally
@@ -323,10 +374,23 @@ namespace EnerfoneCRM.Services
         {
             var options = new JsonSerializerOptions
             {
-                PropertyNameCaseInsensitive = true
+                PropertyNameCaseInsensitive = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString,
+                AllowTrailingCommas = true
             };
 
-            return JsonSerializer.Deserialize<SipsResponse>(json, options);
+            try
+            {
+                return JsonSerializer.Deserialize<SipsResponse>(json, options);
+            }
+            catch (JsonException ex)
+            {
+                // Log adicional del contenido para facilitar debug
+                var jsonPreview = json.Length > 500 ? json.Substring(0, 500) + "..." : json;
+                Console.WriteLine($"[SIPS] DeserializarRespuesta - JSON problemático: {jsonPreview}");
+                throw;
+            }
         }
 
         private int? TryGetInt(string key)

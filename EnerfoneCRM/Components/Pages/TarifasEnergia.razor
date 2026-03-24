@@ -328,6 +328,7 @@ else
                                         </th>
                                         <th>Permanencia</th>
                                         <th>Batería</th>
+                                        <th>Estado</th>
                                         <th class="text-end">Acciones</th>
                                     </tr>
                                 </thead>
@@ -335,7 +336,7 @@ else
                                     @if (tarifas == null || !tarifas.Any())
                                     {
                                         <tr>
-                                            <td colspan="12" class="text-center text-muted py-4">
+                                            <td colspan="13" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay tarifas registradas</p>
                                             </td>
@@ -366,6 +367,16 @@ else
                                                         <span class="text-muted">-</span>
                                                     }
                                                 </td>
+                                                <td>
+                                                    @if (tarifa.Activa)
+                                                    {
+                                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Activa</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactiva</span>
+                                                    }
+                                                </td>
                                                 <td class="text-end" style="white-space: nowrap;">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(tarifa)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
@@ -373,6 +384,18 @@ else
                                                     <button class="btn btn-sm btn-outline-info me-1" @onclick="() => MostrarModalDuplicar(tarifa)" title="Duplicar">
                                                         <i class="bi bi-files"></i>
                                                     </button>
+                                                    @if (tarifa.Activa)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-warning me-1" @onclick="() => CambiarEstadoTarifa(tarifa)" title="Desactivar">
+                                                            <i class="bi bi-toggle-on"></i>
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => CambiarEstadoTarifa(tarifa)" title="Activar">
+                                                            <i class="bi bi-toggle-off"></i>
+                                                        </button>
+                                                    }
                                                     <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(tarifa)" title="Eliminar">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
@@ -504,12 +527,26 @@ else
                                 </div>
 
                                 <div class="row mb-3">
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <InputCheckbox class="form-check-input" @bind-Value="tarifaActual.Activa" id="switchActiva" style="cursor: pointer;" />
+                                            <label class="form-check-label fw-bold" for="switchActiva" style="cursor: pointer;">
+                                                <i class="bi bi-@(tarifaActual.Activa ? "toggle-on text-success" : "toggle-off text-secondary") me-2"></i>
+                                                Tarifa @(tarifaActual.Activa ? "Activa" : "Inactiva")
+                                            </label>
+                                            <small class="text-muted d-block">Las tarifas inactivas no aparecerán al crear nuevos contratos</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Tipo Cliente</label>
                                         <InputSelect class="form-select" @bind-Value="tarifaActual.TipoCliente">
                                             <option value="">-- Seleccionar --</option>
                                             <option value="Residencial">Residencial</option>
                                             <option value="Pyme">Pyme</option>
+                                            <option value="Autonomo">Autónomo</option>
                                         </InputSelect>
                                         <small class="text-muted">A quién va dirigida la tarifa</small>
                                     </div>
@@ -834,7 +871,7 @@ else
     private DateTime? filtroFechaDesde;
     private DateTime? filtroFechaHasta;
     
-    private List<string> tiposClienteDisponibles = new() { "Residencial", "Pyme" };
+    private List<string> tiposClienteDisponibles = new() { "Residencial", "Pyme", "Autonomo" };
     private List<string> peajesLuzDisponibles = new() { "2.0", "3.0", "6.1", "6.2" };
     private List<string> peajesGasDisponibles = new() { "RL1", "RL2", "RL3", "RL4", "RL5", "RL6" };
     private List<TarifaEnergia> tarifasParaPaginar = new();
@@ -1154,7 +1191,8 @@ else
                 Permanencia = tarifa.Permanencia,
                 Excedentes = tarifa.Excedentes,
                 BateriaVirtual = tarifa.BateriaVirtual,
-                FechaCarga = tarifa.FechaCarga
+                FechaCarga = tarifa.FechaCarga,
+                Activa = tarifa.Activa
             };
         mostrarModal = true;
     }
@@ -1267,6 +1305,42 @@ else
         }
     }
 
+    private async Task CambiarEstadoTarifa(TarifaEnergia tarifa)
+    {
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            tarifa.Activa = !tarifa.Activa;
+            var (exito, mensaje) = await TarifaService.ActualizarAsync(tarifa);
+
+            if (exito)
+            {
+                mensajeExito = tarifa.Activa 
+                    ? $"Tarifa '{tarifa.Nombre}' activada correctamente" 
+                    : $"Tarifa '{tarifa.Nombre}' desactivada correctamente";
+                await CargarTarifas();
+            }
+            else
+            {
+                // Revertir cambio si falla
+                tarifa.Activa = !tarifa.Activa;
+                mensajeError = mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Revertir cambio si hay error
+            tarifa.Activa = !tarifa.Activa;
+            mensajeError = $"Error al cambiar estado: {ex.Message}";
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
     private string ObtenerColorTipo(string tipo)
     {
         if (string.IsNullOrEmpty(tipo)) return "bg-secondary";
@@ -1276,6 +1350,7 @@ else
         return tipoLower switch
         {
             "pyme" => "bg-primary",
+            "autonomo" => "bg-primary",
             "residencial" => "bg-success",
             _ => "bg-secondary"
         };

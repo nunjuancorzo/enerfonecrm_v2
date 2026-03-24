@@ -144,6 +144,8 @@ else
                                 <option value="Tarifa">Tarifa</option>
                                 <option value="Cliente">Cliente</option>
                                 <option value="DNI">DNI/CIF</option>
+                                <option value="CUPS_LUZ">CUPS LUZ</option>
+                                <option value="CUPS_GAS">CUPS GAS</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -275,6 +277,9 @@ else
                                 <li><a class="dropdown-item" @onclick="ExportarExcel" style="cursor: pointer;"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel (XLSX)</a></li>
                             </ul>
                         </div>
+                        <button class="btn btn-info" @onclick="ActualizarListado" disabled="@cargando" title="Actualizar listado de contratos">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Actualizar
+                        </button>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -548,438 +553,539 @@ else
                                     </div>
                                 }
                                 
-                                <!-- Fechas -->
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-plus me-1"></i>Fecha de Creación</label>
-                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-check me-1"></i>Fecha de Modificación</label>
-                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold"><i class="bi bi-calendar-event me-1"></i>Fecha Alta</label>
-                                        @if (AuthService.UsuarioActual?.Rol == "Administrador")
-                                        {
-                                            <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
-                                        }
-                                        else
-                                        {
-                                            <input type="text" class="form-control" value="@contratoSeleccionado.FechaAlta?.ToString("dd/MM/yyyy")" readonly />
-                                        }
-                                    </div>
-                                </div>
-
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold"><i class="bi bi-tag me-1"></i>ID Contrato Externo</label>
-                                        <InputText @bind-Value="contratoSeleccionado.IdContratoExterno" class="form-control" placeholder="ID de la comercializadora" disabled="@(!PuedeEditarCampo())" />
+                                <!-- RESUMEN DEL CONTRATO -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-body bg-light">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-2">
+                                                <small class="text-muted">ID Contrato</small>
+                                                <div class="fw-bold">#@contratoSeleccionado.Id</div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <small class="text-muted">Estado</small>
+                                                <div><span class="badge bg-primary">@contratoSeleccionado.Estado</span></div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted">Fecha Creación</small>
+                                                <div class="fw-bold">@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")</div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <small class="text-muted">Última Modificación</small>
+                                                <div class="fw-bold">@(contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm") ?? "-")</div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <small class="text-muted">Comercial</small>
+                                                <div class="fw-bold text-truncate" title="@contratoSeleccionado.Comercial">@contratoSeleccionado.Comercial</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
                                 <hr class="my-3" />
 
-                                <!-- DATOS DEL CLIENTE -->
-                                <h6 class="mb-3"><i class="bi bi-person me-2"></i>Datos del Cliente</h6>
-                                <div class="row mb-3">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Cliente</label>
-                                            <select @bind="contratoSeleccionado.IdCliente" @bind:after="OnClienteChanged" class="form-select" disabled="@(!PuedeEditarCampo())">
-                                                <option value="">Seleccione un cliente...</option>
-                                                @foreach (var cliente in todosLosClientes)
-                                                {
-                                                    <option value="@cliente.Id">@cliente.Nombre @(cliente.FechaAlta.HasValue ? $"- {cliente.FechaAlta.Value:dd/MM/yyyy}" : "")</option>
-                                                }
-                                            </select>
-                                        </div>
+                                <!-- PRIMERA PARTE: DATOS DEL CLIENTE -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #cce5ff; color: #004085;">
+                                        <h6 class="mb-0"><i class="bi bi-person me-2"></i>1. Datos del Cliente</h6>
                                     </div>
-                                    <div class="col-md-6">
-                                        @if (clienteSeleccionadoInfo != null)
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Cliente</label>
+                                                <div class="position-relative">
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           @bind="busquedaCliente" 
+                                                           @bind:event="oninput"
+                                                           @onfocus="() => mostrarDropdownClientes = true"
+                                                           @onblur="OcultarDropdownConRetraso"
+                                                           placeholder="Buscar cliente por nombre, DNI/CIF..."
+                                                           disabled="@(!PuedeEditarCampo())" 
+                                                           autocomplete="off" />
+                                                    
+                                                    @if (mostrarDropdownClientes && ClientesFiltrados.Any())
+                                                    {
+                                                        <div class="dropdown-menu show" style="position: absolute; width: 100%; max-height: 300px; overflow-y: auto; z-index: 1000; background-color: white; border: 1px solid #dee2e6;" 
+                                                             @onmousedown:preventDefault="true">
+                                                            <div class="dropdown-header d-flex justify-content-between align-items-center" style="background-color: #f8f9fa;">
+                                                                <span style="color: #6c757d; font-weight: 500;">@ClientesFiltrados.Count cliente(s)</span>
+                                                                <button type="button" class="btn-close btn-sm" @onclick="() => mostrarDropdownClientes = false" aria-label="Cerrar"></button>
+                                                            </div>
+                                                            @foreach (var cliente in ClientesFiltrados.Take(50))
+                                                            {
+                                                                <button type="button" 
+                                                                        class="dropdown-item @(contratoSeleccionado.IdCliente == cliente.Id ? "active" : "")"
+                                                                        style="@(contratoSeleccionado.IdCliente == cliente.Id ? "" : "color: #212529;")"
+                                                                        @onclick="() => SeleccionarCliente(cliente)"
+                                                                        @onclick:stopPropagation="true">
+                                                                    <div>
+                                                                        <strong style="color: #0d6efd;">@cliente.Nombre</strong>
+                                                                        @if (!string.IsNullOrEmpty(cliente.DniCif))
+                                                                        {
+                                                                            <span style="color: #6c757d;"> - @cliente.DniCif</span>
+                                                                        }
+                                                                    </div>
+                                                                    @if (cliente.FechaAlta.HasValue || !string.IsNullOrEmpty(cliente.Telefono))
+                                                                    {
+                                                                        <small style="color: #6c757d;">
+                                                                            @if (cliente.FechaAlta.HasValue)
+                                                                            {
+                                                                                <span>Alta: @cliente.FechaAlta.Value.ToString("dd/MM/yyyy")</span>
+                                                                            }
+                                                                            @if (!string.IsNullOrEmpty(cliente.Telefono))
+                                                                            {
+                                                                                <span> - Tel: @cliente.Telefono</span>
+                                                                            }
+                                                                        </small>
+                                                                    }
+                                                                </button>
+                                                            }
+                                                            @if (ClientesFiltrados.Count > 50)
+                                                            {
+                                                                <div class="dropdown-item disabled" style="background-color: #f8f9fa;">
+                                                                    <small style="color: #6c757d;">Mostrando 50 de @ClientesFiltrados.Count resultados. Refina tu búsqueda.</small>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                                @if (clienteSeleccionadoInfo != null)
+                                                {
+                                                    <small class="text-success mt-1 d-block">
+                                                        <i class="bi bi-check-circle-fill"></i> @clienteSeleccionadoInfo.Nombre (@clienteSeleccionadoInfo.DniCif)
+                                                    </small>
+                                                }
+                                            </div>
+                                            <div class="col-md-3">
+                                                @if (clienteSeleccionadoInfo != null)
+                                                {
+                                                    <label class="form-label fw-bold">DNI/CIF Cliente</label>
+                                                    <input type="text" class="form-control" value="@clienteSeleccionadoInfo.DniCif" disabled />
+                                                }
+                                            </div>
+                                            <div class="col-md-3">
+                                                @if (clienteSeleccionadoInfo != null)
+                                                {
+                                                    <label class="form-label fw-bold">IBAN Cliente</label>
+                                                    <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" readonly />
+                                                }
+                                            </div>
+                                        </div>
+
+                                        @* Titular IBAN Diferente *@
+                                        <div class="row mb-2">
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input" id="chkTitularIbanDiferenteEdicion" 
+                                                           @bind="contratoSeleccionado.TitularIbanDiferente" 
+                                                           @bind:after="LimpiarCamposTitularIbanSiNoMarcado"
+                                                           disabled="@(!PuedeEditarCampo())" />
+                                                    <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicion">
+                                                        El titular del IBAN es diferente al cliente
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        @if (contratoSeleccionado.TitularIbanDiferente)
                                         {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">DNI Cliente</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.DniCif" disabled />
+                                            <div class="row mb-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold">DNI Titular IBAN</label>
+                                                    <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIF/CIF" disabled="@(!PuedeEditarCampo())" />
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold">Nombre Titular IBAN</label>
+                                                    <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" disabled="@(!PuedeEditarCampo())" />
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold">Número IBAN</label>
+                                                    <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" disabled="@(!PuedeEditarCampo())" />
+                                                </div>
                                             </div>
                                         }
-                                    </div>
-                                </div>
 
-                                @if (clienteSeleccionadoInfo != null && clienteSeleccionadoInfo.TipoCliente == "Pyme")
-                                {
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Representante</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Representante" disabled />
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Tipo de Operación</label>
+                                                <InputSelect @bind-Value="contratoSeleccionado.TipoOperacion" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                    <option value="Cambio comercializadora">Cambio comercializadora</option>
+                                                    <option value="Cambio de Comercializadora con Cambio de titularidad">Cambio de Comercializadora con Cambio de titularidad</option>
+                                                    <option value="Alta nueva">Alta nueva</option>
+                                                </InputSelect>
                                             </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">DNI Representante</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Dni" disabled />
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-
-                                @if (clienteSeleccionadoInfo != null)
-                                {
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Teléfono</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" readonly />
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Email</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" readonly />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">IBAN Cliente</label>
-                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Iban" readonly />
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                                
-                                @* Titular IBAN Diferente *@
-                                <div class="row mb-3">
-                                    <div class="col-12">
-                                        <div class="form-check">
-                                            <input type="checkbox" class="form-check-input" id="chkTitularIbanDiferenteEdicion" 
-                                                   @bind="contratoSeleccionado.TitularIbanDiferente" 
-                                                   @bind:after="LimpiarCamposTitularIbanSiNoMarcado"
-                                                   disabled="@(!PuedeEditarCampo())" />
-                                            <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEdicion">
-                                                El titular del IBAN es diferente al cliente
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                @if (contratoSeleccionado.TitularIbanDiferente)
-                                {
-                                    <div class="row mb-3">
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-bold">DNI Titular IBAN</label>
-                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanDni" class="form-control" placeholder="DNI/NIF/CIF" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-bold">Nombre Titular IBAN</label>
-                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNombre" class="form-control" placeholder="Nombre completo" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label fw-bold">Número IBAN</label>
-                                            <InputText @bind-Value="contratoSeleccionado.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                    </div>
-                                }
-
-                                <hr class="my-3" />
-
-                                <!-- DATOS DEL CONTRATO -->
-                                <h6 class="mb-3"><i class="bi bi-file-text me-2"></i>Datos del Contrato</h6>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Estado</label>
-                                            <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
-                                                <option value="">-- Seleccionar Estado --</option>
-                                                @foreach (var estado in estadosDisponibles)
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Fecha Alta</label>
+                                                @if (AuthService.UsuarioActual?.Rol == "Administrador")
                                                 {
-                                                    <option value="@estado">@estado</option>
+                                                    <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
                                                 }
-                                            </InputSelect>
+                                                else
+                                                {
+                                                    <input type="text" class="form-control" value="@contratoSeleccionado.FechaAlta?.ToString("dd/MM/yyyy")" readonly />
+                                                }
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">ID Contrato Externo</label>
+                                                <InputText @bind-Value="contratoSeleccionado.IdContratoExterno" class="form-control" placeholder="ID comercializadora" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-0">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Estado Contrato</label>
+                                                <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
+                                                    <option value="">-- Seleccionar Estado --</option>
+                                                    @foreach (var estado in estadosDisponibles)
+                                                    {
+                                                        <option value="@estado">@estado</option>
+                                                    }
+                                                </InputSelect>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">¿Qué quiere contratar?</label>
+                                                <select @bind="tipoContratacion" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                    <option value="Luz">Luz</option>
+                                                    <option value="Gas">Gas</option>
+                                                    <option value="Luz y Gas">Luz y Gas</option>
+                                                </select>
+                                            </div>
                                         </div>
 
                                         @if (contratoSeleccionado.Estado == "Activo" && mostrarCampoFechaActivo)
                                         {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Fecha de Activación <span class="text-danger">*</span></label>
-                                                <input type="date" 
-                                                       class="form-control" 
-                                                       @bind="fechaActivacion" 
-                                                       @bind:event="oninput"
-                                                       disabled="@(!PuedeEditarEstadoYObservaciones())" />
-                                                @if (mostrarErrorFechaActivo)
-                                                {
-                                                    <div class="text-danger small mt-1">La fecha de activación es obligatoria</div>
-                                                }
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Observaciones (Opcional)</label>
-                                                <textarea class="form-control" 
-                                                          rows="3" 
-                                                          @bind="observacionesActivacion" 
-                                                          placeholder="Añade observaciones sobre la activación del contrato..."
-                                                          disabled="@(!PuedeEditarEstadoYObservaciones())"></textarea>
-                                                <small class="text-muted">Estas observaciones se guardarán en las activaciones</small>
+                                            <div class="row mt-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">Fecha de Activación <span class="text-danger">*</span></label>
+                                                    <input type="date" 
+                                                           class="form-control" 
+                                                           @bind="fechaActivacion" 
+                                                           @bind:event="oninput"
+                                                           disabled="@(!PuedeEditarEstadoYObservaciones())" />
+                                                    @if (mostrarErrorFechaActivo)
+                                                    {
+                                                        <div class="text-danger small mt-1">La fecha de activación es obligatoria</div>
+                                                    }
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">Observaciones (Opcional)</label>
+                                                    <textarea class="form-control" 
+                                                              rows="2" 
+                                                              @bind="observacionesActivacion" 
+                                                              placeholder="Añade observaciones sobre la activación..."
+                                                              disabled="@(!PuedeEditarEstadoYObservaciones())"></textarea>
+                                                </div>
                                             </div>
                                         }
+                                    </div>
+                                </div>
 
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Estado Servicio</label>
-                                            <InputSelect @bind-Value="contratoSeleccionado.EstadoServicio" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
-                                                <option value="">-- Seleccionar Estado --</option>
-                                                @foreach (var estado in estadosDisponibles)
-                                                {
-                                                    <option value="@estado">@estado</option>
-                                                }
-                                                <option value="No quiere">No quiere</option>
-                                            </InputSelect>
+                                <hr class="my-3" />
+
+                                <!-- SEGUNDA PARTE: DATOS DE SUMINISTRO -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #d1ecf1; color: #0c5460;">
+                                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>2. Datos de Suministro</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <!-- Columna LUZ -->
+                                            <div class="col-md-6">
+                                                <div class="card border-primary">
+                                                    <div class="card-header py-2" style="background-color: #cce5ff; color: #004085;">
+                                                        <h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Luz</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">CUPS Luz</label>
+                                                            <InputText @bind-Value="contratoSeleccionado.EnCups" class="form-control" placeholder="ES..." disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Peaje Luz</label>
+                                                            <select @bind="contratoSeleccionado.PeajeLuz" @bind:after="OnPeajeChanged" class="form-select" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")">
+                                                                <option value="">-- Seleccionar --</option>
+                                                                <option value="2.0">2.0</option>
+                                                                <option value="3.0">3.0</option>
+                                                                <option value="6.1">6.1</option>
+                                                                <option value="6.2">6.2</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Potencia Contratada (kW)</label>
+                                                            <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratada" class="form-control" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label class="form-label fw-bold">Consumo Anual Luz (kWh)</label>
+                                                            <InputNumber @bind-Value="contratoSeleccionado.ConsumoAnual" class="form-control" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Columna GAS -->
+                                            <div class="col-md-6">
+                                                <div class="card border-danger">
+                                                    <div class="card-header py-2" style="background-color: #f8d7da; color: #721c24;">
+                                                        <h6 class="mb-0"><i class="bi bi-fire me-2"></i>Gas</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">CUPS Gas</label>
+                                                            <InputText @bind-Value="contratoSeleccionado.EnCupsGas" class="form-control" placeholder="ES..." disabled="@(!PuedeEditarCampo() || tipoContratacion == "Luz")" />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Peaje Gas</label>
+                                                            <select @bind="contratoSeleccionado.PeajeGas" @bind:after="OnPeajeChanged" class="form-select" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Luz")">
+                                                                <option value="">-- Seleccionar --</option>
+                                                                <option value="RL1">RL1</option>
+                                                                <option value="RL2">RL2</option>
+                                                                <option value="RL3">RL3</option>
+                                                                <option value="RL4">RL4</option>
+                                                                <option value="RL5">RL5</option>
+                                                                <option value="RL6">RL6</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label class="form-label fw-bold">Consumo Anual Gas (kWh)</label>
+                                                            <InputNumber @bind-Value="contratoSeleccionado.ConsumoAnualGas" class="form-control" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Luz")" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Tipo</label>
-                                            <InputText @bind-Value="contratoSeleccionado.Tipo" class="form-control" readonly />
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Comercializadora</label>
-                                            <select @bind="contratoSeleccionado.EnComercializadora" 
-                                                    @bind:after="OnComercializadoraChanged"
-                                                    class="form-select" 
-                                                    disabled="@(!PuedeEditarCampo())">
-                                                <option value="">Seleccionar comercializadora...</option>
-                                                @foreach (var comercializadora in comercializadoras)
-                                                {
-                                                    <option value="@comercializadora">@comercializadora</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Peaje Luz</label>
-                                            <select @bind="contratoSeleccionado.PeajeLuz" 
-                                                    @bind:after="OnPeajeChanged"
-                                                    class="form-select" 
-                                                    disabled="@(!PuedeEditarCampo())">
-                                                <option value="">-- Seleccionar --</option>
-                                                <option value="2.0">2.0</option>
-                                                <option value="3.0">3.0</option>
-                                                <option value="6.1">6.1</option>
-                                                <option value="6.2">6.2</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Peaje Gas</label>
-                                            <select @bind="contratoSeleccionado.PeajeGas" 
-                                                    @bind:after="OnPeajeChanged"
-                                                    class="form-select" 
-                                                    disabled="@(!PuedeEditarCampo())">
-                                                <option value="">-- Seleccionar --</option>
-                                                <option value="RL1">RL1</option>
-                                                <option value="RL2">RL2</option>
-                                                <option value="RL3">RL3</option>
-                                                <option value="RL4">RL4</option>
-                                                <option value="RL5">RL5</option>
-                                                <option value="RL6">RL6</option>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Tarifa</label>
-                                            <select @bind="contratoSeleccionado.EnTarifa" 
-                                                    class="form-select" 
-                                                    disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
-                                                <option value="">Seleccionar tarifa...</option>
-                                                @foreach (var tarifa in tarifasDisponibles)
-                                                {
-                                                    <option value="@tarifa.Nombre">@tarifa.Nombre</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Tipo de Operación</label>
-                                            <InputSelect @bind-Value="contratoSeleccionado.TipoOperacion" class="form-select" disabled="@(!PuedeEditarCampo())">
-                                                <option value="Cambio comercializadora">Cambio comercializadora</option>
-                                                <option value="Cambio de Comercializadora con Cambio de titularidad">Cambio de Comercializadora con Cambio de titularidad</option>
-                                                <option value="Alta nueva">Alta nueva</option>
-                                            </InputSelect>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Usuario Comercializadora</label>
-                                            <select @bind="contratoSeleccionado.UsuarioComercializadoraId" 
-                                                    class="form-select"
-                                                    disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
-                                                <option value="">Sin asignar</option>
-                                                @foreach (var usuario in usuariosComercializadoraFiltrados)
-                                                {
-                                                    <option value="@usuario.Id">@usuario.NombreUsuario</option>
-                                                }
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Comercial</label>
-                                            @if (AuthService.UsuarioActual?.Rol == "Administrador")
-                                            {
-                                                <select @bind="contratoSeleccionado.Comercial" class="form-select">
-                                                    <option value="">Seleccionar comercial...</option>
-                                                    @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
+
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Servicio Asociado (opcional)</label>
+                                                <select @bind="contratoSeleccionado.ServicioId" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                    <option value="">Sin servicio</option>
+                                                    @foreach (var servicio in serviciosDisponibles)
                                                     {
-                                                        <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                        <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio€</option>
                                                     }
                                                 </select>
-                                            }
-                                            else
-                                            {
-                                                <InputText @bind-Value="contratoSeleccionado.Comercial" class="form-control" readonly />
-                                            }
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Servicio (opcional)</label>
-                                            <select @bind="contratoSeleccionado.ServicioId" class="form-select" disabled="@(!PuedeEditarCampo())">
-                                                <option value="">Sin servicio</option>
-                                                @foreach (var servicio in serviciosDisponibles)
-                                                {
-                                                    <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio€</option>
-                                                }
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">CUPS Luz</label>
-                                            <InputText @bind-Value="contratoSeleccionado.EnCups" class="form-control" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">CUPS Gas</label>
-                                            <InputText @bind-Value="contratoSeleccionado.EnCupsGas" class="form-control" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Potencia Contratada (kW)</label>
-                                            <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratada" class="form-control" step="0.01" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Consumo Anual (kWh)</label>
-                                            <InputNumber @bind-Value="contratoSeleccionado.ConsumoAnual" class="form-control" step="0.01" disabled="@(!PuedeEditarCampo())" />
-                                        </div>
-                                        
-                                        @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
-                                        {
-                                            <div class="mb-3">
-                                                <label class="form-label fw-bold">Comisión (€)</label>
-                                                <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(!PuedeEditarCampo())" />
                                             </div>
-                                        }
-                                    </div>
-                                </div>
-
-                                @* Dirección de Suministro *@
-                                <hr class="my-4" />
-                                <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-geo-alt me-2"></i>Dirección de Suministro</h6>
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Tipo de Vía</label>
-                                        <select class="form-select" @bind="contratoSeleccionado.TipoViaInstalacion" disabled="@(!PuedeEditarCampo())">
-                                            <option value="">-- Seleccionar --</option>
-                                            <option value="CALLE">CALLE</option>
-                                            <option value="AVENIDA">AVENIDA</option>
-                                            <option value="CARRETERA">CARRETERA</option>
-                                            <option value="CAMINO">CAMINO</option>
-                                            <option value="PASEO">PASEO</option>
-                                            <option value="PLAZA">PLAZA</option>
-                                            <option value="GLORIETA">GLORIETA</option>
-                                            <option value="EDIFICIO">EDIFICIO</option>
-                                            <option value="LUGAR">LUGAR</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-8">
-                                        <label class="form-label fw-bold">Dirección</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.DireccionInstalacionAlarma" placeholder="Nombre de la calle" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Número</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.NumeroInstalacion" placeholder="Nº" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Escalera <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.EscaleraInstalacion" placeholder="Esc." disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PisoInstalacion" placeholder="Piso" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.PuertaInstalacion" placeholder="Puerta" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="form-label fw-bold">Código Postal</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" placeholder="CP" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Localidad</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Provincia</label>
-                                        <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditarCampo())" />
-                                    </div>
-                                </div>
-
-                                @* Sección de Contrato PDF *@
-                                <hr class="my-4" />
-                                <h6 class="border-bottom pb-2 mb-3">
-                                    <i class="bi bi-file-pdf me-2"></i>Contrato PDF
-                                </h6>
-                                <div class="row mb-3">
-                                    <div class="col-12">
-                                        @if (!string.IsNullOrEmpty(contratoSeleccionado.PdfContratoUrl))
-                                        {
-                                            <div class="alert alert-success d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <i class="bi bi-file-pdf-fill me-2"></i>
-                                                    <span>Contrato PDF cargado</span>
-                                                </div>
-                                                <div>
-                                                    <a href="@contratoSeleccionado.PdfContratoUrl" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Ver PDF">
-                                                        <i class="bi bi-eye"></i> Ver
-                                                    </a>
-                                                    @if (PuedeEditarCampo())
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Estado Servicio</label>
+                                                <InputSelect @bind-Value="contratoSeleccionado.EstadoServicio" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
+                                                    <option value="">-- Seleccionar Estado --</option>
+                                                    @foreach (var estado in estadosDisponibles)
                                                     {
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="EliminarPdfContrato" title="Eliminar PDF">
-                                                            <i class="bi bi-trash"></i> Eliminar
-                                                        </button>
+                                                        <option value="@estado">@estado</option>
                                                     }
-                                                </div>
+                                                    <option value="No quiere">No quiere</option>
+                                                </InputSelect>
                                             </div>
-                                        }
-                                        else
-                                        {
-                                            <p class="text-muted fst-italic">No hay contrato PDF cargado</p>
-                                        }
-
-                                        @if (PuedeEditarCampo())
-                                        {
-                                            <label class="form-label fw-bold">Cargar Contrato PDF</label>
-                                            <InputFile OnChange="CargarPdfContrato" class="form-control" accept=".pdf" id="inputPdfContrato" />
-                                            <small class="text-muted">Formato permitido: PDF (máx. 10MB)</small>
-                                        }
+                                            <div class="col-md-4">
+                                                @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
+                                                {
+                                                    <label class="form-label fw-bold">Comisión (€)</label>
+                                                    <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(!PuedeEditarCampo())" />
+                                                }
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                @* Sección de Archivos del Cliente (Solo lectura) *@
-                                @if (contratoSeleccionado.IdCliente.HasValue && contratoSeleccionado.IdCliente.Value > 0 && ficherosCliente.Any())
-                                {
-                                    <hr class="my-4" />
-                                    <h6 class="mb-3">
-                                        <i class="bi bi-paperclip me-2"></i>Archivos del Cliente
-                                    </h6>
-                                    <div class="row g-2">
+                                <hr class="my-3" />
+
+                                <!-- TERCERA PARTE: COMERCIALIZADORA Y TARIFA -->
+                                <div class="card shadow-sm mb-3">
+            <div class="card-header" style="background-color: #d4edda; color: #155724;">
+                                                <h6 class="mb-0"><i class="bi bi-building me-2"></i>3. Comercializadora y Tarifa</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Comercializadora</label>
+                                                        <select @bind="contratoSeleccionado.EnComercializadora" 
+                                                                @bind:after="OnComercializadoraChanged"
+                                                                class="form-select" 
+                                                                disabled="@(!PuedeEditarCampo())">
+                                                            <option value="">Seleccionar comercializadora...</option>
+                                                            @foreach (var comercializadora in comercializadoras)
+                                                            {
+                                                                <option value="@comercializadora">@comercializadora</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Tarifa</label>
+                                                        <select @bind="contratoSeleccionado.EnTarifa" 
+                                                                class="form-select" 
+                                                                disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
+                                                            <option value="">Seleccionar tarifa...</option>
+                                                            @foreach (var tarifa in tarifasDisponibles)
+                                                            {
+                                                                <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="row mb-0">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Usuario Comercializadora</label>
+                                                        <select @bind="contratoSeleccionado.UsuarioComercializadoraId" 
+                                                                class="form-select"
+                                                                disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
+                                                            <option value="">Sin asignar</option>
+                                                            @foreach (var usuario in usuariosComercializadoraFiltrados)
+                                                            {
+                                                                <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Comercial asociado</label>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="flex-grow-1">
+                                                                <select @bind="contratoSeleccionado.Comercial" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                                    <option value="">Seleccionar comercial...</option>
+                                                                    @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
+                                                                    {
+                                                                        <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                                    }
+                                                                </select>
+                                                            </div>
+                                                            @if (!string.IsNullOrEmpty(contratoSeleccionado.Comercial))
+                                                            {
+                                                    var comercial = ObtenerUsuarioComercial();
+                                                    @if (comercial != null)
+                                                    {
+                                                        <div class="d-flex gap-2">
+                                                            @if (!string.IsNullOrEmpty(comercial.Email))
+                                                            {
+                                                                <button type="button"
+                                                                   class="btn btn-sm btn-outline-primary" 
+                                                                   title="Ver Email"
+                                                                   @onclick="() => MostrarEmail(comercial.Email)"
+                                                                   @onclick:stopPropagation="true">
+                                                                    <i class="bi bi-envelope"></i>
+                                                                </button>
+                                                            }
+                                                            @if (!string.IsNullOrEmpty(comercial.Telefono))
+                                                            {
+                                                                <button type="button"
+                                                                   class="btn btn-sm btn-outline-success" 
+                                                                   title="Ver Teléfono (WhatsApp)"
+                                                                   @onclick="() => MostrarTelefono(comercial.Telefono, true)"
+                                                                   @onclick:stopPropagation="true">
+                                                                    <i class="bi bi-whatsapp"></i>
+                                                                </button>
+                                                                <button type="button"
+                                                                   class="btn btn-sm btn-outline-secondary" 
+                                                                   title="Ver Teléfono"
+                                                                   @onclick="() => MostrarTelefono(comercial.Telefono, false)"
+                                                                   @onclick:stopPropagation="true">
+                                                                    <i class="bi bi-telephone"></i>
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                        </div>
+
+                                <hr class="my-3" />
+
+                                <!-- CUARTA PARTE: DIRECCIÓN DE SUMINISTRO -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #ffeeba; color: #856404;">
+                                        <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>4. Dirección de Suministro</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input type="checkbox" class="form-check-input" id="chkUsarDireccionClienteEdicion" 
+                                                           @bind="usarDireccionClienteEdicion" 
+                                                           @bind:after="OnUsarDireccionClienteEdicionChanged"
+                                                           disabled="@(!PuedeEditarCampo())" />
+                                                    <label class="form-check-label" for="chkUsarDireccionClienteEdicion">
+                                                        <i class="bi bi-house-check me-1"></i>Usar la misma dirección del cliente
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Tipo de Vía</label>
+                                                <select class="form-select" @bind="contratoSeleccionado.TipoViaInstalacion" disabled="@(!PuedeEditarCampo())">
+                                                    <option value="">-- Seleccionar --</option>
+                                                    <option value="CALLE">CALLE</option>
+                                                    <option value="AVENIDA">AVENIDA</option>
+                                                    <option value="CARRETERA">CARRETERA</option>
+                                                    <option value="CAMINO">CAMINO</option>
+                                                    <option value="PASEO">PASEO</option>
+                                                    <option value="PLAZA">PLAZA</option>
+                                                    <option value="GLORIETA">GLORIETA</option>
+                                                    <option value="EDIFICIO">EDIFICIO</option>
+                                                    <option value="LUGAR">LUGAR</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold">Dirección</label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.DireccionInstalacionAlarma" placeholder="Nombre de la calle" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Número</label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.NumeroInstalacion" placeholder="Nº" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Escalera <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.EscaleraInstalacion" placeholder="Esc." disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.PisoInstalacion" placeholder="Piso" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.PuertaInstalacion" placeholder="Puerta" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Código Postal</label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" placeholder="CP" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                        </div>
+                                        <div class="row mb-0">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.AclaradorInstalacion" placeholder="Información adicional de la dirección" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Localidad</label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.LocalidadInstalacion" placeholder="Localidad" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Provincia</label>
+                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.ProvinciaInstalacion" placeholder="Provincia" disabled="@(!PuedeEditarCampo())" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-3" />
+
+                                <!-- QUINTA PARTE: DOCUMENTACIÓN -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #e2e3e5; color: #383d41;">
+                                        <h6 class="mb-0"><i class="bi bi-folder2 me-2"></i>5. Documentación</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        @* Sección de Archivos del Cliente (Solo lectura) *@
+                                        @if (contratoSeleccionado.IdCliente.HasValue && contratoSeleccionado.IdCliente.Value > 0)
+                                        {
+                                            <h6 class="mb-3">
+                                                <i class="bi bi-paperclip me-2"></i>Archivos del Cliente
+                                            </h6>
+                                            <div class="row g-2">
                                         @foreach (var tipo in new[] { "DNIParticular", "DNIPyme", "CIFPyme", "EscriturasPyme" })
                                         {
                                             var ficherosDelTipo = ficherosCliente.Where(f => f.TipoFichero == tipo).ToList();
@@ -1010,14 +1116,56 @@ else
                                                 </div>
                                             }
                                         }
-                                    </div>
-                                }
+                                            </div>
 
-                                <!-- Facturas del Contrato -->
-                                <hr />
-                                <h6 class="mb-3"><i class="bi bi-receipt me-2"></i>Facturas del Contrato</h6>
-                                <div class="row mb-3">
-                                    <div class="col-12">
+                                            <hr class="my-4" />
+                                        }
+
+                                        @* Sección de Contrato PDF *@
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-file-pdf me-2"></i>Contrato PDF
+                                        </h6>
+                                        <div class="row mb-3">
+                                            <div class="col-12">
+                                        @if (!string.IsNullOrEmpty(contratoSeleccionado.PdfContratoUrl))
+                                        {
+                                            <div class="alert alert-success d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <i class="bi bi-file-pdf-fill me-2"></i>
+                                                    <span>Contrato PDF cargado</span>
+                                                </div>
+                                                <div>
+                                                    <a href="@contratoSeleccionado.PdfContratoUrl" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Ver PDF">
+                                                        <i class="bi bi-eye"></i> Ver
+                                                    </a>
+                                                    @if (PuedeEditarCampo())
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="EliminarPdfContrato" title="Eliminar PDF">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted fst-italic">No hay contrato PDF cargado</p>
+                                        }
+
+                                        @if (PuedeEditarCampo())
+                                        {
+                                                <label class="form-label fw-bold">Cargar Contrato PDF</label>
+                                                <InputFile OnChange="CargarPdfContrato" class="form-control" accept=".pdf" id="inputPdfContrato" />
+                                                <small class="text-muted">Formato permitido: PDF (máx. 10MB)</small>
+                                            }
+                                            </div>
+                                        </div>
+
+                                        <!-- Facturas del Contrato -->
+                                        <hr class="my-4" />
+                                        <h6 class="mb-3"><i class="bi bi-receipt me-2"></i>Facturas del Contrato</h6>
+                                        <div class="row mb-3">
+                                            <div class="col-12">
                                         @if (contratoSeleccionado.Id > 0)
                                         {
                                             @* Facturas ya guardadas en BD *@
@@ -1102,15 +1250,15 @@ else
                                 <!-- Histórico de Observaciones -->
                                 <h6 class="mb-3">
                                     <i class="bi bi-clock-history me-2"></i>Histórico de Observaciones
-                                    @if (PuedeEditar())
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="MostrarModalNuevaObservacion">
-                                            <i class="bi bi-plus-circle me-1"></i>Agregar Observación
-                                        </button>
-                                    }
-                                </h6>
-                                <div class="row mb-3">
-                                    <div class="col-12">
+                                            @if (PuedeEditar())
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="MostrarModalNuevaObservacion">
+                                                    <i class="bi bi-plus-circle me-1"></i>Agregar Observación
+                                                </button>
+                                            }
+                                        </h6>
+                                        <div class="row mb-3">
+                                            <div class="col-12">
                                         @if (observacionesHistoricas.Any())
                                         {
                                             <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
@@ -1149,9 +1297,11 @@ else
                                             </div>
                                         }
                                         else
-                                        {
-                                            <p class="text-muted fst-italic">No hay observaciones registradas</p>
-                                        }
+                                            {
+                                                <p class="text-muted fst-italic">No hay observaciones registradas</p>
+                                            }
+                                        </div>
+                                    </div>
                                     </div>
                                 </div>
                             </div>
@@ -1337,6 +1487,45 @@ else
             </div>
         }
 
+        <!-- Modal de información de contacto -->
+        @if (mostrarModalContacto)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-@iconoContacto me-2"></i>@tituloContacto
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarModalContacto = false"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-light mb-3">
+                                <label class="form-label text-muted mb-2 small">@subtituloContacto</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control form-control-lg" value="@datosContacto" readonly id="datosContactoInput" />
+                                    <button class="btn btn-primary" type="button" @onclick="CopiarDatosContacto">
+                                        <i class="bi bi-clipboard"></i> Copiar
+                                    </button>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(mensajeCopiado))
+                            {
+                                <div class="alert alert-success mb-0">
+                                    <i class="bi bi-check-circle me-2"></i>@mensajeCopiado
+                                </div>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="() => mostrarModalContacto = false">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         <!-- Wizard para crear nuevo contrato -->
         <WizardCrearContratoEnergia @ref="wizardNuevoContrato" 
                                     OnContratoCreado="OnContratoCreado" 
@@ -1365,6 +1554,7 @@ else
     private bool mostrarModalEliminar = false;
     private bool mostrarModalObservaciones = false;
     private bool mostrarModalNuevaObservacion = false;
+    private bool mostrarModalContacto = false;
     private bool guardando = false;
     private bool eliminando = false;
     private bool guardandoObservacion = false;
@@ -1375,6 +1565,13 @@ else
     private List<ObservacionContrato> observacionesHistoricas = new();
     private List<ObservacionContrato> observacionesHistoricasModal = new();
     private Dictionary<int, int> conteoObservacionesPorContrato = new();
+
+    // Variables para el modal de contacto
+    private string datosContacto = string.Empty;
+    private string tituloContacto = string.Empty;
+    private string subtituloContacto = string.Empty;
+    private string iconoContacto = string.Empty;
+    private string mensajeCopiado = string.Empty;
 
     // Contratos con ficheros adjuntos
     private HashSet<int> contratosConFicheros = new();
@@ -1411,12 +1608,34 @@ else
     private List<Servicio> serviciosDisponibles = new();
     private List<Cliente> todosLosClientes = new();
     private Cliente? clienteSeleccionadoInfo;
+    private string busquedaCliente = string.Empty;
+    private bool mostrarDropdownClientes = false;
+    
+    private List<Cliente> ClientesFiltrados
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(busquedaCliente))
+                return todosLosClientes;
+            
+            var busqueda = busquedaCliente.ToLower();
+            return todosLosClientes.Where(c => 
+                c.Nombre.ToLower().Contains(busqueda) ||
+                (!string.IsNullOrEmpty(c.DniCif) && c.DniCif.ToLower().Contains(busqueda)) ||
+                (!string.IsNullOrEmpty(c.Telefono) && c.Telefono.Contains(busqueda))
+            ).ToList();
+        }
+    }
     
     // Selección múltiple
     private HashSet<int> contratosSeleccionados = new();
     private bool mostrarModalCambioEstadoMasivo = false;
     private string nuevoEstadoMasivo = string.Empty;
+    
+    // Checkbox para usar dirección del cliente en edición
+    private bool usarDireccionClienteEdicion = false;
     private DateTime? fechaActivacionMasivo = null;
+    private string tipoContratacion = "Luz y Gas";
     
     // Activación de contratos
     private bool mostrarCampoFechaActivo = false;
@@ -1600,18 +1819,23 @@ else
                     var cliente = await ClienteService.ObtenerPorIdAsync(contratoSeleccionado.IdCliente.Value);
                     if (cliente != null)
                     {
-                        // Si es Particular -> Residencial, si es Pyme -> Pyme
+                        // Si es Particular -> Residencial, si es Pyme o Autónomo -> Pyme
                         string tipoTarifa = cliente.TipoCliente == "Particular" ? "Residencial" : "Pyme";
-                        tarifasBase = todasLasTarifasComercializadora.Where(t => t.TipoCliente == tipoTarifa).ToList();
+                        // Filtrar solo tarifas activas del tipo de cliente correspondiente
+                        tarifasBase = todasLasTarifasComercializadora
+                            .Where(t => t.TipoCliente == tipoTarifa && t.Activa)
+                            .ToList();
                     }
                     else
                     {
-                        tarifasBase = todasLasTarifasComercializadora;
+                        // Solo tarifas activas
+                        tarifasBase = todasLasTarifasComercializadora.Where(t => t.Activa).ToList();
                     }
                 }
                 else
                 {
-                    tarifasBase = todasLasTarifasComercializadora;
+                    // Solo tarifas activas
+                    tarifasBase = todasLasTarifasComercializadora.Where(t => t.Activa).ToList();
                 }
                 
                 // Aplicar filtrado adicional por peajes si están seleccionados
@@ -1762,6 +1986,20 @@ else
         }
     }
 
+    private async Task ActualizarListado()
+    {
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+        await CargarContratos();
+        mensajeExito = "Listado actualizado correctamente";
+        StateHasChanged();
+        
+        // Limpiar mensaje después de 3 segundos
+        await Task.Delay(3000);
+        mensajeExito = string.Empty;
+        StateHasChanged();
+    }
+
     private void AplicarFiltros()
     {
         var listaTemp = contratos.ToList();
@@ -1856,6 +2094,16 @@ else
                     c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
                 ).ToList(),
                 
+                "CUPS_LUZ" => listaTemp.Where(c => 
+                    c.EnCups != null && 
+                    c.EnCups.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
+                "CUPS_GAS" => listaTemp.Where(c => 
+                    c.EnCupsGas != null && 
+                    c.EnCupsGas.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)
+                ).ToList(),
+                
                 // Búsqueda en todos los campos
                 _ => listaTemp.Where(c =>
                     c.Id.ToString().Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ||
@@ -1864,7 +2112,9 @@ else
                     (c.Comercial != null && c.Comercial.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
                     (c.EnTarifa != null && c.EnTarifa.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
                     (c.NombreCliente != null && c.NombreCliente.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
-                    (c.Dni != null && c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase))
+                    (c.Dni != null && c.Dni.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.EnCups != null && c.EnCups.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase)) ||
+                    (c.EnCupsGas != null && c.EnCupsGas.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase))
                 ).ToList()
             };
         }
@@ -2215,6 +2465,30 @@ else
         // Guardar el estado anterior
         estadoAnterior = contrato.Estado;
         
+        // Determinar tipo de contratación basándose en los CUPS
+        bool tieneLuz = !string.IsNullOrEmpty(contrato.EnCups);
+        bool tieneGas = !string.IsNullOrEmpty(contrato.EnCupsGas);
+        
+        if (tieneLuz && tieneGas)
+        {
+            tipoContratacion = "Luz y Gas";
+        }
+        else if (tieneLuz)
+        {
+            tipoContratacion = "Luz";
+        }
+        else if (tieneGas)
+        {
+            tipoContratacion = "Gas";
+        }
+        else
+        {
+            tipoContratacion = "Luz y Gas"; // Por defecto
+        }
+        
+        // Resetear checkbox de dirección inicialmente
+        usarDireccionClienteEdicion = false;
+        
         // Inicializar fecha de activación si el contrato ya está activo
         if (contrato.Estado == "Activo" && contrato.FechaActivo.HasValue)
         {
@@ -2261,6 +2535,7 @@ else
             TipoOperacion = contrato.TipoOperacion,
             PotenciaContratada = contrato.PotenciaContratada,
             ConsumoAnual = contrato.ConsumoAnual,
+            ConsumoAnualGas = contrato.ConsumoAnualGas,
             PeajeLuz = contrato.PeajeLuz,
             PeajeGas = contrato.PeajeGas,
             TipoViaInstalacion = contrato.TipoViaInstalacion,
@@ -2294,6 +2569,24 @@ else
         // Cargar información del cliente
         await CargarInfoCliente();
         
+        // Verificar si la dirección del contrato coincide con la del cliente
+        if (clienteSeleccionadoInfo != null && contratoSeleccionado != null)
+        {
+            bool direccionCoincide = 
+                contratoSeleccionado.TipoViaInstalacion == clienteSeleccionadoInfo.TipoVia &&
+                contratoSeleccionado.DireccionInstalacionAlarma == clienteSeleccionadoInfo.Direccion &&
+                contratoSeleccionado.NumeroInstalacion == clienteSeleccionadoInfo.Numero &&
+                contratoSeleccionado.EscaleraInstalacion == clienteSeleccionadoInfo.Escalera &&
+                contratoSeleccionado.PisoInstalacion == clienteSeleccionadoInfo.Piso &&
+                contratoSeleccionado.PuertaInstalacion == clienteSeleccionadoInfo.Puerta &&
+                contratoSeleccionado.CodigoPostalInstalacion == clienteSeleccionadoInfo.CodigoPostal &&
+                contratoSeleccionado.ProvinciaInstalacion == clienteSeleccionadoInfo.Provincia &&
+                contratoSeleccionado.LocalidadInstalacion == clienteSeleccionadoInfo.Poblacion &&
+                contratoSeleccionado.AclaradorInstalacion == clienteSeleccionadoInfo.Aclarador;
+                
+            usarDireccionClienteEdicion = direccionCoincide;
+        }
+        
         // Cargar archivos del cliente
         if (contratoSeleccionado.IdCliente.HasValue && contratoSeleccionado.IdCliente.Value > 0)
         {
@@ -2317,16 +2610,22 @@ else
             try
             {
                 clienteSeleccionadoInfo = await ClienteService.ObtenerPorIdAsync(contratoSeleccionado.IdCliente.Value);
+                if (clienteSeleccionadoInfo != null)
+                {
+                    busquedaCliente = clienteSeleccionadoInfo.Nombre;
+                }
             }
             catch (Exception ex)
             {
                 mensajeError = $"Error al cargar información del cliente: {ex.Message}";
                 clienteSeleccionadoInfo = null;
+                busquedaCliente = string.Empty;
             }
         }
         else
         {
             clienteSeleccionadoInfo = null;
+            busquedaCliente = string.Empty;
         }
     }
 
@@ -2354,6 +2653,21 @@ else
         StateHasChanged();
     }
 
+    private async Task SeleccionarCliente(Cliente cliente)
+    {
+        contratoSeleccionado.IdCliente = cliente.Id;
+        busquedaCliente = cliente.Nombre;
+        mostrarDropdownClientes = false;
+        await OnClienteChanged();
+    }
+
+    private async Task OcultarDropdownConRetraso()
+    {
+        await Task.Delay(200);
+        mostrarDropdownClientes = false;
+        StateHasChanged();
+    }
+
     private async Task CargarServiciosSegunCliente()
     {
         if (contratoSeleccionado?.IdCliente == null)
@@ -2369,7 +2683,7 @@ else
             
             if (cliente != null && !string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))
             {
-                // Si es Particular -> Residencial, si es Pyme -> Pyme
+                // Si es Particular -> Residencial, si es Pyme o Autónomo -> Pyme
                 string tipoServicio = cliente.TipoCliente == "Particular" ? "Residencial" : "Pyme";
                 
                 // Filtrar por tipo de servicio Y comercializadora (usando campo Empresa)
@@ -2627,6 +2941,58 @@ else
             return false;
         }
         return PuedeEditar();
+    }
+
+    private Usuario? ObtenerUsuarioComercial()
+    {
+        if (contratoSeleccionado == null || string.IsNullOrEmpty(contratoSeleccionado.Comercial))
+        {
+            return null;
+        }
+        
+        return todosLosUsuarios.FirstOrDefault(u => 
+            u.NombreUsuario.Equals(contratoSeleccionado.Comercial, StringComparison.OrdinalIgnoreCase)
+        );
+    }
+
+    private async Task MostrarEmail(string email)
+    {
+        datosContacto = email;
+        tituloContacto = "Email del Comercial";
+        subtituloContacto = "Dirección de correo electrónico";
+        iconoContacto = "envelope";
+        mensajeCopiado = string.Empty;
+        mostrarModalContacto = true;
+    }
+
+    private async Task MostrarTelefono(string telefono, bool esWhatsApp)
+    {
+        datosContacto = telefono;
+        tituloContacto = esWhatsApp ? "WhatsApp del Comercial" : "Teléfono del Comercial";
+        subtituloContacto = esWhatsApp ? "Número de WhatsApp" : "Número de teléfono";
+        iconoContacto = esWhatsApp ? "whatsapp" : "telephone";
+        mensajeCopiado = string.Empty;
+        mostrarModalContacto = true;
+    }
+
+    private async Task CopiarDatosContacto()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", datosContacto);
+            mensajeCopiado = "¡Copiado al portapapeles!";
+            StateHasChanged();
+            
+            // Limpiar mensaje después de 2 segundos
+            await Task.Delay(2000);
+            mensajeCopiado = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            mensajeCopiado = "No se pudo copiar. Selecciona y copia manualmente.";
+            StateHasChanged();
+        }
     }
 
     private bool PuedeEditarEstadoYObservaciones()
@@ -3307,5 +3673,53 @@ else
             contratoSeleccionado.TitularIbanNombre = "";
             contratoSeleccionado.TitularIbanNumero = "";
         }
+    }
+    
+    private void OnUsarDireccionClienteEdicionChanged()
+    {
+        if (usarDireccionClienteEdicion)
+        {
+            CopiarDireccionClienteAContrato();
+        }
+        else
+        {
+            LimpiarDireccionSuministroContrato();
+        }
+    }
+    
+    private void CopiarDireccionClienteAContrato()
+    {
+        if (contratoSeleccionado == null || clienteSeleccionadoInfo == null) return;
+        
+        contratoSeleccionado.TipoViaInstalacion = clienteSeleccionadoInfo.TipoVia;
+        contratoSeleccionado.DireccionInstalacionAlarma = clienteSeleccionadoInfo.Direccion;
+        contratoSeleccionado.NumeroInstalacion = clienteSeleccionadoInfo.Numero;
+        contratoSeleccionado.EscaleraInstalacion = clienteSeleccionadoInfo.Escalera;
+        contratoSeleccionado.PisoInstalacion = clienteSeleccionadoInfo.Piso;
+        contratoSeleccionado.PuertaInstalacion = clienteSeleccionadoInfo.Puerta;
+        contratoSeleccionado.CodigoPostalInstalacion = clienteSeleccionadoInfo.CodigoPostal;
+        contratoSeleccionado.AclaradorInstalacion = clienteSeleccionadoInfo.Aclarador;
+        contratoSeleccionado.LocalidadInstalacion = clienteSeleccionadoInfo.Poblacion;
+        contratoSeleccionado.ProvinciaInstalacion = clienteSeleccionadoInfo.Provincia;
+        
+        StateHasChanged();
+    }
+    
+    private void LimpiarDireccionSuministroContrato()
+    {
+        if (contratoSeleccionado == null) return;
+        
+        contratoSeleccionado.TipoViaInstalacion = string.Empty;
+        contratoSeleccionado.DireccionInstalacionAlarma = string.Empty;
+        contratoSeleccionado.NumeroInstalacion = string.Empty;
+        contratoSeleccionado.EscaleraInstalacion = string.Empty;
+        contratoSeleccionado.PisoInstalacion = string.Empty;
+        contratoSeleccionado.PuertaInstalacion = string.Empty;
+        contratoSeleccionado.CodigoPostalInstalacion = string.Empty;
+        contratoSeleccionado.AclaradorInstalacion = string.Empty;
+        contratoSeleccionado.LocalidadInstalacion = string.Empty;
+        contratoSeleccionado.ProvinciaInstalacion = string.Empty;
+        
+        StateHasChanged();
     }
 }

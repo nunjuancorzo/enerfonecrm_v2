@@ -66,5 +66,9 @@ namespace EnerfoneCRM.Models
 
         [Column("fecha_carga")]
         public DateTime? FechaCarga { get; set; }
+
+        [Required]
+        [Column("activa")]
+        public bool Activa { get; set; } = true;
     }
 }

@@ -5,7 +5,7 @@ USE enerfonecrm;
 -- Añadir campos de datos bancarios y tipo de entidad
 ALTER TABLE usuarios 
 ADD COLUMN numero_cuenta VARCHAR(34) NULL COMMENT 'IBAN del usuario',
-ADD COLUMN tipo_entidad ENUM('Autónomo', 'PYME', 'N/A') DEFAULT 'N/A' COMMENT 'Tipo de entidad del usuario';
+ADD COLUMN tipo_entidad ENUM('Autonomo', 'PYME', 'N/A') DEFAULT 'N/A' COMMENT 'Tipo de entidad del usuario';
 
 -- Añadir campos para documentación adjunta
 ALTER TABLE usuarios

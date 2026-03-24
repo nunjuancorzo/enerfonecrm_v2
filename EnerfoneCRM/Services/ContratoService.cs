@@ -75,6 +75,7 @@ namespace EnerfoneCRM.Services
                     potencia_contratada_p1,
                     potencia_contratada_p2,
                     consumo_ultimos_12_meses,
+                    consumo_anual_gas,
                     COALESCE(peaje_luz, '') as peaje_luz,
                     COALESCE(peaje_gas, '') as peaje_gas,
                     COALESCE(tipo_linea_movil_principal, '') as tipo_linea_movil_principal,
@@ -402,6 +403,8 @@ namespace EnerfoneCRM.Services
             
             // Log temporal para depuración
             Console.WriteLine($"[DEBUG] Contrato ID {contrato.Id} cargado - IdContratoExterno: '{contrato.IdContratoExterno}' (es null: {contrato.IdContratoExterno == null})");
+            Console.WriteLine($"[DEBUG] ConsumoAnual (Luz): {contrato.ConsumoAnual}");
+            Console.WriteLine($"[DEBUG] ConsumoAnualGas: {contrato.ConsumoAnualGas}");
             
             // Normalizar todos los campos string NULL a cadena vacía
             contrato.IdContratoExterno ??= string.Empty;
@@ -504,6 +507,8 @@ namespace EnerfoneCRM.Services
                 Console.WriteLine($"LocalidadInstalacion: '{contrato.LocalidadInstalacion}'");
                 Console.WriteLine($"AclaradorInstalacion: '{contrato.AclaradorInstalacion}'");
                 Console.WriteLine($"FechaPermanenciaAnterior: {contrato.FechaPermanenciaAnterior}");
+                Console.WriteLine($"ConsumoAnual (Luz): {contrato.ConsumoAnual}");
+                Console.WriteLine($"ConsumoAnualGas: {contrato.ConsumoAnualGas}");
 
                 // Actualizar todas las propiedades
                 context.Entry(contratoExistente).CurrentValues.SetValues(contrato);
@@ -541,6 +546,8 @@ namespace EnerfoneCRM.Services
                 Console.WriteLine($"LocalidadInstalacion: '{contrato.LocalidadInstalacion}'");
                 Console.WriteLine($"AclaradorInstalacion: '{contrato.AclaradorInstalacion}'");
                 Console.WriteLine($"FechaPermanenciaAnterior: {contrato.FechaPermanenciaAnterior}");
+                Console.WriteLine($"ConsumoAnual (Luz): {contrato.ConsumoAnual}");
+                Console.WriteLine($"ConsumoAnualGas: {contrato.ConsumoAnualGas}");
                 
                 await context.Contratos.AddAsync(contrato);
                 await context.SaveChangesAsync();

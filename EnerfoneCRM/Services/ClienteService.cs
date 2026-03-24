@@ -97,7 +97,8 @@ public class ClienteService
         }
         catch (Exception ex)
         {
-            return (false, $"Error al crear el cliente: {ex.Message}");
+            var errorMsg = ex.InnerException?.Message ?? ex.Message;
+            return (false, $"Error al crear el cliente: {errorMsg}");
         }
     }
 
@@ -124,7 +125,8 @@ public class ClienteService
         }
         catch (Exception ex)
         {
-            return (false, $"Error al actualizar el cliente: {ex.Message}");
+            var errorMsg = ex.InnerException?.Message ?? ex.Message;
+            return (false, $"Error al actualizar el cliente: {errorMsg}");
         }
     }
 

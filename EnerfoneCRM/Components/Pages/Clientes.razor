@@ -1072,13 +1072,10 @@ else
                                                 @bind:after="OnOperadoraTelefoniaChanged"
                                                 class="form-select">
                                             <option value="">Seleccionar operadora...</option>
-                                            <option value="O2">O2</option>
-                                            <option value="Lowi">Lowi</option>
-                                            <option value="Symio">Symio</option>
-                                            <option value="Jazztel">Jazztel</option>
-                                            <option value="Masmovil">Masmovil</option>
-                                            <option value="Pepephone">Pepephone</option>
-                                            <option value="Vodafone">Vodafone</option>
+                                            @foreach (var operadora in operadorasActivasTelefonia)
+                                            {
+                                                <option value="@operadora.Nombre">@operadora.Nombre</option>
+                                            }
                                         </select>
                                     </div>
                                     <div class="col-md-6">
@@ -1998,6 +1995,7 @@ else
     private List<Usuario> usuariosComercializadoraFiltrados = new();
     private List<Servicio> serviciosDisponibles = new();
     private List<string> operadorasTelefonia = new();
+    private List<Operadora> operadorasActivasTelefonia = new();
     private List<TarifaTelefonia> tarifasTelefoniaDisponibles = new();
     private List<TarifaTelefonia> tarifasMovilSoloTelefonia = new();
     private List<TarifaTelefonia> tarifasFibraSegundaResidenciaDisponibles = new();
@@ -2061,6 +2059,7 @@ else
                 .ToList();
             
             operadorasTelefonia = await TarifaTelefoniaService.ObtenerEmpresasAsync();
+            operadorasActivasTelefonia = await OperadoraService.ObtenerActivasAsync();
         }
         catch (Exception ex)
         {
@@ -2069,6 +2068,7 @@ else
             comercializadorasEnergia ??= new List<string>();
             comercializadorasObjetos ??= new List<Models.Comercializadora>();
             operadorasTelefonia ??= new List<string>();
+            operadorasActivasTelefonia ??= new List<Operadora>();
         }
     }
 

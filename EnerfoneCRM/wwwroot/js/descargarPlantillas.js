@@ -74,16 +74,24 @@ window.descargarPlantillaTarifasTelefonia = function() {
             'TV1', 'TV2', 'PRECIO', 'COMISION', 'PERMANENCIA', 'FECHA CARGA'
         ],
         [
-            '', 'Movistar', 'Fibra+Móvil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 
-            'Netflix', '', '45,00', '50,00', '12 meses', '2026-02-25'
+            '', 'O2', 'FibraMovil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 
+            '', '', '45,00', '50,00', '12 meses', '2026-02-25'
         ],
         [
-            '', 'Orange', 'Solo Fibra', 'Fibra 1Gb', '1 Gb', '', '', 
+            '', 'Lowi', 'Fibra', 'Fibra 1Gb', '1 Gb', '', '', 
             '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-25'
         ],
         [
-            '', 'Vodafone', 'Móvil', 'Tarifa Móvil 50GB', '', '50 GB', '', 
+            '', 'Simyo', 'Movil', 'Tarifa Móvil 50GB', '', '50 GB', '', 
             '', '', '20,00', '25,00', '6 meses', '2026-02-25'
+        ],
+        [
+            '', 'Jazztel', 'FibraMovilTV', 'Fibra 1Gb + 100GB + Netflix', '1 Gb', '100 GB', '', 
+            'Netflix', '', '55,00', '60,00', '24 meses', '2026-02-25'
+        ],
+        [
+            '', 'Masmovil', 'FibraSegundaResidencia', 'Fibra 300Mb Segunda Residencia', '300 Mb', '', '', 
+            '', '', '25,00', '30,00', 'Sin permanencia', '2026-02-25'
         ]
     ];
     

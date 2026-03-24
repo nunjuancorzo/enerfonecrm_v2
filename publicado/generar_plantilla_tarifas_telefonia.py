@@ -49,11 +49,13 @@ def generar_plantilla():
         worksheet.write(0, col, header, header_format)
         worksheet.set_column(col, col, 18)
     
-    # Ejemplos de datos
+    # Ejemplos de datos - UN EJEMPLO DE CADA TIPO VÁLIDO
     ejemplos = [
-        ['', 'Movistar', 'Fibra+Móvil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', 'Netflix', '', '45,00', '50,00', '12 meses', '2026-02-24'],
-        ['', 'Orange', 'Solo Fibra', 'Fibra 1Gb', '1 Gb', '', '', '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-24'],
-        ['', 'Vodafone', 'Móvil', 'Tarifa Móvil 50GB', '', '50 GB', '', '', '', '20,00', '25,00', '6 meses', '2026-02-24']
+        ['', 'O2', 'FibraMovil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', '', '', '45,00', '50,00', '12 meses', '2026-02-24'],
+        ['', 'Lowi', 'Fibra', 'Fibra 1Gb', '1 Gb', '', '', '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-24'],
+        ['', 'Simyo', 'Movil', 'Tarifa Móvil 50GB', '', '50 GB', '', '', '', '20,00', '25,00', '6 meses', '2026-02-24'],
+        ['', 'Jazztel', 'FibraMovilTV', 'Fibra 1Gb + 100GB + Netflix', '1 Gb', '100 GB', '', 'Netflix', '', '55,00', '60,00', '24 meses', '2026-02-24'],
+        ['', 'Masmovil', 'FibraSegundaResidencia', 'Fibra 300Mb Segunda Residencia', '300 Mb', '', '', '', '', '25,00', '30,00', 'Sin permanencia', '2026-02-24']
     ]
     
     for row_idx, ejemplo in enumerate(ejemplos, start=1):
@@ -67,8 +69,13 @@ def generar_plantilla():
         ['INSTRUCCIONES PARA IMPORTAR TARIFAS DE TELEFONÍA'],
         [''],
         ['Campos obligatorios:'],
-        ['- OPERADORA: Nombre de la operadora (Movistar, Orange, Vodafone, etc.)'],
-        ['- TIPO: Tipo de tarifa (Fibra+Móvil, Solo Fibra, Móvil, etc.)'],
+        ['- OPERADORA: Nombre de la operadora (O2, Lowi, Simyo, Jazztel, Masmovil, Pepephone, etc.)'],
+        ['- TIPO: Tipo de tarifa (valores exactos permitidos):'],
+        ['    * FibraMovil (Fibra y Móvil)'],
+        ['    * Fibra (Solo Fibra)'],
+        ['    * Movil (Solo Móvil)'],
+        ['    * FibraMovilTV (Fibra, Móvil y TV)'],
+        ['    * FibraSegundaResidencia (Fibra Segunda Residencia)'],
         [''],
         ['Campo especial:'],
         ['- ID: Dejar vacío para tarifas nuevas. Incluir el ID para actualizar tarifas existentes.'],
@@ -85,11 +92,13 @@ def generar_plantilla():
         ['- PERMANENCIA: Permanencia del contrato'],
         ['- FECHA CARGA: Fecha de carga (formato: YYYY-MM-DD)'],
         [''],
-        ['Notas:'],
+        ['Notas importantes:'],
         ['- La primera fila con los encabezados NO se debe eliminar'],
         ['- Los campos OPERADORA y TIPO son obligatorios'],
+        ['- El campo TIPO debe ser exactamente uno de los valores listados arriba (con mayúsculas y minúsculas exactas)'],
         ['- Los precios pueden llevar comas o puntos como separadores decimales'],
         ['- Las filas completamente vacías se ignorarán'],
+        ['- Se proporcionan 5 ejemplos, uno de cada tipo válido de tarifa'],
     ]
     
     title_format = workbook.add_format({

@@ -236,7 +236,7 @@ else
             if (imagenBytes != null && !string.IsNullOrEmpty(nombreImagen) && !string.IsNullOrEmpty(tipoMimeImagen))
             {
                 resultado = await EmailService.EnviarEmailConAdjuntoAsync(
-                    "juanma.corzoca@gmail.com",
+                    "incidencias@revolapps.es",
                     asuntoAdmin,
                     cuerpoAdmin,
                     imagenBytes,
@@ -247,7 +247,7 @@ else
             else
             {
                 resultado = await EmailService.EnviarEmailSimpleAsync(
-                    "juanma.corzoca@gmail.com",
+                    "incidencias@revolapps.es",
                     asuntoAdmin,
                     cuerpoAdmin
                 );

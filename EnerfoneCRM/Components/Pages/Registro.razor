@@ -64,6 +64,12 @@
                                 </div>
                             </div>
 
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <InputText id="telefono" type="tel" class="form-control" @bind-Value="usuario.Telefono" placeholder="+34612345678" autocomplete="off" />
+                                <small class="form-text text-muted">Formato recomendado: +34612345678 (para WhatsApp)</small>
+                            </div>
+
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
@@ -115,7 +121,7 @@
                                 <label for="tipoEntidad" class="form-label">Tipo de Entidad <span class="text-danger">*</span></label>
                                 <select id="tipoEntidad" class="form-select" @onchange="OnTipoEntidadChanged" value="@usuario.TipoEntidad">
                                     <option value="">-- Selecciona --</option>
-                                    <option value="Autónomo">Autónomo</option>
+                                    <option value="Autonomo">Autónomo</option>
                                     <option value="PYME">PYME</option>
                                 </select>
                                 @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.TipoEntidad))
@@ -138,7 +144,7 @@
                                 <div class="mb-3">
                                     <label class="form-label">Documentación Requerida</label>
                                     
-                                    @if (usuario.TipoEntidad == "Autónomo")
+                                    @if (usuario.TipoEntidad == "Autonomo")
                                     {
                                         <div class="mb-2">
                                             <label for="archivoDni" class="form-label">DNI (ambas caras)</label>
