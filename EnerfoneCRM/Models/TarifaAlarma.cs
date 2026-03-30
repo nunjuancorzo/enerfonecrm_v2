@@ -44,6 +44,14 @@ namespace EnerfoneCRM.Models
         [StringLength(500)]
         public string? Descripcion { get; set; }
 
+        // Campos de penalización por baja anticipada (marzo 2026)
+        [Column("dias_penalizacion")]
+        public int? DiasPenalizacion { get; set; }
+
+        [Column("tipo_penalizacion")]
+        [StringLength(20)]
+        public string? TipoPenalizacion { get; set; } // "Total" o "Proporcional"
+
         [Column("activa")]
         public bool Activa { get; set; } = true;
     }

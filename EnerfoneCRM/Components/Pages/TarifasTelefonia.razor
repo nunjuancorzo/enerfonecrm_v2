@@ -411,6 +411,7 @@ else
                                             <option value="FibraMovil">Fibra y Móvil</option>
                                             <option value="Fibra">Fibra</option>
                                             <option value="Movil">Móvil</option>
+                                            <option value="MovilAdicional">Móvil Adicional</option>
                                             <option value="FibraMovilTV">Fibra, Móvil y TV</option>
                                             <option value="FibraSegundaResidencia">Fibra Segunda Residencia</option>
                                         </InputSelect>
@@ -464,6 +465,28 @@ else
                                             <InputNumber class="form-control" @bind-Value="tarifaActual.ComisionNew" step="0.01" />
                                             <span class="input-group-text">%</span>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-4" />
+                                <h6 class="text-danger mb-3"><i class="bi bi-exclamation-triangle me-2"></i>Penalización por Baja Anticipada</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Días de Penalización</label>
+                                        <div class="input-group">
+                                            <InputNumber class="form-control" @bind-Value="tarifaActual.DiasPenalizacion" />
+                                            <span class="input-group-text">días</span>
+                                        </div>
+                                        <small class="text-muted">Período mínimo antes de poder dar de baja sin penalización (ej: 365 para 1 año)</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Tipo de Penalización</label>
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.TipoPenalizacion">
+                                            <option value="">-- No aplica penalización --</option>
+                                            <option value="Total">Total - Decomisionar el total de la comisión</option>
+                                            <option value="Proporcional">Proporcional - Decomisionar proporcionalmente</option>
+                                        </InputSelect>
+                                        <small class="text-muted">Cómo se calcula la decomisión en caso de baja anticipada</small>
                                     </div>
                                 </div>
                             </div>

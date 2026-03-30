@@ -225,6 +225,17 @@ else
                             <strong>Última Lectura:</strong>
                             <p class="mb-0 text-muted">@datosCliente.FechaUltimaLectura?.ToString("dd/MM/yyyy")</p>
                         </div>
+                        <div class="col-md-6 mb-2">
+                            <strong><i class="bi bi-shield-check text-success me-2"></i>Bono Social:</strong>
+                            @if (datosCliente.AplicacionBonoSocial == "0" || string.IsNullOrEmpty(datosCliente.AplicacionBonoSocial))
+                            {
+                                <p class="mb-0 text-muted"><span class="badge bg-secondary">No aplicado</span></p>
+                            }
+                            else
+                            {
+                                <p class="mb-0 text-muted"><span class="badge bg-success">Sí aplicado</span></p>
+                            }
+                        </div>
                     </div>
                 </div>
             </div>

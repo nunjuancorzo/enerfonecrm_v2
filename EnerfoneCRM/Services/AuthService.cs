@@ -39,6 +39,17 @@ public class AuthService
     public bool EsGestor => _usuarioActual?.Rol == "Gestor";
     public bool EsComercializadora => _usuarioActual?.Rol == "Comercializadora";
     public bool EsUsuario => _usuarioActual?.Rol == "Colaborador";
+    public bool EsBackoffice => _usuarioActual?.Rol == "Backoffice";
+
+    // Métodos de verificación de permisos (solo aplican a Backoffice)
+    public bool PuedeVerClientes => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerClientes;
+    public bool PuedeVerContratos => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerContratos;
+    public bool PuedeVerTarifas => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerTarifas;
+    public bool PuedeVerLiquidaciones => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerLiquidaciones;
+    public bool PuedeVerSips => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerSips;
+    public bool PuedeVerIncidencias => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerIncidencias;
+    public bool PuedeVerOfertas => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerOfertas;
+    public bool PuedeVerUsuarios => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerUsuarios;
 
     public event Action? OnAuthStateChanged;
 

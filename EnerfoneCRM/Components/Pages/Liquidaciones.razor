@@ -7,6 +7,7 @@
 @inject NavigationManager NavigationManager
 @inject DbContextProvider DbContextProvider
 @inject IncidenciaLiquidacionService IncidenciaLiquidacionService
+@inject ComisionService ComisionService
 @inject EmailService EmailService
 @inject PdfLiquidacionService PdfLiquidacionService
 @inject IJSRuntime JSRuntime
@@ -426,7 +427,7 @@
 @if (mostrarModalContratos)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 95%; max-height: 90vh;">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title">
@@ -447,9 +448,41 @@
                     }
                     else
                     {
-                        var contratosEnergia = contratosFacurables.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
-                        var contratosTelefonia = contratosFacurables.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
-                        var contratosAlarmas = contratosFacurables.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
+                        // Normalizar tipos para comparación robusta
+                        var contratosEnergia = contratosFacurables.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "energia";
+                        }).ToList();
+                        
+                        var contratosTelefonia = contratosFacurables.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "telefonia";
+                        }).ToList();
+                        
+                        var contratosAlarmas = contratosFacurables.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "alarma";
+                        }).ToList();
+                        
+                        Console.WriteLine($"[FILTRADO] Energía: {contratosEnergia.Count}, Telefonía: {contratosTelefonia.Count}, Alarmas: {contratosAlarmas.Count}");
 
                         @if (contratosEnergia.Any())
                     {
@@ -460,6 +493,7 @@
                             <table class="table table-sm table-hover table-striped">
                                 <thead style="background-color: #6c757d; color: white;">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Fecha Creación</th>
                                         <th>Estado</th>
                                         <th>Comercial</th>
@@ -470,14 +504,17 @@
                                         <th>CUPS Luz</th>
                                         <th>CUPS Gas</th>
                                         <th>Comisión</th>
+                                        <th>Decomisión</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var contrato in contratosEnergia)
                                     {
-                                        <tr>
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><small><strong>@contrato.Id</strong></small></td>
                                             <td><small>@(contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "")</small></td>
-                                            <td><span class="badge bg-success">@contrato.Estado</span></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-success")">@contrato.Estado</span></td>
                                             <td><small>@contrato.Comercial</small></td>
                                             <td><small>@contrato.EnComercializadora</small></td>
                                             <td><small>@contrato.EnTarifa</small></td>
@@ -486,6 +523,17 @@
                                             <td><small>@contrato.EnCups</small></td>
                                             <td><small>@contrato.EnCupsGas</small></td>
                                             <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -502,6 +550,7 @@
                             <table class="table table-sm table-hover table-striped">
                                 <thead style="background-color: #6c757d; color: white;">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Fecha Creación</th>
                                         <th>Estado</th>
                                         <th>Comercial</th>
@@ -513,14 +562,17 @@
                                         <th>Línea Móvil</th>
                                         <th>Nº Líneas</th>
                                         <th>Comisión</th>
+                                        <th>Decomisión</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var contrato in contratosTelefonia)
                                     {
-                                        <tr>
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><small><strong>@contrato.Id</strong></small></td>
                                             <td><small>@(contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "")</small></td>
-                                            <td><span class="badge bg-success">@contrato.Estado</span></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-success")">@contrato.Estado</span></td>
                                             <td><small>@contrato.Comercial</small></td>
                                             <td><small>@contrato.OperadoraTel</small></td>
                                             <td><small>@contrato.TarifaTel</small></td>
@@ -530,6 +582,17 @@
                                             <td><small>@contrato.LineaMovilPrincipal</small></td>
                                             <td><small>@contrato.NumeroLineasTel</small></td>
                                             <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -546,6 +609,7 @@
                             <table class="table table-sm table-hover table-striped">
                                 <thead style="background-color: #6c757d; color: white;">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Fecha Creación</th>
                                         <th>Estado</th>
                                         <th>Comercial</th>
@@ -556,14 +620,17 @@
                                         <th>Kit</th>
                                         <th>Campaña</th>
                                         <th>Comisión</th>
+                                        <th>Decomisión</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var contrato in contratosAlarmas)
                                     {
-                                        <tr>
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><small><strong>@contrato.Id</strong></small></td>
                                             <td><small>@(contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "")</small></td>
-                                            <td><span class="badge bg-success">@contrato.Estado</span></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-success")">@contrato.Estado</span></td>
                                             <td><small>@contrato.Comercial</small></td>
                                             <td><small>@contrato.NombreCliente</small></td>
                                             <td><small>@contrato.Dni</small></td>
@@ -572,6 +639,17 @@
                                             <td><small>@contrato.KitAlarma</small></td>
                                             <td><small>@contrato.CampanaAlarma</small></td>
                                             <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -910,9 +988,41 @@
                     </div>
 
                     @{
-                        var contratosEnergia = contratosHistorico.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
-                        var contratosTelefonia = contratosHistorico.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
-                        var contratosAlarmas = contratosHistorico.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
+                        // Normalizar tipos para comparación robusta
+                        var contratosEnergia = contratosHistorico.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "energia";
+                        }).ToList();
+                        
+                        var contratosTelefonia = contratosHistorico.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "telefonia";
+                        }).ToList();
+                        
+                        var contratosAlarmas = contratosHistorico.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "alarma";
+                        }).ToList();
+                        
+                        Console.WriteLine($"[FILTRADO HISTÓRICO] Energía: {contratosEnergia.Count}, Telefonía: {contratosTelefonia.Count}, Alarmas: {contratosAlarmas.Count}");
                     }
 
                     @if (contratosEnergia.Any())
@@ -924,6 +1034,7 @@
                             <table class="table table-sm table-hover table-striped">
                                 <thead style="background-color: #6c757d; color: white;">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Fecha Creación</th>
                                         <th>Estado</th>
                                         <th>Comercializadora</th>
@@ -932,20 +1043,34 @@
                                         <th>Cliente</th>
                                         <th>CUPS Luz</th>
                                         <th>CUPS Gas</th>
+                                        <th>Decomisión</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var contrato in contratosEnergia)
                                     {
-                                        <tr>
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><strong>@contrato.Id</strong></td>
                                             <td>@contrato.FechaCreacion?.ToString("dd/MM/yyyy")</td>
-                                            <td><span class="badge bg-secondary">@contrato.Estado</span></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-secondary")">@contrato.Estado</span></td>
                                             <td>@contrato.EnComercializadora</td>
                                             <td>@contrato.EnTarifa</td>
                                             <td>@contrato.Dni</td>
                                             <td>@contrato.NombreCliente</td>
                                             <td><small>@contrato.EnCups</small></td>
                                             <td><small>@contrato.EnCupsGas</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -962,6 +1087,7 @@
                             <table class="table table-sm table-hover table-striped">
                                 <thead style="background-color: #6c757d; color: white;">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Fecha Creación</th>
                                         <th>Estado</th>
                                         <th>Operadora</th>
@@ -969,19 +1095,33 @@
                                         <th>DNI Cliente</th>
                                         <th>Cliente</th>
                                         <th>Teléfono</th>
+                                        <th>Decomisión</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var contrato in contratosTelefonia)
                                     {
-                                        <tr>
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><strong>@contrato.Id</strong></td>
                                             <td>@contrato.FechaCreacion?.ToString("dd/MM/yyyy")</td>
-                                            <td><span class="badge bg-secondary">@contrato.Estado</span></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-secondary")">@contrato.Estado</span></td>
                                             <td>@contrato.OperadoraTel</td>
                                             <td>@contrato.TarifaTel</td>
                                             <td>@contrato.Dni</td>
                                             <td>@contrato.NombreCliente</td>
                                             <td>@contrato.LineaMovilPrincipal</td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -998,6 +1138,7 @@
                             <table class="table table-sm table-hover table-striped">
                                 <thead style="background-color: #6c757d; color: white;">
                                     <tr>
+                                        <th>ID</th>
                                         <th>Fecha Creación</th>
                                         <th>Estado</th>
                                         <th>Empresa</th>
@@ -1005,19 +1146,33 @@
                                         <th>DNI Cliente</th>
                                         <th>Cliente</th>
                                         <th>Dirección</th>
+                                        <th>Decomisión</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var contrato in contratosAlarmas)
                                     {
-                                        <tr>
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><strong>@contrato.Id</strong></td>
                                             <td>@contrato.FechaCreacion?.ToString("dd/MM/yyyy")</td>
-                                            <td><span class="badge bg-secondary">@contrato.Estado</span></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-secondary")">@contrato.Estado</span></td>
                                             <td>@contrato.EmpresaAlarma</td>
                                             <td>@contrato.KitAlarma</td>
                                             <td>@contrato.Dni</td>
                                             <td>@contrato.NombreCliente</td>
                                             <td>@contrato.DireccionInstalacionAlarma</td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -1069,6 +1224,9 @@
     private List<HistoricoLiquidacion> liquidacionesEnIncidencia = new();
     private List<HistoricoLiquidacion> liquidacionesAceptadas = new();
     private List<HistoricoLiquidacion> liquidacionesLiquidadas = new();
+
+    // Variables para decomisiones
+    private List<Decomision> decomisionesVisibles = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -1158,14 +1316,14 @@
         }
     }
 
-    private void VerDetalleUsuario(int usuarioId)
+    private async Task VerDetalleUsuario(int usuarioId)
     {
         try
         {
-            using var context = DbContextProvider.CreateDbContext();
+            await using var context = DbContextProvider.CreateDbContext();
             
             // Obtener el usuario
-            usuarioSeleccionado = context.Usuarios.Find(usuarioId);
+            usuarioSeleccionado = await context.Usuarios.FindAsync(usuarioId);
             
             if (usuarioSeleccionado == null)
             {
@@ -1178,20 +1336,67 @@
             Console.WriteLine($"Usuario Nombre: {usuarioSeleccionado.NombreUsuario}");
             
             // Obtener los contratos facturables del usuario (energía, telefonía y alarmas)
-            contratosFacurables = context.Contratos
+            contratosFacurables = await context.Contratos
                 .Where(c => c.Comercial == usuarioSeleccionado.NombreUsuario 
                     && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
                 .OrderByDescending(c => c.FechaCreacion)
-                .ToList();
+                .ToListAsync();
             
             Console.WriteLine($"Contratos facturables encontrados: {contratosFacurables.Count}");
+
+            // Cargar decomisiones pendientes (no asignadas a ninguna liquidación) del usuario
+            // IMPORTANTE: No filtrar por idsContratos porque los contratos dados de baja
+            // ya no están en estado "Act/Facturable" pero sus decomisiones deben aparecer
+            decomisionesVisibles = await context.Decomisiones
+                .Where(d => d.UsuarioId == usuarioId && d.LiquidacionDecomisionId == null)
+                .ToListAsync();
+            
+            Console.WriteLine($"Decomisiones pendientes encontradas: {decomisionesVisibles.Count}");
+            foreach (var dec in decomisionesVisibles)
+            {
+                Console.WriteLine($"  Decomisión ID {dec.Id}: ContratoId={dec.ContratoId}, Importe={dec.ImporteDecomision}, LiquidacionId={dec.LiquidacionDecomisionId}");
+            }
+            
+            // Obtener los contratos que tienen decomisión para mostrarlos aunque estén dados de baja
+            var idsContratosConDecomision = decomisionesVisibles.Select(d => d.ContratoId).ToList();
+            if (idsContratosConDecomision.Any())
+            {
+                // Obtener IDs de contratos ya en la lista de facturables
+                var idsContratosFacturables = contratosFacurables.Select(c => c.Id).ToList();
+                
+                // Buscar contratos con decomisión que NO estén ya en facturables
+                var contratosConDecomision = await context.Contratos
+                    .Where(c => idsContratosConDecomision.Contains(c.Id) && !idsContratosFacturables.Contains(c.Id))
+                    .ToListAsync();
+                
+                if (contratosConDecomision.Any())
+                {
+                    Console.WriteLine($"Contratos con decomisión (dados de baja): {contratosConDecomision.Count}");
+                    foreach (var c in contratosConDecomision)
+                    {
+                        Console.WriteLine($"  - Contrato ID {c.Id}, Estado: '{c.Estado}', Tipo: '{c.Tipo}'");
+                    }
+                    
+                    // Agregar estos contratos a la lista de facturables para que se muestren
+                    contratosFacurables.AddRange(contratosConDecomision);
+                    Console.WriteLine($"Lista de facturables actualizada. Total: {contratosFacurables.Count}");
+                }
+            }
+            
+            // Log final: mostrar todos los contratos que se van a mostrar
+            Console.WriteLine($"=== CONTRATOS FINALES A MOSTRAR ===");
+            foreach (var cf in contratosFacurables.OrderBy(c => c.Tipo).ThenByDescending(c => c.FechaCreacion))
+            {
+                var identificador = cf.EnCups ?? cf.LineaMovilPrincipal ?? cf.Direccion ?? $"ID:{cf.Id}";
+                Console.WriteLine($"  ID={cf.Id}, Tipo={cf.Tipo}, Estado={cf.Estado}, Ref={identificador}");
+            }
             
             // Verificar todos los contratos de este usuario
-            var todosContratos = context.Contratos
+            var todosContratos = await context.Contratos
                 .Where(c => c.Comercial == usuarioSeleccionado.NombreUsuario)
                 .Select(c => new { c.Id, c.Tipo, c.Estado, c.Comercial })
-                .ToList();
+                .ToListAsync();
             
             Console.WriteLine($"Total contratos del usuario: {todosContratos.Count}");
             foreach (var c in todosContratos)
@@ -1759,14 +1964,43 @@
                 context.HistoricoLiquidaciones.Add(historico);
                 await context.SaveChangesAsync();
 
-                // Vincular contratos a esta liquidación y cambiar estado
+                // ===== DISTRIBUCIÓN JERÁRQUICA DE COMISIONES =====
+                // Crear detalles de comisión para cada contrato
+                Console.WriteLine($"[LIQUIDACIONES] Calculando distribución de comisiones para {contratos.Count} contratos");
+                
                 foreach (var contrato in contratos)
                 {
+                    try
+                    {
+                        // Calcular la distribución de comisiones según la jerarquía
+                        var detalleComision = await ComisionService.CalcularDistribucionComisionAsync(
+                            contrato, 
+                            usuarioDb, 
+                            historico.Id
+                        );
+
+                        // Guardar el detalle de comisión
+                        await ComisionService.GuardarDetalleComisionAsync(detalleComision);
+
+                        Console.WriteLine($"[LIQUIDACIONES] Distribución creada para contrato {contrato.Id}: " +
+                            $"Colaborador={detalleComision.ComisionColaborador}€, " +
+                            $"Gestor={detalleComision.ComisionGestor ?? 0}€, " +
+                            $"Admin={detalleComision.ComisionAdministrador}€");
+                    }
+                    catch (Exception exDetalle)
+                    {
+                        Console.WriteLine($"[LIQUIDACIONES] Error al crear detalle de comisión para contrato {contrato.Id}: {exDetalle.Message}");
+                        // Continuar con el siguiente contrato aunque falle uno
+                    }
+
+                    // Vincular contrato a esta liquidación y cambiar estado
                     contrato.Estado = "Liquidado";
                     contrato.HistoricoLiquidacionId = historico.Id;
                 }
                 
                 await context.SaveChangesAsync();
+
+                Console.WriteLine($"[LIQUIDACIONES] Distribución de comisiones completada para liquidación {historico.Id}");
             }
             else
             {
@@ -1790,6 +2024,7 @@
         {
             mensajeError = $"Error al aprobar liquidación: {ex.Message}";
             Console.WriteLine($"[LIQUIDACIONES] Error al aprobar liquidación: {ex.Message}");
+            Console.WriteLine($"[LIQUIDACIONES] Stack trace: {ex.StackTrace}");
             
             var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
             if (usuario != null)
@@ -1992,6 +2227,12 @@
                     && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Liquidado")
                 .OrderByDescending(c => c.FechaModificacion)
+                .ToListAsync();
+
+            // Cargar decomisiones asociadas a esta liquidación para marcar los contratos
+            var idsContratos = contratosHistorico.Select(c => c.Id).ToList();
+            decomisionesVisibles = await context.Decomisiones
+                .Where(d => d.LiquidacionDecomisionId == historico.Id && idsContratos.Contains(d.ContratoId))
                 .ToListAsync();
 
             mostrarContratosHistorico = true;
@@ -2271,6 +2512,23 @@
         nuevaIncidenciaMensaje = string.Empty;
         respuestaIncidencia = string.Empty;
         tienePendientes = false;
+    }
+
+    /// <summary>
+    /// Verifica si un contrato tiene una decomisión asociada
+    /// </summary>
+    private bool TieneDecomision(int contratoId)
+    {
+        return decomisionesVisibles.Any(d => d.ContratoId == contratoId);
+    }
+
+    /// <summary>
+    /// Obtiene el importe de decomisión de un contrato
+    /// </summary>
+    private decimal? ObtenerImporteDecomision(int contratoId)
+    {
+        var decomision = decomisionesVisibles.FirstOrDefault(d => d.ContratoId == contratoId);
+        return decomision?.ImporteDecomision;
     }
 
     private class UsuarioConContratos

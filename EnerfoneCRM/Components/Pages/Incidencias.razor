@@ -70,11 +70,13 @@ else
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label">Estado</label>
+                        <label class="form-label">Estado</label>
                         <select class="form-select" value="@filtroEstado" @onchange="e => FiltrarPorEstado(e.Value?.ToString())">
                             <option value="SinResolver">Sin resolver (por defecto)</option>
                             <option value="">Todos</option>
                             <option value="Pendiente">Pendiente</option>
                             <option value="Pendiente subir PRO">Pendiente subir PRO</option>
+                            <option value="En validación">En validación</option>
                             <option value="En Proceso">En Proceso</option>
                             <option value="Resuelta">Resuelta</option>
                             <option value="Cerrada">Cerrada</option>
@@ -246,6 +248,102 @@ else
                                     </div>
                                 </div>
                             }
+
+                            <!-- Sección de Comentarios -->
+                            <div class="mb-3">
+                                <hr class="my-4" />
+                                <h6 class="mb-3">
+                                    <i class="bi bi-chat-dots me-2"></i>Comentarios
+                                    @if (comentariosIncidencia != null && comentariosIncidencia.Any())
+                                    {
+                                        <span class="badge bg-primary">@comentariosIncidencia.Count</span>
+                                    }
+                                </h6>
+
+                                @if (comentariosIncidencia == null)
+                                {
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border spinner-border-sm" role="status">
+                                            <span class="visually-hidden">Cargando comentarios...</span>
+                                        </div>
+                                    </div>
+                                }
+                                else if (comentariosIncidencia.Any())
+                                {
+                                    <div class="comentarios-lista mb-3" style="max-height: 300px; overflow-y: auto;">
+                                        @foreach (var comentario in comentariosIncidencia.OrderBy(c => c.FechaCreacion))
+                                        {
+                                            <div class="border rounded p-3 mb-2 @(comentario.EmailEnviado ? "bg-success bg-opacity-10" : "bg-light")">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <strong class="text-primary">
+                                                        <i class="bi bi-person-circle me-1"></i>@comentario.NombreUsuario
+                                                    </strong>
+                                                    <small class="text-muted">
+                                                        @comentario.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                                        @if (comentario.EmailEnviado)
+                                                        {
+                                                            <i class="bi bi-envelope-check ms-2 text-success" title="Email enviado"></i>
+                                                        }
+                                                    </small>
+                                                </div>
+                                                <div class="text-dark mb-2">
+                                                    @comentario.Comentario
+                                                </div>
+                                                @if (!comentario.EmailEnviado && (AuthService.EsAdministrador || AuthService.EsBackoffice) && !string.IsNullOrEmpty(incidenciaSeleccionada?.EmailUsuario))
+                                                {
+                                                    <div class="d-flex justify-content-end">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                                @onclick="() => EnviarEmailComentarioExistente(comentario)"
+                                                                disabled="@enviandoEmailComentarioId.Contains(comentario.Id)">
+                                                            @if (enviandoEmailComentarioId.Contains(comentario.Id))
+                                                            {
+                                                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="bi bi-envelope me-1"></i>
+                                                            }
+                                                            Enviar por email
+                                                        </button>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-info mb-3">
+                                        <i class="bi bi-info-circle me-2"></i>No hay comentarios aún
+                                    </div>
+                                }
+
+                                @if (AuthService.EsAdministrador || AuthService.EsBackoffice)
+                                {
+                                    <div class="border rounded p-3 bg-light">
+                                        <label class="form-label fw-bold">
+                                            <i class="bi bi-plus-circle me-1"></i>Agregar comentario
+                                        </label>
+                                        <textarea class="form-control mb-2" rows="3" @bind="nuevoComentario" 
+                                                  placeholder="Escribe un comentario para el usuario..."></textarea>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="enviarEmailComentario" @bind="enviarEmailConComentario">
+                                            <label class="form-check-label" for="enviarEmailComentario">
+                                                <i class="bi bi-envelope me-1"></i>Enviar notificación por email al usuario
+                                            </label>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-primary" @onclick="AgregarComentario" 
+                                                disabled="@(string.IsNullOrWhiteSpace(nuevoComentario) || guardandoComentario)">
+                                            @if (guardandoComentario)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            <i class="bi bi-send me-1"></i>Agregar comentario
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+
                             @if (incidenciaSeleccionada.TieneImagen && !string.IsNullOrEmpty(incidenciaSeleccionada.NombreImagen))
                             {
                                 <div class="mb-3">
@@ -323,6 +421,7 @@ else
                                 <select class="form-select" @bind="incidenciaEdicion.Estado">
                                     <option value="Pendiente">Pendiente</option>
                                     <option value="Pendiente subir PRO">Pendiente subir PRO</option>
+                                    <option value="En validación">En validación</option>
                                     <option value="En Proceso">En Proceso</option>
                                     <option value="Resuelta">Resuelta</option>
                                     <option value="Cerrada">Cerrada</option>
@@ -373,6 +472,13 @@ else
     private string filtroBusqueda = string.Empty;
     private bool mostrarImagenCompleta = false;
     private string? imagenAmpliadaNombre = null;
+
+    // Variables para comentarios
+    private List<ComentarioIncidencia>? comentariosIncidencia = null;
+    private string nuevoComentario = string.Empty;
+    private bool enviarEmailConComentario = false;
+    private bool guardandoComentario = false;
+    private HashSet<int> enviandoEmailComentarioId = new HashSet<int>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -475,16 +581,21 @@ else
         AplicarFiltros();
     }
 
-    private void MostrarDetalle(Incidencia incidencia)
+    private async Task MostrarDetalle(Incidencia incidencia)
     {
         incidenciaSeleccionada = incidencia;
         mostrarModal = true;
+        await CargarComentarios();
     }
 
     private void CerrarModal()
     {
         mostrarModal = false;
         incidenciaSeleccionada = null;
+        comentariosIncidencia = null;
+        nuevoComentario = string.Empty;
+        enviarEmailConComentario = false;
+        enviandoEmailComentarioId.Clear();
     }
 
     private void AbrirImagenCompleta(string? nombreImagen)
@@ -711,10 +822,213 @@ else
         return estado switch
         {
             "Pendiente" => "bg-warning text-dark",
-            "En Proceso" => "bg-info",
+            "Pendiente subir PRO" => "bg-warning text-dark",
+            "En validación" => "bg-info",
+            "En Proceso" => "bg-primary",
             "Resuelta" => "bg-success",
             "Cerrada" => "bg-secondary",
             _ => "bg-secondary"
         };
     }
+
+    // ========================================
+    // MÉTODOS PARA COMENTARIOS
+    // ========================================
+
+    private async Task CargarComentarios()
+    {
+        if (incidenciaSeleccionada == null) return;
+
+        try
+        {
+            comentariosIncidencia = null; // Mostrar loading
+            StateHasChanged();
+
+            using var context = DbContextProvider.CreateDbContext();
+            comentariosIncidencia = await context.ComentariosIncidencias
+                .Where(c => c.IncidenciaId == incidenciaSeleccionada.Id)
+                .OrderBy(c => c.FechaCreacion)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INCIDENCIAS] Error al cargar comentarios: {ex.Message}");
+            comentariosIncidencia = new List<ComentarioIncidencia>();
+        }
+    }
+
+    private async Task AgregarComentario()
+    {
+        if (incidenciaSeleccionada == null) return;
+        if (string.IsNullOrWhiteSpace(nuevoComentario)) return;
+        if (AuthService.UsuarioActual == null) return;
+
+        try
+        {
+            guardandoComentario = true;
+            mensajeError = string.Empty;
+
+            using var context = DbContextProvider.CreateDbContext();
+
+            // Crear el comentario
+            var nombreUsuario = !string.IsNullOrWhiteSpace(AuthService.UsuarioActual.Nombre) 
+                ? $"{AuthService.UsuarioActual.Nombre} {AuthService.UsuarioActual.Apellidos}".Trim()
+                : AuthService.UsuarioActual.NombreUsuario;
+
+            var comentario = new ComentarioIncidencia
+            {
+                IncidenciaId = incidenciaSeleccionada.Id,
+                UsuarioId = AuthService.UsuarioActual.Id,
+                NombreUsuario = nombreUsuario,
+                Comentario = nuevoComentario.Trim(),
+                FechaCreacion = DateTime.Now,
+                EmailEnviado = enviarEmailConComentario
+            };
+
+            context.ComentariosIncidencias.Add(comentario);
+            await context.SaveChangesAsync();
+
+            // Enviar email si está marcado
+            if (enviarEmailConComentario && !string.IsNullOrEmpty(incidenciaSeleccionada.EmailUsuario))
+            {
+                await EnviarEmailComentario(incidenciaSeleccionada, comentario);
+            }
+
+            // Limpiar y recargar
+            nuevoComentario = string.Empty;
+            enviarEmailConComentario = false;
+            await CargarComentarios();
+
+            mensajeExito = enviarEmailConComentario 
+                ? "Comentario agregado y email enviado correctamente" 
+                : "Comentario agregado correctamente";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al agregar comentario: {ex.Message}";
+            Console.WriteLine($"[INCIDENCIAS] Error al agregar comentario: {ex.Message}");
+        }
+        finally
+        {
+            guardandoComentario = false;
+        }
+    }
+
+    private async Task EnviarEmailComentario(Incidencia incidencia, ComentarioIncidencia comentario)
+    {
+        try
+        {
+            var asunto = $"Nuevo comentario en tu incidencia - {incidencia.Asunto}";
+            var cuerpo = GenerarEmailComentario(incidencia, comentario);
+
+            var (exito, mensaje) = await EmailService.EnviarEmailSimpleAsync(
+                incidencia.EmailUsuario,
+                asunto,
+                cuerpo
+            );
+
+            if (!exito)
+            {
+                Console.WriteLine($"[INCIDENCIAS] Error al enviar email de comentario: {mensaje}");
+            }
+            else
+            {
+                Console.WriteLine($"[INCIDENCIAS] Email de comentario enviado a {incidencia.EmailUsuario}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INCIDENCIAS] Error al enviar email: {ex.Message}");
+        }
+    }
+
+    private string GenerarEmailComentario(Incidencia incidencia, ComentarioIncidencia comentario)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("<html><head><meta charset='utf-8'><title>Nuevo Comentario</title><style>");
+        sb.Append("body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }");
+        sb.Append(".container { background-color: white; padding: 30px; border-radius: 10px; max-width: 700px; margin: 0 auto; }");
+        sb.Append("h1 { color: #0d6efd; border-bottom: 3px solid #0d6efd; padding-bottom: 10px; }");
+        sb.Append(".info-box { background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #0d6efd; }");
+        sb.Append(".comentario-box { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 15px 0; border: 1px solid #dee2e6; }");
+        sb.Append(".label { font-weight: bold; color: #495057; margin-right: 10px; }");
+        sb.Append(".value { color: #212529; }");
+        sb.Append(".footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 14px; }");
+        sb.Append("</style></head><body>");
+        sb.Append("<div class='container'>");
+        sb.Append("<h1>💬 Nuevo Comentario en tu Incidencia</h1>");
+        
+        sb.Append("<p>Hola <strong>" + incidencia.NombreUsuario + "</strong>,</p>");
+        sb.Append("<p>Se ha agregado un nuevo comentario a tu incidencia:</p>");
+        
+        sb.Append("<div class='info-box'>");
+        sb.Append($"<div><span class='label'>ID de Incidencia:</span><span class='value'>#{incidencia.Id}</span></div>");
+        sb.Append($"<div><span class='label'>Asunto:</span><span class='value'>{incidencia.Asunto}</span></div>");
+        sb.Append($"<div><span class='label'>Estado:</span><span class='value'>{incidencia.Estado}</span></div>");
+        sb.Append("</div>");
+
+        sb.Append("<div class='comentario-box'>");
+        sb.Append($"<strong>Comentario de {comentario.NombreUsuario}:</strong><br><br>");
+        sb.Append("<div style='color: #212529; font-size: 15px;'>");
+        sb.Append(comentario.Comentario.Replace("\n", "<br>"));
+        sb.Append("</div>");
+        sb.Append($"<div style='margin-top: 15px; color: #6c757d; font-size: 13px;'>");
+        sb.Append($"<i>Fecha: {comentario.FechaCreacion.ToString("dd/MM/yyyy HH:mm")}</i>");
+        sb.Append("</div>");
+        sb.Append("</div>");
+
+        sb.Append("<p>Si tienes alguna pregunta adicional, no dudes en contactarnos.</p>");
+        
+        sb.Append("<div class='footer'>");
+        sb.Append("<p>Este es un mensaje automático del sistema EnerfoneCRM.<br>");
+        sb.Append("Por favor, no respondas directamente a este correo.</p>");
+        sb.Append("</div>");
+        
+        sb.Append("</div></body></html>");
+        
+        return sb.ToString();
+    }
+
+    private async Task EnviarEmailComentarioExistente(ComentarioIncidencia comentario)
+    {
+        if (incidenciaSeleccionada == null) return;
+        if (string.IsNullOrEmpty(incidenciaSeleccionada.EmailUsuario)) return;
+
+        try
+        {
+            enviandoEmailComentarioId.Add(comentario.Id);
+            StateHasChanged();
+            mensajeError = string.Empty;
+
+            // Enviar el email
+            await EnviarEmailComentario(incidenciaSeleccionada, comentario);
+
+            // Actualizar el estado en la base de datos
+            using var context = DbContextProvider.CreateDbContext();
+            var comentarioDb = await context.ComentariosIncidencias
+                .FirstOrDefaultAsync(c => c.Id == comentario.Id);
+            
+            if (comentarioDb != null)
+            {
+                comentarioDb.EmailEnviado = true;
+                await context.SaveChangesAsync();
+            }
+
+            // Recargar comentarios para reflejar el cambio
+            await CargarComentarios();
+
+            mensajeExito = "Email enviado correctamente";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al enviar email: {ex.Message}";
+            Console.WriteLine($"[INCIDENCIAS] Error al enviar email de comentario existente: {ex.Message}");
+        }
+        finally
+        {
+            enviandoEmailComentarioId.Remove(comentario.Id);
+            StateHasChanged();
+        }
+    }
 }
+

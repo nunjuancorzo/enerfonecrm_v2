@@ -56,10 +56,12 @@ namespace EnerfoneCRM.Services
                     COALESCE(TarifaLineaMovilPrincipal, '') as TarifaLineaMovilPrincipal,
                     COALESCE(TipoOperacion, '') as TipoOperacion,
                     COALESCE(Tarifa_tel, '') as Tarifa_tel,
+                    tarifa_tel_id,
                     COALESCE(TipoTarifa_tel, '') as TipoTarifa_tel,
                     COALESCE(tipo_alarma, '') as tipo_alarma,
                     COALESCE(subtipo_inmueble, '') as subtipo_inmueble,
                     COALESCE(kit_alarma, '') as kit_alarma,
+                    kit_alarma_id,
                     COALESCE(opcionales_alarma, '') as opcionales_alarma,
                     COALESCE(campana_alarma, '') as campana_alarma,
                     COALESCE(empresa_alarma, '') as empresa_alarma,
@@ -166,6 +168,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(direccion, '') as direccion,
                     COALESCE(observaciones, '') as observaciones,
                     COALESCE(en_Tarifa, '') as en_Tarifa,
+                    en_tarifa_id,
                     COALESCE(en_CUPS, '') as en_CUPS,
                     COALESCE(en_Servicios, '') as en_Servicios,
                     COALESCE(en_IBAN, '') as en_IBAN,
@@ -633,6 +636,124 @@ namespace EnerfoneCRM.Services
             }
 
             return valor;
+        }
+
+        /// <summary>
+        /// Da de baja un contrato y verifica si requiere decomisión por baja anticipada
+        /// </summary>
+        /// <param name="contratoId">ID del contrato a dar de baja</param>
+        /// <param name="comisionService">Servicio de comisiones para verificar penalizaciones</param>
+        /// <param name="usuarioActualId">ID del usuario que realiza la baja</param>
+        /// <param name="fechaBaja">Fecha de baja (opcional, por defecto hoy)</param>
+        /// <param name="observaciones">Observaciones sobre la baja</param>
+        /// <returns>(éxito, decomisión creada si aplica)</returns>
+        public async Task<(bool exito, Decomision? decomision)> DarDeBajaContratoAsync(
+            int contratoId,
+            ComisionService comisionService,
+            int? usuarioActualId = null,
+            DateTime? fechaBaja = null,
+            string? observaciones = null)
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+
+            var contrato = await context.Contratos.FindAsync(contratoId);
+            if (contrato == null)
+                return (false, null);
+
+            fechaBaja ??= DateTime.Now;
+
+            // Verificar si requiere decomisión
+            var (requierePenalizacion, diasPenalizacion, tipoPenalizacion) = 
+                await comisionService.VerificarPenalizacionAsync(contrato, fechaBaja);
+
+            Decomision? decomision = null;
+
+            if (requierePenalizacion)
+            {
+                // Buscar el usuario que registró el contrato
+                var usuario = await context.Usuarios
+                    .FirstOrDefaultAsync(u => u.NombreUsuario == contrato.Comercial);
+
+                if (usuario != null)
+                {
+                    // Crear la decomisión (liquidación null si aún no se ha liquidado)
+                    decomision = await comisionService.CrearDecomisionAsync(
+                        contrato,
+                        usuario,
+                        fechaBaja.Value,
+                        contrato.HistoricoLiquidacionId,  // Puede ser null si aún no se liquidó
+                        usuarioActualId,
+                        observaciones
+                    );
+                    
+                    Console.WriteLine($"[DEBUG ContratoService] Decomisión creada: ContratoId={contrato.Id}, UsuarioId={usuario.Id}, Importe={decomision?.ImporteDecomision}");
+                }
+            }
+
+            // Actualizar el estado del contrato a "Baja"
+            contrato.Estado = "Baja";
+            contrato.FechaModificacion = DateTime.Now;
+            
+            context.Contratos.Update(contrato);
+            await context.SaveChangesAsync();
+
+            return (true, decomision);
+        }
+
+        /// <summary>
+        /// Verifica si un contrato puede darse de baja sin penalización
+        /// </summary>
+        public async Task<(bool puedeRechazar, int? diasPendientes, decimal? importePenalizacion)> 
+            VerificarPenalizacionBajaAsync(int contratoId, ComisionService comisionService)
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+
+            Console.WriteLine($"[DEBUG ContratoService] Verificando penalización de baja para contrato {contratoId}");
+
+            var contrato = await context.Contratos.FindAsync(contratoId);
+            if (contrato == null)
+            {
+                Console.WriteLine($"[DEBUG] Contrato no encontrado");
+                return (false, null, null);
+            }
+
+            Console.WriteLine($"[DEBUG] Contrato encontrado: Tipo={contrato.Tipo}, EnTarifaId={contrato.EnTarifaId}, EnTarifa={contrato.EnTarifa}, FechaActivo={contrato.FechaActivo?.ToString("yyyy-MM-dd")}");
+
+            var (requierePenalizacion, diasPenalizacion, tipoPenalizacion) = 
+                await comisionService.VerificarPenalizacionAsync(contrato);
+
+            Console.WriteLine($"[DEBUG] Resultado VerificarPenalizacionAsync: requiere={requierePenalizacion}, dias={diasPenalizacion}, tipo={tipoPenalizacion}");
+
+            if (!requierePenalizacion || !diasPenalizacion.HasValue)
+            {
+                Console.WriteLine($"[DEBUG] Sin penalización requerida o dias no definidos - puedeRechazar=true");
+                return (true, 0, 0);
+            }
+
+            // Usar FechaActivo (cuando pasó a estado Activo) en lugar de FechaAlta
+            var fechaActivacion = contrato.FechaActivo ?? DateTime.Now.AddDays(-diasPenalizacion.Value - 1);
+            var diasActivo = (DateTime.Now - fechaActivacion).Days;
+            var diasPendientes = Math.Max(0, diasPenalizacion.Value - diasActivo);
+
+            Console.WriteLine($"[DEBUG] Cálculo días: fechaActivacion={fechaActivacion:yyyy-MM-dd}, diasActivo={diasActivo}, diasRequeridos={diasPenalizacion}, diasPendientes={diasPendientes}");
+
+            decimal importePenalizacion;
+            var comisionOriginal = contrato.Comision ?? 0;
+
+            if (tipoPenalizacion == "Proporcional")
+            {
+                importePenalizacion = Math.Round((comisionOriginal * diasPendientes) / diasPenalizacion.Value, 2);
+                Console.WriteLine($"[DEBUG] Penalización Proporcional: comision={comisionOriginal}, importe={importePenalizacion}");
+            }
+            else
+            {
+                importePenalizacion = comisionOriginal;
+                Console.WriteLine($"[DEBUG] Penalización Total: comision={comisionOriginal}, importe={importePenalizacion}");
+            }
+
+            Console.WriteLine($"[DEBUG] Retornando: puedeRechazar=false, diasPendientes={diasPendientes}, importePenalizacion={importePenalizacion}");
+
+            return (false, diasPendientes, importePenalizacion);
         }
     }
 }

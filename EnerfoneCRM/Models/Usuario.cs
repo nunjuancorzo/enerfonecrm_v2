@@ -75,6 +75,31 @@ public class Usuario
     [Column("recibir_notificaciones")]
     public bool RecibirNotificaciones { get; set; } = false;
 
+    // Permisos para rol Backoffice
+    [Column("puede_ver_clientes")]
+    public bool PuedeVerClientes { get; set; } = true;
+
+    [Column("puede_ver_contratos")]
+    public bool PuedeVerContratos { get; set; } = true;
+
+    [Column("puede_ver_tarifas")]
+    public bool PuedeVerTarifas { get; set; } = true;
+
+    [Column("puede_ver_liquidaciones")]
+    public bool PuedeVerLiquidaciones { get; set; } = true;
+
+    [Column("puede_ver_sips")]
+    public bool PuedeVerSips { get; set; } = true;
+
+    [Column("puede_ver_incidencias")]
+    public bool PuedeVerIncidencias { get; set; } = true;
+
+    [Column("puede_ver_ofertas")]
+    public bool PuedeVerOfertas { get; set; } = true;
+
+    [Column("puede_ver_usuarios")]
+    public bool PuedeVerUsuarios { get; set; } = true;
+
     [Column("fecha_creacion")]
     public DateTime FechaCreacion { get; set; } = DateTime.Now;
 

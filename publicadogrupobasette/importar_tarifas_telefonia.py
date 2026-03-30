@@ -153,7 +153,7 @@ def importar_tarifas_telefonia(archivo_excel):
         print(f"Operadoras válidas encontradas: {', '.join(sorted(operadoras_validas))}")
         
         # Definir valores válidos para otros campos
-        tipos_validos = {'FibraMovil', 'Fibra', 'Movil', 'FibraMovilTV', 'FibraSegundaResidencia'}
+        tipos_validos = {'FibraMovil', 'Fibra', 'Movil', 'MovilAdicional', 'FibraMovilTV', 'FibraSegundaResidencia'}
         
         # Procesar cada fila
         for index, row in df.iterrows():

@@ -13,6 +13,7 @@
 @inject ObservacionContratoService ObservacionContratoService
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
+@inject ComisionService ComisionService
 @inject IConfiguration Configuration
 @inject LogActivacionContratoService LogActivacionContratoService
 @inject EmailService EmailService
@@ -167,7 +168,12 @@ else
                                             <span>@comercializadorasSeleccionadas.Count seleccionadas</span>
                                         }
                                     </button>
-                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercializadora" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercializadora" style="max-height: 400px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <input type="text" class="form-control form-control-sm" placeholder="🔍 Buscar comercializadora..." 
+                                                   @bind="busquedaComercializadora" @bind:event="oninput" />
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
                                         <li class="px-2 py-1">
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="comercializadoraTodas" @onchange="SeleccionarTodasComercializadoras" checked="@(comercializadorasSeleccionadas.Count == 0)">
@@ -177,7 +183,7 @@ else
                                             </div>
                                         </li>
                                         <li><hr class="dropdown-divider my-1"></li>
-                                        @foreach (var comercializadora in comercializadoras)
+                                        @foreach (var comercializadora in comercializadoras.Where(c => string.IsNullOrWhiteSpace(busquedaComercializadora) || c.Contains(busquedaComercializadora, StringComparison.OrdinalIgnoreCase)))
                                         {
                                             var comId = $"com_{comercializadora.Replace(" ", "_")}";
                                             <li class="px-2 py-1">
@@ -211,7 +217,12 @@ else
                                             <span>@comercialesSeleccionados.Count seleccionados</span>
                                         }
                                     </button>
-                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercial" style="max-height: 300px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                    <ul class="dropdown-menu p-2 bg-white" aria-labelledby="dropdownComercial" style="max-height: 400px; overflow-y: auto; width: 100%;" @onclick:stopPropagation="true">
+                                        <li class="px-2 py-1">
+                                            <input type="text" class="form-control form-control-sm" placeholder="🔍 Buscar comercial..." 
+                                                   @bind="busquedaComercial" @bind:event="oninput" />
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
                                         <li class="px-2 py-1">
                                             <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="comercialTodos" @onchange="SeleccionarTodosComerciales" checked="@(comercialesSeleccionados.Count == 0)">
@@ -221,7 +232,7 @@ else
                                             </div>
                                         </li>
                                         <li><hr class="dropdown-divider my-1"></li>
-                                        @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
+                                        @foreach (var usuario in todosLosUsuarios.Where(u => string.IsNullOrWhiteSpace(busquedaComercial) || u.NombreUsuario.Contains(busquedaComercial, StringComparison.OrdinalIgnoreCase)).OrderBy(u => u.NombreUsuario))
                                         {
                                             var usrId = $"usr_{usuario.NombreUsuario.Replace(" ", "_")}";
                                             <li class="px-2 py-1">
@@ -527,21 +538,29 @@ else
                         <EditForm Model="contratoSeleccionado" OnValidSubmit="GuardarContrato">
                             <DataAnnotationsValidator />
                             <div class="modal-header bg-light border-bottom">
-                                <div class="d-flex gap-2 w-100">
-                                    <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit" class="btn btn-warning" disabled="@guardando">
-                                            @if (guardando)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                            }
-                                            else
-                                            {
-                                                <i class="bi bi-save me-2"></i>
-                                            }
-                                            Guardar
+                                <div class="d-flex gap-2 w-100 justify-content-between">
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
+                                            Cancelar
                                         </button>
+                                        <button type="submit" class="btn btn-warning" disabled="@guardando">
+                                                @if (guardando)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-save me-2"></i>
+                                                }
+                                                Guardar
+                                            </button>
+                                    </div>
+                                    @if (contratoSeleccionado.Estado != "Baja" && AuthService.EsAdministrador)
+                                    {
+                                        <button type="button" class="btn btn-danger" @onclick="MostrarModalBaja" disabled="@guardando">
+                                            <i class="bi bi-x-circle me-2"></i>Dar de Baja Contrato
+                                        </button>
+                                    }
                                 </div>
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
@@ -671,6 +690,21 @@ else
                                                 }
                                             </div>
                                         </div>
+
+                                        @* Teléfono y Email del Cliente *@
+                                        @if (clienteSeleccionadoInfo != null)
+                                        {
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">Teléfono Cliente</label>
+                                                    <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Telefono" readonly />
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">Email Cliente</label>
+                                                    <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" readonly />
+                                                </div>
+                                            </div>
+                                        }
 
                                         @* Titular IBAN Diferente *@
                                         <div class="row mb-2">
@@ -911,7 +945,8 @@ else
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-bold">Tarifa</label>
-                                                        <select @bind="contratoSeleccionado.EnTarifa" 
+                                                        <select value="@contratoSeleccionado.EnTarifa" 
+                                                                @onchange="OnTarifaChanged"
                                                                 class="form-select" 
                                                                 disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
                                                             <option value="">Seleccionar tarifa...</option>
@@ -920,8 +955,7 @@ else
                                                                 <option value="@tarifa.Nombre">@tarifa.Nombre</option>
                                                             }
                                                         </select>
-                                                    </div>
-                                                </div>
+                                                    </div>                                                </div>
 
                                                 <div class="row mb-0">
                                                     <div class="col-md-6">
@@ -1311,6 +1345,93 @@ else
             </div>
         }
 
+        <!-- Modal Confirmar Baja de Contrato -->
+        @if (mostrarModalBaja && contratoParaBaja != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-x-circle me-2"></i>
+                                Confirmar Baja de Contrato
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalBaja" disabled="@procesandoBaja"></button>
+                        </div>
+                        <div class="modal-body">
+                            @if (cargandoInfoBaja)
+                            {
+                                <div class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Calculando penalización...</span>
+                                    </div>
+                                    <p class="mt-2">Calculando información de penalización...</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning">
+                                    <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Advertencia</h6>
+                                    <p>Estás a punto de dar de baja el contrato <strong>#@contratoParaBaja.Id</strong></p>
+                                    <p class="mb-0"><strong>Cliente:</strong> @contratoParaBaja.NombreCliente</p>
+                                </div>
+
+                                @if (infoBaja.puedeRechazar)
+                                {
+                                    <div class="alert alert-success">
+                                        <h6><i class="bi bi-check-circle me-2"></i>Sin Penalización</h6>
+                                        <p class="mb-0">El contrato ha cumplido el período de permanencia. No se aplicará ninguna penalización.</p>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-danger">
+                                        <h6><i class="bi bi-exclamation-circle me-2"></i>Penalización por Baja Anticipada</h6>
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                <strong>Días Pendientes:</strong> @infoBaja.diasPendientes días
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Importe Penalización:</strong> <span class="fs-5 text-danger">@infoBaja.importePenalizacion?.ToString("N2")€</span>
+                                            </div>
+                                        </div>
+                                        <p class="mt-2 mb-0"><small>Esta cantidad se descontará de la comisión del usuario en la próxima liquidación.</small></p>
+                                    </div>
+                                }
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Observaciones (opcional)</label>
+                                    <textarea class="form-control" @bind="observacionesBaja" rows="3" 
+                                              placeholder="Motivo de la baja, observaciones..."></textarea>
+                                </div>
+
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    El contrato cambiará su estado a <strong>"Baja"</strong> y se registrará la fecha actual como fecha de baja.
+                                </div>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModalBaja" disabled="@procesandoBaja">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-danger" @onclick="ConfirmarBajaContrato" disabled="@(procesandoBaja || cargandoInfoBaja)">
+                                @if (procesandoBaja)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-x-circle me-2"></i>
+                                }
+                                Confirmar Baja
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         <!-- Modal Confirmar Eliminación -->
         @if (mostrarModalEliminar && contratoAEliminar != null)
         {
@@ -1586,6 +1707,8 @@ else
     private string textoBusqueda = string.Empty;
     private HashSet<string> comercializadorasSeleccionadas = new();
     private HashSet<string> comercialesSeleccionados = new();
+    private string busquedaComercializadora = string.Empty;
+    private string busquedaComercial = string.Empty;
 
     // Ordenamiento
     private string columnaOrden = "FechaCreacion";
@@ -1643,6 +1766,14 @@ else
     private DateTime? fechaActivacion;
     private string observacionesActivacion = string.Empty;
     private string estadoAnterior = string.Empty;
+
+    // Baja de contratos
+    private bool mostrarModalBaja = false;
+    private Contrato? contratoParaBaja;
+    private bool cargandoInfoBaja = false;
+    private bool procesandoBaja = false;
+    private string observacionesBaja = string.Empty;
+    private (bool puedeRechazar, int? diasPendientes, decimal? importePenalizacion) infoBaja;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -1884,6 +2015,25 @@ else
             {
                 contratoSeleccionado.EnTarifa = string.Empty;
             }
+        }
+    }
+
+    private void OnTarifaChanged(ChangeEventArgs e)
+    {
+        if (contratoSeleccionado == null) return;
+
+        var nombreTarifa = e.Value?.ToString();
+        contratoSeleccionado.EnTarifa = nombreTarifa;
+
+        // Asignar el ID de la tarifa si se encuentra
+        if (!string.IsNullOrWhiteSpace(nombreTarifa))
+        {
+            var tarifa = tarifasDisponibles.FirstOrDefault(t => t.Nombre == nombreTarifa);
+            contratoSeleccionado.EnTarifaId = tarifa?.Id;
+        }
+        else
+        {
+            contratoSeleccionado.EnTarifaId = null;
         }
     }
 
@@ -3721,5 +3871,96 @@ else
         contratoSeleccionado.ProvinciaInstalacion = string.Empty;
         
         StateHasChanged();
+    }
+
+    // ========================================
+    // MÉTODOS PARA BAJA DE CONTRATOS
+    // ========================================
+
+    private async Task MostrarModalBaja()
+    {
+        if (contratoSeleccionado == null) return;
+
+        contratoParaBaja = contratoSeleccionado;
+        mostrarModalBaja = true;
+        cargandoInfoBaja = true;
+        observacionesBaja = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            infoBaja = await ContratoService.VerificarPenalizacionBajaAsync(
+                contratoParaBaja.Id,
+                ComisionService
+            );
+            Console.WriteLine($"[DEBUG] Resultado penalización - puedeRechazar: {infoBaja.puedeRechazar}, diasPendientes: {infoBaja.diasPendientes}, importePenalizacion: {infoBaja.importePenalizacion}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al verificar penalización: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            infoBaja = (true, 0, 0);
+        }
+        finally
+        {
+            cargandoInfoBaja = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CerrarModalBaja()
+    {
+        mostrarModalBaja = false;
+        contratoParaBaja = null;
+        observacionesBaja = string.Empty;
+        infoBaja = (false, null, null);
+        StateHasChanged();
+    }
+
+    private async Task ConfirmarBajaContrato()
+    {
+        if (contratoParaBaja == null) return;
+
+        procesandoBaja = true;
+        StateHasChanged();
+
+        try
+        {
+            var (exito, decomision) = await ContratoService.DarDeBajaContratoAsync(
+                contratoParaBaja.Id,
+                ComisionService,
+                AuthService.UsuarioActual?.Id,
+                DateTime.Now,
+                observacionesBaja
+            );
+
+            if (exito)
+            {
+                mensajeExito = $"Contrato #{contratoParaBaja.Id} dado de baja correctamente.";
+                
+                if (decomision != null)
+                {
+                    mensajeExito += $" Se ha registrado una decomisión de {decomision.ImporteDecomision:N2}€.";
+                }
+
+                CerrarModalBaja();
+                CerrarModal();
+                await CargarContratos();
+            }
+            else
+            {
+                mensajeError = "Error al dar de baja el contrato. Por favor, inténtelo de nuevo.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al procesar la baja: {ex.Message}";
+            Console.WriteLine($"Error en ConfirmarBajaContrato: {ex}");
+        }
+        finally
+        {
+            procesandoBaja = false;
+            StateHasChanged();
+        }
     }
 }

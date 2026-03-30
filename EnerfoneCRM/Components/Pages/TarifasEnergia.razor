@@ -581,6 +581,26 @@ else
                                     </div>
                                 </div>
 
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Días de Penalización</label>
+                                        <div class="input-group">
+                                            <InputNumber class="form-control" @bind-Value="tarifaActual.DiasPenalizacion" />
+                                            <span class="input-group-text">días</span>
+                                        </div>
+                                        <small class="text-muted">Período mínimo antes de poder dar de baja sin penalización (ej: 365 para 1 año)</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Tipo de Penalización</label>
+                                        <InputSelect class="form-select" @bind-Value="tarifaActual.TipoPenalizacion">
+                                            <option value="">-- No aplica penalización --</option>
+                                            <option value="Total">Total - Decomisionar el total de la comisión</option>
+                                            <option value="Proporcional">Proporcional - Decomisionar proporcionalmente</option>
+                                        </InputSelect>
+                                        <small class="text-muted">Cómo se calcula la decomisión en caso de baja anticipada</small>
+                                    </div>
+                                </div>
+
                                 <hr class="my-4" />
 
                                 <h6 class="text-primary mb-3"><i class="bi bi-lightning me-2"></i>Potencias (€/kW día)</h6>
@@ -1192,6 +1212,8 @@ else
                 Excedentes = tarifa.Excedentes,
                 BateriaVirtual = tarifa.BateriaVirtual,
                 FechaCarga = tarifa.FechaCarga,
+                DiasPenalizacion = tarifa.DiasPenalizacion,
+                TipoPenalizacion = tarifa.TipoPenalizacion,
                 Activa = tarifa.Activa
             };
         mostrarModal = true;
