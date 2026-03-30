@@ -149,139 +149,90 @@ namespace EnerfoneCRM.Services
                     }
 
                     // 4) Llamada a API (de pago)
-                    var url = $"{API_URL}?id={Uri.EscapeDataString(cupsNormalizado)}&key={API_KEY}";
+                    SipsResponse? datos;
                     
-                    // Añadir parámetro &gas=1 para CUPS de gas
                     if (esGas)
                     {
-                        url += "&gas=1";
-                    }
-                    
-                    // Log de la llamada (ocultando parte de la API key por seguridad)
-                    var urlParaLog = url.Replace(API_KEY, $"{API_KEY.Substring(0, Math.Min(4, API_KEY.Length))}***");
-                    Console.WriteLine($"[SIPS] Consultando API: {urlParaLog}");
-                    Console.WriteLine($"[SIPS] CUPS: {cupsNormalizado}, Es Gas: {esGas}");
-
-                    HttpResponseMessage? response = null;
-                    string? jsonString = null;
-                    try
-                    {
-                        response = await _httpClient.GetAsync(url);
-                        jsonString = await response.Content.ReadAsStringAsync();
+                        // Gas: usar sips2.php con id=CUPS y parámetro gas=1
+                        var url = $"{API_URL}?id={Uri.EscapeDataString(cupsNormalizado)}&key={API_KEY}&gas=1";
+                        var urlParaLog = url.Replace(API_KEY, $"{API_KEY.Substring(0, Math.Min(4, API_KEY.Length))}***");
                         
-                        // Log de la respuesta recibida
-                        Console.WriteLine($"[SIPS] HTTP Status: {(int)response.StatusCode} {response.StatusCode}");
-                        Console.WriteLine($"[SIPS] Content-Length: {response.Content.Headers.ContentLength}");
-                        Console.WriteLine($"[SIPS] Response length: {jsonString?.Length ?? 0} caracteres");
+                        Console.WriteLine($"[SIPS GAS] Consultando API: {urlParaLog}");
+                        Console.WriteLine($"[SIPS GAS] CUPS: {cupsNormalizado}");
                         
-                        if (!string.IsNullOrWhiteSpace(jsonString))
-                        {
-                            var preview = jsonString.Length > 200 ? jsonString.Substring(0, 200) + "..." : jsonString;
-                            Console.WriteLine($"[SIPS] Response preview: {preview}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[SIPS] ADVERTENCIA: La respuesta HTTP está vacía");
-                        }
-
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            await GuardarHistoricoAsync(
-                                cupsNormalizado,
-                                usuarioId,
-                                usuarioNombre,
-                                usuarioEmail,
-                                success: false,
-                                httpStatusCode: (int)response.StatusCode,
-                                errorMessage: $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}",
-                                responseJson: jsonString);
-
-                            response.EnsureSuccessStatusCode();
-                        }
+                        var jsonString = await ConsultarApiAsync(url);
+                        datos = DeserializarRespuesta(jsonString);
                         
-                        // Verificar que hay contenido antes de deserializar
-                        if (string.IsNullOrWhiteSpace(jsonString))
-                        {
-                            var errorMsg = "La API de SIPS devolvió una respuesta vacía. El CUPS podría no existir o ser inválido.";
-                            Console.WriteLine($"[SIPS] ERROR: {errorMsg}");
-                            
-                            await GuardarHistoricoAsync(
-                                cupsNormalizado,
-                                usuarioId,
-                                usuarioNombre,
-                                usuarioEmail,
-                                success: false,
-                                httpStatusCode: (int)response.StatusCode,
-                                errorMessage: errorMsg,
-                                responseJson: jsonString);
-                                
-                            throw new Exception(errorMsg);
-                        }
-
-                        var datos = DeserializarRespuesta(jsonString);
-
-                        var historicoId = await GuardarHistoricoAsync(
+                        await GuardarHistoricoAsync(
                             cupsNormalizado,
                             usuarioId,
                             usuarioNombre,
                             usuarioEmail,
                             success: true,
-                            httpStatusCode: (int)response.StatusCode,
+                            httpStatusCode: 200,
                             errorMessage: null,
                             responseJson: jsonString);
-
-                        var result = new SipsConsultaResult
+                    }
+                    else
+                    {
+                        // Luz: hacer dos llamadas a sips3.php
+                        // 1. id=1 para información del cliente
+                        var urlCliente = $"http://35.181.7.83/api/sips3.php?id=1&cups={Uri.EscapeDataString(cupsNormalizado)}";
+                        Console.WriteLine($"[SIPS LUZ] Consultando API cliente: {urlCliente}");
+                        
+                        var csvCliente = await ConsultarApiAsync(urlCliente);
+                        datos = ParsearCsv(csvCliente);
+                        
+                        // 2. id=2 para consumos históricos
+                        try
                         {
-                            Respuesta = datos,
-                            DesdeCache = false,
-                            FechaConsulta = DateTime.Now,
-                            HistoricoId = historicoId,
-                            Fuente = "API"
-                        };
+                            var urlConsumos = $"http://35.181.7.83/api/sips3.php?id=2&cups={Uri.EscapeDataString(cupsNormalizado)}";
+                            Console.WriteLine($"[SIPS LUZ] Consultando API consumos: {urlConsumos}");
+                            
+                            var csvConsumos = await ConsultarApiAsync(urlConsumos);
+                            
+                            // Verificar si hay consumos
+                            if (!string.IsNullOrWhiteSpace(csvConsumos) && !csvConsumos.Contains("No se encontraron"))
+                            {
+                                var consumos = ParsearCsvConsumos(csvConsumos);
+                                if (datos != null)
+                                {
+                                    datos.ConsumosSips = consumos;
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[SIPS LUZ] No hay consumos históricos disponibles");
+                            }
+                        }
+                        catch (Exception exConsumos)
+                        {
+                            Console.WriteLine($"[SIPS LUZ] Error obteniendo consumos (no crítico): {exConsumos.Message}");
+                            // No fallar si no hay consumos, solo no mostrar gráficos
+                        }
+                        
+                        await GuardarHistoricoAsync(
+                            cupsNormalizado,
+                            usuarioId,
+                            usuarioNombre,
+                            usuarioEmail,
+                            success: true,
+                            httpStatusCode: 200,
+                            errorMessage: null,
+                            responseJson: csvCliente);
+                    }
 
-                        _memoryCache.Set(memKey, result, TimeSpan.FromMinutes(memoryCacheMinutes));
-                        return result;
-                    }
-                    catch (HttpRequestException ex)
+                    var result = new SipsConsultaResult
                     {
-                        Console.WriteLine($"[SIPS] Error de conexión: {ex.Message}");
-                        await GuardarHistoricoAsync(
-                            cupsNormalizado,
-                            usuarioId,
-                            usuarioNombre,
-                            usuarioEmail,
-                            success: false,
-                            httpStatusCode: response != null ? (int?)response.StatusCode : null,
-                            errorMessage: ex.Message,
-                            responseJson: jsonString);
-                        throw new Exception("Error al conectar con el servicio SIPS", ex);
-                    }
-                    catch (JsonException ex)
-                    {
-                        Console.WriteLine($"[SIPS] Error al procesar respuesta JSON");
-                        Console.WriteLine($"[SIPS] Detalles del error: {ex.Message}");
-                        Console.WriteLine($"[SIPS] Path: {ex.Path}");
-                        Console.WriteLine($"[SIPS] LineNumber: {ex.LineNumber}");
-                        Console.WriteLine($"[SIPS] BytePositionInLine: {ex.BytePositionInLine}");
-                        
-                        // Log del JSON completo (primeros 1000 caracteres para debug)
-                        var jsonPreview = jsonString?.Length > 1000 
-                            ? jsonString.Substring(0, 1000) + "..." 
-                            : jsonString ?? "(vacío)";
-                        Console.WriteLine($"[SIPS] JSON recibido: {jsonPreview}");
-                        
-                        await GuardarHistoricoAsync(
-                            cupsNormalizado,
-                            usuarioId,
-                            usuarioNombre,
-                            usuarioEmail,
-                            success: false,
-                            httpStatusCode: response != null ? (int?)response.StatusCode : (int?)HttpStatusCode.OK,
-                            errorMessage: $"Error JSON: {ex.Message} (Path: {ex.Path}, Line: {ex.LineNumber})",
-                            responseJson: jsonString);
-                        
-                        throw new Exception($"Error al procesar los datos del servicio SIPS. Detalles: {ex.Message} en {ex.Path ?? "raíz"}", ex);
-                    }
+                        Respuesta = datos,
+                        DesdeCache = false,
+                        FechaConsulta = DateTime.Now,
+                        HistoricoId = null,
+                        Fuente = "API"
+                    };
+
+                    _memoryCache.Set(memKey, result, TimeSpan.FromMinutes(memoryCacheMinutes));
+                    return result;
                 }
                 finally
                 {
@@ -370,7 +321,22 @@ namespace EnerfoneCRM.Services
             return (cups ?? string.Empty).Trim().ToUpperInvariant();
         }
 
-        private static SipsResponse? DeserializarRespuesta(string json)
+        private static SipsResponse? DeserializarRespuesta(string contenido)
+        {
+            // Detectar si es CSV o JSON
+            if (contenido.TrimStart().StartsWith("{") || contenido.TrimStart().StartsWith("["))
+            {
+                // Es JSON - usar deserialización JSON
+                return DeserializarJson(contenido);
+            }
+            else
+            {
+                // Es CSV - parsear CSV
+                return ParsearCsv(contenido);
+            }
+        }
+
+        private static SipsResponse? DeserializarJson(string json)
         {
             var options = new JsonSerializerOptions
             {
@@ -391,6 +357,325 @@ namespace EnerfoneCRM.Services
                 Console.WriteLine($"[SIPS] DeserializarRespuesta - JSON problemático: {jsonPreview}");
                 throw;
             }
+        }
+
+        private static SipsResponse? ParsearCsv(string csv)
+        {
+            try
+            {
+                var lineas = csv.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lineas.Length < 2)
+                {
+                    throw new Exception($"CSV inválido: esperadas al menos 2 líneas, encontradas {lineas.Length}");
+                }
+
+                // Primera línea: cabeceras
+                var cabeceras = ParsearLineaCsv(lineas[0]);
+                // Segunda línea (y posiblemente más): datos
+                var valores = ParsearLineaCsv(lineas[1]);
+
+                Console.WriteLine($"[SIPS CSV] Cabeceras parseadas: {cabeceras.Count}");
+                Console.WriteLine($"[SIPS CSV] Valores parseados: {valores.Count}");
+
+                if (cabeceras.Count != valores.Count)
+                {
+                    throw new Exception($"CSV inválido: {cabeceras.Count} cabeceras vs {valores.Count} valores");
+                }
+
+                // Crear diccionario campo -> valor
+                var datos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                for (int i = 0; i < cabeceras.Count; i++)
+                {
+                    datos[cabeceras[i]] = valores[i];
+                }
+
+                // Mapear a ClienteSips
+                var cliente = new ClienteSips
+                {
+                    CodigoCUPS = ObtenerValor(datos, "cups"),
+                    CodigoEmpresaDistribuidora = ObtenerValor(datos, "codigoEmpresaDistribuidora"),
+                    NombreEmpresaDistribuidora = ObtenerValor(datos, "nombreEmpresaDistribuidora"),
+                    CodigoPostalPS = ObtenerValor(datos, "codigoPostalPS"),
+                    MunicipioPS = ObtenerValor(datos, "municipioPS"),
+                    CodigoProvinciaPS = ObtenerValor(datos, "codigoProvinciaPS"),
+                    FechaAltaSuministro = ParsearFecha(ObtenerValor(datos, "fechaAltaSuministro")),
+                    CodigoTarifaATREnVigor = ObtenerValor(datos, "codigoTarifaATREnVigor"),
+                    CodigoTensionV = ObtenerValor(datos, "codigoTensionV"),
+                    PotenciaMaximaBIEW = ParsearDecimal(ObtenerValor(datos, "potenciaMaximaBIEW")),
+                    PotenciaMaximaAPMW = ParsearDecimal(ObtenerValor(datos, "potenciaMaximaAPMW")),
+                    CodigoClasificacionPS = ObtenerValor(datos, "codigoClasificacionPS"),
+                    CodigoDisponibilidadICP = ObtenerValor(datos, "codigoDisponibilidadICP"),
+                    TipoPerfilConsumo = ObtenerValor(datos, "tipoPerfilConsumo"),
+                    ValorDerechosExtensionW = ObtenerValor(datos, "valorDerechosExtensionW"),
+                    ValorDerechosAccesoW = ObtenerValor(datos, "valorDerechosAccesoW"),
+                    CodigoPropiedadEquipoMedida = ObtenerValor(datos, "codigoPropiedadEquipoMedida"),
+                    CodigoPropiedadICP = ObtenerValor(datos, "codigoPropiedadICP"),
+                    PotenciasContratadasEnWP1 = ParsearDecimalKw(ObtenerValor(datos, "potenciasContratadasEnWP1")),
+                    PotenciasContratadasEnWP2 = ParsearDecimalKw(ObtenerValor(datos, "potenciasContratadasEnWP2")),
+                    PotenciasContratadasEnWP3 = ParsearDecimalKw(ObtenerValor(datos, "potenciasContratadasEnWP3")),
+                    PotenciasContratadasEnWP4 = ParsearDecimalKw(ObtenerValor(datos, "potenciasContratadasEnWP4")),
+                    PotenciasContratadasEnWP5 = ParsearDecimalKw(ObtenerValor(datos, "potenciasContratadasEnWP5")),
+                    PotenciasContratadasEnWP6 = ParsearDecimalKw(ObtenerValor(datos, "potenciasContratadasEnWP6")),
+                    FechaUltimoMovimientoContrato = ParsearFecha(ObtenerValor(datos, "fechaUltimoMovimientoContrato")),
+                    FechaUltimoCambioComercializador = ParsearFecha(ObtenerValor(datos, "fechaUltimoCambioComercializador")),
+                    FechaLimiteDerechosReconocidos = ParsearFecha(ObtenerValor(datos, "fechaLimiteDerechosReconocidos")),
+                    FechaUltimaLectura = ParsearFecha(ObtenerValor(datos, "fechaUltimaLectura")),
+                    InformacionImpagos = ObtenerValor(datos, "informacionImpagos"),
+                    ImporteDepositoGarantiaEuros = ObtenerValor(datos, "importeDepositoGarantiaEuros"),
+                    TipoIdTitular = ObtenerValor(datos, "tipoIdTitular"),
+                    EsViviendaHabitual = ObtenerValor(datos, "esViviendaHabitual"),
+                    CodigoComercializadora = ObtenerValor(datos, "codigoComercializadora"),
+                    CodigoTelegestion = ObtenerValor(datos, "codigoTelegestion"),
+                    CodigoFasesEquipoMedida = ObtenerValor(datos, "codigoFasesEquipoMedida"),
+                    CodigoAutoconsumo = ObtenerValor(datos, "codigoAutoconsumo"),
+                    CodigoTipoContrato = ObtenerValor(datos, "codigoTipoContrato"),
+                    CodigoPeriodicidadFacturacion = ObtenerValor(datos, "codigoPeriodicidadFacturacion"),
+                    Cnae = ObtenerValor(datos, "CNAE"),
+                    AplicacionBonoSocial = ObtenerValor(datos, "aplicacionBonoSocial")
+                };
+
+                return new SipsResponse
+                {
+                    ClientesSips = new List<ClienteSips> { cliente },
+                    ConsumosSips = null,
+                    DatosTitular = null
+                };
+            }
+            catch (Exception ex)
+            {
+                var csvPreview = csv.Length > 500 ? csv.Substring(0, 500) + "..." : csv;
+                Console.WriteLine($"[SIPS] Error parseando CSV: {ex.Message}");
+                Console.WriteLine($"[SIPS] CSV problemático: {csvPreview}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Parsea una línea CSV respetando comillas y comas dentro de valores entrecomillados.
+        /// Ejemplo: "campo1","campo con, coma","campo3" -> ["campo1", "campo con, coma", "campo3"]
+        /// </summary>
+        private static List<string> ParsearLineaCsv(string linea)
+        {
+            var campos = new List<string>();
+            var campoActual = new System.Text.StringBuilder();
+            var dentroDeComillas = false;
+            var i = 0;
+
+            while (i < linea.Length)
+            {
+                var c = linea[i];
+
+                if (c == '"')
+                {
+                    if (dentroDeComillas && i + 1 < linea.Length && linea[i + 1] == '"')
+                    {
+                        // Comilla doble escapada ("")
+                        campoActual.Append('"');
+                        i += 2;
+                        continue;
+                    }
+                    else
+                    {
+                        // Toggle estado de comillas
+                        dentroDeComillas = !dentroDeComillas;
+                        i++;
+                        continue;
+                    }
+                }
+
+                if (c == ',' && !dentroDeComillas)
+                {
+                    // Fin del campo
+                    campos.Add(campoActual.ToString().Trim());
+                    campoActual.Clear();
+                    i++;
+                    continue;
+                }
+
+                // Carácter normal
+                campoActual.Append(c);
+                i++;
+            }
+
+            // Agregar el último campo
+            campos.Add(campoActual.ToString().Trim());
+
+            return campos;
+        }
+
+        private static string? ObtenerValor(Dictionary<string, string> datos, string clave)
+        {
+            if (datos.TryGetValue(clave, out var valor) && !string.IsNullOrWhiteSpace(valor))
+            {
+                return valor;
+            }
+            return null;
+        }
+
+        private static DateTime? ParsearFecha(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+                return null;
+
+            if (DateTime.TryParseExact(valor, "yyyy-MM-dd", 
+                System.Globalization.CultureInfo.InvariantCulture, 
+                System.Globalization.DateTimeStyles.None, out var fecha))
+            {
+                return fecha;
+            }
+
+            if (DateTime.TryParse(valor, out fecha))
+            {
+                return fecha;
+            }
+
+            return null;
+        }
+
+        private static decimal? ParsearDecimal(string? valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+                return null;
+
+            if (decimal.TryParse(valor, System.Globalization.NumberStyles.Any, 
+                System.Globalization.CultureInfo.InvariantCulture, out var resultado))
+            {
+                return resultado;
+            }
+
+            return null;
+        }
+
+        private static decimal? ParsearDecimalKw(string? valor)
+        {
+            var valorWatts = ParsearDecimal(valor);
+            // Convertir de Watts a kW
+            return valorWatts.HasValue ? valorWatts.Value / 1000m : null;
+        }
+
+        /// <summary>
+        /// Realiza una llamada HTTP a la API especificada y devuelve el contenido como string
+        /// </summary>
+        private async Task<string> ConsultarApiAsync(string url)
+        {
+            HttpResponseMessage? response = null;
+            string? contenido = null;
+            
+            try
+            {
+                response = await _httpClient.GetAsync(url);
+                contenido = await response.Content.ReadAsStringAsync();
+                
+                Console.WriteLine($"[SIPS API] HTTP Status: {(int)response.StatusCode}");
+                Console.WriteLine($"[SIPS API] Response length: {contenido?.Length ?? 0} caracteres");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}");
+                }
+                
+                if (string.IsNullOrWhiteSpace(contenido))
+                {
+                    throw new Exception("La API devolvió una respuesta vacía");
+                }
+                
+                return contenido;
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[SIPS API] Error de conexión: {ex.Message}");
+                throw new Exception($"Error al conectar con SIPS: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Parsea un CSV de consumos de electricidad y devuelve una lista de ConsumoSips
+        /// </summary>
+        private static List<ConsumoSips> ParsearCsvConsumos(string csv)
+        {
+            try
+            {
+                var lineas = csv.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lineas.Length < 2)
+                {
+                    Console.WriteLine($"[SIPS CONSUMOS] CSV sin datos de consumo");
+                    return new List<ConsumoSips>();
+                }
+
+                // Primera línea: cabeceras
+                var cabeceras = ParsearLineaCsv(lineas[0]);
+                
+                var consumos = new List<ConsumoSips>();
+
+                // Procesar cada línea de datos (desde la línea 1 en adelante)
+                for (int i = 1; i < lineas.Length; i++)
+                {
+                    try
+                    {
+                        var valores = ParsearLineaCsv(lineas[i]);
+                        
+                        if (valores.Count != cabeceras.Count)
+                        {
+                            Console.WriteLine($"[SIPS CONSUMOS] Línea {i} ignorada: {cabeceras.Count} cabeceras vs {valores.Count} valores");
+                            continue;
+                        }
+
+                        var datos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        for (int j = 0; j < cabeceras.Count; j++)
+                        {
+                            datos[cabeceras[j]] = valores[j];
+                        }
+
+                        var consumo = new ConsumoSips
+                        {
+                            CodigoCUPS = ObtenerValor(datos, "cups"),
+                            FechaInicio = ParsearFecha(ObtenerValor(datos, "fechaInicioMesConsumo")),
+                            FechaFin = ParsearFecha(ObtenerValor(datos, "fechaFinMesConsumo")),
+                            CodigoTarifaATR = ObtenerValor(datos, "codigoTarifaATR"),
+                            Activa1 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaActivaEnWhP1")),
+                            Activa2 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaActivaEnWhP2")),
+                            Activa3 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaActivaEnWhP3")),
+                            Activa4 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaActivaEnWhP4")),
+                            Activa5 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaActivaEnWhP5")),
+                            Activa6 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaActivaEnWhP6")),
+                            Reactiva1 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaReactivaEnVArhP1")),
+                            Reactiva2 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaReactivaEnVArhP2")),
+                            Reactiva3 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaReactivaEnVArhP3")),
+                            Reactiva4 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaReactivaEnVArhP4")),
+                            Reactiva5 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaReactivaEnVArhP5")),
+                            Reactiva6 = ParsearDecimalKwh(ObtenerValor(datos, "consumoEnergiaReactivaEnVArhP6"))
+                        };
+
+                        // Solo agregar si tiene fechas válidas
+                        if (consumo.FechaInicio.HasValue && consumo.FechaFin.HasValue)
+                        {
+                            consumos.Add(consumo);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[SIPS CONSUMOS] Error procesando línea {i}: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"[SIPS CONSUMOS] Parseados {consumos.Count} registros de consumo");
+                return consumos;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SIPS CONSUMOS] Error parseando CSV: {ex.Message}");
+                return new List<ConsumoSips>();
+            }
+        }
+
+        /// <summary>
+        /// Convierte Wh (vatio-hora) a kWh (kilovatio-hora)
+        /// </summary>
+        private static decimal? ParsearDecimalKwh(string? valor)
+        {
+            var valorWh = ParsearDecimal(valor);
+            // Convertir de Wh a kWh
+            return valorWh.HasValue ? valorWh.Value / 1000m : null;
         }
 
         private int? TryGetInt(string key)

@@ -1,0 +1,562 @@
+@page "/configuracion-comisiones"
+@layout Layout.MainLayout
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject DbContextProvider DbContextProvider
+@inject ComisionService ComisionService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Configuración de Comisiones - EnerfoneCRM</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    <div class="text-center mt-5">
+        <p>Redirigiendo al login...</p>
+    </div>
+}
+else if (!AuthService.EsAdministrador)
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Acceso Denegado</h4>
+            <p>No tienes permisos para acceder a esta sección. Solo los administradores pueden configurar comisiones.</p>
+            <hr>
+            <a href="/" class="btn btn-primary">Volver al Inicio</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h2 class="fw-bold"><i class="bi bi-percent me-2"></i>Configuración de Comisiones</h2>
+                <p class="text-muted">Gestiona los porcentajes de comisión por usuario y proveedor</p>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary" @onclick="AbrirModalNuevaConfiguracion">
+                    <i class="bi bi-plus-circle me-2"></i>Nueva Configuración
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0">Configuraciones Activas</h5>
+                        </div>
+                        <div class="col-auto">
+                            <select class="form-select form-select-sm" @bind="usuarioFiltroId" @bind:after="CargarConfiguraciones">
+                                <option value="0">Todos los usuarios</option>
+                                @foreach (var usuario in usuarios)
+                                {
+                                    <option value="@usuario.Id">@usuario.NombreUsuario (@usuario.Rol)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (!configuraciones.Any())
+                    {
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <p class="text-muted mt-3">No hay configuraciones de comisiones</p>
+                            <button class="btn btn-primary" @onclick="AbrirModalNuevaConfiguracion">
+                                <i class="bi bi-plus-circle me-2"></i>Crear Primera Configuración
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Proveedor</th>
+                                        <th>Tipo</th>
+                                        <th class="text-end">Colaborador</th>
+                                        <th class="text-end">Gestor</th>
+                                        <th class="text-end">Jefe Ventas</th>
+                                        <th class="text-end">Director</th>
+                                        <th class="text-end">Admin</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var config in configuraciones)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@config.Usuario?.NombreUsuario</strong>
+                                                <br />
+                                                <small class="text-muted">@config.Usuario?.Rol</small>
+                                            </td>
+                                            <td>@config.NombreProveedor</td>
+                                            <td>
+                                                <span class="badge bg-@ObtenerColorTipoProveedor(config.TipoProveedor)">
+                                                    @config.TipoProveedor
+                                                </span>
+                                            </td>
+                                            <td class="text-end">
+                                                <strong>@config.PorcentajeColaborador.ToString("F2")%</strong>
+                                            </td>
+                                            <td class="text-end text-muted">
+                                                @(config.PorcentajeGestor?.ToString("F2") ?? "-")%
+                                            </td>
+                                            <td class="text-end text-muted">
+                                                @(config.PorcentajeJefeVentas?.ToString("F2") ?? "-")%
+                                            </td>
+                                            <td class="text-end text-muted">
+                                                @(config.PorcentajeDirectorComercial?.ToString("F2") ?? "-")%
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge bg-info">
+                                                    @config.PorcentajeAdministrador.ToString("F2")%
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                @if (config.Activa)
+                                                {
+                                                    <span class="badge bg-success">Activa</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactiva</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-primary me-1" 
+                                                        @onclick="() => EditarConfiguracion(config)"
+                                                        title="Editar">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        @onclick="() => EliminarConfiguracion(config.Id)"
+                                                        title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Información de ayuda -->
+            <div class="alert alert-info mt-4">
+                <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Información sobre Comisiones</h6>
+                <ul class="mb-0">
+                    <li>El porcentaje <strong>Administrador</strong> se calcula automáticamente como el 100% menos la suma de los demás porcentajes.</li>
+                    <li>La suma de todos los porcentajes (excepto Admin) no puede superar el 100%.</li>
+                    <li>Si no existe configuración específica, se aplicarán porcentajes por defecto: 70% Colaborador, 10% Gestor, 10% Jefe, 10% Admin.</li>
+                    <li>Las configuraciones se aplican por usuario y proveedor específico (Comercializadora/Operadora/Empresa de Alarmas).</li>
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+<!-- Modal Nueva/Editar Configuración -->
+@if (mostrarModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        @(configuracionEditando.Id == 0 ? "Nueva Configuración de Comisión" : "Editar Configuración de Comisión")
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                </div>
+                <EditForm Model="@configuracionEditando" OnValidSubmit="GuardarConfiguracion">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Usuario *</label>
+                            <select class="form-select" @bind="configuracionEditando.UsuarioId" disabled="@(configuracionEditando.Id != 0)">
+                                <option value="0">Seleccionar usuario...</option>
+                                @foreach (var usuario in usuarios)
+                                {
+                                    <option value="@usuario.Id">@usuario.NombreUsuario (@usuario.Rol)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Tipo de Proveedor *</label>
+                                <select class="form-select" @bind="configuracionEditando.TipoProveedor" 
+                                        @bind:after="CargarProveedores"
+                                        disabled="@(configuracionEditando.Id != 0)">
+                                    <option value="">Seleccionar tipo...</option>
+                                    <option value="Comercializadora">Comercializadora</option>
+                                    <option value="Operadora">Operadora</option>
+                                    <option value="EmpresaAlarma">Empresa de Alarmas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Proveedor *</label>
+                                <select class="form-select" @bind="configuracionEditando.ProveedorId" 
+                                        @bind:after="ActualizarNombreProveedor"
+                                        disabled="@(configuracionEditando.Id != 0 || string.IsNullOrEmpty(configuracionEditando.TipoProveedor))">
+                                    <option value="0">Seleccionar proveedor...</option>
+                                    @foreach (var proveedor in proveedoresDisponibles)
+                                    {
+                                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <hr />
+
+                        <h6 class="mb-3">Distribución de Porcentajes</h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Colaborador % *</label>
+                                <InputNumber class="form-control" @bind-Value="configuracionEditando.PorcentajeColaborador" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Gestor %</label>
+                                <InputNumber class="form-control" @bind-Value="configuracionEditando.PorcentajeGestor" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Jefe de Ventas %</label>
+                                <InputNumber class="form-control" @bind-Value="configuracionEditando.PorcentajeJefeVentas" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Director Comercial %</label>
+                                <InputNumber class="form-control" @bind-Value="configuracionEditando.PorcentajeDirectorComercial" />
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>
+                                    <strong>Administrador:</strong> 
+                                    @(100 - configuracionEditando.PorcentajeColaborador - (configuracionEditando.PorcentajeGestor ?? 0) - (configuracionEditando.PorcentajeJefeVentas ?? 0) - (configuracionEditando.PorcentajeDirectorComercial ?? 0))%
+                                </span>
+                                <span class="badge bg-primary">
+                                    Total: @(configuracionEditando.PorcentajeColaborador + (configuracionEditando.PorcentajeGestor ?? 0) + (configuracionEditando.PorcentajeJefeVentas ?? 0) + (configuracionEditando.PorcentajeDirectorComercial ?? 0))%
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-check">
+                            <InputCheckbox class="form-check-input" @bind-Value="configuracionEditando.Activa" id="checkActiva" />
+                            <label class="form-check-label" for="checkActiva">
+                                Configuración activa
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool cargandoSesion = true;
+    private bool cargando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+
+    private List<ConfiguracionComision> configuraciones = new();
+    private List<Usuario> usuarios = new();
+    private int usuarioFiltroId = 0;
+
+    private bool mostrarModal = false;
+    private ConfiguracionComision configuracionEditando = new();
+    
+    private List<ProveedorTemp> proveedoresDisponibles = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // MainLayout ya cargó la sesión, solo verificar
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", false);
+                return;
+            }
+
+            if (!AuthService.EsAdministrador)
+            {
+                cargandoSesion = false;
+                StateHasChanged();
+                return;
+            }
+
+            cargandoSesion = false;
+            await CargarDatos();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        StateHasChanged();
+
+        await CargarUsuarios();
+        await CargarConfiguraciones();
+
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        await using var context = DbContextProvider.CreateDbContext();
+        usuarios = await context.Usuarios
+            .Where(u => u.Activo)
+            .OrderBy(u => u.NombreUsuario)
+            .ToListAsync();
+    }
+
+    private async Task CargarConfiguraciones()
+    {
+        await using var context = DbContextProvider.CreateDbContext();
+
+        var query = context.ConfiguracionesComision
+            .Include(c => c.Usuario)
+            .AsQueryable();
+
+        if (usuarioFiltroId > 0)
+        {
+            query = query.Where(c => c.UsuarioId == usuarioFiltroId);
+        }
+
+        configuraciones = await query
+            .OrderBy(c => c.Usuario!.NombreUsuario)
+            .ThenBy(c => c.TipoProveedor)
+            .ThenBy(c => c.NombreProveedor)
+            .ToListAsync();
+    }
+
+    private void AbrirModalNuevaConfiguracion()
+    {
+        configuracionEditando = new ConfiguracionComision
+        {
+            PorcentajeColaborador = 70m,
+            PorcentajeGestor = 10m,
+            PorcentajeJefeVentas = 10m,
+            Activa = true
+        };
+        mostrarModal = true;
+    }
+
+    private async Task EditarConfiguracion(ConfiguracionComision config)
+    {
+        configuracionEditando = new ConfiguracionComision
+        {
+            Id = config.Id,
+            UsuarioId = config.UsuarioId,
+            TipoProveedor = config.TipoProveedor,
+            ProveedorId = config.ProveedorId,
+            NombreProveedor = config.NombreProveedor,
+            PorcentajeColaborador = config.PorcentajeColaborador,
+            PorcentajeGestor = config.PorcentajeGestor,
+            PorcentajeJefeVentas = config.PorcentajeJefeVentas,
+            PorcentajeDirectorComercial = config.PorcentajeDirectorComercial,
+            Activa = config.Activa
+        };
+
+        await CargarProveedores();
+        mostrarModal = true;
+    }
+
+    private async Task GuardarConfiguracion()
+    {
+        try
+        {
+            // Validar que los porcentajes no superen 100%
+            decimal total = configuracionEditando.PorcentajeColaborador
+                + (configuracionEditando.PorcentajeGestor ?? 0)
+                + (configuracionEditando.PorcentajeJefeVentas ?? 0)
+                + (configuracionEditando.PorcentajeDirectorComercial ?? 0);
+
+            if (total > 100)
+            {
+                mensajeError = $"La suma de porcentajes no puede superar el 100% (actual: {total}%)";
+                return;
+            }
+
+            await ComisionService.GuardarConfiguracionAsync(configuracionEditando);
+
+            mensajeExito = configuracionEditando.Id == 0 
+                ? "Configuración creada exitosamente" 
+                : "Configuración actualizada exitosamente";
+
+            CerrarModal();
+            await CargarConfiguraciones();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private async Task EliminarConfiguracion(int id)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar esta configuración?"))
+            return;
+
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var config = await context.ConfiguracionesComision.FindAsync(id);
+            
+            if (config != null)
+            {
+                context.ConfiguracionesComision.Remove(config);
+                await context.SaveChangesAsync();
+                
+                mensajeExito = "Configuración eliminada exitosamente";
+                await CargarConfiguraciones();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar: {ex.Message}";
+        }
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        configuracionEditando = new();
+        proveedoresDisponibles.Clear();
+    }
+
+    private async Task CargarProveedores()
+    {
+        proveedoresDisponibles.Clear();
+
+        if (string.IsNullOrEmpty(configuracionEditando.TipoProveedor))
+            return;
+
+        await using var context = DbContextProvider.CreateDbContext();
+
+        switch (configuracionEditando.TipoProveedor)
+        {
+            case "Comercializadora":
+                var comercializadoras = await context.Comercializadoras
+                    .Where(c => c.Activo)
+                    .OrderBy(c => c.Nombre)
+                    .ToListAsync();
+                proveedoresDisponibles = comercializadoras.Select(c => new ProveedorTemp 
+                { 
+                    Id = c.Id, 
+                    Nombre = c.Nombre 
+                }).ToList();
+                break;
+
+            case "Operadora":
+                var operadoras = await context.Operadoras
+                    .Where(o => o.Activo)
+                    .OrderBy(o => o.Nombre)
+                    .ToListAsync();
+                proveedoresDisponibles = operadoras.Select(o => new ProveedorTemp 
+                { 
+                    Id = o.Id, 
+                    Nombre = o.Nombre 
+                }).ToList();
+                break;
+
+            case "EmpresaAlarma":
+                var empresas = await context.EmpresasAlarmas
+                    .Where(e => e.Activo)
+                    .OrderBy(e => e.Nombre)
+                    .ToListAsync();
+                proveedoresDisponibles = empresas.Select(e => new ProveedorTemp 
+                { 
+                    Id = e.Id, 
+                    Nombre = e.Nombre 
+                }).ToList();
+                break;
+        }
+
+        StateHasChanged();
+    }
+
+    private void ActualizarNombreProveedor()
+    {
+        var proveedor = proveedoresDisponibles.FirstOrDefault(p => p.Id == configuracionEditando.ProveedorId);
+        if (proveedor != null)
+        {
+            configuracionEditando.NombreProveedor = proveedor.Nombre;
+        }
+    }
+
+    private string ObtenerColorTipoProveedor(string tipo)
+    {
+        return tipo switch
+        {
+            "Comercializadora" => "warning",
+            "Operadora" => "info",
+            "EmpresaAlarma" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private class ProveedorTemp
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+    }
+}

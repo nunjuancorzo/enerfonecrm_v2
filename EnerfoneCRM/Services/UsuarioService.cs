@@ -60,6 +60,19 @@ public class UsuarioService
     public async Task<(bool exito, string mensaje)> CrearAsync(Usuario usuario, string password)
     {
         await using var context = _dbContextProvider.CreateDbContext();
+        
+        // Validar que solo puede haber un administrador
+        if (usuario.Rol == "Administrador")
+        {
+            var existeAdministrador = await context.Usuarios
+                .AnyAsync(u => u.Rol == "Administrador");
+            
+            if (existeAdministrador)
+            {
+                return (false, "Ya existe un usuario con rol Administrador. Solo puede haber un administrador por sistema.");
+            }
+        }
+        
         var existeNombreUsuario = await context.Usuarios
             .AnyAsync(u => u.NombreUsuario == usuario.NombreUsuario);
 
@@ -96,6 +109,18 @@ public class UsuarioService
             if (usuarioAnterior == null)
             {
                 return (false, "Usuario no encontrado");
+            }
+            
+            // Validar que solo puede haber un administrador (si está cambiando a ese rol)
+            if (usuario.Rol == "Administrador" && usuarioAnterior.Rol != "Administrador")
+            {
+                var existeAdministrador = await context.Usuarios
+                    .AnyAsync(u => u.Rol == "Administrador");
+                
+                if (existeAdministrador)
+                {
+                    return (false, "Ya existe un usuario con rol Administrador. Solo puede haber un administrador por sistema.");
+                }
             }
             
             var nombreAnterior = usuarioAnterior.NombreUsuario?.Trim() ?? "";

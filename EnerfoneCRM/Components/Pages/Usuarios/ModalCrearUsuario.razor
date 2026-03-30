@@ -93,11 +93,12 @@
                         <label class="form-label">Rol</label>
                         <InputSelect class="form-select" @bind-Value="model.Rol" @bind-Value:after="OnRolChanged">
                             <option value="">Seleccionar rol...</option>
-                            <option value="Colaborador">Colaborador</option>
                             <option value="Administrador">Administrador</option>
-                            <option value="Gestor">Gestor</option>
-                            <option value="Jefe de ventas">Jefe de ventas</option>
+                            <option value="Backoffice">Backoffice</option>
                             <option value="Director comercial">Director comercial</option>
+                            <option value="Jefe de ventas">Jefe de ventas</option>
+                            <option value="Gestor">Gestor</option>
+                            <option value="Colaborador">Colaborador</option>
                             <option value="Comercializadora">Comercializadora</option>
                         </InputSelect>
                         <ValidationMessage For="@(() => model.Rol)" />
@@ -738,6 +739,20 @@
         if (model.Rol == "Comercializadora" && string.IsNullOrEmpty(model.Comercializadora))
         {
             return; // No enviar si falta comercializadora
+        }
+
+        // Validar que solo puede haber un administrador
+        if (model.Rol == "Administrador")
+        {
+            var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            var existeAdministrador = todosUsuarios.Any(u => u.Rol == "Administrador");
+            
+            if (existeAdministrador)
+            {
+                // Mostrar mensaje de error
+                await OnGuardar.InvokeAsync((null, null, null, null, null, null, null));
+                return;
+            }
         }
 
         // Guardar archivos si se seleccionaron

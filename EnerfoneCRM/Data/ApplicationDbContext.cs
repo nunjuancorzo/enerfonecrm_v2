@@ -34,7 +34,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<NoticiaImagen> NoticiasImagenes { get; set; }
     public DbSet<IncidenciaLiquidacion> IncidenciasLiquidacion { get; set; }
     public DbSet<HistoricoLiquidacion> HistoricoLiquidaciones { get; set; }
+    public DbSet<ConfiguracionComision> ConfiguracionesComision { get; set; }
+    public DbSet<DetalleComisionLiquidacion> DetallesComisionLiquidacion { get; set; }
+    public DbSet<Decomision> Decomisiones { get; set; }
     public DbSet<Incidencia> Incidencias { get; set; }
+    public DbSet<ComentarioIncidencia> ComentariosIncidencias { get; set; }
     public DbSet<SolicitudOferta> SolicitudesOfertas { get; set; }
     public DbSet<HistoricoSipsConsulta> HistoricoSipsConsultas { get; set; }
 }

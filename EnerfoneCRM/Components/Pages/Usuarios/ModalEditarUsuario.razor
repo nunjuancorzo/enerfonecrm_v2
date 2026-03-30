@@ -100,11 +100,12 @@
                     <div class="mb-3">
                         <label class="form-label">Rol</label>
                         <InputSelect class="form-select" @bind-Value="usuario.Rol" @bind-Value:after="OnRolChanged">
-                            <option value="Colaborador">Colaborador</option>
                             <option value="Administrador">Administrador</option>
-                            <option value="Gestor">Gestor</option>
-                            <option value="Jefe de ventas">Jefe de ventas</option>
+                            <option value="Backoffice">Backoffice</option>
                             <option value="Director comercial">Director comercial</option>
+                            <option value="Jefe de ventas">Jefe de ventas</option>
+                            <option value="Gestor">Gestor</option>
+                            <option value="Colaborador">Colaborador</option>
                             <option value="Comercializadora">Comercializadora</option>
                         </InputSelect>
                     </div>
@@ -524,6 +525,86 @@
                         </div>
                     </div>
 
+                    @if (usuario.Rol == "Backoffice")
+                    {
+                        <hr />
+                        <h6 class="mb-3 text-primary">
+                            <i class="bi bi-shield-lock me-2"></i>Permisos de Visualización (Rol Backoffice)
+                        </h6>
+                        <p class="text-muted small mb-3">
+                            Configure qué módulos puede ver este usuario. Los usuarios Backoffice no reciben comisiones.
+                        </p>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerClientes" class="form-check-input" @bind-Value="usuario.PuedeVerClientes" />
+                                    <label class="form-check-label" for="puedeVerClientes">
+                                        <i class="bi bi-people me-1"></i>Ver Clientes
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerContratos" class="form-check-input" @bind-Value="usuario.PuedeVerContratos" />
+                                    <label class="form-check-label" for="puedeVerContratos">
+                                        <i class="bi bi-file-text me-1"></i>Ver Contratos
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerTarifas" class="form-check-input" @bind-Value="usuario.PuedeVerTarifas" />
+                                    <label class="form-check-label" for="puedeVerTarifas">
+                                        <i class="bi bi-cash-stack me-1"></i>Ver Tarifas
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerLiquidaciones" class="form-check-input" @bind-Value="usuario.PuedeVerLiquidaciones" />
+                                    <label class="form-check-label" for="puedeVerLiquidaciones">
+                                        <i class="bi bi-calculator me-1"></i>Ver Liquidaciones
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerSips" class="form-check-input" @bind-Value="usuario.PuedeVerSips" />
+                                    <label class="form-check-label" for="puedeVerSips">
+                                        <i class="bi bi-diagram-3 me-1"></i>Ver SIPS
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerIncidencias" class="form-check-input" @bind-Value="usuario.PuedeVerIncidencias" />
+                                    <label class="form-check-label" for="puedeVerIncidencias">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Ver Incidencias
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerOfertas" class="form-check-input" @bind-Value="usuario.PuedeVerOfertas" />
+                                    <label class="form-check-label" for="puedeVerOfertas">
+                                        <i class="bi bi-gift me-1"></i>Ver Ofertas
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <InputCheckbox id="puedeVerUsuarios" class="form-check-input" @bind-Value="usuario.PuedeVerUsuarios" />
+                                    <label class="form-check-label" for="puedeVerUsuarios">
+                                        <i class="bi bi-person-badge me-1"></i>Ver Usuarios
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <hr />
+
                     <div class="mb-3">
                         <label class="form-label">Fecha de Creación</label>
                         <input type="text" class="form-control" value="@usuario.FechaCreacion.ToString("dd/MM/yyyy HH:mm")" disabled />
@@ -554,6 +635,7 @@
 
     private Usuario usuario = new();
     private string mensajeError = string.Empty;
+    private string rolOriginal = string.Empty;  // Para validar cambios de rol a Administrador
     private string nuevaPassword = string.Empty;
     private bool enviandoEmail = false;
     private List<string> comercializadoras = new();
@@ -704,6 +786,9 @@
         
         if (Usuario != null)
         {
+            // Guardar rol original para validación
+            rolOriginal = Usuario.Rol ?? "";
+            
             usuario = new Usuario
             {
                 Id = Usuario.Id,
@@ -903,6 +988,20 @@
         if (usuario.Rol == "Comercializadora" && string.IsNullOrEmpty(usuario.Comercializadora))
         {
             return; // No enviar si falta comercializadora
+        }
+
+        // Validar que solo puede haber un administrador
+        if (usuario.Rol == "Administrador" && rolOriginal != "Administrador")
+        {
+            // Verificar si ya existe un administrador
+            var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            var existeAdministrador = todosUsuarios.Any(u => u.Rol == "Administrador" && u.Id != usuario.Id);
+            
+            if (existeAdministrador)
+            {
+                mensajeError = "Ya existe un usuario con rol Administrador. Solo puede haber un administrador por sistema.";
+                return;
+            }
         }
 
         // Guardar archivos si se seleccionaron nuevos

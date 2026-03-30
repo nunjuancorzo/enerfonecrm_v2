@@ -54,6 +54,7 @@ def generar_plantilla():
         ['', 'O2', 'FibraMovil', 'Fibra 600Mb + 80GB', '600 Mb', '80 GB', '', '', '', '45,00', '50,00', '12 meses', '2026-02-24'],
         ['', 'Lowi', 'Fibra', 'Fibra 1Gb', '1 Gb', '', '', '', '', '35,00', '40,00', 'Sin permanencia', '2026-02-24'],
         ['', 'Simyo', 'Movil', 'Tarifa Móvil 50GB', '', '50 GB', '', '', '', '20,00', '25,00', '6 meses', '2026-02-24'],
+        ['', 'Pepephone', 'MovilAdicional', 'Línea adicional 30GB', '', '30 GB', '', '', '', '10,00', '15,00', '12 meses', '2026-02-24'],
         ['', 'Jazztel', 'FibraMovilTV', 'Fibra 1Gb + 100GB + Netflix', '1 Gb', '100 GB', '', 'Netflix', '', '55,00', '60,00', '24 meses', '2026-02-24'],
         ['', 'Masmovil', 'FibraSegundaResidencia', 'Fibra 300Mb Segunda Residencia', '300 Mb', '', '', '', '', '25,00', '30,00', 'Sin permanencia', '2026-02-24']
     ]
@@ -74,6 +75,7 @@ def generar_plantilla():
         ['    * FibraMovil (Fibra y Móvil)'],
         ['    * Fibra (Solo Fibra)'],
         ['    * Movil (Solo Móvil)'],
+        ['    * MovilAdicional (Líneas móviles adicionales para FibraMovil, Movil y FibraMovilTV)'],
         ['    * FibraMovilTV (Fibra, Móvil y TV)'],
         ['    * FibraSegundaResidencia (Fibra Segunda Residencia)'],
         [''],
@@ -98,7 +100,7 @@ def generar_plantilla():
         ['- El campo TIPO debe ser exactamente uno de los valores listados arriba (con mayúsculas y minúsculas exactas)'],
         ['- Los precios pueden llevar comas o puntos como separadores decimales'],
         ['- Las filas completamente vacías se ignorarán'],
-        ['- Se proporcionan 5 ejemplos, uno de cada tipo válido de tarifa'],
+        ['- Se proporcionan 6 ejemplos, uno de cada tipo válido de tarifa'],
     ]
     
     title_format = workbook.add_format({

@@ -83,6 +83,9 @@ namespace EnerfoneCRM.Models
         [MaxLength(255)]
         public string? EnTarifa { get; set; }
 
+        [Column("en_tarifa_id")]
+        public int? EnTarifaId { get; set; }
+
         [Column("en_CUPS")]
         [MaxLength(255)]
         public string? EnCups { get; set; }
@@ -128,6 +131,9 @@ namespace EnerfoneCRM.Models
         [Column("Tarifa_tel")]
         [MaxLength(255)]
         public string? TarifaTel { get; set; }
+
+        [Column("tarifa_tel_id")]
+        public int? TarifaTelId { get; set; }
 
         [Column("TipoTarifa_tel")]
         [MaxLength(100)]
@@ -448,6 +454,9 @@ namespace EnerfoneCRM.Models
         [Column("kit_alarma")]
         [MaxLength(255)]
         public string? KitAlarma { get; set; }
+
+        [Column("kit_alarma_id")]
+        public int? KitAlarmaId { get; set; }
 
         [Column("opcionales_alarma")]
         [MaxLength(500)]

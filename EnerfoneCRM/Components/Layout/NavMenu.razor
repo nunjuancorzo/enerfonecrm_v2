@@ -36,24 +36,27 @@
                             <i class="bi bi-folder2-open me-2" style="font-size: 1.4rem; vertical-align: middle; color: #FFA726;"></i>Contrataciones
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownContratos">
-                            @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                            @if (AuthService.UsuarioActual?.Rol != "Comercializadora" && AuthService.PuedeVerClientes)
                             {
                                 <li><a class="dropdown-item" href="clientes"><i class="bi bi-person-vcard-fill me-2" style="color: #66BB6A;"></i>Clientes</a></li>
                             }
-                            <li class="dropdown-submenu">
-                                <a class="dropdown-item dropdown-toggle" href="javascript:void(0);" id="navbarSubmenuContratos" role="button" aria-expanded="false">
-                                    <i class="bi bi-file-earmark-text me-2" style="color: #4FC3F7;"></i>Contratos
-                                </a>
-                                <ul class="dropdown-menu" aria-labelledby="navbarSubmenuContratos">
-                                    <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
-                                    @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
-                                    {
-                                        <li><a class="dropdown-item" href="contratos/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
-                                        <li><a class="dropdown-item" href="contratos/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
-                                    }
-                                </ul>
-                            </li>
-                            @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                            @if (AuthService.PuedeVerContratos)
+                            {
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="javascript:void(0);" id="navbarSubmenuContratos" role="button" aria-expanded="false">
+                                        <i class="bi bi-file-earmark-text me-2" style="color: #4FC3F7;"></i>Contratos
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarSubmenuContratos">
+                                        <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
+                                        @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                                        {
+                                            <li><a class="dropdown-item" href="contratos/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
+                                            <li><a class="dropdown-item" href="contratos/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
+                                        }
+                                    </ul>
+                                </li>
+                            }
+                            @if ((AuthService.UsuarioActual?.Rol == "Administrador" || AuthService.EsBackoffice) && AuthService.PuedeVerTarifas)
                             {
                                 <li class="dropdown-submenu">
                                     <a class="dropdown-item dropdown-toggle" href="javascript:void(0);" id="navbarSubmenuTarifas" role="button" aria-expanded="false">
@@ -79,12 +82,21 @@
                             <i class="bi bi-briefcase me-2" style="font-size: 1.4rem; vertical-align: middle; color: #66BB6A;"></i>Gestiones
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navbarDropdownGestiones">
-                            <li><a class="dropdown-item" href="liquidaciones"><i class="bi bi-cash-coin me-2" style="color: #4CAF50;"></i>Liquidaciones</a></li>
-                            <li><a class="dropdown-item" href="ofertas"><i class="bi bi-tag me-2" style="color: #FF9800;"></i>Ofertas</a></li>
+                            @if (AuthService.PuedeVerLiquidaciones)
+                            {
+                                <li><a class="dropdown-item" href="liquidaciones"><i class="bi bi-cash-coin me-2" style="color: #4CAF50;"></i>Liquidaciones</a></li>
+                            }
+                            @if (AuthService.PuedeVerOfertas)
+                            {
+                                <li><a class="dropdown-item" href="ofertas"><i class="bi bi-tag me-2" style="color: #FF9800;"></i>Ofertas</a></li>
+                            }
                             <li><a class="dropdown-item" href="noticias"><i class="bi bi-megaphone me-2" style="color: #03A9F4;"></i>Noticias</a></li>
                             <li><a class="dropdown-item" href="proximamente"><i class="bi bi-arrow-repeat me-2" style="color: #2196F3;"></i>Renovaciones</a></li>
                             <li><a class="dropdown-item" href="repositorio"><i class="bi bi-folder-fill me-2" style="color: #EF5350;"></i>Repositorio</a></li>
-                            <li><a class="dropdown-item" href="sips"><i class="bi bi-credit-card me-2" style="color: #9C27B0;"></i>SIPS</a></li>
+                            @if (AuthService.PuedeVerSips)
+                            {
+                                <li><a class="dropdown-item" href="sips"><i class="bi bi-credit-card me-2" style="color: #9C27B0;"></i>SIPS</a></li>
+                            }
                         </ul>
                     </li>
 
@@ -115,12 +127,16 @@
                                         <i class="bi bi-person-badge-fill me-2" style="color: #42A5F5;"></i>Usuarios
                                     </a>
                                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownUsuarios">
-                                        <li><a class="dropdown-item" href="usuarios"><i class="bi bi-people-fill text-primary me-2"></i>Gestión Usuarios</a></li>
+                                        @if (AuthService.PuedeVerUsuarios)
+                                        {
+                                            <li><a class="dropdown-item" href="usuarios"><i class="bi bi-people-fill text-primary me-2"></i>Gestión Usuarios</a></li>
+                                        }
                                         <li><a class="dropdown-item" href="tareas"><i class="bi bi-list-check text-success me-2"></i>Tareas</a></li>
                                     </ul>
                                 </li>
                                 <li><a class="dropdown-item" href="inicio-rapido"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>Inicio Rápido</a></li>
                                 <li><a class="dropdown-item" href="configuracion-empresa"><i class="bi bi-building me-2"></i>Datos de Empresa</a></li>
+                                <li><a class="dropdown-item" href="configuracion-comisiones"><i class="bi bi-percent me-2 text-success"></i>Configuración de Comisiones</a></li>
                             </ul>
                         </li>
                     }
@@ -135,9 +151,12 @@
                 </ul>
 
                 <div class="d-flex align-items-center text-white">
-                    <a href="incidencias" class="me-3 btn-incidencia" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 2px solid #ffc107; border-radius: 8px; background: transparent; text-decoration: none; transition: all 0.3s ease;" title="Gestión de Incidencias">
-                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.1rem; color: #ffc107; margin: 0; padding: 0; line-height: 1;"></i>
-                    </a>
+                    @if (AuthService.PuedeVerIncidencias)
+                    {
+                        <a href="incidencias" class="me-3 btn-incidencia" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 2px solid #ffc107; border-radius: 8px; background: transparent; text-decoration: none; transition: all 0.3s ease;" title="Gestión de Incidencias">
+                            <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.1rem; color: #ffc107; margin: 0; padding: 0; line-height: 1;"></i>
+                        </a>
+                    }
                     
                     <!-- Menú de usuario con dropdown -->
                     <div class="dropdown me-3">
