@@ -20,7 +20,7 @@
 }
 else
 {
-    @if (!AuthService.EstaAutenticado || !AuthService.EsAdministrador)
+    @if (!AuthService.EstaAutenticado || !AuthService.PuedeGestionarTarifas)
     {
         <div class="alert alert-warning m-4">
             <i class="bi bi-exclamation-triangle me-2"></i>
@@ -380,7 +380,7 @@ else
             await AuthService.CargarSesionAsync();
             cargandoSesion = false;
 
-            if (AuthService.EstaAutenticado && AuthService.EsAdministrador)
+            if (AuthService.EstaAutenticado && AuthService.PuedeGestionarTarifas)
             {
                 await CargarOperadoras();
             }

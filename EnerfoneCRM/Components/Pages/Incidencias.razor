@@ -164,7 +164,7 @@ else
                                         <button class="btn btn-sm btn-info" @onclick="() => MostrarDetalle(incidencia)">
                                             <i class="bi bi-eye"></i>
                                         </button>
-                                        @if (AuthService.EsAdministrador)
+                                        @if (AuthService.PuedeGestionarIncidencias)
                                         {
                                             <button class="btn btn-sm btn-warning" @onclick="() => EditarIncidencia(incidencia)">
                                                 <i class="bi bi-pencil"></i>
@@ -403,7 +403,7 @@ else
         }
 
         <!-- Modal de Edición (solo administrador) -->
-        @if (incidenciaEdicion != null && mostrarModalEdicion && AuthService.EsAdministrador)
+        @if (incidenciaEdicion != null && mostrarModalEdicion && AuthService.PuedeGestionarIncidencias)
         {
             <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                 <div class="modal-dialog modal-lg">
@@ -492,9 +492,9 @@ else
             cargando = true;
             using var context = DbContextProvider.CreateDbContext();
 
-            if (AuthService.EsAdministrador)
+            if (AuthService.PuedeGestionarIncidencias)
             {
-                // El administrador ve todas las incidencias
+                // El administrador y backoffice con permisos ven todas las incidencias
                 incidencias = await context.Incidencias
                     .OrderByDescending(i => i.FechaCreacion)
                     .ToListAsync();

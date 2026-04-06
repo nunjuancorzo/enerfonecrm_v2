@@ -88,6 +88,20 @@
                     }
                     else
                     {
+                    @if (AuthService.PuedeGestionarLiquidaciones)
+                    {
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-shield-check me-2"></i>
+                            <strong>Vista de administrador:</strong> Puedes ver y aprobar las liquidaciones pendientes de todos los usuarios.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-person-check me-2"></i>
+                            <strong>Tu liquidación:</strong> Solo ves tu propia liquidación pendiente. Revisa los contratos y acéptala cuando estés conforme.
+                        </div>
+                    }
                     <div class="table-responsive">
                         <table class="table table-hover table-striped">
                             <thead style="background-color: #6c757d; color: white;">
@@ -167,11 +181,11 @@
                                             <button class="btn btn-sm btn-warning me-1" @onclick="() => AbrirModalIncidencia(item.Usuario)" title="Gestionar Incidencias">
                                                 <i class="bi bi-exclamation-triangle"></i>
                                             </button>
-                                            @if (AuthService.EsAdministrador || AuthService.UsuarioActual?.Rol == "Colaborador")
+                                            @if (AuthService.PuedeGestionarLiquidaciones || AuthService.UsuarioActual?.Rol == "Colaborador")
                                             {
                                                 <button class="btn btn-sm btn-success" 
                                                         @onclick="() => AprobarLiquidacion(item.Usuario.Id)" 
-                                                        title="@(item.TieneIncidenciasPendientes ? "No se puede aprobar: hay incidencias pendientes sin responder" : "Aprobar Liquidación")" 
+                                                        title="@(item.TieneIncidenciasPendientes ? "No se puede aprobar: hay incidencias pendientes sin responder" : (AuthService.PuedeGestionarLiquidaciones ? "Aprobar Liquidación" : "Aceptar mi Liquidación"))" 
                                                         disabled="@(item.Aprobando || item.TieneIncidenciasPendientes)">
                                                     @if (item.Aprobando)
                                                     {
@@ -204,6 +218,20 @@
                     }
                     else
                     {
+                        @if (AuthService.PuedeGestionarLiquidaciones)
+                        {
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <strong>Vista de administrador:</strong> Puedes ver todas las liquidaciones en incidencia de todos los usuarios.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-person-check me-2"></i>
+                                <strong>Tus liquidaciones:</strong> Solo ves tus propias liquidaciones en incidencia.
+                            </div>
+                        }
                         <div class="table-responsive">
                             <table class="table table-hover table-striped">
                                 <thead style="background-color: #dc3545; color: white;">
@@ -271,6 +299,20 @@
                     }
                     else
                     {
+                        @if (AuthService.PuedeGestionarLiquidaciones)
+                        {
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <strong>Vista de administrador:</strong> Puedes ver todas las liquidaciones aceptadas de todos los usuarios.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-person-check me-2"></i>
+                                <strong>Tus liquidaciones:</strong> Solo ves tus propias liquidaciones aceptadas.
+                            </div>
+                        }
                         <div class="table-responsive">
                             <table class="table table-hover table-striped">
                                 <thead style="background-color: #28a745; color: white;">
@@ -341,6 +383,20 @@
                     }
                     else
                     {
+                        @if (AuthService.PuedeGestionarLiquidaciones)
+                        {
+                            <div class="alert alert-primary mb-3">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <strong>Vista de administrador:</strong> Puedes ver todas las liquidaciones finalizadas de todos los usuarios.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-primary mb-3">
+                                <i class="bi bi-person-check me-2"></i>
+                                <strong>Tus liquidaciones:</strong> Solo ves tus propias liquidaciones finalizadas.
+                            </div>
+                        }
                         <div class="table-responsive">
                             <table class="table table-hover table-striped">
                                 <thead style="background-color: #007bff; color: white;">
@@ -800,7 +856,7 @@
                                             </div>
                                         }
 
-                                        @if (incidencia.Estado == "Pendiente" && AuthService.EsAdministrador)
+                                        @if (incidencia.Estado == "Pendiente" && AuthService.PuedeGestionarLiquidaciones)
                                         {
                                             <hr />
                                             <div class="mt-3">
@@ -933,7 +989,7 @@
                                                 <button class="btn btn-sm btn-info me-1" @onclick="() => VerContratosHistorico(historico)" title="Ver Contratos">
                                                     <i class="bi bi-eye"></i>
                                                 </button>
-                                                @if (AuthService.EsAdministrador)
+                                                @if (AuthService.PuedeGestionarLiquidaciones)
                                                 {
                                                     <button class="btn btn-sm btn-warning" @onclick="() => ReactivarLiquidacion(historico.Id)" title="Reactivar Liquidación" disabled="@historico.Reactivando">
                                                         @if (historico.Reactivando)
@@ -1242,18 +1298,17 @@
                 return;
             }
 
-            // Administradores ven todas las liquidaciones
-            // Gestores y Colaboradores solo ven las suyas
-            if (AuthService.EsAdministrador || AuthService.EsGestor || AuthService.UsuarioActual?.Rol == "Colaborador")
-            {
-                await CargarUsuariosConContratos();
-                await CargarLiquidacionesPorEstado();
-            }
-            else
+            // Control de visibilidad de liquidaciones:
+            // - Admin y Backoffice con permisos: Ven y gestionan TODAS las liquidaciones
+            // - Colaboradores y Gestores: Solo ven y gestionan SUS PROPIAS liquidaciones
+            if (!AuthService.PuedeVerLiquidaciones)
             {
                 NavigationManager.NavigateTo("/", true);
                 return;
             }
+            
+            await CargarUsuariosConContratos();
+            await CargarLiquidacionesPorEstado();
 
             StateHasChanged();
         }
@@ -1297,8 +1352,8 @@
                             CantidadIncidenciasTotal = incidenciasTotal
                         };
 
-            // Filtrar por usuario si no es administrador
-            if (!AuthService.EsAdministrador && AuthService.UsuarioActual != null)
+            // Filtrar por usuario si no puede gestionar liquidaciones
+            if (!AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual != null)
             {
                 query = query.Where(u => u.Usuario.Id == AuthService.UsuarioActual.Id);
             }
@@ -1906,6 +1961,13 @@
             var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
             if (usuario == null) return;
 
+            // Validación de seguridad: colaboradores solo pueden aprobar su propia liquidación
+            if (!AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual?.Id != usuarioId)
+            {
+                mensajeError = "No tienes permisos para aprobar esta liquidación";
+                return;
+            }
+
             usuario.Aprobando = true;
             StateHasChanged();
 
@@ -1940,6 +2002,18 @@
             
             // Calcular total de comisiones
             var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            
+            // Obtener decomisiones pendientes del usuario (no asignadas a ninguna liquidación)
+            var decomisionesPendientes = await context.Decomisiones
+                .Where(d => d.UsuarioId == usuarioId && d.LiquidacionDecomisionId == null)
+                .ToListAsync();
+            
+            var totalDecomisiones = decomisionesPendientes.Sum(d => d.ImporteDecomision);
+            
+            // Restar decomisiones del total
+            totalComisiones -= totalDecomisiones;
+            
+            Console.WriteLine($"[LIQUIDACIONES] Total comisiones: {contratos.Sum(c => c.Comision ?? 0)}€, Decomisiones: {totalDecomisiones}€, Total neto: {totalComisiones}€");
 
             // Guardar en el histórico (excepto si es superadmin)
             if (AuthService.UsuarioActual?.NombreUsuario != "superadmin")
@@ -1996,6 +2070,18 @@
                     // Vincular contrato a esta liquidación y cambiar estado
                     contrato.Estado = "Liquidado";
                     contrato.HistoricoLiquidacionId = historico.Id;
+                }
+                
+                // Vincular decomisiones pendientes a esta liquidación
+                foreach (var decomision in decomisionesPendientes)
+                {
+                    decomision.LiquidacionDecomisionId = historico.Id;
+                    context.Decomisiones.Update(decomision);
+                }
+                
+                if (decomisionesPendientes.Any())
+                {
+                    Console.WriteLine($"[LIQUIDACIONES] Vinculadas {decomisionesPendientes.Count} decomisiones a liquidación {historico.Id}");
                 }
                 
                 await context.SaveChangesAsync();
@@ -2213,27 +2299,19 @@
 
             await using var context = DbContextProvider.CreateDbContext();
 
-            // Obtener el usuario para buscar por su nombre
-            var usuario = await context.Usuarios.FindAsync(historico.UsuarioId);
-            if (usuario == null)
-            {
-                mensajeError = "Usuario no encontrado";
-                return;
-            }
-
-            // Buscar contratos en estado Liquidado del usuario
+            // Buscar contratos vinculados a esta liquidación específica
             contratosHistorico = await context.Contratos
-                .Where(c => c.Comercial == usuario.NombreUsuario
-                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
-                    && c.Estado == "Liquidado")
+                .Where(c => c.HistoricoLiquidacionId == historico.Id)
                 .OrderByDescending(c => c.FechaModificacion)
                 .ToListAsync();
 
-            // Cargar decomisiones asociadas a esta liquidación para marcar los contratos
+            // Cargar decomisiones asociadas a esta liquidación
             var idsContratos = contratosHistorico.Select(c => c.Id).ToList();
             decomisionesVisibles = await context.Decomisiones
-                .Where(d => d.LiquidacionDecomisionId == historico.Id && idsContratos.Contains(d.ContratoId))
+                .Where(d => d.LiquidacionDecomisionId == historico.Id)
                 .ToListAsync();
+
+            Console.WriteLine($"[LIQUIDACIONES] Contratos del histórico: {contratosHistorico.Count}, Decomisiones: {decomisionesVisibles.Count}");
 
             mostrarContratosHistorico = true;
         }
@@ -2340,8 +2418,12 @@
             await using var context = DbContextProvider.CreateDbContext();
             
             // Determinar si se debe filtrar por usuario
-            var filtrarPorUsuario = !AuthService.EsAdministrador && AuthService.UsuarioActual != null;
+            // Admin y Backoffice con permisos ven todas las liquidaciones
+            // Colaboradores y Gestores solo ven las suyas
+            var filtrarPorUsuario = !AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual != null;
             var usuarioActualId = AuthService.UsuarioActual?.Id ?? 0;
+            
+            Console.WriteLine($"[LIQUIDACIONES] CargarLiquidacionesPorEstado - Usuario: {AuthService.UsuarioActual?.NombreUsuario}, Rol: {AuthService.UsuarioActual?.Rol}, FiltrarPorUsuario: {filtrarPorUsuario}");
             
             // Liquidaciones en incidencia
             var queryIncidencia = context.HistoricoLiquidaciones
@@ -2354,6 +2436,8 @@
                 .OrderByDescending(h => h.FechaEnIncidencia ?? h.FechaAprobacion)
                 .ToListAsync();
             
+            Console.WriteLine($"[LIQUIDACIONES] Cargadas {liquidacionesEnIncidencia.Count} liquidaciones en incidencia");
+            
             // Liquidaciones aceptadas
             var queryAceptadas = context.HistoricoLiquidaciones
                 .Where(h => h.Estado == "Aceptada");
@@ -2365,6 +2449,8 @@
                 .OrderByDescending(h => h.FechaAceptada ?? h.FechaAprobacion)
                 .ToListAsync();
             
+            Console.WriteLine($"[LIQUIDACIONES] Cargadas {liquidacionesAceptadas.Count} liquidaciones aceptadas");
+            
             // Liquidaciones liquidadas
             var queryLiquidadas = context.HistoricoLiquidaciones
                 .Where(h => h.Estado == "Liquidada");
@@ -2375,6 +2461,8 @@
             liquidacionesLiquidadas = await queryLiquidadas
                 .OrderByDescending(h => h.FechaLiquidada ?? h.FechaAprobacion)
                 .ToListAsync();
+            
+            Console.WriteLine($"[LIQUIDACIONES] Cargadas {liquidacionesLiquidadas.Count} liquidaciones liquidadas");
             
             // Recalcular totales si están en NULL o 0
             var todasLiquidaciones = liquidacionesEnIncidencia
@@ -2393,7 +2481,12 @@
                         .Where(c => c.HistoricoLiquidacionId == liq.Id)
                         .SumAsync(c => c.Comision ?? 0);
                     
-                    liq.TotalComisiones = totalComisiones;
+                    // Restar decomisiones asociadas a esta liquidación
+                    var totalDecomisiones = await context.Decomisiones
+                        .Where(d => d.LiquidacionDecomisionId == liq.Id)
+                        .SumAsync(d => d.ImporteDecomision);
+                    
+                    liq.TotalComisiones = totalComisiones - totalDecomisiones;
                     context.HistoricoLiquidaciones.Update(liq);
                 }
             }

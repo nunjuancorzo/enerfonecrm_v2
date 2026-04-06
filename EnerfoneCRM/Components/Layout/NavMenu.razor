@@ -56,7 +56,7 @@
                                     </ul>
                                 </li>
                             }
-                            @if ((AuthService.UsuarioActual?.Rol == "Administrador" || AuthService.EsBackoffice) && AuthService.PuedeVerTarifas)
+                            @if (AuthService.PuedeVerTarifas)
                             {
                                 <li class="dropdown-submenu">
                                     <a class="dropdown-item dropdown-toggle" href="javascript:void(0);" id="navbarSubmenuTarifas" role="button" aria-expanded="false">
@@ -115,7 +115,7 @@
                         </li>
                     }
                     
-                    @if (AuthService.EsAdministrador)
+                    @if (AuthService.EsAdministrador || AuthService.EsBackoffice)
                     {
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownConfiguracion" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;" title="Configuración">
@@ -127,7 +127,7 @@
                                         <i class="bi bi-person-badge-fill me-2" style="color: #42A5F5;"></i>Usuarios
                                     </a>
                                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownUsuarios">
-                                        @if (AuthService.PuedeVerUsuarios)
+                                        @if (AuthService.EsAdministrador)
                                         {
                                             <li><a class="dropdown-item" href="usuarios"><i class="bi bi-people-fill text-primary me-2"></i>Gestión Usuarios</a></li>
                                         }

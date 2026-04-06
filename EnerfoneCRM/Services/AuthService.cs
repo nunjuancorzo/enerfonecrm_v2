@@ -41,7 +41,7 @@ public class AuthService
     public bool EsUsuario => _usuarioActual?.Rol == "Colaborador";
     public bool EsBackoffice => _usuarioActual?.Rol == "Backoffice";
 
-    // Métodos de verificación de permisos (solo aplican a Backoffice)
+    // Métodos de verificación de permisos de visualización (solo aplican a Backoffice)
     public bool PuedeVerClientes => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerClientes;
     public bool PuedeVerContratos => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerContratos;
     public bool PuedeVerTarifas => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerTarifas;
@@ -50,6 +50,19 @@ public class AuthService
     public bool PuedeVerIncidencias => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerIncidencias;
     public bool PuedeVerOfertas => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerOfertas;
     public bool PuedeVerUsuarios => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerUsuarios;
+
+    // Métodos de verificación de permisos de gestión (Administrador o Backoffice con permiso)
+    // Backoffice con acceso a un módulo tiene los mismos permisos que Administrador en ese módulo
+    public bool PuedeGestionarClientes => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerClientes == true);
+    public bool PuedeGestionarContratos => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerContratos == true);
+    public bool PuedeGestionarTarifas => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerTarifas == true);
+    public bool PuedeGestionarLiquidaciones => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerLiquidaciones == true);
+    public bool PuedeGestionarSips => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerSips == true);
+    public bool PuedeGestionarIncidencias => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerIncidencias == true);
+    public bool PuedeGestionarOfertas => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerOfertas == true);
+    
+    // USUARIOS: Solo Administrador puede gestionarlos (seguridad)
+    public bool PuedeGestionarUsuarios => EsAdministrador;
 
     public event Action? OnAuthStateChanged;
 

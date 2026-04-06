@@ -113,7 +113,7 @@ else
                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => VerDetalleSolicitud(solicitud)">
                                                 <i class="bi bi-eye me-1"></i>Ver
                                             </button>
-                                            @if (AuthService.EsAdministrador)
+                                            @if (AuthService.PuedeGestionarOfertas)
                                             {
                                                 <button class="btn btn-sm btn-outline-success" @onclick="() => AbrirModalEdicion(solicitud)">
                                                     <i class="bi bi-pencil me-1"></i>Editar
@@ -633,7 +633,7 @@ else
                     <button type="button" class="btn btn-secondary" @onclick="CerrarModalDetalle">
                         <i class="bi bi-x-circle me-1"></i>Cerrar
                     </button>
-                    @if (AuthService.EsAdministrador)
+                    @if (AuthService.PuedeGestionarOfertas)
                     {
                         <button type="button" class="btn btn-success" @onclick="() => AbrirModalEdicion(solicitudSeleccionada)">
                             <i class="bi bi-pencil me-1"></i>Editar Estado y Comentarios
@@ -817,8 +817,9 @@ else
             cargandoSolicitudes = true;
             if (AuthService.UsuarioActual != null)
             {
-                if (AuthService.EsAdministrador)
+                if (AuthService.PuedeGestionarOfertas)
                 {
+                    // Admin y Backoffice con permisos ven todas las ofertas
                     solicitudes = await OfertaService.ObtenerTodasAsync();
                 }
                 else

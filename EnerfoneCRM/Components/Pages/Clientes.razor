@@ -188,7 +188,7 @@ else
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(cliente)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
-                                                    @if (AuthService.EsAdministrador)
+                                                    @if (AuthService.PuedeGestionarClientes)
                                                     {
                                                         <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmarEliminar(cliente)" title="Eliminar">
                                                             <i class="bi bi-trash"></i>
@@ -2571,9 +2571,9 @@ else
         {
             cargando = true;
             
-            // Si es administrador, cargar todos los clientes
-            // Si no es administrador, cargar solo los clientes de su usuario
-            if (AuthService.UsuarioActual?.Rol == "Administrador")
+            // Admin y Backoffice con permisos ven todos los clientes
+            // Otros usuarios solo ven sus propios clientes
+            if (AuthService.PuedeGestionarClientes)
             {
                 clientes = await ClienteService.ObtenerTodosAsync();
                 usuarios = await UsuarioService.ObtenerTodosAsync();

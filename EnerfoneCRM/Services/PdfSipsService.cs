@@ -7,12 +7,13 @@ namespace EnerfoneCRM.Services;
 
 public class PdfSipsService
 {
-    public byte[] GenerarInformeSips(ClienteSips cliente, List<ConsumoSips> consumos)
+    public byte[] GenerarInformeSips(ClienteSips cliente, List<ConsumoSips>? consumos = null)
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
         var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
-        var consumosOrdenados = consumos.OrderByDescending(c => c.FechaFin).ToList();
+        var consumosOrdenados = consumos?.OrderByDescending(c => c.FechaFin).ToList() ?? new List<ConsumoSips>();
+        var hayConsumos = consumosOrdenados.Any();
 
         var documento = Document.Create(container =>
         {
@@ -166,22 +167,63 @@ public class PdfSipsService
 
                         column.Item().PaddingTop(15);
 
-                        // Estadísticas de Consumo
-                        var consumoPromedio = consumos.Average(c => c.TotalConsumo);
-                        var consumoMaximo = consumos.Max(c => c.TotalConsumo);
-                        var consumoMinimo = consumos.Min(c => c.TotalConsumo);
-                        var consumoTotal = consumos.Sum(c => c.TotalConsumo);
+                        // Mostrar secciones de consumo solo si hay datos disponibles
+                        if (hayConsumos)
+                        {
+                            // Calcular estadísticas principales
+                            var consumoPromedio = consumosOrdenados.Average(c => c.TotalConsumo);
+                            var consumoMaximo = consumosOrdenados.Max(c => c.TotalConsumo);
+                            var consumoMinimo = consumosOrdenados.Min(c => c.TotalConsumo);
+                            var consumoTotal = consumosOrdenados.Sum(c => c.TotalConsumo);
+                            
+                            // Calcular consumos por períodos
+                            var ultimos12Meses = consumosOrdenados.Take(12).ToList();
+                            var ultimos3Meses = consumosOrdenados.Take(3).ToList();
+                            var consumoAnual = ultimos12Meses.Count >= 12 ? ultimos12Meses.Sum(c => c.TotalConsumo) : 0;
+                            var consumoTrimestral = ultimos3Meses.Count >= 3 ? ultimos3Meses.Sum(c => c.TotalConsumo) : 0;
 
+                        // Estadísticas principales
                         column.Item()
                             .Background(Colors.Green.Lighten4)
                             .Padding(10)
                             .Column(statsColumn =>
                             {
-                                statsColumn.Item().PaddingBottom(8).Text("ESTADÍSTICAS DE CONSUMO")
+                                statsColumn.Item().PaddingBottom(8).Text("RESUMEN DE CONSUMOS")
                                     .FontSize(12)
                                     .Bold()
                                     .FontColor(Colors.Green.Darken2);
 
+                                // Fila 1: Anual y Trimestral
+                                statsColumn.Item().Row(row =>
+                                {
+                                    row.RelativeItem().Text(txt =>
+                                    {
+                                        txt.Span("Consumo Anual (12 meses): ").Bold().FontSize(9);
+                                        if (ultimos12Meses.Count >= 12)
+                                        {
+                                            txt.Span($"{consumoAnual:N0} kWh").FontSize(9);
+                                        }
+                                        else
+                                        {
+                                            txt.Span($"N/A (solo {ultimos12Meses.Count} meses)").FontSize(8).Italic();
+                                        }
+                                    });
+                                    
+                                    row.RelativeItem().Text(txt =>
+                                    {
+                                        txt.Span("Consumo Trimestral (3 meses): ").Bold().FontSize(9);
+                                        if (ultimos3Meses.Count >= 3)
+                                        {
+                                            txt.Span($"{consumoTrimestral:N0} kWh").FontSize(9);
+                                        }
+                                        else
+                                        {
+                                            txt.Span($"N/A (solo {ultimos3Meses.Count} meses)").FontSize(8).Italic();
+                                        }
+                                    });
+                                });
+
+                                // Fila 2: Promedio y Total
                                 statsColumn.Item().Row(row =>
                                 {
                                     row.RelativeItem().Text(txt =>
@@ -192,23 +234,24 @@ public class PdfSipsService
                                     
                                     row.RelativeItem().Text(txt =>
                                     {
-                                        txt.Span("Máximo Mensual: ").Bold().FontSize(9);
-                                        txt.Span($"{consumoMaximo:N0} kWh").FontSize(9);
+                                        txt.Span("Total Período Completo: ").Bold().FontSize(9);
+                                        txt.Span($"{consumoTotal:N0} kWh").FontSize(9);
                                     });
                                 });
 
+                                // Fila 3: Máximo y Mínimo
                                 statsColumn.Item().Row(row =>
                                 {
                                     row.RelativeItem().Text(txt =>
                                     {
-                                        txt.Span("Mínimo Mensual: ").Bold().FontSize(9);
-                                        txt.Span($"{consumoMinimo:N0} kWh").FontSize(9);
+                                        txt.Span("Máximo Mensual: ").Bold().FontSize(9);
+                                        txt.Span($"{consumoMaximo:N0} kWh").FontSize(9);
                                     });
                                     
                                     row.RelativeItem().Text(txt =>
                                     {
-                                        txt.Span("Total Acumulado: ").Bold().FontSize(9);
-                                        txt.Span($"{consumoTotal:N0} kWh").FontSize(9);
+                                        txt.Span("Mínimo Mensual: ").Bold().FontSize(9);
+                                        txt.Span($"{consumoMinimo:N0} kWh").FontSize(9);
                                     });
                                 });
 
@@ -217,7 +260,7 @@ public class PdfSipsService
                                     row.RelativeItem().Text(txt =>
                                     {
                                         txt.Span("Registros Analizados: ").Bold().FontSize(9);
-                                        txt.Span($"{consumos.Count} meses").FontSize(9);
+                                        txt.Span($"{consumosOrdenados.Count} meses").FontSize(9);
                                     });
                                 });
                             });
@@ -225,9 +268,9 @@ public class PdfSipsService
                         column.Item().PaddingTop(15);
 
                         // Distribución por Periodos
-                        var totalP1 = consumos.Sum(c => c.Activa1 ?? 0);
-                        var totalP2 = consumos.Sum(c => c.Activa2 ?? 0);
-                        var totalP3 = consumos.Sum(c => c.Activa3 ?? 0);
+                        var totalP1 = consumosOrdenados.Sum(c => c.Activa1 ?? 0);
+                        var totalP2 = consumosOrdenados.Sum(c => c.Activa2 ?? 0);
+                        var totalP3 = consumosOrdenados.Sum(c => c.Activa3 ?? 0);
                         var totalGeneral = totalP1 + totalP2 + totalP3;
 
                         column.Item()
@@ -340,8 +383,11 @@ public class PdfSipsService
                             column.Item().PaddingTop(15);
                         }
 
-                        // Histórico de Consumos (Tabla)
-                        column.Item().PaddingBottom(5).Text($"HISTÓRICO DE CONSUMOS ({consumos.Count} registros)")
+                        // Histórico de Consumos (Tabla) - Solo últimos 12 meses
+                        var ultimos12MesesTabla = consumosOrdenados.Take(12).ToList();
+                        var totalRegistrosCompletos = consumosOrdenados.Count;
+                        
+                        column.Item().PaddingBottom(5).Text($"HISTÓRICO DE CONSUMOS - Últimos 12 meses ({ultimos12MesesTabla.Count} de {totalRegistrosCompletos} registros)")
                             .FontSize(12)
                             .Bold()
                             .FontColor(Colors.Grey.Darken2);
@@ -371,8 +417,8 @@ public class PdfSipsService
                                 header.Cell().Background(Colors.Grey.Darken1).Padding(5).AlignCenter().Text("Total (kWh)").FontColor(Colors.White).Bold().FontSize(8);
                             });
 
-                            // Datos
-                            foreach (var c in consumosOrdenados)
+                            // Datos - Solo últimos 12 meses
+                            foreach (var c in ultimos12MesesTabla)
                             {
                                 table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(txt => txt.Span(c.FechaInicio?.ToString("MMM yyyy") ?? "").FontSize(7));
                                 table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).Text(txt => txt.Span(c.FechaInicio?.ToString("dd/MM/yy") ?? "").FontSize(7));
@@ -383,13 +429,42 @@ public class PdfSipsService
                                 table.Cell().Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(3).AlignRight().Text(txt => txt.Span($"{c.TotalConsumo:N0}").FontSize(7).Bold());
                             }
 
-                            // Totales
-                            table.Cell().ColumnSpan(3).Background(Colors.Grey.Lighten2).Padding(5).Text(txt => txt.Span("TOTAL ACUMULADO").Bold().FontSize(8));
-                            table.Cell().Background(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalP1:N0}").Bold().FontSize(8));
-                            table.Cell().Background(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalP2:N0}").Bold().FontSize(8));
-                            table.Cell().Background(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalP3:N0}").Bold().FontSize(8));
-                            table.Cell().Background(Colors.Green.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalGeneral:N0}").Bold().FontSize(8));
+                            // Totales - Solo de los últimos 12 meses mostrados
+                            var totalP1_12meses = ultimos12MesesTabla.Sum(c => c.Activa1 ?? 0);
+                            var totalP2_12meses = ultimos12MesesTabla.Sum(c => c.Activa2 ?? 0);
+                            var totalP3_12meses = ultimos12MesesTabla.Sum(c => c.Activa3 ?? 0);
+                            var totalGeneral_12meses = totalP1_12meses + totalP2_12meses + totalP3_12meses;
+                            
+                            table.Cell().ColumnSpan(3).Background(Colors.Grey.Lighten2).Padding(5).Text(txt => txt.Span("TOTAL (Últimos 12 meses)").Bold().FontSize(8));
+                            table.Cell().Background(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalP1_12meses:N0}").Bold().FontSize(8));
+                            table.Cell().Background(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalP2_12meses:N0}").Bold().FontSize(8));
+                            table.Cell().Background(Colors.Grey.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalP3_12meses:N0}").Bold().FontSize(8));
+                            table.Cell().Background(Colors.Green.Lighten2).Padding(5).AlignRight().Text(txt => txt.Span($"{totalGeneral_12meses:N0}").Bold().FontSize(8));
                         });
+                        }
+                        else
+                        {
+                            // Mensaje cuando no hay consumos disponibles
+                            column.Item()
+                                .Background(Colors.Yellow.Lighten4)
+                                .Padding(15)
+                                .Column(alertColumn =>
+                                {
+                                    alertColumn.Item().AlignCenter().Text("⚠️ INFORMACIÓN DE CONSUMOS NO DISPONIBLE")
+                                        .FontSize(12)
+                                        .Bold()
+                                        .FontColor(Colors.Orange.Darken2);
+                                    
+                                    alertColumn.Item().PaddingTop(8).AlignCenter().Text("No se encontraron datos históricos de consumo para este CUPS.")
+                                        .FontSize(9)
+                                        .FontColor(Colors.Grey.Darken1);
+                                    
+                                    alertColumn.Item().PaddingTop(5).AlignCenter().Text("Es posible que sea un suministro nuevo o que no haya lecturas registradas en el sistema.")
+                                        .FontSize(8)
+                                        .Italic()
+                                        .FontColor(Colors.Grey.Medium);
+                                });
+                        }
                     });
 
                 page.Footer()

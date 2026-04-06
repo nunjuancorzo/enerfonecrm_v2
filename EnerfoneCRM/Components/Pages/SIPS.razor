@@ -240,6 +240,26 @@ else
                 </div>
             </div>
 
+            <!-- Botón para descargar PDF (siempre visible si hay datos del cliente) -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <button class="btn btn-danger btn-lg shadow-lg" @onclick="DescargarInformePdf" style="font-size: 1.1rem; padding: 12px 30px; border-radius: 10px;">
+                        <i class="bi bi-file-earmark-pdf-fill me-2" style="font-size: 1.3rem;"></i>Descargar Informe PDF
+                    </button>
+                    <p class="text-muted mt-2 mb-0 small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        @if (datosConsumos != null && datosConsumos.Any())
+                        {
+                            <span>El informe incluye información del suministro y datos históricos de consumo (@datosConsumos.Count registros)</span>
+                        }
+                        else
+                        {
+                            <span>El informe incluye la información del suministro (sin datos históricos de consumo)</span>
+                        }
+                    </p>
+                </div>
+            </div>
+
             @if (datosConsumos != null && datosConsumos.Any())
             {
                 <!-- Gráficos -->
@@ -266,13 +286,117 @@ else
                     </div>
                 </div>
 
+                <!-- Resumen de Consumos -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Resumen de Consumos</h5>
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var consumosOrdenadosPorFecha = datosConsumos.OrderByDescending(c => c.FechaFin).ToList();
+                            var ultimos12Meses = consumosOrdenadosPorFecha.Take(12).ToList();
+                            var ultimos3Meses = consumosOrdenadosPorFecha.Take(3).ToList();
+                            
+                            var consumoAnual = ultimos12Meses.Count >= 12 ? ultimos12Meses.Sum(c => c.TotalConsumo) : 0;
+                            var consumoTrimestral = ultimos3Meses.Count >= 3 ? ultimos3Meses.Sum(c => c.TotalConsumo) : 0;
+                            var consumoMensualPromedio = datosConsumos.Average(c => c.TotalConsumo);
+                            var consumoTotal = datosConsumos.Sum(c => c.TotalConsumo);
+                        }
+                        
+                        <div class="row">
+                            <!-- Primera fila de estadísticas principales -->
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-danger text-white h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-calendar-year mb-2" style="font-size: 2rem;"></i>
+                                        <h6 class="mb-2">Consumo Anual</h6>
+                                        @if (ultimos12Meses.Count >= 12)
+                                        {
+                                            <h3 class="mb-0">@consumoAnual.ToString("N0") kWh</h3>
+                                            <small class="d-block mt-1">Últimos 12 meses</small>
+                                        }
+                                        else
+                                        {
+                                            <p class="mb-0 small">Datos insuficientes<br/>(solo @ultimos12Meses.Count meses)</p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-orange text-white h-100" style="background-color: #fd7e14 !important;">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-calendar3-week mb-2" style="font-size: 2rem;"></i>
+                                        <h6 class="mb-2">Consumo Trimestral</h6>
+                                        @if (ultimos3Meses.Count >= 3)
+                                        {
+                                            <h3 class="mb-0">@consumoTrimestral.ToString("N0") kWh</h3>
+                                            <small class="d-block mt-1">Últimos 3 meses</small>
+                                        }
+                                        else
+                                        {
+                                            <p class="mb-0 small">Datos insuficientes<br/>(solo @ultimos3Meses.Count meses)</p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-primary text-white h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-calendar-month mb-2" style="font-size: 2rem;"></i>
+                                        <h6 class="mb-2">Promedio Mensual</h6>
+                                        <h3 class="mb-0">@consumoMensualPromedio.ToString("N0") kWh</h3>
+                                        <small class="d-block mt-1">Basado en @datosConsumos.Count meses</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-info text-white h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-infinity mb-2" style="font-size: 2rem;"></i>
+                                        <h6 class="mb-2">Consumo Total</h6>
+                                        <h3 class="mb-0">@consumoTotal.ToString("N0") kWh</h3>
+                                        <small class="d-block mt-1">Período completo (@datosConsumos.Count meses)</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Segunda fila: Máximo y Mínimo -->
+                            <div class="col-md-6 mb-3">
+                                <div class="card bg-success text-white h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-arrow-up-circle mb-2" style="font-size: 2rem;"></i>
+                                        <h6 class="mb-2">Consumo Máximo Mensual</h6>
+                                        <h3 class="mb-0">@((datosConsumos.Max(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="card bg-warning text-dark h-100">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-arrow-down-circle mb-2" style="font-size: 2rem;"></i>
+                                        <h6 class="mb-2">Consumo Mínimo Mensual</h6>
+                                        <h3 class="mb-0">@((datosConsumos.Min(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Tabla de Consumos -->
                 <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center flex-wrap">
-                        <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Histórico de Consumos (@datosConsumos.Count registros)</h5>
-                        <button class="btn btn-danger btn-lg shadow-lg mt-2 mt-md-0" @onclick="DescargarInformePdf" style="font-size: 1.1rem; padding: 12px 30px; border-radius: 10px;">
-                            <i class="bi bi-file-earmark-pdf-fill me-2" style="font-size: 1.3rem;"></i>Descargar Informe PDF
-                        </button>
+                    <div class="card-header bg-success text-white">
+                        @{
+                            var consumosMostrar = datosConsumos.OrderByDescending(c => c.FechaFin).Take(12).ToList();
+                            var totalRegistros = datosConsumos.Count;
+                        }
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up me-2"></i>Histórico de Consumos - Últimos 12 meses
+                            <small class="ms-2">(@consumosMostrar.Count de @totalRegistros registros)</small>
+                        </h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -289,7 +413,7 @@ else
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var consumo in datosConsumos.OrderByDescending(c => c.FechaFin))
+                                    @foreach (var consumo in consumosMostrar)
                                     {
                                         <tr>
                                             <td>
@@ -306,41 +430,36 @@ else
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr class="fw-bold">
-                                        <td colspan="3">TOTAL ACUMULADO</td>
-                                        <td class="text-end">@datosConsumos.Sum(c => c.Activa1 ?? 0).ToString("N0")</td>
-                                        <td class="text-end">@datosConsumos.Sum(c => c.Activa2 ?? 0).ToString("N0")</td>
-                                        <td class="text-end">@datosConsumos.Sum(c => c.Activa3 ?? 0).ToString("N0")</td>
-                                        <td class="text-end bg-success text-white">@datosConsumos.Sum(c => c.TotalConsumo).ToString("N0")</td>
+                                        <td colspan="3">TOTAL (Últimos 12 meses)</td>
+                                        <td class="text-end">@consumosMostrar.Sum(c => c.Activa1 ?? 0).ToString("N0")</td>
+                                        <td class="text-end">@consumosMostrar.Sum(c => c.Activa2 ?? 0).ToString("N0")</td>
+                                        <td class="text-end">@consumosMostrar.Sum(c => c.Activa3 ?? 0).ToString("N0")</td>
+                                        <td class="text-end bg-success text-white">@consumosMostrar.Sum(c => c.TotalConsumo).ToString("N0")</td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
-
-                        <!-- Estadísticas -->
-                        <div class="row mt-4">
-                            <div class="col-md-4">
-                                <div class="card bg-primary text-white">
-                                    <div class="card-body text-center">
-                                        <h6>Consumo Promedio Mensual</h6>
-                                        <h3>@((datosConsumos.Average(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-success text-white">
-                                    <div class="card-body text-center">
-                                        <h6>Consumo Máximo Mensual</h6>
-                                        <h3>@((datosConsumos.Max(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-warning text-dark">
-                                    <div class="card-body text-center">
-                                        <h6>Consumo Mínimo Mensual</h6>
-                                        <h3>@((datosConsumos.Min(c => c.TotalConsumo)).ToString("N0")) kWh</h3>
-                                    </div>
-                                </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Mensaje cuando no hay consumos disponibles -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="alert alert-warning d-flex align-items-center" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-3" style="font-size: 2rem;"></i>
+                            <div>
+                                <h5 class="alert-heading mb-2">Datos de consumo no disponibles</h5>
+                                <p class="mb-1">
+                                    No se encontraron datos históricos de consumo para este CUPS. 
+                                    Es posible que sea un suministro nuevo o que no haya lecturas registradas en el sistema SIPS.
+                                </p>
+                                <hr class="my-2">
+                                <p class="mb-0 small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    La información del suministro está disponible y puede descargarse en PDF.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -536,9 +655,9 @@ else
 
     private async Task DescargarInformePdf()
     {
-        if (datosCliente == null || datosConsumos == null || !datosConsumos.Any())
+        if (datosCliente == null)
         {
-            mensajeError = "No hay datos para generar el informe";
+            mensajeError = "No hay datos del cliente para generar el informe";
             return;
         }
 

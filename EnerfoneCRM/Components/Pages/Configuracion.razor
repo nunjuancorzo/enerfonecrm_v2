@@ -23,12 +23,12 @@ else if (!AuthService.EstaAutenticado)
         <p>Redirigiendo al login...</p>
     </div>
 }
-else if (!AuthService.EsAdministrador)
+else if (!AuthService.EsAdministrador && !AuthService.EsBackoffice)
 {
     <div class="container mt-5">
         <div class="alert alert-danger" role="alert">
             <h4 class="alert-heading">Acceso Denegado</h4>
-            <p>No tienes permisos para acceder a esta sección. Solo los administradores pueden gestionar la configuración.</p>
+            <p>No tienes permisos para acceder a esta sección. Solo los administradores y usuarios con permisos pueden gestionar la configuración.</p>
             <hr>
             <a href="/" class="btn btn-primary">Volver al Inicio</a>
         </div>
@@ -272,7 +272,7 @@ else
                 return;
             }
             
-            if (!AuthService.EsAdministrador)
+            if (!AuthService.EsAdministrador && !AuthService.EsBackoffice)
             {
                 cargandoSesion = false;
                 StateHasChanged();

@@ -153,16 +153,54 @@ namespace EnerfoneCRM.Services
                     
                     if (esGas)
                     {
-                        // Gas: usar sips2.php con id=CUPS y parámetro gas=1
-                        var url = $"{API_URL}?id={Uri.EscapeDataString(cupsNormalizado)}&key={API_KEY}&gas=1";
-                        var urlParaLog = url.Replace(API_KEY, $"{API_KEY.Substring(0, Math.Min(4, API_KEY.Length))}***");
+                        // Gas: hacer dos llamadas a sips3.php
+                        // 1. id=3 para información del suministro
+                        var urlSuministro = $"http://35.181.7.83/api/sips3.php?id=3&cups={Uri.EscapeDataString(cupsNormalizado)}";
+                        Console.WriteLine($"[SIPS GAS] Consultando API suministro: {urlSuministro}");
                         
-                        Console.WriteLine($"[SIPS GAS] Consultando API: {urlParaLog}");
-                        Console.WriteLine($"[SIPS GAS] CUPS: {cupsNormalizado}");
+                        var csvSuministro = await ConsultarApiAsync(urlSuministro);
+                        datos = ParsearCsv(csvSuministro);
                         
-                        var jsonString = await ConsultarApiAsync(url);
-                        datos = DeserializarRespuesta(jsonString);
+                        // 2. id=4 para consumos históricos
+                        try
+                        {
+                            var urlConsumos = $"http://35.181.7.83/api/sips3.php?id=4&cups={Uri.EscapeDataString(cupsNormalizado)}";
+                            Console.WriteLine($"[SIPS GAS] Consultando API consumos: {urlConsumos}");
+                            
+                            var csvConsumos = await ConsultarApiAsync(urlConsumos);
+                            Console.WriteLine($"[SIPS GAS] Respuesta consumos (primeros 500 chars): {(csvConsumos?.Length > 500 ? csvConsumos.Substring(0, 500) : csvConsumos)}");
+                            
+                            // Verificar si hay consumos
+                            if (!string.IsNullOrWhiteSpace(csvConsumos) && !csvConsumos.Contains("No se encontraron"))
+                            {
+                                Console.WriteLine($"[SIPS GAS] Intentando parsear CSV de consumos...");
+                                var consumos = ParsearCsvConsumos(csvConsumos);
+                                Console.WriteLine($"[SIPS GAS] Consumos parseados: {consumos?.Count ?? 0}");
+                                
+                                if (datos != null && consumos != null && consumos.Any())
+                                {
+                                    datos.ConsumosSips = consumos;
+                                    Console.WriteLine($"[SIPS GAS] ✓ Se obtuvieron {consumos.Count} registros de consumo");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[SIPS GAS] ⚠️ El parseo no devolvió consumos (lista vacía o null)");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[SIPS GAS] ⚠️ No hay consumos históricos disponibles (respuesta vacía o mensaje 'No se encontraron')");
+                            }
+                        }
+                        catch (Exception exConsumos)
+                        {
+                            Console.WriteLine($"[SIPS GAS] ❌ Error obteniendo consumos (no crítico): {exConsumos.Message}");
+                            Console.WriteLine($"[SIPS GAS] Stack trace: {exConsumos.StackTrace}");
+                            // No fallar si no hay consumos, solo no mostrar gráficos
+                        }
                         
+                        // Guardar respuesta completa (suministro + consumos) como JSON
+                        var responseJsonCompleto = SerializarRespuesta(datos);
                         await GuardarHistoricoAsync(
                             cupsNormalizado,
                             usuarioId,
@@ -171,55 +209,103 @@ namespace EnerfoneCRM.Services
                             success: true,
                             httpStatusCode: 200,
                             errorMessage: null,
-                            responseJson: jsonString);
+                            responseJson: responseJsonCompleto);
                     }
                     else
                     {
                         // Luz: hacer dos llamadas a sips3.php
                         // 1. id=1 para información del cliente
-                        var urlCliente = $"http://35.181.7.83/api/sips3.php?id=1&cups={Uri.EscapeDataString(cupsNormalizado)}";
+                        string cupsParaConsulta = cupsNormalizado;
+                        bool intentoConSufijo = false;
+                        
+                        // Intentar primero con el CUPS original
+                        var urlCliente = $"http://35.181.7.83/api/sips3.php?id=1&cups={Uri.EscapeDataString(cupsParaConsulta)}";
                         Console.WriteLine($"[SIPS LUZ] Consultando API cliente: {urlCliente}");
                         
-                        var csvCliente = await ConsultarApiAsync(urlCliente);
-                        datos = ParsearCsv(csvCliente);
-                        
-                        // 2. id=2 para consumos históricos
                         try
                         {
-                            var urlConsumos = $"http://35.181.7.83/api/sips3.php?id=2&cups={Uri.EscapeDataString(cupsNormalizado)}";
+                            var csvCliente = await ConsultarApiAsync(urlCliente);
+                            datos = ParsearCsv(csvCliente);
+                            
+                            // Verificar si los datos están completos
+                            if (datos == null || datos.ClientesSips == null || !datos.ClientesSips.Any() || 
+                                string.IsNullOrEmpty(datos.ClientesSips[0]?.CodigoCUPS))
+                            {
+                                throw new Exception("Respuesta vacía o incompleta");
+                            }
+                        }
+                        catch (Exception exCliente)
+                        {
+                            Console.WriteLine($"[SIPS LUZ] Error con CUPS original: {exCliente.Message}");
+                            
+                            // Si el CUPS no termina en "0F", intentar agregándolo
+                            if (!cupsNormalizado.EndsWith("0F", StringComparison.OrdinalIgnoreCase))
+                            {
+                                cupsParaConsulta = cupsNormalizado + "0F";
+                                urlCliente = $"http://35.181.7.83/api/sips3.php?id=1&cups={Uri.EscapeDataString(cupsParaConsulta)}";
+                                Console.WriteLine($"[SIPS LUZ] Reintentando con sufijo 0F: {urlCliente}");
+                                intentoConSufijo = true;
+                                
+                                var csvCliente = await ConsultarApiAsync(urlCliente);
+                                datos = ParsearCsv(csvCliente);
+                            }
+                            else
+                            {
+                                // Si ya termina en 0F y falló, propagar el error
+                                throw;
+                            }
+                        }
+                        
+                        // 2. id=2 para consumos históricos (usar el mismo CUPS que funcionó)
+                        try
+                        {
+                            var urlConsumos = $"http://35.181.7.83/api/sips3.php?id=2&cups={Uri.EscapeDataString(cupsParaConsulta)}";
                             Console.WriteLine($"[SIPS LUZ] Consultando API consumos: {urlConsumos}");
                             
                             var csvConsumos = await ConsultarApiAsync(urlConsumos);
+                            Console.WriteLine($"[SIPS LUZ] Respuesta consumos (primeros 500 chars): {(csvConsumos?.Length > 500 ? csvConsumos.Substring(0, 500) : csvConsumos)}");
                             
                             // Verificar si hay consumos
                             if (!string.IsNullOrWhiteSpace(csvConsumos) && !csvConsumos.Contains("No se encontraron"))
                             {
+                                Console.WriteLine($"[SIPS LUZ] Intentando parsear CSV de consumos...");
                                 var consumos = ParsearCsvConsumos(csvConsumos);
-                                if (datos != null)
+                                Console.WriteLine($"[SIPS LUZ] Consumos parseados: {consumos?.Count ?? 0}");
+                                
+                                if (datos != null && consumos != null && consumos.Any())
                                 {
                                     datos.ConsumosSips = consumos;
+                                    Console.WriteLine($"[SIPS LUZ] ✓ Se obtuvieron {consumos.Count} registros de consumo");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[SIPS LUZ] ⚠️ El parseo no devolvió consumos (lista vacía o null)");
                                 }
                             }
                             else
                             {
-                                Console.WriteLine($"[SIPS LUZ] No hay consumos históricos disponibles");
+                                Console.WriteLine($"[SIPS LUZ] ⚠️ No hay consumos históricos disponibles (respuesta vacía o mensaje 'No se encontraron')");
                             }
                         }
                         catch (Exception exConsumos)
                         {
-                            Console.WriteLine($"[SIPS LUZ] Error obteniendo consumos (no crítico): {exConsumos.Message}");
+                            Console.WriteLine($"[SIPS LUZ] ❌ Error obteniendo consumos (no crítico): {exConsumos.Message}");
+                            Console.WriteLine($"[SIPS LUZ] Stack trace: {exConsumos.StackTrace}");
                             // No fallar si no hay consumos, solo no mostrar gráficos
                         }
                         
+                        // Guardar respuesta completa (cliente + consumos) como JSON
+                        // Si se usó el sufijo 0F, guardarlo con el CUPS que funcionó
+                        var responseJsonCompleto = SerializarRespuesta(datos);
                         await GuardarHistoricoAsync(
-                            cupsNormalizado,
+                            intentoConSufijo ? cupsParaConsulta : cupsNormalizado,
                             usuarioId,
                             usuarioNombre,
                             usuarioEmail,
                             success: true,
                             httpStatusCode: 200,
                             errorMessage: null,
-                            responseJson: csvCliente);
+                            responseJson: responseJsonCompleto);
                     }
 
                     var result = new SipsConsultaResult
@@ -334,6 +420,20 @@ namespace EnerfoneCRM.Services
                 // Es CSV - parsear CSV
                 return ParsearCsv(contenido);
             }
+        }
+
+        private static string SerializarRespuesta(SipsResponse? respuesta)
+        {
+            if (respuesta == null) return "{}";
+            
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                WriteIndented = false
+            };
+            
+            return JsonSerializer.Serialize(respuesta, options);
         }
 
         private static SipsResponse? DeserializarJson(string json)
@@ -596,14 +696,17 @@ namespace EnerfoneCRM.Services
             try
             {
                 var lineas = csv.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                Console.WriteLine($"[SIPS CONSUMOS] Total de líneas en CSV: {lineas.Length}");
+                
                 if (lineas.Length < 2)
                 {
-                    Console.WriteLine($"[SIPS CONSUMOS] CSV sin datos de consumo");
+                    Console.WriteLine($"[SIPS CONSUMOS] ⚠️ CSV sin datos de consumo (menos de 2 líneas)");
                     return new List<ConsumoSips>();
                 }
 
                 // Primera línea: cabeceras
                 var cabeceras = ParsearLineaCsv(lineas[0]);
+                Console.WriteLine($"[SIPS CONSUMOS] Cabeceras encontradas ({cabeceras.Count}): {string.Join(", ", cabeceras.Take(10))}");
                 
                 var consumos = new List<ConsumoSips>();
 
@@ -616,7 +719,7 @@ namespace EnerfoneCRM.Services
                         
                         if (valores.Count != cabeceras.Count)
                         {
-                            Console.WriteLine($"[SIPS CONSUMOS] Línea {i} ignorada: {cabeceras.Count} cabeceras vs {valores.Count} valores");
+                            Console.WriteLine($"[SIPS CONSUMOS] ⚠️ Línea {i} ignorada: {cabeceras.Count} cabeceras vs {valores.Count} valores");
                             continue;
                         }
 
@@ -651,19 +754,23 @@ namespace EnerfoneCRM.Services
                         {
                             consumos.Add(consumo);
                         }
+                        else
+                        {
+                            Console.WriteLine($"[SIPS CONSUMOS] ⚠️ Línea {i} ignorada: fechas inválidas (Inicio={consumo.FechaInicio}, Fin={consumo.FechaFin})");
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[SIPS CONSUMOS] Error procesando línea {i}: {ex.Message}");
+                        Console.WriteLine($"[SIPS CONSUMOS] ❌ Error procesando línea {i}: {ex.Message}");
                     }
                 }
 
-                Console.WriteLine($"[SIPS CONSUMOS] Parseados {consumos.Count} registros de consumo");
+                Console.WriteLine($"[SIPS CONSUMOS] ✓ Total parseados exitosamente: {consumos.Count} registros de consumo");
                 return consumos;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SIPS CONSUMOS] Error parseando CSV: {ex.Message}");
+                Console.WriteLine($"[SIPS CONSUMOS] ❌ Error crítico parseando CSV: {ex.Message}");
                 return new List<ConsumoSips>();
             }
         }

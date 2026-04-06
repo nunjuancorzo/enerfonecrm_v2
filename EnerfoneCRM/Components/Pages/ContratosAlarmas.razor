@@ -538,7 +538,7 @@ else
                                             Guardar
                                         </button>
                                     </div>
-                                    @if (contratoSeleccionado.Estado != "Baja" && AuthService.EsAdministrador)
+                                    @if (contratoSeleccionado.Estado != "Baja" && AuthService.PuedeGestionarContratos)
                                     {
                                         <button type="button" class="btn btn-dark" @onclick="MostrarModalBaja" disabled="@guardando">
                                             <i class="bi bi-x-circle me-2"></i>Dar de Baja Contrato
@@ -2466,7 +2466,7 @@ else
 
     private bool PuedeEditar()
     {
-        return AuthService.EsAdministrador || AuthService.EsComercializadora;
+        return AuthService.PuedeGestionarContratos || AuthService.EsComercializadora;
     }
 
     private string ObtenerColorEstado(string estado)

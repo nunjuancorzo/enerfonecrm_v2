@@ -26,11 +26,11 @@ else
             No tienes acceso a esta página. Por favor, inicia sesión.
         </div>
     }
-    else if (AuthService.UsuarioActual?.Rol != "Administrador")
+    else if (!AuthService.PuedeGestionarTarifas)
     {
         <div class="alert alert-danger m-4">
             <i class="bi bi-shield-exclamation me-2"></i>
-            No tienes permisos para acceder a esta página. Solo los administradores pueden gestionar tarifas.
+            No tienes permisos para acceder a esta página. Solo usuarios autorizados pueden gestionar tarifas.
         </div>
     }
     else
