@@ -1,0 +1,1298 @@
+@page "/ofertas"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@inject AuthService AuthService
+@inject OfertaService OfertaService
+@inject DbContextProvider DbContextProvider
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Solicitudes de Ofertas - CRM</PageTitle>
+
+@if (!cargado)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    Navigation.NavigateTo("/login", false);
+}
+else
+{
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">
+                        <i class="bi bi-tag me-2 text-warning"></i>Solicitudes de Ofertas
+                    </h2>
+                    <button class="btn btn-primary" @onclick="MostrarFormularioNuevaSolicitud">
+                        <i class="bi bi-plus-circle me-2"></i>Nueva Solicitud
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        <!-- Listado de solicitudes -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Mis Solicitudes</h5>
+            </div>
+            <div class="card-body">
+                @if (cargandoSolicitudes)
+                {
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando solicitudes...</span>
+                        </div>
+                    </div>
+                }
+                else if (!solicitudes.Any())
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>No hay solicitudes de ofertas registradas.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Usuario</th>
+                                    <th>Tipos Solicitados</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var solicitud in ObtenerSolicitudesPaginadas())
+                                {
+                                    <tr>
+                                        <td>@solicitud.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td><strong>@solicitud.NombreComercial</strong></td>
+                                        <td>
+                                            @if (solicitud.TipoLuz) { <span class="badge bg-warning text-dark me-1">Luz</span> }
+                                            @if (solicitud.TipoGas) { <span class="badge bg-danger me-1">Gas</span> }
+                                            @if (solicitud.TipoFotovoltaica) { <span class="badge bg-warning me-1">Fotovoltaica</span> }
+                                            @if (solicitud.TipoFibra) { <span class="badge bg-primary me-1">Fibra</span> }
+                                            @if (solicitud.TipoMovil) { <span class="badge bg-success me-1">Móvil</span> }
+                                            @if (solicitud.TipoFibraMovil) { <span class="badge bg-info me-1">Fibra+Móvil</span> }
+                                            @if (solicitud.TipoFibraMovilTv) { <span class="badge bg-primary me-1">Fibra+Móvil+TV</span> }
+                                            @if (solicitud.TipoAlarma) { <span class="badge bg-danger me-1">Alarma</span> }
+                                        </td>
+                                        <td>
+                                            <span class="badge @ObtenerColorEstado(solicitud.Estado)">@solicitud.Estado</span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => VerDetalleSolicitud(solicitud)">
+                                                <i class="bi bi-eye me-1"></i>Ver
+                                            </button>
+                                            @if (AuthService.PuedeGestionarOfertas)
+                                            {
+                                                <button class="btn btn-sm btn-outline-success" @onclick="() => AbrirModalEdicion(solicitud)">
+                                                    <i class="bi bi-pencil me-1"></i>Editar
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Paginación -->
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <small class="text-muted">
+                                Mostrando @((paginaActual - 1) * itemsPorPagina + 1) - @Math.Min(paginaActual * itemsPorPagina, solicitudes.Count) de @solicitudes.Count ofertas
+                            </small>
+                            <div class="d-flex align-items-center gap-2">
+                                <small class="text-muted">Mostrar:</small>
+                                <select class="form-select form-select-sm" style="width: auto;" @onchange="CambiarElementosPorPaginaEvento">
+                                    <option value="10" selected="@(itemsPorPagina == 10)">10</option>
+                                    <option value="25" selected="@(itemsPorPagina == 25)">25</option>
+                                    <option value="50" selected="@(itemsPorPagina == 50)">50</option>
+                                </select>
+                            </div>
+                        </div>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)" disabled="@(paginaActual == 1)">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                </li>
+                                @for (int i = 1; i <= TotalPaginas; i++)
+                                {
+                                    var pagina = i;
+                                    <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                                        <button class="page-link" @onclick="() => CambiarPagina(pagina)">@pagina</button>
+                                    </li>
+                                }
+                                <li class="page-item @(paginaActual == TotalPaginas ? "disabled" : "")">
+                                    <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)" disabled="@(paginaActual == TotalPaginas)">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal para nueva solicitud de oferta -->
+@if (mostrarFormulario)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-plus me-2"></i>Nueva Solicitud de Oferta</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CancelarFormulario"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@nuevaSolicitud" OnValidSubmit="@EnviarSolicitud">
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6 class="text-primary mb-3"><i class="bi bi-check2-square me-2"></i>Selecciona los tipos de oferta que necesitas:</h6>
+                                <div class="row">
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkLuz" @bind="nuevaSolicitud.TipoLuz">
+                                            <label class="form-check-label" for="checkLuz">
+                                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Luz
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkGas" @bind="nuevaSolicitud.TipoGas">
+                                            <label class="form-check-label" for="checkGas">
+                                                <i class="bi bi-fire text-danger me-1"></i>Gas
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkFotovoltaica" @bind="nuevaSolicitud.TipoFotovoltaica">
+                                            <label class="form-check-label" for="checkFotovoltaica">
+                                                <i class="bi bi-sun-fill text-warning me-1"></i>Fotovoltaica
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkFibra" @bind="nuevaSolicitud.TipoFibra">
+                                            <label class="form-check-label" for="checkFibra">
+                                                <i class="bi bi-ethernet text-primary me-1"></i>Fibra
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkMovil" @bind="nuevaSolicitud.TipoMovil">
+                                            <label class="form-check-label" for="checkMovil">
+                                                <i class="bi bi-phone-fill text-success me-1"></i>Móvil
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkFibraMovil" @bind="nuevaSolicitud.TipoFibraMovil">
+                                            <label class="form-check-label" for="checkFibraMovil">
+                                                <i class="bi bi-hdd-network-fill text-info me-1"></i>Fibra + Móvil
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkFibraMovilTv" @bind="nuevaSolicitud.TipoFibraMovilTv">
+                                            <label class="form-check-label" for="checkFibraMovilTv">
+                                                <i class="bi bi-tv-fill text-primary me-1"></i>Fibra + Móvil + TV
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 col-sm-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="checkAlarma" @bind="nuevaSolicitud.TipoAlarma">
+                                            <label class="form-check-label" for="checkAlarma">
+                                                <i class="bi bi-shield-fill-check text-danger me-1"></i>Alarma
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Datos del Interesado -->
+                        <div class="card mb-4 border-info">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-person-fill text-info me-2"></i>
+                                    Datos del Interesado
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="nombreInteresado" class="form-label">Nombre del Interesado <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="nombreInteresado" @bind="nuevaSolicitud.NombreInteresado" placeholder="Nombre completo" required />
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="telefonoInteresado" class="form-label">Teléfono <span class="text-danger">*</span></label>
+                                        <input type="tel" class="form-control" id="telefonoInteresado" @bind="nuevaSolicitud.TelefonoInteresado" placeholder="Ej: 600123456" required />
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="emailInteresado" class="form-label">Email <span class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" id="emailInteresado" @bind="nuevaSolicitud.EmailInteresado" placeholder="correo@ejemplo.com" required />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Formulario para Luz/Gas -->
+                        @if (nuevaSolicitud.TipoLuz || nuevaSolicitud.TipoGas)
+                        {
+                            <div class="card mb-3 border-warning">
+                                <div class="card-header bg-warning bg-opacity-10">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-lightning-charge-fill text-warning me-2"></i>
+                                        Datos para Luz / Gas
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tipo de Cliente <span class="text-danger">*</span></label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="luzGasTipoCliente" id="luzGasResidencial" value="Residencial" @onchange="@(() => nuevaSolicitud.LuzGasTipoCliente = "Residencial")" checked="@(nuevaSolicitud.LuzGasTipoCliente == "Residencial")">
+                                            <label class="form-check-label" for="luzGasResidencial">
+                                                <i class="bi bi-house-fill me-1"></i>Residencial
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="luzGasTipoCliente" id="luzGasPyme" value="PYME" @onchange="@(() => nuevaSolicitud.LuzGasTipoCliente = "PYME")" checked="@(nuevaSolicitud.LuzGasTipoCliente == "PYME")">
+                                            <label class="form-check-label" for="luzGasPyme">
+                                                <i class="bi bi-building me-1"></i>PYME
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="luzGasFactura" class="form-label">Última Factura</label>
+                                        <InputFile OnChange="@(e => CargarFacturaLuzGas(e))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" id="luzGasFactura" />
+                                        @if (!string.IsNullOrEmpty(facturaLuzGasNombre))
+                                        {
+                                            <small class="text-success"><i class="bi bi-check-circle me-1"></i>@facturaLuzGasNombre</small>
+                                        }
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="luzGasObs" class="form-label">Observaciones</label>
+                                        <textarea class="form-control" id="luzGasObs" rows="3" @bind="nuevaSolicitud.LuzGasObservaciones" placeholder="Indica cualquier detalle relevante..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Formulario para Fotovoltaica -->
+                        @if (nuevaSolicitud.TipoFotovoltaica)
+                        {
+                            <div class="card mb-3 border-warning">
+                                <div class="card-header bg-warning bg-opacity-10">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-sun-fill text-warning me-2"></i>
+                                        Datos para Fotovoltaica
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="fotovoltaicaFactura" class="form-label">Factura Actual</label>
+                                        <InputFile OnChange="@(e => CargarFacturaFotovoltaica(e))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" id="fotovoltaicaFactura" />
+                                        @if (!string.IsNullOrEmpty(facturaFotovoltaicaNombre))
+                                        {
+                                            <small class="text-success"><i class="bi bi-check-circle me-1"></i>@facturaFotovoltaicaNombre</small>
+                                        }
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="fotovoltaicaMaps" class="form-label">Enlace de Google Maps</label>
+                                        <input type="url" class="form-control" id="fotovoltaicaMaps" @bind="nuevaSolicitud.FotovoltaicaEnlaceMaps" placeholder="https://maps.google.com/..." />
+                                        <small class="text-muted">Indica la ubicación exacta del suministro</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="fotovoltaicaObs" class="form-label">Observaciones</label>
+                                        <textarea class="form-control" id="fotovoltaicaObs" rows="3" @bind="nuevaSolicitud.FotovoltaicaObservaciones" placeholder="Indica cualquier detalle relevante..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Formulario para Telefonía (Fibra/Móvil/Combinaciones) -->
+                        @if (nuevaSolicitud.TipoFibra || nuevaSolicitud.TipoMovil || nuevaSolicitud.TipoFibraMovil || nuevaSolicitud.TipoFibraMovilTv)
+                        {
+                            <div class="card mb-3 border-primary">
+                                <div class="card-header bg-primary bg-opacity-10">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-phone-fill text-primary me-2"></i>
+                                        Datos para Telefonía
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tipo de Solicitud</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="tipoSolicitud" id="altaNueva" value="Alta Nueva" @onchange="@(() => nuevaSolicitud.TelefoniaTipoSolicitud = "Alta Nueva")" checked="@(nuevaSolicitud.TelefoniaTipoSolicitud == "Alta Nueva")">
+                                            <label class="form-check-label" for="altaNueva">
+                                                Alta Nueva
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="tipoSolicitud" id="portabilidad" value="Portabilidad" @onchange="@(() => nuevaSolicitud.TelefoniaTipoSolicitud = "Portabilidad")" checked="@(nuevaSolicitud.TelefoniaTipoSolicitud == "Portabilidad")">
+                                            <label class="form-check-label" for="portabilidad">
+                                                Portabilidad
+                                            </label>
+                                        </div>
+                                    </div>
+                                    @if (nuevaSolicitud.TelefoniaTipoSolicitud == "Portabilidad")
+                                    {
+                                        <div class="mb-3">
+                                            <label for="telefoniaFactura" class="form-label">Factura Anterior</label>
+                                            <InputFile OnChange="@(e => CargarFacturaTelefonia(e))" class="form-control" accept=".pdf,.jpg,.jpeg,.png" id="telefoniaFactura" />
+                                            @if (!string.IsNullOrEmpty(facturaTelefoniaNombre))
+                                            {
+                                                <small class="text-success"><i class="bi bi-check-circle me-1"></i>@facturaTelefoniaNombre</small>
+                                            }
+                                        </div>
+                                    }
+                                    <div class="mb-3">
+                                        <label for="telefoniaContratoActual" class="form-label">¿Qué tiene contratado actualmente?</label>
+                                        <textarea class="form-control" id="telefoniaContratoActual" rows="2" @bind="nuevaSolicitud.TelefoniaContratoActual" placeholder="Ej: Fibra 300MB, Móvil 20GB..."></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="telefoniaObs" class="form-label">Observaciones - ¿Qué desea contratar?</label>
+                                        <textarea class="form-control" id="telefoniaObs" rows="3" @bind="nuevaSolicitud.TelefoniaObservaciones" placeholder="Indica qué desea contratar y cualquier detalle relevante..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Formulario para Alarma -->
+                        @if (nuevaSolicitud.TipoAlarma)
+                        {
+                            <div class="card mb-3 border-danger">
+                                <div class="card-header bg-danger bg-opacity-10">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-shield-fill-check text-danger me-2"></i>
+                                        Datos para Alarma
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Tipo de Instalación</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="tipoAlarma" id="alarmaNegocio" value="Negocio" @onchange="@(() => nuevaSolicitud.AlarmaTipo = "Negocio")" checked="@(nuevaSolicitud.AlarmaTipo == "Negocio")">
+                                            <label class="form-check-label" for="alarmaNegocio">
+                                                Negocio
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="tipoAlarma" id="alarmaResidencial" value="Residencial" @onchange="@(() => nuevaSolicitud.AlarmaTipo = "Residencial")" checked="@(nuevaSolicitud.AlarmaTipo == "Residencial")">
+                                            <label class="form-check-label" for="alarmaResidencial">
+                                                Residencial
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="alarmaTieneActual" @bind="nuevaSolicitud.AlarmaTieneActual">
+                                            <label class="form-check-label" for="alarmaTieneActual">
+                                                ¿Tiene alarma actualmente?
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="alarmaObs" class="form-label">Observaciones</label>
+                                        <textarea class="form-control" id="alarmaObs" rows="3" @bind="nuevaSolicitud.AlarmaObservaciones" placeholder="Indica cualquier detalle relevante..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </EditForm>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelarFormulario">
+                        <i class="bi bi-x-circle me-2"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="EnviarSolicitudFromModal" disabled="@enviando">
+                        @if (enviando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Enviando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-send me-2"></i>
+                            <span>Enviar Solicitud</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal para ver detalle de solicitud -->
+@if (mostrarModalDetalle && solicitudSeleccionada != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-file-text me-2"></i>Detalle de Solicitud</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalDetalle"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Fecha de solicitud:</strong> @solicitudSeleccionada.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                    <div class="mb-3">
+                        <strong>Estado:</strong>
+                        <span class="badge @ObtenerColorEstado(solicitudSeleccionada.Estado)">@solicitudSeleccionada.Estado</span>
+                    </div>
+
+                    <h6 class="text-primary mt-4">Datos del Interesado:</h6>
+                    <div class="ps-3 mb-3">
+                        @if (!string.IsNullOrEmpty(solicitudSeleccionada.NombreInteresado))
+                        {
+                            <p><strong>Nombre:</strong> @solicitudSeleccionada.NombreInteresado</p>
+                        }
+                        @if (!string.IsNullOrEmpty(solicitudSeleccionada.TelefonoInteresado))
+                        {
+                            <p><strong>Teléfono:</strong> @solicitudSeleccionada.TelefonoInteresado</p>
+                        }
+                        @if (!string.IsNullOrEmpty(solicitudSeleccionada.EmailInteresado))
+                        {
+                            <p><strong>Email:</strong> @solicitudSeleccionada.EmailInteresado</p>
+                        }
+                    </div>
+
+                    <h6 class="text-primary mt-4">Tipos Solicitados:</h6>
+                    <div class="mb-3">
+                        @if (solicitudSeleccionada.TipoLuz) { <span class="badge bg-warning text-dark me-1">Luz</span> }
+                        @if (solicitudSeleccionada.TipoGas) { <span class="badge bg-danger me-1">Gas</span> }
+                        @if (solicitudSeleccionada.TipoFotovoltaica) { <span class="badge bg-warning me-1">Fotovoltaica</span> }
+                        @if (solicitudSeleccionada.TipoFibra) { <span class="badge bg-primary me-1">Fibra</span> }
+                        @if (solicitudSeleccionada.TipoMovil) { <span class="badge bg-success me-1">Móvil</span> }
+                        @if (solicitudSeleccionada.TipoFibraMovil) { <span class="badge bg-info me-1">Fibra+Móvil</span> }
+                        @if (solicitudSeleccionada.TipoFibraMovilTv) { <span class="badge bg-primary me-1">Fibra+Móvil+TV</span> }
+                        @if (solicitudSeleccionada.TipoAlarma) { <span class="badge bg-danger me-1">Alarma</span> }
+                    </div>
+
+                    @if (solicitudSeleccionada.TipoLuz || solicitudSeleccionada.TipoGas)
+                    {
+                        <h6 class="text-primary mt-4">Luz / Gas:</h6>
+                        <div class="ps-3">
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.LuzGasTipoCliente))
+                            {
+                                <p><strong>Tipo de Cliente:</strong> @solicitudSeleccionada.LuzGasTipoCliente</p>
+                            }
+                            <p>
+                                <strong>Factura:</strong> 
+                                @if (string.IsNullOrEmpty(solicitudSeleccionada.LuzGasRutaFactura))
+                                {
+                                    <span>No adjuntada</span>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => DescargarArchivo(solicitudSeleccionada.LuzGasRutaFactura)">
+                                        <i class="bi bi-download me-1"></i>Descargar
+                                    </button>
+                                }
+                            </p>
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.LuzGasObservaciones))
+                            {
+                                <p><strong>Observaciones:</strong><br />@solicitudSeleccionada.LuzGasObservaciones</p>
+                            }
+                        </div>
+                    }
+
+                    @if (solicitudSeleccionada.TipoFotovoltaica)
+                    {
+                        <h6 class="text-primary mt-4">Fotovoltaica:</h6>
+                        <div class="ps-3">
+                            <p>
+                                <strong>Factura:</strong> 
+                                @if (string.IsNullOrEmpty(solicitudSeleccionada.FotovoltaicaRutaFactura))
+                                {
+                                    <span>No adjuntada</span>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => DescargarArchivo(solicitudSeleccionada.FotovoltaicaRutaFactura)">
+                                        <i class="bi bi-download me-1"></i>Descargar
+                                    </button>
+                                }
+                            </p>
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.FotovoltaicaEnlaceMaps))
+                            {
+                                <p><strong>Google Maps:</strong> <a href="@solicitudSeleccionada.FotovoltaicaEnlaceMaps" target="_blank">@solicitudSeleccionada.FotovoltaicaEnlaceMaps</a></p>
+                            }
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.FotovoltaicaObservaciones))
+                            {
+                                <p><strong>Observaciones:</strong><br />@solicitudSeleccionada.FotovoltaicaObservaciones</p>
+                            }
+                        </div>
+                    }
+
+                    @if (solicitudSeleccionada.TipoFibra || solicitudSeleccionada.TipoMovil || solicitudSeleccionada.TipoFibraMovil || solicitudSeleccionada.TipoFibraMovilTv)
+                    {
+                        <h6 class="text-primary mt-4">Telefonía:</h6>
+                        <div class="ps-3">
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.TelefoniaTipoSolicitud))
+                            {
+                                <p><strong>Tipo:</strong> @solicitudSeleccionada.TelefoniaTipoSolicitud</p>
+                            }
+                            <p>
+                                <strong>Factura:</strong> 
+                                @if (string.IsNullOrEmpty(solicitudSeleccionada.TelefoniaRutaFactura))
+                                {
+                                    <span>No adjuntada</span>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-primary ms-2" @onclick="() => DescargarArchivo(solicitudSeleccionada.TelefoniaRutaFactura)">
+                                        <i class="bi bi-download me-1"></i>Descargar
+                                    </button>
+                                }
+                            </p>
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.TelefoniaContratoActual))
+                            {
+                                <p><strong>Contrato actual:</strong><br />@solicitudSeleccionada.TelefoniaContratoActual</p>
+                            }
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.TelefoniaObservaciones))
+                            {
+                                <p><strong>Observaciones:</strong><br />@solicitudSeleccionada.TelefoniaObservaciones</p>
+                            }
+                        </div>
+                    }
+
+                    @if (solicitudSeleccionada.TipoAlarma)
+                    {
+                        <h6 class="text-primary mt-4">Alarma:</h6>
+                        <div class="ps-3">
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.AlarmaTipo))
+                            {
+                                <p><strong>Tipo:</strong> @solicitudSeleccionada.AlarmaTipo</p>
+                            }
+                            @if (solicitudSeleccionada.AlarmaTieneActual.HasValue)
+                            {
+                                <p><strong>Tiene alarma actual:</strong> @(solicitudSeleccionada.AlarmaTieneActual.Value ? "Sí" : "No")</p>
+                            }
+                            @if (!string.IsNullOrEmpty(solicitudSeleccionada.AlarmaObservaciones))
+                            {
+                                <p><strong>Observaciones:</strong><br />@solicitudSeleccionada.AlarmaObservaciones</p>
+                            }
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(solicitudSeleccionada.ObservacionesAdmin))
+                    {
+                        <div class="alert alert-info mt-4">
+                            <h6>Observaciones del Administrador:</h6>
+                            <p class="mb-0">@solicitudSeleccionada.ObservacionesAdmin</p>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalDetalle">
+                        <i class="bi bi-x-circle me-1"></i>Cerrar
+                    </button>
+                    @if (AuthService.PuedeGestionarOfertas)
+                    {
+                        <button type="button" class="btn btn-success" @onclick="() => AbrirModalEdicion(solicitudSeleccionada)">
+                            <i class="bi bi-pencil me-1"></i>Editar Estado y Comentarios
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal para editar estado y comentarios -->
+@if (mostrarModalEdicion && solicitudEditar != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Solicitud</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalEdicion"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Solicitud #@solicitudEditar.Id</label>
+                        <div class="text-muted small">@solicitudEditar.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="estadoSelect" class="form-label fw-bold">Estado</label>
+                        <select id="estadoSelect" class="form-select" @bind="solicitudEditar.Estado">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Completada">Completada</option>
+                            <option value="Rechazada">Rechazada</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="observacionesAdmin" class="form-label fw-bold">Observaciones del Administrador</label>
+                        <textarea id="observacionesAdmin" class="form-control" rows="4" @bind="solicitudEditar.ObservacionesAdmin" placeholder="Añade comentarios o notas sobre esta solicitud..."></textarea>
+                        <small class="text-muted">Estos comentarios serán visibles para el comercial</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="archivoRespuesta" class="form-label fw-bold">
+                            <i class="bi bi-paperclip me-2"></i>Archivo Adjunto para el Cliente
+                        </label>
+                        <InputFile id="archivoRespuesta" class="form-control" OnChange="@CargarArchivoRespuesta" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" />
+                        <small class="text-muted">
+                            El archivo se enviará como adjunto en el email al cliente. Máximo 50MB.
+                        </small>
+                        @if (archivoRespuestaCargado != null)
+                        {
+                            <div class="mt-2 alert alert-success d-flex justify-content-between align-items-center py-2">
+                                <span>
+                                    <i class="bi bi-file-earmark-check me-2"></i>@archivoRespuestaCargado
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="EliminarArchivoRespuesta">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(solicitudEditar.RutaArchivoRespuesta))
+                        {
+                            <div class="mt-2 alert alert-info py-2">
+                                <i class="bi bi-file-earmark me-2"></i>
+                                Archivo anterior: @Path.GetFileName(solicitudEditar.RutaArchivoRespuesta)
+                            </div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(mensajeErrorEdicion))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-1"></i>@mensajeErrorEdicion
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalEdicion" disabled="@guardandoEdicion">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" @onclick="GuardarEdicion" disabled="@guardandoEdicion">
+                        @if (guardandoEdicion)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span>Guardar Cambios</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+    window.descargarArchivo = function(nombreArchivo, dataUrl) {
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = nombreArchivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+</script>
+
+@code {
+    private bool cargado = false;
+    private bool cargandoSolicitudes = false;
+    private bool mostrarFormulario = false;
+    private bool mostrarModalDetalle = false;
+    private bool mostrarModalEdicion = false;
+    private bool enviando = false;
+    private bool guardandoEdicion = false;
+    private string mensajeError = string.Empty;
+    private string mensajeExito = string.Empty;
+    private string mensajeErrorEdicion = string.Empty;
+
+    private SolicitudOferta nuevaSolicitud = new();
+    private List<SolicitudOferta> solicitudes = new();
+    private SolicitudOferta? solicitudSeleccionada;
+    private SolicitudOferta? solicitudEditar;
+
+    // Paginación
+    private int paginaActual = 1;
+    private int itemsPorPagina = 10;
+    private int TotalPaginas => (int)Math.Ceiling((double)solicitudes.Count / itemsPorPagina);
+
+    // Archivos cargados
+    private IBrowserFile? facturaLuzGas;
+    private string facturaLuzGasNombre = string.Empty;
+    private IBrowserFile? facturaFotovoltaica;
+    private string facturaFotovoltaicaNombre = string.Empty;
+    private IBrowserFile? facturaTelefonia;
+    private string facturaTelefoniaNombre = string.Empty;
+    
+    // Archivo de respuesta para el modal de edición
+    private IBrowserFile? archivoRespuesta;
+    private byte[]? archivoRespuestaContenido;
+    private string? archivoRespuestaCargado;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            cargado = true;
+            if (AuthService.EstaAutenticado)
+            {
+                InicializarNuevaSolicitud();
+                await CargarSolicitudes();
+            }
+            StateHasChanged();
+        }
+    }
+
+    private void InicializarNuevaSolicitud()
+    {
+        if (AuthService.UsuarioActual != null)
+        {
+            nuevaSolicitud = new SolicitudOferta
+            {
+                UsuarioId = AuthService.UsuarioActual.Id,
+                NombreComercial = AuthService.UsuarioActual.NombreUsuario,
+                EmailComercial = AuthService.UsuarioActual.Email,
+                TelefoniaTipoSolicitud = "Alta Nueva",
+                AlarmaTipo = "Residencial",
+                LuzGasTipoCliente = "Residencial"
+            };
+        }
+    }
+
+    private async Task CargarSolicitudes()
+    {
+        try
+        {
+            cargandoSolicitudes = true;
+            if (AuthService.UsuarioActual != null)
+            {
+                if (AuthService.PuedeGestionarOfertas)
+                {
+                    // Admin y Backoffice con permisos ven todas las ofertas
+                    solicitudes = await OfertaService.ObtenerTodasAsync();
+                }
+                else
+                {
+                    solicitudes = await OfertaService.ObtenerPorUsuarioAsync(AuthService.UsuarioActual.Id);
+                }
+            }
+            // Resetear a la primera página cuando se recargan las solicitudes
+            paginaActual = 1;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar solicitudes: {ex.Message}";
+        }
+        finally
+        {
+            cargandoSolicitudes = false;
+        }
+    }
+
+    private List<SolicitudOferta> ObtenerSolicitudesPaginadas()
+    {
+        return solicitudes
+            .Skip((paginaActual - 1) * itemsPorPagina)
+            .Take(itemsPorPagina)
+            .ToList();
+    }
+
+    private void CambiarElementosPorPaginaEvento(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevaCantidad))
+        {
+            itemsPorPagina = nuevaCantidad;
+            paginaActual = 1;
+        }
+    }
+
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= TotalPaginas)
+        {
+            paginaActual = nuevaPagina;
+        }
+    }
+
+    private void MostrarFormularioNuevaSolicitud()
+    {
+        InicializarNuevaSolicitud();
+        facturaLuzGas = null;
+        facturaLuzGasNombre = string.Empty;
+        facturaFotovoltaica = null;
+        facturaFotovoltaicaNombre = string.Empty;
+        facturaTelefonia = null;
+        facturaTelefoniaNombre = string.Empty;
+        mostrarFormulario = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+    }
+
+    private void CancelarFormulario()
+    {
+        mostrarFormulario = false;
+        InicializarNuevaSolicitud();
+    }
+
+    private void CargarFacturaLuzGas(InputFileChangeEventArgs e)
+    {
+        facturaLuzGas = e.File;
+        facturaLuzGasNombre = e.File.Name;
+    }
+
+    private void CargarFacturaFotovoltaica(InputFileChangeEventArgs e)
+    {
+        facturaFotovoltaica = e.File;
+        facturaFotovoltaicaNombre = e.File.Name;
+    }
+
+    private void CargarFacturaTelefonia(InputFileChangeEventArgs e)
+    {
+        facturaTelefonia = e.File;
+        facturaTelefoniaNombre = e.File.Name;
+    }
+
+    private async Task CargarArchivoRespuesta(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            archivoRespuesta = e.File;
+            
+            if (archivoRespuesta.Size > 50 * 1024 * 1024)
+            {
+                mensajeErrorEdicion = "El archivo no debe superar los 50MB";
+                archivoRespuesta = null;
+                archivoRespuestaCargado = null;
+                return;
+            }
+
+            using var ms = new MemoryStream();
+            await archivoRespuesta.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024).CopyToAsync(ms);
+            archivoRespuestaContenido = ms.ToArray();
+            archivoRespuestaCargado = archivoRespuesta.Name;
+            mensajeErrorEdicion = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensajeErrorEdicion = $"Error al cargar el archivo: {ex.Message}";
+            archivoRespuesta = null;
+            archivoRespuestaCargado = null;
+        }
+    }
+
+    private void EliminarArchivoRespuesta()
+    {
+        archivoRespuesta = null;
+        archivoRespuestaContenido = null;
+        archivoRespuestaCargado = null;
+    }
+
+    private async Task<string?> GuardarArchivo(IBrowserFile archivo, string carpeta)
+    {
+        try
+        {
+            var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var extension = Path.GetExtension(archivo.Name);
+            var nombreArchivo = $"{timestamp}_{Path.GetFileNameWithoutExtension(archivo.Name)}{extension}";
+            var storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+            var rutaCarpeta = Path.Combine(storagePath, "ofertas", carpeta);
+            
+            Directory.CreateDirectory(rutaCarpeta);
+            
+            var rutaCompleta = Path.Combine(rutaCarpeta, nombreArchivo);
+
+            await using var stream = archivo.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024); // 50MB
+            await using var fileStream = File.Create(rutaCompleta);
+            await stream.CopyToAsync(fileStream);
+
+            return rutaCompleta;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task EnviarSolicitud()
+    {
+        try
+        {
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+
+            // Validar que se haya seleccionado al menos un tipo
+            if (!nuevaSolicitud.TipoLuz && !nuevaSolicitud.TipoGas && !nuevaSolicitud.TipoFotovoltaica &&
+                !nuevaSolicitud.TipoFibra && !nuevaSolicitud.TipoMovil && !nuevaSolicitud.TipoFibraMovil &&
+                !nuevaSolicitud.TipoFibraMovilTv && !nuevaSolicitud.TipoAlarma)
+            {
+                mensajeError = "Debes seleccionar al menos un tipo de oferta";
+                return;
+            }
+
+            // Validar datos del interesado
+            if (string.IsNullOrWhiteSpace(nuevaSolicitud.NombreInteresado) || 
+                string.IsNullOrWhiteSpace(nuevaSolicitud.TelefonoInteresado) || 
+                string.IsNullOrWhiteSpace(nuevaSolicitud.EmailInteresado))
+            {
+                mensajeError = "Debes completar los datos del interesado (Nombre, Teléfono y Email)";
+                return;
+            }
+
+            // Validar tipo de cliente para Luz/Gas
+            if ((nuevaSolicitud.TipoLuz || nuevaSolicitud.TipoGas) && string.IsNullOrWhiteSpace(nuevaSolicitud.LuzGasTipoCliente))
+            {
+                mensajeError = "Debes seleccionar el tipo de cliente (Residencial o PYME) para Luz/Gas";
+                return;
+            }
+
+            enviando = true;
+
+            // Guardar archivos
+            if (facturaLuzGas != null)
+            {
+                nuevaSolicitud.LuzGasRutaFactura = await GuardarArchivo(facturaLuzGas, "luz-gas");
+            }
+
+            if (facturaFotovoltaica != null)
+            {
+                nuevaSolicitud.FotovoltaicaRutaFactura = await GuardarArchivo(facturaFotovoltaica, "fotovoltaica");
+            }
+
+            if (facturaTelefonia != null)
+            {
+                nuevaSolicitud.TelefoniaRutaFactura = await GuardarArchivo(facturaTelefonia, "telefonia");
+            }
+
+            // Guardar en base de datos
+            var exito = await OfertaService.CrearAsync(nuevaSolicitud);
+
+            if (exito)
+            {
+                // Obtener emails de todos los administradores
+                var emailsAdmin = await ObtenerEmailsAdministradores();
+                
+                // Enviar email a todos los administradores
+                if (emailsAdmin.Any())
+                {
+                    foreach (var emailAdmin in emailsAdmin)
+                    {
+                        var (exitoEmail, mensajeEmail) = await OfertaService.EnviarEmailSolicitudAsync(nuevaSolicitud, emailAdmin);
+                        if (!exitoEmail)
+                        {
+                            Console.WriteLine($"Error al enviar email a {emailAdmin}: {mensajeEmail}");
+                        }
+                    }
+                }
+
+                // Enviar email de confirmación al comercial
+                var (exitoConfirmacion, _) = await OfertaService.EnviarEmailConfirmacionComercialAsync(nuevaSolicitud);
+                if (!exitoConfirmacion)
+                {
+                    Console.WriteLine("Error al enviar email de confirmación al comercial");
+                }
+
+                mensajeExito = "Solicitud enviada correctamente. Recibirás un email de confirmación y el administrador revisará tu solicitud.";
+                mostrarFormulario = false;
+                await CargarSolicitudes();
+                InicializarNuevaSolicitud();
+            }
+            else
+            {
+                mensajeError = "Error al enviar la solicitud. Inténtalo de nuevo.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private async Task EnviarSolicitudFromModal()
+    {
+        await EnviarSolicitud();
+    }
+
+    private async Task<string?> ObtenerEmailAdministrador()
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var admin = await context.Usuarios
+                .Where(u => u.Rol == "Administrador" && u.Activo)
+                .FirstOrDefaultAsync();
+            return admin?.Email;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<List<string>> ObtenerEmailsAdministradores()
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var emails = await context.Usuarios
+                .Where(u => u.Rol == "Administrador" && u.Activo && !string.IsNullOrEmpty(u.Email))
+                .Select(u => u.Email)
+                .ToListAsync();
+            return emails!;
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+
+    private void VerDetalleSolicitud(SolicitudOferta solicitud)
+    {
+        solicitudSeleccionada = solicitud;
+        mostrarModalDetalle = true;
+    }
+
+    private void CerrarModalDetalle()
+    {
+        mostrarModalDetalle = false;
+    }
+
+    private void AbrirModalEdicion(SolicitudOferta? solicitud)
+    {
+        if (solicitud == null) return;
+        
+        // Crear una copia para editar
+        solicitudEditar = new SolicitudOferta
+        {
+            Id = solicitud.Id,
+            UsuarioId = solicitud.UsuarioId,
+            NombreComercial = solicitud.NombreComercial,
+            EmailComercial = solicitud.EmailComercial,
+            NombreInteresado = solicitud.NombreInteresado,
+            TelefonoInteresado = solicitud.TelefonoInteresado,
+            EmailInteresado = solicitud.EmailInteresado,
+            TipoLuz = solicitud.TipoLuz,
+            TipoGas = solicitud.TipoGas,
+            TipoFotovoltaica = solicitud.TipoFotovoltaica,
+            TipoFibra = solicitud.TipoFibra,
+            TipoMovil = solicitud.TipoMovil,
+            TipoFibraMovil = solicitud.TipoFibraMovil,
+            TipoFibraMovilTv = solicitud.TipoFibraMovilTv,
+            TipoAlarma = solicitud.TipoAlarma,
+            LuzGasTipoCliente = solicitud.LuzGasTipoCliente,
+            LuzGasRutaFactura = solicitud.LuzGasRutaFactura,
+            LuzGasObservaciones = solicitud.LuzGasObservaciones,
+            FotovoltaicaRutaFactura = solicitud.FotovoltaicaRutaFactura,
+            FotovoltaicaEnlaceMaps = solicitud.FotovoltaicaEnlaceMaps,
+            FotovoltaicaObservaciones = solicitud.FotovoltaicaObservaciones,
+            TelefoniaTipoSolicitud = solicitud.TelefoniaTipoSolicitud,
+            TelefoniaRutaFactura = solicitud.TelefoniaRutaFactura,
+            TelefoniaContratoActual = solicitud.TelefoniaContratoActual,
+            TelefoniaObservaciones = solicitud.TelefoniaObservaciones,
+            AlarmaTipo = solicitud.AlarmaTipo,
+            AlarmaTieneActual = solicitud.AlarmaTieneActual,
+            AlarmaObservaciones = solicitud.AlarmaObservaciones,
+            FechaCreacion = solicitud.FechaCreacion,
+            Estado = solicitud.Estado,
+            ObservacionesAdmin = solicitud.ObservacionesAdmin,
+            RutaArchivoRespuesta = solicitud.RutaArchivoRespuesta,
+            FechaProcesado = solicitud.FechaProcesado
+        };
+        
+        // Limpiar archivo de respuesta previo
+        archivoRespuesta = null;
+        archivoRespuestaContenido = null;
+        archivoRespuestaCargado = null;
+        
+        mensajeErrorEdicion = string.Empty;
+        mostrarModalDetalle = false;
+        mostrarModalEdicion = true;
+    }
+
+    private void CerrarModalEdicion()
+    {
+        mostrarModalEdicion = false;
+        solicitudEditar = null;
+        archivoRespuesta = null;
+        archivoRespuestaContenido = null;
+        archivoRespuestaCargado = null;
+        mensajeErrorEdicion = string.Empty;
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (solicitudEditar == null) return;
+
+        try
+        {
+            guardandoEdicion = true;
+            mensajeErrorEdicion = string.Empty;
+
+            // Actualizar fecha de procesado si cambió a Completada o En Proceso
+            if (solicitudEditar.Estado != "Pendiente" && !solicitudEditar.FechaProcesado.HasValue)
+            {
+                solicitudEditar.FechaProcesado = DateTime.Now;
+            }
+
+            // Guardar archivo de respuesta si existe
+            if (archivoRespuesta != null && archivoRespuestaContenido != null)
+            {
+                try
+                {
+                    var storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+                    var carpetaRespuestas = Path.Combine(storagePath, "ofertas", "respuestas");
+                    if (!Directory.Exists(carpetaRespuestas))
+                    {
+                        Directory.CreateDirectory(carpetaRespuestas);
+                    }
+
+                    var nombreArchivo = $"respuesta_{solicitudEditar.Id}_{DateTime.Now:yyyyMMddHHmmss}_{archivoRespuesta.Name}";
+                    var rutaCompleta = Path.Combine(carpetaRespuestas, nombreArchivo);
+
+                    await File.WriteAllBytesAsync(rutaCompleta, archivoRespuestaContenido);
+                    solicitudEditar.RutaArchivoRespuesta = rutaCompleta;
+                }
+                catch (Exception exArchivo)
+                {
+                    mensajeErrorEdicion = $"Error al guardar el archivo: {exArchivo.Message}";
+                    guardandoEdicion = false;
+                    return;
+                }
+            }
+
+            var exito = await OfertaService.ActualizarAsync(solicitudEditar);
+
+            if (exito)
+            {
+                // Notificar al comercial sobre el cambio con el archivo adjunto si existe
+                var (exitoNotificacion, _) = await OfertaService.EnviarEmailCambioEstadoAsync(solicitudEditar);
+                if (!exitoNotificacion)
+                {
+                    Console.WriteLine("Error al enviar notificación al comercial");
+                }
+
+                mensajeExito = "Solicitud actualizada correctamente. El comercial ha sido notificado.";
+                await CargarSolicitudes();
+                CerrarModalEdicion();
+            }
+            else
+            {
+                mensajeErrorEdicion = "Error al actualizar la solicitud";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeErrorEdicion = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            guardandoEdicion = false;
+        }
+    }
+
+    private async Task DescargarArchivo(string? rutaArchivo)
+    {
+        if (string.IsNullOrEmpty(rutaArchivo))
+        {
+            mensajeError = "No se encontró el archivo";
+            return;
+        }
+
+        try
+        {
+            var (exito, contenido, nombreArchivo, mimeType) = await OfertaService.DescargarArchivoAsync(rutaArchivo);
+            
+            if (exito && contenido != null && !string.IsNullOrEmpty(nombreArchivo))
+            {
+                // Convertir a base64 y descargar en el navegador
+                var base64 = Convert.ToBase64String(contenido);
+                var dataUrl = $"data:{mimeType};base64,{base64}";
+                
+                // Usar JavaScript para descargar el archivo
+                await JSRuntime.InvokeVoidAsync("descargarArchivo", nombreArchivo, dataUrl);
+            }
+            else
+            {
+                mensajeError = "No se pudo descargar el archivo. Puede que haya sido eliminado.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al descargar archivo: {ex.Message}";
+        }
+    }
+
+    // Mapear estados a colores distintivos
+    private string ObtenerColorEstado(string? estado)
+    {
+        return estado?.ToLower() switch
+        {
+            "pendiente" => "bg-warning text-dark",
+            "en proceso" => "bg-primary",
+            "completada" => "bg-success",
+            "rechazada" => "bg-danger",
+            "cancelada" => "bg-danger",
+            "archivada" => "bg-secondary",
+            _ => "bg-info"
+        };
+    }
+
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
+}

@@ -1,0 +1,138 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace EnerfoneCRM.Models;
+
+[Table("usuarios")]
+public class Usuario
+{
+    [Key]
+    [Column("idusuarios")]
+    public int Id { get; set; }
+
+    [Column("username")]
+    [StringLength(45)]
+    public string NombreUsuario { get; set; } = string.Empty;
+
+    [Column("nombre")]
+    [StringLength(100)]
+    public string? Nombre { get; set; }
+
+    [Column("apellidos")]
+    [StringLength(100)]
+    public string? Apellidos { get; set; }
+
+    [Column("direccion")]
+    [StringLength(255)]
+    public string? Direccion { get; set; }
+
+    [Column("codigo_postal")]
+    [StringLength(10)]
+    public string? CodigoPostal { get; set; }
+
+    [Column("localidad")]
+    [StringLength(100)]
+    public string? Localidad { get; set; }
+
+    [Column("email")]
+    [StringLength(45)]
+    public string Email { get; set; } = string.Empty;
+
+    [Column("telefono")]
+    [StringLength(20)]
+    public string? Telefono { get; set; }
+
+    [Column("password")]
+    [StringLength(50)]
+    public string PasswordHash { get; set; } = string.Empty;
+
+    [Column("rol")]
+    [StringLength(45)]
+    public string Rol { get; set; } = "Colaborador";
+
+    [Column("gestor_id")]
+    public int? GestorId { get; set; }
+
+    [Column("jefe_ventas_id")]
+    public int? JefeVentasId { get; set; }
+
+    [Column("director_comercial_id")]
+    public int? DirectorComercialId { get; set; }
+
+    [Column("comercializadora")]
+    [StringLength(255)]
+    public string? Comercializadora { get; set; }
+
+    [Column("comision")]
+    public decimal Comision { get; set; } = 0.00m;
+
+    [Column("activo")]
+    public bool Activo { get; set; } = false;
+
+    [Column("excluir_log_acceso")]
+    public bool ExcluirLogAcceso { get; set; } = false;
+
+    [Column("recibir_notificaciones")]
+    public bool RecibirNotificaciones { get; set; } = false;
+
+    // Permisos para rol Backoffice
+    [Column("puede_ver_clientes")]
+    public bool PuedeVerClientes { get; set; } = true;
+
+    [Column("puede_ver_contratos")]
+    public bool PuedeVerContratos { get; set; } = true;
+
+    [Column("puede_ver_tarifas")]
+    public bool PuedeVerTarifas { get; set; } = true;
+
+    [Column("puede_ver_liquidaciones")]
+    public bool PuedeVerLiquidaciones { get; set; } = true;
+
+    [Column("puede_ver_sips")]
+    public bool PuedeVerSips { get; set; } = true;
+
+    [Column("puede_ver_incidencias")]
+    public bool PuedeVerIncidencias { get; set; } = true;
+
+    [Column("puede_ver_ofertas")]
+    public bool PuedeVerOfertas { get; set; } = true;
+
+    [Column("puede_ver_usuarios")]
+    public bool PuedeVerUsuarios { get; set; } = true;
+
+    [Column("fecha_creacion")]
+    public DateTime FechaCreacion { get; set; } = DateTime.Now;
+
+    // Datos bancarios y tipo de entidad
+    [Column("numero_cuenta")]
+    [StringLength(34)]
+    public string? NumeroCuenta { get; set; }
+
+    [Column("tipo_entidad")]
+    [StringLength(20)]
+    public string? TipoEntidad { get; set; }
+
+    // Archivos adjuntos
+    [Column("archivo_dni")]
+    [StringLength(255)]
+    public string? ArchivoDni { get; set; }
+
+    [Column("archivo_cif")]
+    [StringLength(255)]
+    public string? ArchivoCif { get; set; }
+
+    [Column("archivo_poder")]
+    [StringLength(255)]
+    public string? ArchivoPoder { get; set; }
+
+    [Column("archivo_contrato")]
+    [StringLength(255)]
+    public string? ArchivoContrato { get; set; }
+
+    // Propiedades calculadas para compatibilidad con la UI
+    [NotMapped]
+    public DateTime? UltimoAcceso { get; set; }
+
+    [NotMapped]
+    public int TotalContratos { get; set; }
+}

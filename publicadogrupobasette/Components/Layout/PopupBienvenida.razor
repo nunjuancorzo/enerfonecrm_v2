@@ -1,0 +1,193 @@
+@using EnerfoneCRM.Models
+@inject IJSRuntime JSRuntime
+
+@if (MostrarPopup && MensajeActual != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-white border-bottom">
+                    <h5 class="modal-title text-dark">
+                        <i class="bi bi-info-circle me-2 text-dark"></i>@MensajeActual.Titulo
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarPopup"></button>
+                </div>
+                <div class="modal-body bg-white">
+                    @if (MensajeActual.Imagenes != null && MensajeActual.Imagenes.Any())
+                    {
+                        @if (MensajeActual.Imagenes.Count == 1)
+                        {
+                            <!-- Una sola imagen -->
+                            <div class="text-center mb-3">
+                                <img src="@MensajeActual.Imagenes.First().ImagenUrl" alt="Imagen noticia" 
+                                     class="img-fluid rounded imagen-clickeable" 
+                                     style="max-height: 400px; cursor: pointer;" 
+                                     @onclick="() => AbrirImagenAmpliada(MensajeActual.Imagenes.First().ImagenUrl)" />
+                            </div>
+                        }
+                        else
+                        {
+                            <!-- Carrusel de imágenes -->
+                            <div id="carouselNoticias" class="carousel slide mb-3" data-bs-ride="carousel" data-bs-interval="3000">
+                                <div class="carousel-indicators">
+                                    @for (int i = 0; i < MensajeActual.Imagenes.Count; i++)
+                                    {
+                                        <button type="button" data-bs-target="#carouselNoticias" data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")" aria-current="@(i == 0 ? "true" : "false")" aria-label="Slide @(i + 1)"></button>
+                                    }
+                                </div>
+                                <div class="carousel-inner">
+                                    @{
+                                        int index = 0;
+                                        foreach (var imagen in MensajeActual.Imagenes.OrderBy(i => i.Orden))
+                                        {
+                                            <div class="carousel-item @(index == 0 ? "active" : "")">
+                                                <img src="@imagen.ImagenUrl" 
+                                                     class="d-block w-100 rounded imagen-clickeable" 
+                                                     alt="Imagen @(index + 1)" 
+                                                     style="max-height: 400px; object-fit: contain; cursor: pointer;"
+                                                     @onclick="() => AbrirImagenAmpliada(imagen.ImagenUrl)">
+                                                @if (!string.IsNullOrEmpty(imagen.Descripcion))
+                                                {
+                                                    <div class="carousel-caption d-none d-md-block">
+                                                        <p class="bg-dark bg-opacity-75 rounded p-2">@imagen.Descripcion</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                            index++;
+                                        }
+                                    }
+                                </div>
+                                <button class="carousel-control-prev" type="button" data-bs-target="#carouselNoticias" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Anterior</span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target="#carouselNoticias" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Siguiente</span>
+                                </button>
+                            </div>
+                        }
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(MensajeActual.Contenido))
+                    {
+                        <div class="mensaje-contenido">
+                            @((MarkupString)MensajeActual.Contenido.Replace("\n", "<br>"))
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer bg-white border-top">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CerrarPopup">
+                        Cerrar
+                    </button>
+                    <button type="button" class="btn btn-outline-dark" @onclick="NoVolverAMostrarHoy">
+                        No volver a mostrar hoy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Modal para imagen ampliada *@
+@if (mostrarImagenAmpliada && !string.IsNullOrEmpty(imagenAmpliadaUrl))
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.9); z-index: 1060;" @onclick="CerrarImagenAmpliada">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content bg-transparent border-0">
+                <div class="modal-header border-0 position-absolute top-0 end-0" style="z-index: 1061;">
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarImagenAmpliada"></button>
+                </div>
+                <div class="modal-body d-flex align-items-center justify-content-center p-0" style="height: 100vh;">
+                    <img src="@imagenAmpliadaUrl" alt="Imagen ampliada" class="imagen-ampliada" @onclick:stopPropagation="true" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public MensajeBienvenida? MensajeActual { get; set; }
+
+    [Parameter]
+    public EventCallback OnCerrar { get; set; }
+
+    private bool MostrarPopup => MensajeActual != null;
+    private bool mostrarImagenAmpliada = false;
+    private string? imagenAmpliadaUrl = null;
+
+    private void AbrirImagenAmpliada(string urlImagen)
+    {
+        imagenAmpliadaUrl = urlImagen;
+        mostrarImagenAmpliada = true;
+    }
+
+    private void CerrarImagenAmpliada()
+    {
+        mostrarImagenAmpliada = false;
+        imagenAmpliadaUrl = null;
+    }
+
+    private async Task CerrarPopup()
+    {
+        await OnCerrar.InvokeAsync();
+    }
+
+    private async Task NoVolverAMostrarHoy()
+    {
+        if (MensajeActual != null)
+        {
+            // Guardar en localStorage que no se debe mostrar hoy
+            var fechaHoy = DateTime.Now.ToString("yyyy-MM-dd");
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", 
+                $"popup_visto_{MensajeActual.Id}", fechaHoy);
+        }
+        await CerrarPopup();
+    }
+}
+
+<style>
+    .mensaje-contenido {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #333;
+    }
+
+    .modal.show {
+        display: block;
+    }
+
+    #carouselNoticias .carousel-control-prev-icon,
+    #carouselNoticias .carousel-control-next-icon {
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        padding: 20px;
+    }
+
+    #carouselNoticias .carousel-indicators button {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    #carouselNoticias .carousel-indicators button.active {
+        background-color: #0d6efd;
+    }
+
+    .imagen-clickeable {
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .imagen-clickeable:hover {
+        transform: scale(1.02);
+        opacity: 0.9;
+    }
+
+    .imagen-ampliada {
+        max-width: 100vw;
+        max-height: 100vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        cursor: pointer;
+    }
+</style>

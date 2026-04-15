@@ -1,0 +1,291 @@
+.navbar {
+    min-height: 60px;
+}
+
+.navbar-gradient {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+}
+
+.navbar-logo {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+}
+
+.navbar-brand {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.user-info-navbar {
+    text-align: right;
+    line-height: 1.2;
+}
+
+.user-info-navbar .small {
+    font-size: 0.75rem;
+}
+
+.navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.85);
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.navbar-nav .nav-link.active {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+/* Prevenir el fondo blanco de Bootstrap */
+.dropdown-menu a:active,
+.dropdown-menu a:focus,
+.dropdown-menu button:active,
+.dropdown-menu button:focus {
+    background-color: rgba(13, 110, 253, 0.25) !important;
+    color: #ffffff !important;
+}
+
+/* Selectores específicos para enlaces dropdown-item */
+a.dropdown-item:active,
+a.dropdown-item:focus,
+a.dropdown-item:active:focus,
+.dropdown-menu > li > a.dropdown-item:active,
+.dropdown-menu > li > a.dropdown-item:focus {
+    background-color: rgba(13, 110, 253, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1.5rem;
+    transition: all 0.2s ease;
+    color: #ffffff !important;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #ffffff !important;
+}
+
+.dropdown-item:active,
+.dropdown-item:focus,
+.dropdown-item:active:focus {
+    color: #ffffff !important;
+    background-color: rgba(13, 110, 253, 0.25) !important;
+    outline: none !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item {
+    color: #ffffff !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item:hover {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    color: #ffffff !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item:active,
+.dropdown-submenu .dropdown-menu .dropdown-item:focus,
+.dropdown-submenu .dropdown-menu .dropdown-item:active:focus {
+    color: #ffffff !important;
+    background-color: rgba(13, 110, 253, 0.25) !important;
+    outline: none !important;
+}
+
+.dropdown-item.active {
+    background-color: rgba(13, 110, 253, 0.2);
+    color: #ffffff !important;
+}
+
+.dropdown-toggle {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.dropdown-toggle:hover {
+    color: #ffffff !important;
+}
+
+.dropdown-toggle:active,
+.dropdown-toggle:focus {
+    color: #ffffff !important;
+    background-color: rgba(13, 110, 253, 0.15) !important;
+}
+
+.dropdown-submenu > .dropdown-toggle:active,
+.dropdown-submenu > .dropdown-toggle:focus {
+    color: #ffffff !important;
+    background-color: rgba(13, 110, 253, 0.15) !important;
+}
+
+.dropdown-item-text {
+    padding: 0.75rem 1.5rem;
+}
+
+.bi {
+    margin-right: 0.5rem;
+}
+
+/* Restaurar los colores originales de los iconos dentro de dropdown-items */
+.dropdown-item .bi-person-vcard-fill {
+    color: #66BB6A !important;
+}
+
+.dropdown-item .bi-file-earmark-text {
+    color: #4FC3F7 !important;
+}
+
+.dropdown-item .bi-lightning-charge-fill {
+    color: #FFC107 !important;
+}
+
+.dropdown-item .bi-telephone-fill {
+    color: #0d6efd !important;
+}
+
+.dropdown-item .bi-shield-check {
+    color: #dc3545 !important;
+}
+
+.dropdown-item .bi-receipt-cutoff {
+    color: #AB47BC !important;
+}
+
+.dropdown-item .bi-graph-up-arrow {
+    color: #4CAF50 !important;
+}
+
+.dropdown-item .bi-boxes {
+    color: #FF9800 !important;
+}
+
+.dropdown-item .bi-tags-fill {
+    color: #FFA726 !important;
+}
+
+.dropdown-item .bi-people-fill {
+    color: #2196F3 !important;
+}
+
+.dropdown-item .bi-buildings-fill {
+    color: #607D8B !important;
+}
+
+.dropdown-item .bi-gear-fill {
+    color: #9E9E9E !important;
+}
+
+/* Colores de iconos en submenús */
+.dropdown-submenu .dropdown-menu .dropdown-item .bi-lightning-charge-fill {
+    color: #FFC107 !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item .bi-telephone-fill {
+    color: #0d6efd !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item .bi-shield-check {
+    color: #dc3545 !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item .bi-graph-up-arrow {
+    color: #4CAF50 !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item .bi-boxes {
+    color: #FF9800 !important;
+}
+
+.dropdown-submenu .dropdown-menu .dropdown-item .bi-tags-fill {
+    color: #FFA726 !important;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 991.98px) {
+    /* Alinear menú a la izquierda en móvil */
+    .navbar-collapse {
+        align-items: flex-start !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    .navbar-nav {
+        padding: 0.5rem 0;
+        align-items: flex-start !important;
+        width: 100%;
+        padding-left: 0 !important;
+    }
+    
+    .navbar-nav .nav-link {
+        padding: 0.75rem 0.5rem;
+        text-align: left;
+    }
+
+    /* Dropdowns horizontales en móvil */
+    .dropdown-menu {
+        position: static !important;
+        float: none;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        margin-top: 0;
+        display: none !important;
+        flex-direction: row !important;
+        flex-wrap: wrap;
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.05);
+        padding: 0.5rem 0;
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+    
+    .dropdown-menu.show {
+        display: flex !important;
+    }
+    
+    .dropdown-item {
+        width: auto;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem;
+        border-radius: 0.375rem;
+        white-space: nowrap;
+    }
+    
+    /* Submenús también horizontales */
+    .dropdown-submenu .dropdown-menu {
+        position: static !important;
+        left: auto;
+        top: auto;
+        margin-left: 0;
+        margin-top: 0.5rem;
+        display: none !important;
+    }
+    
+    .dropdown-submenu .dropdown-menu.show {
+        display: flex !important;
+    }
+    
+    .dropdown-submenu > .dropdown-item::after {
+        content: "\f282";
+        transform: rotate(0deg);
+    }
+}

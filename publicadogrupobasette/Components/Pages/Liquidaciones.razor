@@ -1,0 +1,2658 @@
+@page "/liquidaciones"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject DbContextProvider DbContextProvider
+@inject IncidenciaLiquidacionService IncidenciaLiquidacionService
+@inject ComisionService ComisionService
+@inject EmailService EmailService
+@inject PdfLiquidacionService PdfLiquidacionService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Liquidaciones - EnerfoneCRM</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="bi bi-cash-coin me-2"></i>Liquidaciones</h3>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2">Cargando liquidaciones...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+        </div>
+    }
+    else
+    {
+        <!-- Pestañas de Liquidaciones -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link @(pestanaActiva == "pendientes" ? "active" : "")" 
+                                @onclick='() => CambiarPestana("pendientes")' 
+                                type="button" role="tab">
+                            <i class="bi bi-hourglass-split me-2"></i>
+                            Pendientes (@usuariosConContratos.Count)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link @(pestanaActiva == "incidencia" ? "active" : "")" 
+                                @onclick='() => CambiarPestana("incidencia")' 
+                                type="button" role="tab">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            En Incidencia (@liquidacionesEnIncidencia.Count)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link @(pestanaActiva == "aceptadas" ? "active" : "")" 
+                                @onclick='() => CambiarPestana("aceptadas")' 
+                                type="button" role="tab">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Aceptadas (@liquidacionesAceptadas.Count)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link @(pestanaActiva == "liquidadas" ? "active" : "")" 
+                                @onclick='() => CambiarPestana("liquidadas")' 
+                                type="button" role="tab">
+                            <i class="bi bi-cash-stack me-2"></i>
+                            Liquidadas (@liquidacionesLiquidadas.Count)
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <!-- Pestaña: Pendientes -->
+                @if (pestanaActiva == "pendientes")
+                {
+                    @if (!usuariosConContratos.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No hay usuarios con contratos en estado Act/Facturable.
+                        </div>
+                    }
+                    else
+                    {
+                    @if (AuthService.PuedeGestionarLiquidaciones)
+                    {
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-shield-check me-2"></i>
+                            <strong>Vista de administrador:</strong> Puedes ver y aprobar las liquidaciones pendientes de todos los usuarios.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-person-check me-2"></i>
+                            <strong>Tu liquidación:</strong> Solo ves tu propia liquidación pendiente. Revisa los contratos y acéptala cuando estés conforme.
+                        </div>
+                    }
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead style="background-color: #6c757d; color: white;">
+                                <tr>
+                                    <th>ID Usuario</th>
+                                    <th>Nombre</th>
+                                    <th>Email</th>
+                                    <th>Rol</th>
+                                    <th class="text-center">Contratos Facturables</th>
+                                    <th class="text-center">Total a liquidar</th>
+                                    <th class="text-center">Incidencias</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in usuariosConContratos)
+                                {
+                                    <tr>
+                                        <td>@item.Usuario.Id</td>
+                                        <td>
+                                            <strong>@item.Usuario.NombreUsuario</strong>
+                                            @if (!string.IsNullOrEmpty(item.Usuario.Nombre) || !string.IsNullOrEmpty(item.Usuario.Apellidos))
+                                            {
+                                                <br />
+                                                <small class="text-muted">@item.Usuario.Nombre @item.Usuario.Apellidos</small>
+                                            }
+                                        </td>
+                                        <td>@item.Usuario.Email</td>
+                                        <td>
+                                            <span class="badge @ObtenerColorRol(item.Usuario.Rol)">
+                                                @item.Usuario.Rol
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-success fs-6">@item.CantidadContratos</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-primary fs-6">@item.TotalComisiones.ToString("N2")€</span>
+                                        </td>
+                                        <td class="text-center">
+                                            @if (item.TieneIncidenciasPendientes)
+                                            {
+                                                <span class="badge bg-warning text-dark" title="@item.CantidadIncidenciasPendientes incidencia(s) pendiente(s)">
+                                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>@item.CantidadIncidenciasPendientes
+                                                </span>
+                                            }
+                                            else if (item.CantidadIncidenciasTotal > 0)
+                                            {
+                                                <span class="badge bg-success" title="@item.CantidadIncidenciasTotal incidencia(s) respondida(s)">
+                                                    <i class="bi bi-check-circle-fill me-1"></i>@item.CantidadIncidenciasTotal
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">
+                                                    <i class="bi bi-dash-circle"></i>
+                                                </span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            <button class="btn btn-sm btn-primary me-1" @onclick="() => VerDetalleUsuario(item.Usuario.Id)" title="Ver Contratos">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-info me-1" @onclick="() => ImprimirLiquidacion(item.Usuario.Id)" title="Imprimir PDF">
+                                                <i class="bi bi-printer"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-secondary me-1" @onclick="() => EnviarEmailLiquidacion(item.Usuario.Id)" title="Enviar por Email" disabled="@(item.Enviando || string.IsNullOrEmpty(item.Usuario.Email))">
+                                                @if (item.Enviando)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-envelope"></i>
+                                                }
+                                            </button>
+                                            <button class="btn btn-sm btn-warning me-1" @onclick="() => AbrirModalIncidencia(item.Usuario)" title="Gestionar Incidencias">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                            </button>
+                                            @if (AuthService.PuedeGestionarLiquidaciones || AuthService.UsuarioActual?.Rol == "Colaborador")
+                                            {
+                                                <button class="btn btn-sm btn-success" 
+                                                        @onclick="() => AprobarLiquidacion(item.Usuario.Id)" 
+                                                        title="@(item.TieneIncidenciasPendientes ? "No se puede aprobar: hay incidencias pendientes sin responder" : (AuthService.PuedeGestionarLiquidaciones ? "Aprobar Liquidación" : "Aceptar mi Liquidación"))" 
+                                                        disabled="@(item.Aprobando || item.TieneIncidenciasPendientes)">
+                                                    @if (item.Aprobando)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm"></span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-check-circle"></i>
+                                                    }
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                }
+                
+                <!-- Pestaña: En Incidencia -->
+                @if (pestanaActiva == "incidencia")
+                {
+                    @if (!liquidacionesEnIncidencia.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No hay liquidaciones en incidencia.
+                        </div>
+                    }
+                    else
+                    {
+                        @if (AuthService.PuedeGestionarLiquidaciones)
+                        {
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <strong>Vista de administrador:</strong> Puedes ver todas las liquidaciones en incidencia de todos los usuarios.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-person-check me-2"></i>
+                                <strong>Tus liquidaciones:</strong> Solo ves tus propias liquidaciones en incidencia.
+                            </div>
+                        }
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead style="background-color: #dc3545; color: white;">
+                                    <tr>
+                                        <th>Fecha Incidencia</th>
+                                        <th>Usuario</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Contratos</th>
+                                        <th class="text-center">Total</th>
+                                        <th>Aprobado Por</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var liq in liquidacionesEnIncidencia)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@((liq.FechaEnIncidencia ?? liq.FechaAprobacion).ToString("dd/MM/yyyy"))</strong>
+                                                <br />
+                                                <small class="text-muted">@((liq.FechaEnIncidencia ?? liq.FechaAprobacion).ToString("HH:mm"))</small>
+                                            </td>
+                                            <td>
+                                                <strong>@liq.UsuarioNombre</strong>
+                                                <br />
+                                                <small class="text-muted">ID: @liq.UsuarioId</small>
+                                            </td>
+                                            <td>@liq.UsuarioEmail</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-primary">@liq.CantidadContratos</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success">@((liq.TotalComisiones ?? 0).ToString("N2"))€</span>
+                                            </td>
+                                            <td>
+                                                <strong>@liq.AprobadoPorNombre</strong>
+                                                <br />
+                                                <small class="text-muted">@liq.FechaAprobacion.ToString("dd/MM/yyyy HH:mm")</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-info me-1" @onclick="() => VerContratosHistorico(liq)" title="Ver Contratos">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-success me-1" @onclick="() => MarcarComoAceptada(liq.Id)" title="Marcar como Aceptada">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+                
+                <!-- Pestaña: Aceptadas -->
+                @if (pestanaActiva == "aceptadas")
+                {
+                    @if (!liquidacionesAceptadas.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No hay liquidaciones aceptadas.
+                        </div>
+                    }
+                    else
+                    {
+                        @if (AuthService.PuedeGestionarLiquidaciones)
+                        {
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <strong>Vista de administrador:</strong> Puedes ver todas las liquidaciones aceptadas de todos los usuarios.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-person-check me-2"></i>
+                                <strong>Tus liquidaciones:</strong> Solo ves tus propias liquidaciones aceptadas.
+                            </div>
+                        }
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead style="background-color: #28a745; color: white;">
+                                    <tr>
+                                        <th>Fecha Aceptación</th>
+                                        <th>Usuario</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Contratos</th>
+                                        <th class="text-center">Total</th>
+                                        <th>Aprobado Por</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var liq in liquidacionesAceptadas)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@((liq.FechaAceptada ?? liq.FechaAprobacion).ToString("dd/MM/yyyy"))</strong>
+                                                <br />
+                                                <small class="text-muted">@((liq.FechaAceptada ?? liq.FechaAprobacion).ToString("HH:mm"))</small>
+                                            </td>
+                                            <td>
+                                                <strong>@liq.UsuarioNombre</strong>
+                                                <br />
+                                                <small class="text-muted">ID: @liq.UsuarioId</small>
+                                            </td>
+                                            <td>@liq.UsuarioEmail</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-primary">@liq.CantidadContratos</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success">@((liq.TotalComisiones ?? 0).ToString("N2"))€</span>
+                                            </td>
+                                            <td>
+                                                <strong>@liq.AprobadoPorNombre</strong>
+                                                <br />
+                                                <small class="text-muted">@liq.FechaAprobacion.ToString("dd/MM/yyyy HH:mm")</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-info me-1" @onclick="() => VerContratosHistorico(liq)" title="Ver Contratos">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-primary me-1" @onclick="() => MarcarComoLiquidada(liq.Id)" title="Marcar como Liquidada">
+                                                    <i class="bi bi-cash-stack"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-danger me-1" @onclick="() => MarcarConIncidencia(liq.Id)" title="Marcar con Incidencia">
+                                                    <i class="bi bi-exclamation-triangle"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+                
+                <!-- Pestaña: Liquidadas -->
+                @if (pestanaActiva == "liquidadas")
+                {
+                    @if (!liquidacionesLiquidadas.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No hay liquidaciones finalizadas.
+                        </div>
+                    }
+                    else
+                    {
+                        @if (AuthService.PuedeGestionarLiquidaciones)
+                        {
+                            <div class="alert alert-primary mb-3">
+                                <i class="bi bi-shield-check me-2"></i>
+                                <strong>Vista de administrador:</strong> Puedes ver todas las liquidaciones finalizadas de todos los usuarios.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-primary mb-3">
+                                <i class="bi bi-person-check me-2"></i>
+                                <strong>Tus liquidaciones:</strong> Solo ves tus propias liquidaciones finalizadas.
+                            </div>
+                        }
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead style="background-color: #007bff; color: white;">
+                                    <tr>
+                                        <th>Fecha Liquidación</th>
+                                        <th>Usuario</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Contratos</th>
+                                        <th class="text-center">E</th>
+                                        <th class="text-center">T</th>
+                                        <th class="text-center">A</th>
+                                        <th class="text-center">Total</th>
+                                        <th>Aprobado Por</th>
+                                        <th>Observaciones</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var liq in liquidacionesLiquidadas)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@((liq.FechaLiquidada ?? liq.FechaAprobacion).ToString("dd/MM/yyyy"))</strong>
+                                                <br />
+                                                <small class="text-muted">@((liq.FechaLiquidada ?? liq.FechaAprobacion).ToString("HH:mm"))</small>
+                                            </td>
+                                            <td>
+                                                <strong>@liq.UsuarioNombre</strong>
+                                                <br />
+                                                <small class="text-muted">ID: @liq.UsuarioId</small>
+                                            </td>
+                                            <td>@liq.UsuarioEmail</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-primary">@liq.CantidadContratos</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-warning text-dark">@liq.ContratosEnergia</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-info">@liq.ContratosTelefonia</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-danger">@liq.ContratosAlarmas</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success">@((liq.TotalComisiones ?? 0).ToString("N2"))€</span>
+                                            </td>
+                                            <td>
+                                                <strong>@liq.AprobadoPorNombre</strong>
+                                                <br />
+                                                <small class="text-muted">@liq.FechaAprobacion.ToString("dd/MM/yyyy HH:mm")</small>
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(liq.Observaciones))
+                                                {
+                                                    <small>@liq.Observaciones</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-info me-1" @onclick="() => VerContratosHistorico(liq)" title="Ver Contratos">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-warning" @onclick="() => VolverAceptada(liq.Id)" title="Volver a Aceptada">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal Ver Contratos -->
+@if (mostrarModalContratos)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 95%; max-height: 90vh;">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-file-earmark-text me-2"></i>
+                        Contratos Facturables - @usuarioSeleccionado?.NombreUsuario
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalContratos"></button>
+                </div>
+                <div class="modal-body">
+                    @if (!contratosFacurables.Any())
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No se encontraron contratos facturables para este usuario.
+                            <br/>
+                            <small>Verifica que los contratos tengan el estado exacto "Act/Facturable" y que el comercial coincida con "@usuarioSeleccionado?.NombreUsuario"</small>
+                        </div>
+                    }
+                    else
+                    {
+                        // Normalizar tipos para comparación robusta
+                        var contratosEnergia = contratosFacurables.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "energia";
+                        }).ToList();
+                        
+                        var contratosTelefonia = contratosFacurables.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "telefonia";
+                        }).ToList();
+                        
+                        var contratosAlarmas = contratosFacurables.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "alarma";
+                        }).ToList();
+                        
+                        Console.WriteLine($"[FILTRADO] Energía: {contratosEnergia.Count}, Telefonía: {contratosTelefonia.Count}, Alarmas: {contratosAlarmas.Count}");
+
+                        @if (contratosEnergia.Any())
+                    {
+                        <h6 class="mb-3">
+                            <span class="badge bg-warning text-dark">Contratos de Energía (@contratosEnergia.Count)</span>
+                        </h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-hover table-striped">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha Creación</th>
+                                        <th>Estado</th>
+                                        <th>Comercial</th>
+                                        <th>Comercializadora</th>
+                                        <th>Tarifa</th>
+                                        <th>DNI Cliente</th>
+                                        <th>Cliente</th>
+                                        <th>CUPS Luz</th>
+                                        <th>CUPS Gas</th>
+                                        <th>Comisión</th>
+                                        <th>Decomisión</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var contrato in contratosEnergia)
+                                    {
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><small><strong>@contrato.Id</strong></small></td>
+                                            <td><small>@(contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "")</small></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-success")">@contrato.Estado</span></td>
+                                            <td><small>@contrato.Comercial</small></td>
+                                            <td><small>@contrato.EnComercializadora</small></td>
+                                            <td><small>@contrato.EnTarifa</small></td>
+                                            <td><small>@contrato.Dni</small></td>
+                                            <td><small>@contrato.NombreCliente</small></td>
+                                            <td><small>@contrato.EnCups</small></td>
+                                            <td><small>@contrato.EnCupsGas</small></td>
+                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (contratosTelefonia.Any())
+                    {
+                        <h6 class="mb-3">
+                            <span class="badge bg-info">Contratos de Telefonía (@contratosTelefonia.Count)</span>
+                        </h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-hover table-striped">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha Creación</th>
+                                        <th>Estado</th>
+                                        <th>Comercial</th>
+                                        <th>Operadora</th>
+                                        <th>Tarifa</th>
+                                        <th>Cliente</th>
+                                        <th>DNI</th>
+                                        <th>Fijo</th>
+                                        <th>Línea Móvil</th>
+                                        <th>Nº Líneas</th>
+                                        <th>Comisión</th>
+                                        <th>Decomisión</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var contrato in contratosTelefonia)
+                                    {
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><small><strong>@contrato.Id</strong></small></td>
+                                            <td><small>@(contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "")</small></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-success")">@contrato.Estado</span></td>
+                                            <td><small>@contrato.Comercial</small></td>
+                                            <td><small>@contrato.OperadoraTel</small></td>
+                                            <td><small>@contrato.TarifaTel</small></td>
+                                            <td><small>@contrato.NombreCliente</small></td>
+                                            <td><small>@contrato.Dni</small></td>
+                                            <td><small>@contrato.FijoTel</small></td>
+                                            <td><small>@contrato.LineaMovilPrincipal</small></td>
+                                            <td><small>@contrato.NumeroLineasTel</small></td>
+                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (contratosAlarmas.Any())
+                    {
+                        <h6 class="mb-3">
+                            <span class="badge bg-danger">Contratos de Alarmas (@contratosAlarmas.Count)</span>
+                        </h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-hover table-striped">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha Creación</th>
+                                        <th>Estado</th>
+                                        <th>Comercial</th>
+                                        <th>Cliente</th>
+                                        <th>DNI</th>
+                                        <th>Tipo Alarma</th>
+                                        <th>Subtipo Inmueble</th>
+                                        <th>Kit</th>
+                                        <th>Campaña</th>
+                                        <th>Comisión</th>
+                                        <th>Decomisión</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var contrato in contratosAlarmas)
+                                    {
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><small><strong>@contrato.Id</strong></small></td>
+                                            <td><small>@(contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "")</small></td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-success")">@contrato.Estado</span></td>
+                                            <td><small>@contrato.Comercial</small></td>
+                                            <td><small>@contrato.NombreCliente</small></td>
+                                            <td><small>@contrato.Dni</small></td>
+                                            <td><small>@contrato.TipoAlarma</small></td>
+                                            <td><small>@contrato.SubtipoInmueble</small></td>
+                                            <td><small>@contrato.KitAlarma</small></td>
+                                            <td><small>@contrato.CampanaAlarma</small></td>
+                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    <div class="mt-3 alert alert-info">
+                        <strong>Total contratos: </strong>@contratosFacurables.Count
+                        @if (contratosEnergia.Any()) { <span class="ms-3">Energía: @contratosEnergia.Count</span> }
+                        @if (contratosTelefonia.Any()) { <span class="ms-3">Telefonía: @contratosTelefonia.Count</span> }
+                        @if (contratosAlarmas.Any()) { <span class="ms-3">Alarmas: @contratosAlarmas.Count</span> }
+                    </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-info me-2" @onclick="() => ImprimirLiquidacion(usuarioSeleccionado!.Id)">
+                        <i class="bi bi-printer me-1"></i>Imprimir
+                    </button>
+                    <button type="button" class="btn btn-primary me-2" @onclick="() => EnviarEmailLiquidacion(usuarioSeleccionado!.Id)" disabled="@enviandoEmail">
+                        @if (enviandoEmail)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span>Enviando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-envelope me-1"></i>
+                            <span>Enviar por Email</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalContratos">
+                        <i class="bi bi-x-circle me-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Gestión de Incidencias -->
+@if (mostrarModalIncidencias && usuarioIncidenciaSeleccionado != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Incidencias de Liquidación - @usuarioIncidenciaSeleccionado.NombreUsuario
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarModalIncidencias"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Usuario:</strong> @usuarioIncidenciaSeleccionado.NombreUsuario<br />
+                        @if (!string.IsNullOrEmpty(usuarioIncidenciaSeleccionado.Nombre) || !string.IsNullOrEmpty(usuarioIncidenciaSeleccionado.Apellidos))
+                        {
+                            <strong>Nombre:</strong> @usuarioIncidenciaSeleccionado.Nombre @usuarioIncidenciaSeleccionado.Apellidos<br />
+                        }
+                        <strong>Email:</strong> @usuarioIncidenciaSeleccionado.Email
+                    </div>
+
+                    @if (cargandoIncidencias)
+                    {
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                            <span class="ms-2">Cargando incidencias...</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Formulario para crear nueva incidencia (solo Colaborador propietario) -->
+                        @if (AuthService.UsuarioActual?.Rol == "Colaborador" && 
+                             AuthService.UsuarioActual?.Id == usuarioIncidenciaSeleccionado.Id &&
+                             !tienePendientes)
+                        {
+                            <div class="card mb-3 border-warning">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-plus-circle me-2"></i>Nueva Incidencia
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Descripción de la incidencia</label>
+                                        <textarea class="form-control" rows="4" @bind="nuevaIncidenciaMensaje" 
+                                                  placeholder="Describe el problema o consulta sobre tu liquidación..."></textarea>
+                                    </div>
+                                    <button class="btn btn-warning" @onclick="CrearIncidencia" disabled="@guardandoIncidencia">
+                                        @if (guardandoIncidencia)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        }
+                                        <i class="bi bi-send me-1"></i>Enviar Incidencia
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                        else if (AuthService.UsuarioActual?.Rol == "Colaborador" && 
+                                 AuthService.UsuarioActual?.Id == usuarioIncidenciaSeleccionado.Id &&
+                                 tienePendientes)
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Ya tienes una incidencia pendiente. Espera la respuesta del administrador antes de crear otra.
+                            </div>
+                        }
+
+                        <!-- Lista de incidencias existentes -->
+                        @if (incidenciasUsuario.Any())
+                        {
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="bi bi-list-ul me-2"></i>Incidencias Registradas (@incidenciasUsuario.Count)
+                            </h6>
+                            @foreach (var incidencia in incidenciasUsuario)
+                            {
+                                <div class="card mb-3 @(incidencia.Estado == "Pendiente" ? "border-warning" : "border-success")">
+                                    <div class="card-header @(incidencia.Estado == "Pendiente" ? "bg-warning text-dark" : "bg-success text-white")">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span>
+                                                <i class="bi bi-person-circle me-2"></i>
+                                                @incidencia.UsuarioColaborador?.NombreUsuario
+                                            </span>
+                                            <span>
+                                                <small>@incidencia.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</small>
+                                                <span class="badge @(incidencia.Estado == "Pendiente" ? "bg-warning text-dark" : "bg-success") ms-2">
+                                                    @incidencia.Estado
+                                                </span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="mb-2"><strong>Mensaje:</strong></p>
+                                        <p class="text-muted">@incidencia.MensajeColaborador</p>
+
+                                        @if (incidencia.Estado == "Respondida" && !string.IsNullOrEmpty(incidencia.RespuestaAdministrador))
+                                        {
+                                            <hr />
+                                            <div class="bg-light p-3 rounded">
+                                                <p class="mb-2">
+                                                    <strong><i class="bi bi-reply me-2"></i>Respuesta del Administrador:</strong>
+                                                    <small class="text-muted ms-2">
+                                                        (@incidencia.UsuarioAdministrador?.NombreUsuario - @incidencia.FechaRespuesta?.ToString("dd/MM/yyyy HH:mm"))
+                                                    </small>
+                                                </p>
+                                                <p class="mb-0">@incidencia.RespuestaAdministrador</p>
+                                            </div>
+                                        }
+
+                                        @if (incidencia.Estado == "Pendiente" && AuthService.PuedeGestionarLiquidaciones)
+                                        {
+                                            <hr />
+                                            <div class="mt-3">
+                                                <label class="form-label fw-bold">Responder incidencia:</label>
+                                                <textarea class="form-control mb-2" rows="3" @bind="respuestaIncidencia"
+                                                          placeholder="Escribe tu respuesta aquí..."></textarea>
+                                                <button class="btn btn-success btn-sm" @onclick="() => ResponderIncidencia(incidencia.Id)" disabled="@guardandoRespuesta">
+                                                    @if (guardandoRespuesta)
+                                                    {
+                                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                                    }
+                                                    <i class="bi bi-send me-1"></i>Enviar Respuesta
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                No hay incidencias registradas para este usuario.
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalIncidencias">
+                        <i class="bi bi-x-circle me-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Histórico de Liquidaciones -->
+@if (mostrarHistorico)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Histórico de Liquidaciones
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarHistorico"></button>
+                </div>
+                <div class="modal-body">
+                    @if (cargandoHistorico)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-2">Cargando histórico...</p>
+                        </div>
+                    }
+                    else if (!historicoLiquidaciones.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No hay liquidaciones aprobadas en el histórico.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped table-sm">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th>Fecha Aprobación</th>
+                                        <th>Usuario</th>
+                                        <th>Email</th>
+                                        <th class="text-center">Total Contratos</th>
+                                        <th class="text-center">Energía</th>
+                                        <th class="text-center">Telefonía</th>
+                                        <th class="text-center">Alarmas</th>
+                                        <th>Aprobado Por</th>
+                                        <th>Observaciones</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var historico in historicoLiquidaciones.OrderByDescending(h => h.FechaAprobacion))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@historico.FechaAprobacion.ToString("dd/MM/yyyy")</strong>
+                                                <br />
+                                                <small class="text-muted">@historico.FechaAprobacion.ToString("HH:mm")</small>
+                                            </td>
+                                            <td>
+                                                <strong>@historico.UsuarioNombre</strong>
+                                                <br />
+                                                <small class="text-muted">ID: @historico.UsuarioId</small>
+                                            </td>
+                                            <td>@historico.UsuarioEmail</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-primary fs-6">@historico.CantidadContratos</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-warning text-dark">@historico.ContratosEnergia</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-info">@historico.ContratosTelefonia</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-danger">@historico.ContratosAlarmas</span>
+                                            </td>
+                                            <td>
+                                                <strong>@historico.AprobadoPorNombre</strong>
+                                                <br />
+                                                <small class="text-muted">ID: @historico.AprobadoPorId</small>
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(historico.Observaciones))
+                                                {
+                                                    <small>@historico.Observaciones</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-info me-1" @onclick="() => VerContratosHistorico(historico)" title="Ver Contratos">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                @if (AuthService.PuedeGestionarLiquidaciones)
+                                                {
+                                                    <button class="btn btn-sm btn-warning" @onclick="() => ReactivarLiquidacion(historico.Id)" title="Reactivar Liquidación" disabled="@historico.Reactivando">
+                                                        @if (historico.Reactivando)
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm"></span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                                        }
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarHistorico">
+                        <i class="bi bi-x-circle me-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Modal Ver Contratos del Histórico -->
+@if (mostrarContratosHistorico && contratosHistorico.Any() && historicoSeleccionado != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-file-earmark-text me-2"></i>
+                        Contratos Liquidados - @historicoSeleccionado.UsuarioNombre
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarContratosHistorico"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Liquidación aprobada el:</strong> @historicoSeleccionado.FechaAprobacion.ToString("dd/MM/yyyy HH:mm")
+                        <br />
+                        <strong>Aprobado por:</strong> @historicoSeleccionado.AprobadoPorNombre
+                        <br />
+                        <strong>Total de contratos:</strong> @historicoSeleccionado.CantidadContratos
+                    </div>
+
+                    @{
+                        // Normalizar tipos para comparación robusta
+                        var contratosEnergia = contratosHistorico.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "energia";
+                        }).ToList();
+                        
+                        var contratosTelefonia = contratosHistorico.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "telefonia";
+                        }).ToList();
+                        
+                        var contratosAlarmas = contratosHistorico.Where(c => 
+                        {
+                            var tipoNormalizado = c.Tipo?.ToLower()
+                                .Replace("í", "i")
+                                .Replace("ó", "o")
+                                .Replace("á", "a")
+                                .Replace("é", "e")
+                                .Replace("ú", "u");
+                            return tipoNormalizado == "alarma";
+                        }).ToList();
+                        
+                        Console.WriteLine($"[FILTRADO HISTÓRICO] Energía: {contratosEnergia.Count}, Telefonía: {contratosTelefonia.Count}, Alarmas: {contratosAlarmas.Count}");
+                    }
+
+                    @if (contratosEnergia.Any())
+                    {
+                        <h6 class="mb-3">
+                            <span class="badge bg-warning text-dark">Contratos de Energía (@contratosEnergia.Count)</span>
+                        </h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-hover table-striped">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha Creación</th>
+                                        <th>Estado</th>
+                                        <th>Comercializadora</th>
+                                        <th>Tarifa</th>
+                                        <th>DNI Cliente</th>
+                                        <th>Cliente</th>
+                                        <th>CUPS Luz</th>
+                                        <th>CUPS Gas</th>
+                                        <th>Decomisión</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var contrato in contratosEnergia)
+                                    {
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><strong>@contrato.Id</strong></td>
+                                            <td>@contrato.FechaCreacion?.ToString("dd/MM/yyyy")</td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-secondary")">@contrato.Estado</span></td>
+                                            <td>@contrato.EnComercializadora</td>
+                                            <td>@contrato.EnTarifa</td>
+                                            <td>@contrato.Dni</td>
+                                            <td>@contrato.NombreCliente</td>
+                                            <td><small>@contrato.EnCups</small></td>
+                                            <td><small>@contrato.EnCupsGas</small></td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (contratosTelefonia.Any())
+                    {
+                        <h6 class="mb-3">
+                            <span class="badge bg-info">Contratos de Telefonía (@contratosTelefonia.Count)</span>
+                        </h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-hover table-striped">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha Creación</th>
+                                        <th>Estado</th>
+                                        <th>Operadora</th>
+                                        <th>Tarifa</th>
+                                        <th>DNI Cliente</th>
+                                        <th>Cliente</th>
+                                        <th>Teléfono</th>
+                                        <th>Decomisión</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var contrato in contratosTelefonia)
+                                    {
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><strong>@contrato.Id</strong></td>
+                                            <td>@contrato.FechaCreacion?.ToString("dd/MM/yyyy")</td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-secondary")">@contrato.Estado</span></td>
+                                            <td>@contrato.OperadoraTel</td>
+                                            <td>@contrato.TarifaTel</td>
+                                            <td>@contrato.Dni</td>
+                                            <td>@contrato.NombreCliente</td>
+                                            <td>@contrato.LineaMovilPrincipal</td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (contratosAlarmas.Any())
+                    {
+                        <h6 class="mb-3">
+                            <span class="badge bg-danger">Contratos de Alarmas (@contratosAlarmas.Count)</span>
+                        </h6>
+                        <div class="table-responsive mb-4">
+                            <table class="table table-sm table-hover table-striped">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Fecha Creación</th>
+                                        <th>Estado</th>
+                                        <th>Empresa</th>
+                                        <th>Tarifa</th>
+                                        <th>DNI Cliente</th>
+                                        <th>Cliente</th>
+                                        <th>Dirección</th>
+                                        <th>Decomisión</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var contrato in contratosAlarmas)
+                                    {
+                                        var tieneDecomision = TieneDecomision(contrato.Id);
+                                        <tr class="@(tieneDecomision ? "table-danger" : "")">
+                                            <td><strong>@contrato.Id</strong></td>
+                                            <td>@contrato.FechaCreacion?.ToString("dd/MM/yyyy")</td>
+                                            <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-secondary")">@contrato.Estado</span></td>
+                                            <td>@contrato.EmpresaAlarma</td>
+                                            <td>@contrato.KitAlarma</td>
+                                            <td>@contrato.Dni</td>
+                                            <td>@contrato.NombreCliente</td>
+                                            <td>@contrato.DireccionInstalacionAlarma</td>
+                                            <td>
+                                                @if (tieneDecomision)
+                                                {
+                                                    var importe = ObtenerImporteDecomision(contrato.Id);
+                                                    <span class="badge bg-danger">-@(importe?.ToString("N2"))€</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarContratosHistorico">
+                        <i class="bi bi-x-circle me-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool cargando = true;
+    private string mensajeError = string.Empty;
+    private List<UsuarioConContratos> usuariosConContratos = new();
+    private bool verificado = false;
+    private bool mostrarModalContratos = false;
+    private List<Contrato> contratosFacurables = new();
+    private Usuario? usuarioSeleccionado = null;
+    private bool enviandoEmail = false;
+
+    // Variables para incidencias
+    private bool mostrarModalIncidencias = false;
+    private Usuario? usuarioIncidenciaSeleccionado = null;
+    private List<IncidenciaLiquidacion> incidenciasUsuario = new();
+    private bool cargandoIncidencias = false;
+    private string nuevaIncidenciaMensaje = string.Empty;
+    private string respuestaIncidencia = string.Empty;
+    private bool guardandoIncidencia = false;
+    private bool guardandoRespuesta = false;
+    private bool tienePendientes = false;
+
+    // Variables para histórico
+    private bool mostrarHistorico = false;
+    private List<HistoricoLiquidacion> historicoLiquidaciones = new();
+    private bool cargandoHistorico = false;
+    private bool mostrarContratosHistorico = false;
+    private List<Contrato> contratosHistorico = new();
+    private HistoricoLiquidacion? historicoSeleccionado = null;
+
+    // Variables para pestañas
+    private string pestanaActiva = "pendientes";
+    private List<HistoricoLiquidacion> liquidacionesEnIncidencia = new();
+    private List<HistoricoLiquidacion> liquidacionesAceptadas = new();
+    private List<HistoricoLiquidacion> liquidacionesLiquidadas = new();
+
+    // Variables para decomisiones
+    private List<Decomision> decomisionesVisibles = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !verificado)
+        {
+            verificado = true;
+            
+            // Verificar autenticación
+            await AuthService.CargarSesionAsync();
+            if (!AuthService.EstaAutenticado)
+            {
+                NavigationManager.NavigateTo("/login", true);
+                return;
+            }
+
+            // Control de visibilidad de liquidaciones:
+            // - Admin y Backoffice con permisos: Ven y gestionan TODAS las liquidaciones
+            // - Colaboradores y Gestores: Solo ven y gestionan SUS PROPIAS liquidaciones
+            if (!AuthService.PuedeVerLiquidaciones)
+            {
+                NavigationManager.NavigateTo("/", true);
+                return;
+            }
+            
+            await CargarUsuariosConContratos();
+            await CargarLiquidacionesPorEstado();
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarUsuariosConContratos()
+    {
+        try
+        {
+            cargando = true;
+            mensajeError = string.Empty;
+
+            await using var context = DbContextProvider.CreateDbContext();
+
+            // Obtener usuarios que tienen contratos de energía, telefonía o alarmas en estado Act/Facturable
+            var query = from usuario in context.Usuarios
+                        where usuario.Activo
+                        let contratosFacturables = context.Contratos
+                            .Where(c => c.Comercial == usuario.NombreUsuario 
+                                && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                                && c.Estado == "Act/Facturable")
+                            .Count()
+                        let totalComisiones = context.Contratos
+                            .Where(c => c.Comercial == usuario.NombreUsuario 
+                                && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                                && c.Estado == "Act/Facturable")
+                            .Sum(c => c.Comision ?? 0)
+                        let incidenciasPendientes = context.IncidenciasLiquidacion
+                            .Where(i => i.UsuarioColaboradorId == usuario.Id && i.Estado == "Pendiente")
+                            .Count()
+                        let incidenciasTotal = context.IncidenciasLiquidacion
+                            .Where(i => i.UsuarioColaboradorId == usuario.Id)
+                            .Count()
+                        where contratosFacturables > 0
+                        select new UsuarioConContratos
+                        {
+                            Usuario = usuario,
+                            CantidadContratos = contratosFacturables,
+                            TotalComisiones = totalComisiones,
+                            CantidadIncidenciasPendientes = incidenciasPendientes,
+                            CantidadIncidenciasTotal = incidenciasTotal
+                        };
+
+            // Filtrar por usuario si no puede gestionar liquidaciones
+            if (!AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual != null)
+            {
+                query = query.Where(u => u.Usuario.Id == AuthService.UsuarioActual.Id);
+            }
+
+            usuariosConContratos = await query.ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar usuarios: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task VerDetalleUsuario(int usuarioId)
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            
+            // Obtener el usuario
+            usuarioSeleccionado = await context.Usuarios.FindAsync(usuarioId);
+            
+            if (usuarioSeleccionado == null)
+            {
+                mensajeError = "Usuario no encontrado";
+                return;
+            }
+            
+            Console.WriteLine($"=== VER DETALLE USUARIO ===");
+            Console.WriteLine($"Usuario ID: {usuarioId}");
+            Console.WriteLine($"Usuario Nombre: {usuarioSeleccionado.NombreUsuario}");
+            
+            // Obtener los contratos facturables del usuario (energía, telefonía y alarmas)
+            contratosFacurables = await context.Contratos
+                .Where(c => c.Comercial == usuarioSeleccionado.NombreUsuario 
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                    && c.Estado == "Act/Facturable")
+                .OrderByDescending(c => c.FechaCreacion)
+                .ToListAsync();
+            
+            Console.WriteLine($"Contratos facturables encontrados: {contratosFacurables.Count}");
+
+            // Cargar decomisiones pendientes (no asignadas a ninguna liquidación) del usuario
+            // IMPORTANTE: No filtrar por idsContratos porque los contratos dados de baja
+            // ya no están en estado "Act/Facturable" pero sus decomisiones deben aparecer
+            decomisionesVisibles = await context.Decomisiones
+                .Where(d => d.UsuarioId == usuarioId && d.LiquidacionDecomisionId == null)
+                .ToListAsync();
+            
+            Console.WriteLine($"Decomisiones pendientes encontradas: {decomisionesVisibles.Count}");
+            foreach (var dec in decomisionesVisibles)
+            {
+                Console.WriteLine($"  Decomisión ID {dec.Id}: ContratoId={dec.ContratoId}, Importe={dec.ImporteDecomision}, LiquidacionId={dec.LiquidacionDecomisionId}");
+            }
+            
+            // Obtener los contratos que tienen decomisión para mostrarlos aunque estén dados de baja
+            var idsContratosConDecomision = decomisionesVisibles.Select(d => d.ContratoId).ToList();
+            if (idsContratosConDecomision.Any())
+            {
+                // Obtener IDs de contratos ya en la lista de facturables
+                var idsContratosFacturables = contratosFacurables.Select(c => c.Id).ToList();
+                
+                // Buscar contratos con decomisión que NO estén ya en facturables
+                var contratosConDecomision = await context.Contratos
+                    .Where(c => idsContratosConDecomision.Contains(c.Id) && !idsContratosFacturables.Contains(c.Id))
+                    .ToListAsync();
+                
+                if (contratosConDecomision.Any())
+                {
+                    Console.WriteLine($"Contratos con decomisión (dados de baja): {contratosConDecomision.Count}");
+                    foreach (var c in contratosConDecomision)
+                    {
+                        Console.WriteLine($"  - Contrato ID {c.Id}, Estado: '{c.Estado}', Tipo: '{c.Tipo}'");
+                    }
+                    
+                    // Agregar estos contratos a la lista de facturables para que se muestren
+                    contratosFacurables.AddRange(contratosConDecomision);
+                    Console.WriteLine($"Lista de facturables actualizada. Total: {contratosFacurables.Count}");
+                }
+            }
+            
+            // Log final: mostrar todos los contratos que se van a mostrar
+            Console.WriteLine($"=== CONTRATOS FINALES A MOSTRAR ===");
+            foreach (var cf in contratosFacurables.OrderBy(c => c.Tipo).ThenByDescending(c => c.FechaCreacion))
+            {
+                var identificador = cf.EnCups ?? cf.LineaMovilPrincipal ?? cf.Direccion ?? $"ID:{cf.Id}";
+                Console.WriteLine($"  ID={cf.Id}, Tipo={cf.Tipo}, Estado={cf.Estado}, Ref={identificador}");
+            }
+            
+            // Verificar todos los contratos de este usuario
+            var todosContratos = await context.Contratos
+                .Where(c => c.Comercial == usuarioSeleccionado.NombreUsuario)
+                .Select(c => new { c.Id, c.Tipo, c.Estado, c.Comercial })
+                .ToListAsync();
+            
+            Console.WriteLine($"Total contratos del usuario: {todosContratos.Count}");
+            foreach (var c in todosContratos)
+            {
+                Console.WriteLine($"  - ID: {c.Id}, Tipo: {c.Tipo}, Estado: '{c.Estado}', Comercial: '{c.Comercial}'");
+            }
+            
+            mostrarModalContratos = true;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar contratos: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al cargar contratos: {ex.Message}");
+        }
+    }
+
+    private void CerrarModalContratos()
+    {
+        mostrarModalContratos = false;
+        contratosFacurables.Clear();
+        usuarioSeleccionado = null;
+    }
+
+    private async Task ImprimirLiquidacion(int usuarioId)
+    {
+        try
+        {
+            using var context = DbContextProvider.CreateDbContext();
+            
+            // Obtener el usuario
+            var usuario = context.Usuarios.Find(usuarioId);
+            
+            if (usuario == null)
+            {
+                mensajeError = "Usuario no encontrado";
+                return;
+            }
+            
+            // Obtener los contratos facturables del usuario
+            var contratos = context.Contratos
+                .Where(c => c.Comercial == usuario.NombreUsuario 
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                    && c.Estado == "Act/Facturable")
+                .OrderBy(c => c.Tipo)
+                .ThenByDescending(c => c.FechaCreacion)
+                .ToList();
+
+            if (!contratos.Any())
+            {
+                mensajeError = "No hay contratos para imprimir";
+                return;
+            }
+
+            // Calcular totales
+            var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+            
+            // Agrupar por tipo
+            var contratosEnergia = contratos.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
+            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
+            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
+
+            // Construir HTML para impresión
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<html><head><title>Liquidación - ");
+            sb.Append(usuario.NombreUsuario);
+            sb.Append("</title><style>");
+            sb.Append("body { font-family: Arial, sans-serif; margin: 20px; }");
+            sb.Append("h1 { color: #0d6efd; text-align: center; }");
+            sb.Append("h2 { color: #6c757d; border-bottom: 2px solid #0d6efd; padding-bottom: 5px; margin-top: 25px; }");
+            sb.Append(".header { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }");
+            sb.Append(".info-row { margin: 5px 0; }");
+            sb.Append(".info-label { font-weight: bold; }");
+            sb.Append("table { width: 100%; border-collapse: collapse; margin-top: 10px; }");
+            sb.Append("th { background-color: #6c757d; color: white; padding: 8px; text-align: left; font-size: 12px; }");
+            sb.Append("td { border: 1px solid #dee2e6; padding: 6px; font-size: 11px; }");
+            sb.Append("tr:nth-child(even) { background-color: #f8f9fa; }");
+            sb.Append(".total { background-color: #0d6efd; color: white; font-weight: bold; padding: 10px; text-align: right; margin-top: 20px; }");
+            sb.Append(".tipo-energia { color: #ffc107; font-weight: bold; }");
+            sb.Append(".tipo-telefonia { color: #0dcaf0; font-weight: bold; }");
+            sb.Append(".tipo-alarma { color: #dc3545; font-weight: bold; }");
+            sb.Append("@media print { body { margin: 0; } button { display: none; } }");
+            sb.Append("</style></head><body>");
+            sb.Append("<h1>LIQUIDACIÓN DE CONTRATOS</h1>");
+            sb.Append("<div class='header'>");
+            sb.Append("<div class='info-row'><span class='info-label'>Usuario:</span> ");
+            sb.Append(usuario.NombreUsuario);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Nombre:</span> ");
+            sb.Append(usuario.Nombre);
+            sb.Append(" ");
+            sb.Append(usuario.Apellidos);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Email:</span> ");
+            sb.Append(usuario.Email);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Fecha de impresión:</span> ");
+            sb.Append(fechaActual);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Total contratos:</span> ");
+            sb.Append(contratos.Count);
+            sb.Append("</div></div>");
+
+            // Contratos de Energía
+            if (contratosEnergia.Any())
+            {
+                sb.Append("<h2 class='tipo-energia'>CONTRATOS DE ENERGÍA (");
+                sb.Append(contratosEnergia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Comercializadora</th>");
+                sb.Append("<th>Tarifa</th><th>CUPS Luz</th><th>CUPS Gas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosEnergia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnComercializadora);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnTarifa);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCups);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCupsGas);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Energía: ");
+                sb.Append((contratosEnergia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Telefonía
+            if (contratosTelefonia.Any())
+            {
+                sb.Append("<h2 class='tipo-telefonia'>CONTRATOS DE TELEFONÍA (");
+                sb.Append(contratosTelefonia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Operadora</th>");
+                sb.Append("<th>Tarifa</th><th>Fijo</th><th>Línea Móvil</th><th>Nº Líneas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosTelefonia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.OperadoraTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TarifaTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.FijoTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.LineaMovilPrincipal);
+                    sb.Append("</td><td>");
+                    sb.Append(c.NumeroLineasTel);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Telefonía: ");
+                sb.Append((contratosTelefonia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Alarmas
+            if (contratosAlarmas.Any())
+            {
+                sb.Append("<h2 class='tipo-alarma'>CONTRATOS DE ALARMAS (");
+                sb.Append(contratosAlarmas.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Tipo Alarma</th>");
+                sb.Append("<th>Subtipo</th><th>Kit</th><th>Campaña</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosAlarmas)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TipoAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.SubtipoInmueble);
+                    sb.Append("</td><td>");
+                    sb.Append(c.KitAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.CampanaAlarma);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Alarmas: ");
+                sb.Append((contratosAlarmas.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Total general
+            sb.Append("<div class='total'>TOTAL A LIQUIDAR: ");
+            sb.Append(totalComisiones.ToString("N2"));
+            sb.Append("€</div></body></html>");
+
+            // Invocar JavaScript para abrir ventana de impresión
+            await JSRuntime.InvokeVoidAsync("printLiquidacion", sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al generar PDF: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al generar PDF: {ex.Message}");
+        }
+    }
+
+    private async Task EnviarEmailLiquidacion(int usuarioId)
+    {
+        try
+        {
+            // Marcar como enviando
+            var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
+            if (usuario != null)
+            {
+                usuario.Enviando = true;
+                StateHasChanged();
+            }
+            else
+            {
+                enviandoEmail = true;
+                StateHasChanged();
+            }
+
+            using var context = DbContextProvider.CreateDbContext();
+            
+            // Obtener el usuario
+            var usuarioDb = context.Usuarios.Find(usuarioId);
+            
+            if (usuarioDb == null)
+            {
+                mensajeError = "Usuario no encontrado";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(usuarioDb.Email))
+            {
+                mensajeError = "El usuario no tiene un email configurado";
+                return;
+            }
+            
+            // Obtener los contratos facturables del usuario
+            var contratos = context.Contratos
+                .Where(c => c.Comercial == usuarioDb.NombreUsuario 
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                    && c.Estado == "Act/Facturable")
+                .OrderBy(c => c.Tipo)
+                .ThenByDescending(c => c.FechaCreacion)
+                .ToList();
+
+            if (!contratos.Any())
+            {
+                mensajeError = "No hay contratos para enviar";
+                return;
+            }
+
+            // Generar el HTML
+            var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+            
+            var contratosEnergia = contratos.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
+            var contratosTelefonia = contratos.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
+            var contratosAlarmas = contratos.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<html><head><meta charset='utf-8'><title>Liquidación - ");
+            sb.Append(usuarioDb.NombreUsuario);
+            sb.Append("</title><style>");
+            sb.Append("body { font-family: Arial, sans-serif; margin: 20px; }");
+            sb.Append("h1 { color: #0d6efd; text-align: center; }");
+            sb.Append("h2 { color: #6c757d; border-bottom: 2px solid #0d6efd; padding-bottom: 5px; margin-top: 25px; }");
+            sb.Append(".header { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; }");
+            sb.Append(".info-row { margin: 5px 0; }");
+            sb.Append(".info-label { font-weight: bold; }");
+            sb.Append("table { width: 100%; border-collapse: collapse; margin-top: 10px; }");
+            sb.Append("th { background-color: #6c757d; color: white; padding: 8px; text-align: left; font-size: 12px; }");
+            sb.Append("td { border: 1px solid #dee2e6; padding: 6px; font-size: 11px; }");
+            sb.Append("tr:nth-child(even) { background-color: #f8f9fa; }");
+            sb.Append(".total { background-color: #0d6efd; color: white; font-weight: bold; padding: 10px; text-align: right; margin-top: 20px; }");
+            sb.Append("</style></head><body>");
+            sb.Append("<h1>LIQUIDACIÓN DE CONTRATOS</h1>");
+            sb.Append("<div class='header'>");
+            sb.Append("<div class='info-row'><span class='info-label'>Usuario:</span> ");
+            sb.Append(usuarioDb.NombreUsuario);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Nombre:</span> ");
+            sb.Append(usuarioDb.Nombre);
+            sb.Append(" ");
+            sb.Append(usuarioDb.Apellidos);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Email:</span> ");
+            sb.Append(usuarioDb.Email);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Fecha de emisión:</span> ");
+            sb.Append(fechaActual);
+            sb.Append("</div>");
+            sb.Append("<div class='info-row'><span class='info-label'>Total contratos:</span> ");
+            sb.Append(contratos.Count);
+            sb.Append("</div></div>");
+
+            // Contratos de Energía
+            if (contratosEnergia.Any())
+            {
+                sb.Append("<h2>CONTRATOS DE ENERGÍA (");
+                sb.Append(contratosEnergia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Comercializadora</th>");
+                sb.Append("<th>Tarifa</th><th>CUPS Luz</th><th>CUPS Gas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosEnergia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnComercializadora);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnTarifa);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCups);
+                    sb.Append("</td><td>");
+                    sb.Append(c.EnCupsGas);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Energía: ");
+                sb.Append((contratosEnergia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Telefonía
+            if (contratosTelefonia.Any())
+            {
+                sb.Append("<h2>CONTRATOS DE TELEFONÍA (");
+                sb.Append(contratosTelefonia.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Operadora</th>");
+                sb.Append("<th>Tarifa</th><th>Fijo</th><th>Línea Móvil</th><th>Nº Líneas</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosTelefonia)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.OperadoraTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TarifaTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.FijoTel);
+                    sb.Append("</td><td>");
+                    sb.Append(c.LineaMovilPrincipal);
+                    sb.Append("</td><td>");
+                    sb.Append(c.NumeroLineasTel);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Telefonía: ");
+                sb.Append((contratosTelefonia.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Contratos de Alarmas
+            if (contratosAlarmas.Any())
+            {
+                sb.Append("<h2>CONTRATOS DE ALARMAS (");
+                sb.Append(contratosAlarmas.Count);
+                sb.Append(")</h2><table><thead><tr>");
+                sb.Append("<th>Fecha</th><th>Cliente</th><th>DNI</th><th>Tipo Alarma</th>");
+                sb.Append("<th>Subtipo</th><th>Kit</th><th>Campaña</th>");
+                sb.Append("<th style='text-align: right;'>Comisión</th>");
+                sb.Append("</tr></thead><tbody>");
+                
+                foreach (var c in contratosAlarmas)
+                {
+                    sb.Append("<tr><td>");
+                    sb.Append(c.FechaCreacion?.ToString("dd/MM/yyyy") ?? "");
+                    sb.Append("</td><td>");
+                    sb.Append(c.NombreCliente);
+                    sb.Append("</td><td>");
+                    sb.Append(c.Dni);
+                    sb.Append("</td><td>");
+                    sb.Append(c.TipoAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.SubtipoInmueble);
+                    sb.Append("</td><td>");
+                    sb.Append(c.KitAlarma);
+                    sb.Append("</td><td>");
+                    sb.Append(c.CampanaAlarma);
+                    sb.Append("</td><td style='text-align: right;'>");
+                    sb.Append((c.Comision ?? 0).ToString("N2"));
+                    sb.Append("€</td></tr>");
+                }
+                
+                sb.Append("</tbody></table>");
+                sb.Append("<div style='text-align: right; margin-top: 10px; font-weight: bold;'>Subtotal Alarmas: ");
+                sb.Append((contratosAlarmas.Sum(c => c.Comision ?? 0)).ToString("N2"));
+                sb.Append("€</div>");
+            }
+
+            // Total general
+            sb.Append("<div class='total'>TOTAL A LIQUIDAR: ");
+            sb.Append(totalComisiones.ToString("N2"));
+            sb.Append("€</div>");
+            sb.Append("</body></html>");
+            
+            var asunto = $"Liquidación de contratos - {usuarioDb.NombreUsuario} - {fechaActual}";
+            var htmlEmail = sb.ToString();
+            
+            // Generar el PDF
+            var pdfBytes = PdfLiquidacionService.GenerarPdfLiquidacion(
+                usuarioDb,
+                contratosEnergia,
+                contratosTelefonia,
+                contratosAlarmas,
+                totalComisiones
+            );
+            
+            var nombreArchivoPdf = $"Liquidacion_{usuarioDb.NombreUsuario}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            
+            // Enviar email con PDF adjunto
+            var (exito, mensaje) = await EmailService.EnviarEmailConAdjuntoAsync(
+                usuarioDb.Email,
+                asunto,
+                htmlEmail,
+                pdfBytes,
+                nombreArchivoPdf,
+                "application/pdf"
+            );
+
+            if (exito)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Email enviado correctamente a {usuarioDb.Email} con PDF adjunto");
+            }
+            else
+            {
+                mensajeError = mensaje;
+                await JSRuntime.InvokeVoidAsync("alert", $"Error al enviar email: {mensaje}");
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al enviar email: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al enviar email: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al enviar email: {ex.Message}");
+        }
+        finally
+        {
+            // Desmarcar como enviando
+            var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
+            if (usuario != null)
+            {
+                usuario.Enviando = false;
+            }
+            enviandoEmail = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AprobarLiquidacion(int usuarioId)
+    {
+        try
+        {
+            var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
+            if (usuario == null) return;
+
+            // Validación de seguridad: colaboradores solo pueden aprobar su propia liquidación
+            if (!AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual?.Id != usuarioId)
+            {
+                mensajeError = "No tienes permisos para aprobar esta liquidación";
+                return;
+            }
+
+            usuario.Aprobando = true;
+            StateHasChanged();
+
+            await using var context = DbContextProvider.CreateDbContext();
+            
+            var usuarioDb = await context.Usuarios.FindAsync(usuarioId);
+            if (usuarioDb == null)
+            {
+                mensajeError = "Usuario no encontrado";
+                return;
+            }
+
+            // Obtener todos los contratos facturables del usuario
+            var contratos = await context.Contratos
+                .Where(c => c.Comercial == usuarioDb.NombreUsuario
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                    && c.Estado == "Act/Facturable")
+                .ToListAsync();
+
+            if (!contratos.Any())
+            {
+                mensajeError = "No hay contratos facturables para aprobar";
+                usuario.Aprobando = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Contar contratos por tipo
+            var contratosEnergia = contratos.Count(c => c.Tipo == "energia" || c.Tipo == "Energía");
+            var contratosTelefonia = contratos.Count(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía");
+            var contratosAlarmas = contratos.Count(c => c.Tipo == "alarma" || c.Tipo == "Alarma");
+            
+            // Calcular total de comisiones
+            var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            
+            // Obtener decomisiones pendientes del usuario (no asignadas a ninguna liquidación)
+            var decomisionesPendientes = await context.Decomisiones
+                .Where(d => d.UsuarioId == usuarioId && d.LiquidacionDecomisionId == null)
+                .ToListAsync();
+            
+            var totalDecomisiones = decomisionesPendientes.Sum(d => d.ImporteDecomision);
+            
+            // Restar decomisiones del total
+            totalComisiones -= totalDecomisiones;
+            
+            Console.WriteLine($"[LIQUIDACIONES] Total comisiones: {contratos.Sum(c => c.Comision ?? 0)}€, Decomisiones: {totalDecomisiones}€, Total neto: {totalComisiones}€");
+
+            // Guardar en el histórico (excepto si es superadmin)
+            if (AuthService.UsuarioActual?.NombreUsuario != "superadmin")
+            {
+                var historico = new HistoricoLiquidacion
+                {
+                    UsuarioId = usuarioDb.Id,
+                    UsuarioNombre = usuarioDb.NombreUsuario,
+                    UsuarioEmail = usuarioDb.Email,
+                    CantidadContratos = contratos.Count,
+                    ContratosEnergia = contratosEnergia,
+                    ContratosTelefonia = contratosTelefonia,
+                    ContratosAlarmas = contratosAlarmas,
+                    FechaAprobacion = DateTime.Now,
+                    AprobadoPorId = AuthService.UsuarioActual!.Id,
+                    AprobadoPorNombre = AuthService.UsuarioActual.NombreUsuario,
+                    Estado = "Aceptada",
+                    FechaAceptada = DateTime.Now,
+                    TotalComisiones = totalComisiones
+                };
+
+                context.HistoricoLiquidaciones.Add(historico);
+                await context.SaveChangesAsync();
+
+                // ===== DISTRIBUCIÓN JERÁRQUICA DE COMISIONES =====
+                // Crear detalles de comisión para cada contrato
+                Console.WriteLine($"[LIQUIDACIONES] Calculando distribución de comisiones para {contratos.Count} contratos");
+                
+                foreach (var contrato in contratos)
+                {
+                    try
+                    {
+                        // Calcular la distribución de comisiones según la jerarquía
+                        var detalleComision = await ComisionService.CalcularDistribucionComisionAsync(
+                            contrato, 
+                            usuarioDb, 
+                            historico.Id
+                        );
+
+                        // Guardar el detalle de comisión
+                        await ComisionService.GuardarDetalleComisionAsync(detalleComision);
+
+                        Console.WriteLine($"[LIQUIDACIONES] Distribución creada para contrato {contrato.Id}: " +
+                            $"Colaborador={detalleComision.ComisionColaborador}€, " +
+                            $"Gestor={detalleComision.ComisionGestor ?? 0}€, " +
+                            $"Admin={detalleComision.ComisionAdministrador}€");
+                    }
+                    catch (Exception exDetalle)
+                    {
+                        Console.WriteLine($"[LIQUIDACIONES] Error al crear detalle de comisión para contrato {contrato.Id}: {exDetalle.Message}");
+                        // Continuar con el siguiente contrato aunque falle uno
+                    }
+
+                    // Vincular contrato a esta liquidación y cambiar estado
+                    contrato.Estado = "Liquidado";
+                    contrato.HistoricoLiquidacionId = historico.Id;
+                }
+                
+                // Vincular decomisiones pendientes a esta liquidación
+                foreach (var decomision in decomisionesPendientes)
+                {
+                    decomision.LiquidacionDecomisionId = historico.Id;
+                    context.Decomisiones.Update(decomision);
+                }
+                
+                if (decomisionesPendientes.Any())
+                {
+                    Console.WriteLine($"[LIQUIDACIONES] Vinculadas {decomisionesPendientes.Count} decomisiones a liquidación {historico.Id}");
+                }
+                
+                await context.SaveChangesAsync();
+
+                Console.WriteLine($"[LIQUIDACIONES] Distribución de comisiones completada para liquidación {historico.Id}");
+            }
+            else
+            {
+                // Cambiar el estado de todos los contratos a Liquidado (superadmin sin histórico)
+                foreach (var contrato in contratos)
+                {
+                    contrato.Estado = "Liquidado";
+                }
+                
+                await context.SaveChangesAsync();
+                Console.WriteLine($"[Liquidaciones] SUPERADMIN - Histórico NO registrado (modo invisible)");
+            }
+
+            // Recargar la lista de usuarios con contratos
+            await CargarUsuariosConContratos();
+            await CargarLiquidacionesPorEstado();
+
+            Console.WriteLine($"[LIQUIDACIONES] Aprobada liquidación del usuario {usuarioDb.NombreUsuario}: {contratos.Count} contratos cambiados a Liquidado y guardados en histórico");
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al aprobar liquidación: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al aprobar liquidación: {ex.Message}");
+            Console.WriteLine($"[LIQUIDACIONES] Stack trace: {ex.StackTrace}");
+            
+            var usuario = usuariosConContratos.FirstOrDefault(u => u.Usuario.Id == usuarioId);
+            if (usuario != null)
+            {
+                usuario.Aprobando = false;
+            }
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private string ObtenerColorRol(string? rol)
+    {
+        return rol?.ToLower() switch
+        {
+            "administrador" => "bg-danger",
+            "gestor" => "bg-warning text-dark",
+            "colaborador" => "bg-info",
+            "comercializadora" => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string ObtenerColorTipo(string? tipo)
+    {
+        return tipo?.ToLower() switch
+        {
+            "energia" => "bg-warning text-dark",
+            "telefonia" => "bg-info",
+            "alarma" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string ObtenerNombreTipo(string? tipo)
+    {
+        return tipo?.ToLower() switch
+        {
+            "energia" => "Energía",
+            "telefonia" => "Telefonía",
+            "alarma" => "Alarma",
+            _ => tipo ?? ""
+        };
+    }
+
+    // Métodos para gestión de incidencias
+    private async Task AbrirModalIncidencia(Usuario usuario)
+    {
+        usuarioIncidenciaSeleccionado = usuario;
+        mostrarModalIncidencias = true;
+        await CargarIncidenciasUsuario();
+    }
+
+    private async Task CargarIncidenciasUsuario()
+    {
+        if (usuarioIncidenciaSeleccionado == null) return;
+
+        try
+        {
+            cargandoIncidencias = true;
+            incidenciasUsuario = await IncidenciaLiquidacionService.ObtenerPorUsuarioAsync(usuarioIncidenciaSeleccionado.Id);
+            tienePendientes = await IncidenciaLiquidacionService.TienePendientesAsync(usuarioIncidenciaSeleccionado.Id);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar incidencias: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al cargar incidencias: {ex.Message}");
+        }
+        finally
+        {
+            cargandoIncidencias = false;
+        }
+    }
+
+    private async Task CrearIncidencia()
+    {
+        if (usuarioIncidenciaSeleccionado == null || AuthService.UsuarioActual == null) return;
+        if (string.IsNullOrWhiteSpace(nuevaIncidenciaMensaje))
+        {
+            mensajeError = "El mensaje de la incidencia no puede estar vacío";
+            return;
+        }
+
+        try
+        {
+            guardandoIncidencia = true;
+            mensajeError = string.Empty;
+
+            var nuevaIncidencia = new IncidenciaLiquidacion
+            {
+                UsuarioColaboradorId = usuarioIncidenciaSeleccionado.Id,
+                MensajeColaborador = nuevaIncidenciaMensaje,
+                FechaCreacion = DateTime.Now,
+                Estado = "Pendiente"
+            };
+
+            await IncidenciaLiquidacionService.CrearAsync(nuevaIncidencia);
+            nuevaIncidenciaMensaje = string.Empty;
+            await CargarIncidenciasUsuario();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al crear incidencia: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al crear incidencia: {ex.Message}");
+        }
+        finally
+        {
+            guardandoIncidencia = false;
+        }
+    }
+
+    private async Task ResponderIncidencia(int incidenciaId)
+    {
+        if (AuthService.UsuarioActual == null) return;
+        if (string.IsNullOrWhiteSpace(respuestaIncidencia))
+        {
+            mensajeError = "La respuesta no puede estar vacía";
+            return;
+        }
+
+        try
+        {
+            guardandoRespuesta = true;
+            mensajeError = string.Empty;
+
+            await IncidenciaLiquidacionService.ResponderAsync(
+                incidenciaId, 
+                respuestaIncidencia, 
+                AuthService.UsuarioActual.Id
+            );
+
+            respuestaIncidencia = string.Empty;
+            await CargarIncidenciasUsuario();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al responder incidencia: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al responder incidencia: {ex.Message}");
+        }
+        finally
+        {
+            guardandoRespuesta = false;
+        }
+    }
+
+    private async Task AbrirHistorico()
+    {
+        try
+        {
+            mostrarHistorico = true;
+            cargandoHistorico = true;
+            mensajeError = string.Empty;
+            StateHasChanged();
+
+            await using var context = DbContextProvider.CreateDbContext();
+            historicoLiquidaciones = await context.HistoricoLiquidaciones
+                .OrderByDescending(h => h.FechaAprobacion)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar histórico: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al cargar histórico: {ex.Message}");
+        }
+        finally
+        {
+            cargandoHistorico = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CerrarHistorico()
+    {
+        mostrarHistorico = false;
+        historicoLiquidaciones.Clear();
+    }
+
+    private async Task VerContratosHistorico(HistoricoLiquidacion historico)
+    {
+        try
+        {
+            historicoSeleccionado = historico;
+            mensajeError = string.Empty;
+
+            await using var context = DbContextProvider.CreateDbContext();
+
+            // Buscar contratos vinculados a esta liquidación específica
+            contratosHistorico = await context.Contratos
+                .Where(c => c.HistoricoLiquidacionId == historico.Id)
+                .OrderByDescending(c => c.FechaModificacion)
+                .ToListAsync();
+
+            // Cargar decomisiones asociadas a esta liquidación
+            var idsContratos = contratosHistorico.Select(c => c.Id).ToList();
+            decomisionesVisibles = await context.Decomisiones
+                .Where(d => d.LiquidacionDecomisionId == historico.Id)
+                .ToListAsync();
+
+            Console.WriteLine($"[LIQUIDACIONES] Contratos del histórico: {contratosHistorico.Count}, Decomisiones: {decomisionesVisibles.Count}");
+
+            mostrarContratosHistorico = true;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar contratos del histórico: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al cargar contratos del histórico: {ex.Message}");
+        }
+    }
+
+    private void CerrarContratosHistorico()
+    {
+        mostrarContratosHistorico = false;
+        contratosHistorico.Clear();
+        historicoSeleccionado = null;
+    }
+
+    private async Task ReactivarLiquidacion(int historicoId)
+    {
+        try
+        {
+            var historico = historicoLiquidaciones.FirstOrDefault(h => h.Id == historicoId);
+            if (historico == null) return;
+
+            historico.Reactivando = true;
+            StateHasChanged();
+
+            await using var context = DbContextProvider.CreateDbContext();
+
+            var historicoDb = await context.HistoricoLiquidaciones.FindAsync(historicoId);
+            if (historicoDb == null)
+            {
+                mensajeError = "Registro de histórico no encontrado";
+                return;
+            }
+
+            // Obtener el usuario
+            var usuario = await context.Usuarios.FindAsync(historicoDb.UsuarioId);
+            if (usuario == null)
+            {
+                mensajeError = "Usuario no encontrado";
+                historico.Reactivando = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Buscar solo los contratos vinculados a esta liquidación específica
+            var contratos = await context.Contratos
+                .Where(c => c.HistoricoLiquidacionId == historicoId
+                    && c.Estado == "Liquidado")
+                .ToListAsync();
+
+            if (!contratos.Any())
+            {
+                mensajeError = "No hay contratos liquidados para reactivar";
+                historico.Reactivando = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Cambiar el estado de los contratos a Act/Facturable y limpiar vínculo
+            foreach (var contrato in contratos)
+            {
+                contrato.Estado = "Act/Facturable";
+                contrato.HistoricoLiquidacionId = null;
+            }
+
+            // Eliminar el registro del histórico
+            context.HistoricoLiquidaciones.Remove(historicoDb);
+
+            await context.SaveChangesAsync();
+
+            // Recargar el histórico
+            historicoLiquidaciones = await context.HistoricoLiquidaciones
+                .OrderByDescending(h => h.FechaAprobacion)
+                .ToListAsync();
+
+            // Recargar la lista de liquidaciones pendientes
+            await CargarUsuariosConContratos();
+
+            Console.WriteLine($"[LIQUIDACIONES] Liquidación reactivada: {contratos.Count} contratos vueltos a Act/Facturable");
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al reactivar liquidación: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al reactivar liquidación: {ex.Message}");
+
+            var historico = historicoLiquidaciones.FirstOrDefault(h => h.Id == historicoId);
+            if (historico != null)
+            {
+                historico.Reactivando = false;
+            }
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarLiquidacionesPorEstado()
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            
+            // Determinar si se debe filtrar por usuario
+            // Admin y Backoffice con permisos ven todas las liquidaciones
+            // Colaboradores y Gestores solo ven las suyas
+            var filtrarPorUsuario = !AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual != null;
+            var usuarioActualId = AuthService.UsuarioActual?.Id ?? 0;
+            
+            Console.WriteLine($"[LIQUIDACIONES] CargarLiquidacionesPorEstado - Usuario: {AuthService.UsuarioActual?.NombreUsuario}, Rol: {AuthService.UsuarioActual?.Rol}, FiltrarPorUsuario: {filtrarPorUsuario}");
+            
+            // Liquidaciones en incidencia
+            var queryIncidencia = context.HistoricoLiquidaciones
+                .Where(h => h.Estado == "En incidencia");
+            if (filtrarPorUsuario)
+            {
+                queryIncidencia = queryIncidencia.Where(h => h.UsuarioId == usuarioActualId);
+            }
+            liquidacionesEnIncidencia = await queryIncidencia
+                .OrderByDescending(h => h.FechaEnIncidencia ?? h.FechaAprobacion)
+                .ToListAsync();
+            
+            Console.WriteLine($"[LIQUIDACIONES] Cargadas {liquidacionesEnIncidencia.Count} liquidaciones en incidencia");
+            
+            // Liquidaciones aceptadas
+            var queryAceptadas = context.HistoricoLiquidaciones
+                .Where(h => h.Estado == "Aceptada");
+            if (filtrarPorUsuario)
+            {
+                queryAceptadas = queryAceptadas.Where(h => h.UsuarioId == usuarioActualId);
+            }
+            liquidacionesAceptadas = await queryAceptadas
+                .OrderByDescending(h => h.FechaAceptada ?? h.FechaAprobacion)
+                .ToListAsync();
+            
+            Console.WriteLine($"[LIQUIDACIONES] Cargadas {liquidacionesAceptadas.Count} liquidaciones aceptadas");
+            
+            // Liquidaciones liquidadas
+            var queryLiquidadas = context.HistoricoLiquidaciones
+                .Where(h => h.Estado == "Liquidada");
+            if (filtrarPorUsuario)
+            {
+                queryLiquidadas = queryLiquidadas.Where(h => h.UsuarioId == usuarioActualId);
+            }
+            liquidacionesLiquidadas = await queryLiquidadas
+                .OrderByDescending(h => h.FechaLiquidada ?? h.FechaAprobacion)
+                .ToListAsync();
+            
+            Console.WriteLine($"[LIQUIDACIONES] Cargadas {liquidacionesLiquidadas.Count} liquidaciones liquidadas");
+            
+            // Recalcular totales si están en NULL o 0
+            var todasLiquidaciones = liquidacionesEnIncidencia
+                .Concat(liquidacionesAceptadas)
+                .Concat(liquidacionesLiquidadas)
+                .Where(l => !l.TotalComisiones.HasValue || l.TotalComisiones == 0)
+                .ToList();
+            
+            foreach (var liq in todasLiquidaciones)
+            {
+                var usuario = await context.Usuarios.FindAsync(liq.UsuarioId);
+                if (usuario != null)
+                {
+                    // Calcular total de comisiones SOLO de los contratos vinculados a esta liquidación específica
+                    var totalComisiones = await context.Contratos
+                        .Where(c => c.HistoricoLiquidacionId == liq.Id)
+                        .SumAsync(c => c.Comision ?? 0);
+                    
+                    // Restar decomisiones asociadas a esta liquidación
+                    var totalDecomisiones = await context.Decomisiones
+                        .Where(d => d.LiquidacionDecomisionId == liq.Id)
+                        .SumAsync(d => d.ImporteDecomision);
+                    
+                    liq.TotalComisiones = totalComisiones - totalDecomisiones;
+                    context.HistoricoLiquidaciones.Update(liq);
+                }
+            }
+            
+            if (todasLiquidaciones.Any())
+            {
+                await context.SaveChangesAsync();
+            }
+                
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar liquidaciones: {ex.Message}";
+        }
+    }
+
+    private void CambiarPestana(string pestana)
+    {
+        pestanaActiva = pestana;
+        StateHasChanged();
+    }
+
+    private async Task MarcarConIncidencia(int liquidacionId)
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var liquidacion = await context.HistoricoLiquidaciones.FindAsync(liquidacionId);
+            
+            if (liquidacion != null)
+            {
+                liquidacion.Estado = "En incidencia";
+                liquidacion.FechaEnIncidencia = DateTime.Now;
+                await context.SaveChangesAsync();
+                await CargarLiquidacionesPorEstado();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task MarcarComoAceptada(int liquidacionId)
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var liquidacion = await context.HistoricoLiquidaciones.FindAsync(liquidacionId);
+            
+            if (liquidacion != null)
+            {
+                liquidacion.Estado = "Aceptada";
+                if (!liquidacion.FechaAceptada.HasValue)
+                {
+                    liquidacion.FechaAceptada = DateTime.Now;
+                }
+                await context.SaveChangesAsync();
+                await CargarLiquidacionesPorEstado();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task MarcarComoLiquidada(int liquidacionId)
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var liquidacion = await context.HistoricoLiquidaciones.FindAsync(liquidacionId);
+            
+            if (liquidacion != null)
+            {
+                liquidacion.Estado = "Liquidada";
+                liquidacion.FechaLiquidada = DateTime.Now;
+                await context.SaveChangesAsync();
+                await CargarLiquidacionesPorEstado();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task VolverAceptada(int liquidacionId)
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var liquidacion = await context.HistoricoLiquidaciones.FindAsync(liquidacionId);
+            
+            if (liquidacion != null)
+            {
+                liquidacion.Estado = "Aceptada";
+                liquidacion.FechaLiquidada = null;
+                await context.SaveChangesAsync();
+                await CargarLiquidacionesPorEstado();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error: {ex.Message}";
+        }
+    }
+
+    private void CerrarModalIncidencias()
+    {
+        mostrarModalIncidencias = false;
+        usuarioIncidenciaSeleccionado = null;
+        incidenciasUsuario.Clear();
+        nuevaIncidenciaMensaje = string.Empty;
+        respuestaIncidencia = string.Empty;
+        tienePendientes = false;
+    }
+
+    /// <summary>
+    /// Verifica si un contrato tiene una decomisión asociada
+    /// </summary>
+    private bool TieneDecomision(int contratoId)
+    {
+        return decomisionesVisibles.Any(d => d.ContratoId == contratoId);
+    }
+
+    /// <summary>
+    /// Obtiene el importe de decomisión de un contrato
+    /// </summary>
+    private decimal? ObtenerImporteDecomision(int contratoId)
+    {
+        var decomision = decomisionesVisibles.FirstOrDefault(d => d.ContratoId == contratoId);
+        return decomision?.ImporteDecomision;
+    }
+
+    private class UsuarioConContratos
+    {
+        public Usuario Usuario { get; set; } = null!;
+        public int CantidadContratos { get; set; }
+        public decimal TotalComisiones { get; set; }
+        public int CantidadIncidenciasPendientes { get; set; }
+        public int CantidadIncidenciasTotal { get; set; }
+        public bool TieneIncidenciasPendientes => CantidadIncidenciasPendientes > 0;
+        public bool Aprobando { get; set; }
+        public bool Enviando { get; set; }
+    }
+}
+
+<script>
+    window.printLiquidacion = function (htmlContent) {
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        var doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(htmlContent);
+        doc.close();
+        
+        setTimeout(function () {
+            iframe.contentWindow.print();
+            setTimeout(function () {
+                document.body.removeChild(iframe);
+            }, 500);
+        }, 250);
+    };
+</script>

@@ -1,0 +1,381 @@
+                            <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                                @if (!string.IsNullOrEmpty(mensajeError))
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                                        <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                                    </div>
+                                }
+
+                                <!-- PRIMERA PARTE: DATOS DEL CLIENTE -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #cce5ff; color: #004085;">
+                                        <h6 class="mb-0"><i class="bi bi-person me-2"></i>1. Datos del Cliente</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteParaContrato?.Nombre" readonly />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">DNI/CIF Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteParaContrato?.DniCif" readonly />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">IBAN Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteParaContrato?.Iban" readonly />
+                                            </div>
+                                        </div>
+                                        
+                                        @* Teléfono y Email del Cliente *@
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Teléfono Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteParaContrato?.Telefono" readonly />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Email Cliente</label>
+                                                <input type="text" class="form-control" value="@clienteParaContrato?.Email" readonly />
+                                            </div>
+                                        </div>
+
+                                        @* Titular IBAN Diferente *@
+                                        <div class="row mb-2">
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <InputCheckbox @bind-Value="nuevoContrato.TitularIbanDiferente" class="form-check-input" id="chkTitularIbanDiferenteEnergia" />
+                                                    <label class="form-check-label fw-bold" for="chkTitularIbanDiferenteEnergia">
+                                                        El titular del IBAN es diferente al cliente
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        @if (nuevoContrato.TitularIbanDiferente)
+                                        {
+                                            <div class="row mb-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold">DNI Titular IBAN</label>
+                                                    <InputText @bind-Value="nuevoContrato.TitularIbanDni" class="form-control" placeholder="DNI/NIF/CIF" />
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold">Nombre Titular IBAN</label>
+                                                    <InputText @bind-Value="nuevoContrato.TitularIbanNombre" class="form-control" placeholder="Nombre completo" />
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold">Número IBAN</label>
+                                                    <InputText @bind-Value="nuevoContrato.TitularIbanNumero" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
+                                                </div>
+                                            </div>
+                                        }
+
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Tipo de Operación</label>
+                                                <InputSelect @bind-Value="nuevoContrato.TipoOperacion" class="form-select">
+                                                    <option value="">Seleccione...</option>
+                                                    <option value="Cambio comercializadora">Cambio comercializadora</option>
+                                                    <option value="Cambio de Comercializadora con Cambio de titularidad">Cambio de Comercializadora con Cambio de titularidad</option>
+                                                    <option value="Alta nueva">Alta nueva</option>
+                                                </InputSelect>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Fecha Alta</label>
+                                                <input type="date" class="form-control" @bind="nuevoContrato.FechaAlta" @bind:format="yyyy-MM-dd" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">ID Contrato Externo</label>
+                                                <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID comercializadora" />
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-0">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Estado Contrato</label>
+                                                <InputSelect @bind-Value="nuevoContrato.Estado" class="form-select">
+                                                    <option value="">Seleccione...</option>
+                                                    <option value="Pte Carga">Pte Carga</option>
+                                                    <option value="Pte Firma">Pte Firma</option>
+                                                    <option value="En incidencia">En incidencia</option>
+                                                    <option value="Pte Documentación">Pte Documentación</option>
+                                                    <option value="Pte Validación">Pte Validación</option>
+                                                    <option value="En Activación">En Activación</option>
+                                                    <option value="Activo">Activo</option>
+                                                    <option value="Act/Facturable">Act/Facturable</option>
+                                                    <option value="En Liquidación">En Liquidación</option>
+                                                    <option value="Liquidado">Liquidado</option>
+                                                    <option value="Baja">Baja</option>
+                                                    <option value="Cancelado">Cancelado</option>
+                                                    <option value="Scoring">Scoring</option>
+                                                </InputSelect>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">¿Qué quiere contratar?</label>
+                                                <select @bind="tipoContratacionEnergia" @bind:after="OnPeajeEnergiaChanged" class="form-select">
+                                                    <option value="Luz">Luz</option>
+                                                    <option value="Gas">Gas</option>
+                                                    <option value="Luz y Gas">Luz y Gas</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-3" />
+
+                                <!-- SEGUNDA PARTE: DATOS DE SUMINISTRO -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #d1ecf1; color: #0c5460;">
+                                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>2. Datos de Suministro</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <!-- Columna LUZ -->
+                                            <div class="col-md-6">
+                                                <div class="card border-primary">
+                                                    <div class="card-header py-2" style="background-color: #cce5ff; color: #004085;">
+                                                        <h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Luz</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">CUPS Luz</label>
+                                                            <InputText @bind-Value="nuevoContrato.EnCups" class="form-control" placeholder="ES..." />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Peaje Luz</label>
+                                                            <select @bind="nuevoContrato.PeajeLuz" @bind:after="OnPeajeEnergiaChanged" class="form-select">
+                                                                <option value="">-- Seleccionar --</option>
+                                                                <option value="2.0">2.0</option>
+                                                                <option value="3.0">3.0</option>
+                                                                <option value="6.1">6.1</option>
+                                                                <option value="6.2">6.2</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Potencia Contratada (kW)</label>
+                                                            <InputNumber @bind-Value="nuevoContrato.PotenciaContratada" class="form-control" step="0.01" placeholder="0.00" />
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label class="form-label fw-bold">Consumo Anual Luz (kWh)</label>
+                                                            <InputNumber @bind-Value="nuevoContrato.ConsumoAnual" class="form-control" step="0.01" placeholder="0.00" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Columna GAS -->
+                                            <div class="col-md-6">
+                                                <div class="card border-danger">
+                                                    <div class="card-header py-2" style="background-color: #f8d7da; color: #721c24;">
+                                                        <h6 class="mb-0"><i class="bi bi-fire me-2"></i>Gas</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">CUPS Gas</label>
+                                                            <InputText @bind-Value="nuevoContrato.EnCupsGas" class="form-control" placeholder="ES..." />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold">Peaje Gas</label>
+                                                            <select @bind="nuevoContrato.PeajeGas" @bind:after="OnPeajeEnergiaChanged" class="form-select">
+                                                                <option value="">-- Seleccionar --</option>
+                                                                <option value="RL1">RL1</option>
+                                                                <option value="RL2">RL2</option>
+                                                                <option value="RL3">RL3</option>
+                                                                <option value="RL4">RL4</option>
+                                                                <option value="RL5">RL5</option>
+                                                                <option value="RL6">RL6</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-0">
+                                                            <label class="form-label fw-bold">Consumo Anual Gas (kWh)</label>
+                                                            <InputNumber @bind-Value="nuevoContrato.ConsumoAnualGas" class="form-control" step="0.01" placeholder="0.00" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-0">
+                                            <div class="col-md-12">
+                                                <label class="form-label fw-bold">Servicio Asociado (opcional)</label>
+                                                <select @bind="nuevoContrato.ServicioId" class="form-select">
+                                                    <option value="">Sin servicio</option>
+                                                    @if (serviciosDisponibles != null)
+                                                    {
+                                                        @foreach (var servicio in serviciosDisponibles)
+                                                        {
+                                                            <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio€</option>
+                                                        }
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-3" />
+
+                                <!-- TERCERA PARTE: COMERCIALIZADORA Y TARIFA -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #d4edda; color: #155724;">
+                                        <h6 class="mb-0"><i class="bi bi-building me-2"></i>3. Comercializadora y Tarifa</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-0">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Comercializadora</label>
+                                                <select @bind="nuevoContrato.EnComercializadora" @bind:after="OnComercializadoraEnergiaChanged" class="form-select">
+                                                    <option value="">Seleccionar comercializadora...</option>
+                                                    @if (comercializadorasEnergia != null)
+                                                    {
+                                                        @foreach (var comercializadora in comercializadorasEnergia)
+                                                        {
+                                                            <option value="@comercializadora">@comercializadora</option>
+                                                        }
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Tarifa</label>
+                                                <select @bind="nuevoContrato.EnTarifa" class="form-select" disabled="@string.IsNullOrEmpty(nuevoContrato.EnComercializadora)">
+                                                    <option value="">Seleccionar tarifa...</option>
+                                                    @if (tarifasEnergiaDisponibles != null)
+                                                    {
+                                                        @foreach (var tarifa in tarifasEnergiaDisponibles)
+                                                        {
+                                                            <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                                        }
+                                                    }
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-3" />
+
+                                <!-- CUARTA PARTE: DIRECCIÓN DE SUMINISTRO -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #ffeeba; color: #856404;">
+                                        <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>4. Dirección de Suministro</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-2">
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <InputCheckbox class="form-check-input" id="usarDireccionClienteEnergia" @bind-Value="usarDireccionCliente" @bind-Value:after="OnUsarDireccionClienteChanged" />
+                                                    <label class="form-check-label" for="usarDireccionClienteEnergia">
+                                                        <i class="bi bi-house-check me-1"></i>Usar la misma dirección del cliente
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Tipo de Vía</label>
+                                                <InputSelect class="form-select" @bind-Value="nuevoContrato.TipoViaInstalacion">
+                                                    <option value="">-- Seleccionar --</option>
+                                                    <option value="CALLE">CALLE</option>
+                                                    <option value="AVENIDA">AVENIDA</option>
+                                                    <option value="CARRETERA">CARRETERA</option>
+                                                    <option value="CAMINO">CAMINO</option>
+                                                    <option value="PASEO">PASEO</option>
+                                                    <option value="PLAZA">PLAZA</option>
+                                                    <option value="GLORIETA">GLORIETA</option>
+                                                    <option value="EDIFICIO">EDIFICIO</option>
+                                                    <option value="LUGAR">LUGAR</option>
+                                                </InputSelect>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold">Dirección</label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.DireccionInstalacionAlarma" placeholder="Nombre de la calle" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Número</label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.NumeroInstalacion" placeholder="Nº" />
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Escalera <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.EscaleraInstalacion" placeholder="Esc." />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Piso <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.PisoInstalacion" placeholder="Piso" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Puerta <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.PuertaInstalacion" placeholder="Puerta" />
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-bold">Código Postal</label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
+                                            </div>
+                                        </div>
+                                        <div class="row mb-0">
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.AclaradorInstalacion" placeholder="Información adicional de la dirección" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Localidad</label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.LocalidadInstalacion" placeholder="Localidad" />
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label fw-bold">Provincia</label>
+                                                <InputText class="form-control" @bind-Value="nuevoContrato.ProvinciaInstalacion" placeholder="Provincia" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="my-3" />
+
+                                <!-- QUINTA PARTE: DOCUMENTACIÓN -->
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-header" style="background-color: #e2e3e5; color: #383d41;">
+                                        <h6 class="mb-0"><i class="bi bi-folder2 me-2"></i>5. Documentación</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="mb-3"><i class="bi bi-receipt me-2"></i>Facturas del Contrato</h6>
+                                        <div class="row mb-3">
+                                            <div class="col-12">
+                                                @if (facturasPendientes.Any())
+                                                {
+                                                    <div style="max-height: 200px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                                                        <div class="list-group">
+                                                            @foreach (var factura in facturasPendientes.Select((f, i) => new { Factura = f, Index = i }))
+                                                            {
+                                                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                                    <div>
+                                                                        <i class="bi bi-receipt text-warning me-2"></i>
+                                                                        <span>@factura.Factura.nombreArchivo</span>
+                                                                        <small class="text-muted ms-2">(pendiente de guardar)</small>
+                                                                    </div>
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => EliminarFacturaPendienteEnergia(factura.Index)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <p class="text-muted fst-italic">No hay facturas pendientes</p>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-0">
+                                            <div class="col-12">
+                                                <label class="form-label fw-bold">Adjuntar Factura</label>
+                                                <InputFile OnChange="CargarFacturaEnergia" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                                <small class="text-muted">Formatos permitidos: PDF, JPG, PNG, DOC, DOCX (máx. 10MB)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>

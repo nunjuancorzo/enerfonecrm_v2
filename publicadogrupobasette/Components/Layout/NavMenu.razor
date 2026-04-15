@@ -1,0 +1,330 @@
+﻿@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject ConfiguracionService ConfiguracionService
+@inject NavigationManager Navigation
+@implements IDisposable
+@rendermode InteractiveServer
+
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm sticky-top" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); min-height: 80px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); z-index: 1030;">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand d-flex align-items-center" href="home">
+            @if (!string.IsNullOrEmpty(logoUrl))
+            {
+                <img src="@logoUrl" alt="Logo" style="height: 60px; width: auto; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
+            }
+            else
+            {
+                <img src="CorCRM_FIN.png" alt="Logo CorCRM" style="height: 60px; width: auto; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
+            }
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse align-items-start" id="navbarMain">
+            @if (cargado && AuthService.EstaAutenticado)
+            {
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-4 align-items-lg-center align-items-start">
+                    <li class="nav-item">
+                        <a class="nav-link text-white px-3 py-2 rounded transition d-flex align-items-center" href="home" style="transition: all 0.3s ease;" title="Inicio">
+                            <i class="bi bi-house-heart-fill" style="font-size: 2rem; vertical-align: middle; color: #4FC3F7;"></i>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContratos" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
+                            <i class="bi bi-folder2-open me-2" style="font-size: 1.4rem; vertical-align: middle; color: #FFA726;"></i>Contrataciones
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownContratos">
+                            @if (AuthService.UsuarioActual?.Rol != "Comercializadora" && AuthService.PuedeVerClientes)
+                            {
+                                <li><a class="dropdown-item" href="clientes"><i class="bi bi-person-vcard-fill me-2" style="color: #66BB6A;"></i>Clientes</a></li>
+                            }
+                            @if (AuthService.PuedeVerContratos)
+                            {
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="javascript:void(0);" id="navbarSubmenuContratos" role="button" aria-expanded="false">
+                                        <i class="bi bi-file-earmark-text me-2" style="color: #4FC3F7;"></i>Contratos
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarSubmenuContratos">
+                                        <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
+                                        @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                                        {
+                                            <li><a class="dropdown-item" href="contratos/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
+                                            <li><a class="dropdown-item" href="contratos/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
+                                        }
+                                    </ul>
+                                </li>
+                            }
+                            @if (AuthService.PuedeVerTarifas)
+                            {
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="javascript:void(0);" id="navbarSubmenuTarifas" role="button" aria-expanded="false">
+                                        <i class="bi bi-receipt-cutoff me-2" style="color: #AB47BC;"></i>Tarifas
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarSubmenuTarifas">
+                                        <li><a class="dropdown-item" href="tarifas/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
+                                        <li><hr class="dropdown-divider" style="border-color: rgba(255, 255, 255, 0.1);"></li>
+                                        <li><a class="dropdown-item" href="tarifas/servicios"><i class="bi bi-gear-fill text-success me-2"></i>Servicios</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/comercializadoras"><i class="bi bi-building text-warning me-2"></i>Comercializadoras</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/operadoras"><i class="bi bi-broadcast text-primary me-2"></i>Operadoras</a></li>
+                                        <li><a class="dropdown-item" href="tarifas/empresas-alarmas"><i class="bi bi-shield-fill-check text-danger me-2"></i>Empresas Alarmas</a></li>
+                                    </ul>
+                                </li>
+                            }
+                        </ul>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownGestiones" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
+                            <i class="bi bi-briefcase me-2" style="font-size: 1.4rem; vertical-align: middle; color: #66BB6A;"></i>Gestiones
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownGestiones">
+                            @if (AuthService.PuedeVerLiquidaciones)
+                            {
+                                <li><a class="dropdown-item" href="liquidaciones"><i class="bi bi-cash-coin me-2" style="color: #4CAF50;"></i>Liquidaciones</a></li>
+                            }
+                            @if (AuthService.PuedeVerOfertas)
+                            {
+                                <li><a class="dropdown-item" href="ofertas"><i class="bi bi-tag me-2" style="color: #FF9800;"></i>Ofertas</a></li>
+                            }
+                            <li><a class="dropdown-item" href="noticias"><i class="bi bi-megaphone me-2" style="color: #03A9F4;"></i>Noticias</a></li>
+                            <li><a class="dropdown-item" href="proximamente"><i class="bi bi-arrow-repeat me-2" style="color: #2196F3;"></i>Renovaciones</a></li>
+                            <li><a class="dropdown-item" href="repositorio"><i class="bi bi-folder-fill me-2" style="color: #EF5350;"></i>Repositorio</a></li>
+                            @if (AuthService.PuedeVerSips)
+                            {
+                                <li><a class="dropdown-item" href="sips"><i class="bi bi-credit-card me-2" style="color: #9C27B0;"></i>SIPS</a></li>
+                            }
+                        </ul>
+                    </li>
+
+                    @if (AuthService.EsAdministrador)
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownContabilidad" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;">
+                                <i class="bi bi-calculator me-2" style="font-size: 1.4rem; vertical-align: middle; color: #9C27B0;"></i>Contabilidad
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownContabilidad">
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-text me-2" style="color: #3F51B5;"></i>Presupuestos</a></li>
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-receipt me-2" style="color: #4CAF50;"></i>Facturas venta</a></li>
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-people me-2" style="color: #FF5722;"></i>Proveedores</a></li>
+                                <li><a class="dropdown-item" href="proximamente"><i class="bi bi-file-earmark-minus me-2" style="color: #F44336;"></i>Facturas compra</a></li>
+                            </ul>
+                        </li>
+                    }
+                    
+                    @if (AuthService.EsAdministrador || AuthService.EsBackoffice)
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-white px-3 py-2 rounded transition" href="#" id="navbarDropdownConfiguracion" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="transition: all 0.3s ease;" title="Configuración">
+                                <i class="bi bi-sliders" style="font-size: 1.4rem; vertical-align: middle; color: #BDBDBD;"></i>
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfiguracion">
+                                <li class="dropdown-submenu">
+                                    <a class="dropdown-item dropdown-toggle" href="javascript:void(0);" id="navbarDropdownUsuarios" role="button" aria-expanded="false">
+                                        <i class="bi bi-person-badge-fill me-2" style="color: #42A5F5;"></i>Usuarios
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="navbarDropdownUsuarios">
+                                        @if (AuthService.EsAdministrador)
+                                        {
+                                            <li><a class="dropdown-item" href="usuarios"><i class="bi bi-people-fill text-primary me-2"></i>Gestión Usuarios</a></li>
+                                        }
+                                        <li><a class="dropdown-item" href="tareas"><i class="bi bi-list-check text-success me-2"></i>Tareas</a></li>
+                                    </ul>
+                                </li>
+                                <li><a class="dropdown-item" href="inicio-rapido"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>Inicio Rápido</a></li>
+                                <li><a class="dropdown-item" href="configuracion-empresa"><i class="bi bi-building me-2"></i>Datos de Empresa</a></li>
+                                <li><a class="dropdown-item" href="configuracion-comisiones"><i class="bi bi-percent me-2 text-success"></i>Configuración de Comisiones</a></li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link text-white px-3 py-2 rounded transition" href="tareas" style="transition: all 0.3s ease;">
+                                <i class="bi bi-list-check me-2" style="font-size: 1.4rem; vertical-align: middle; color: #66BB6A;"></i>Tareas
+                            </a>
+                        </li>
+                    }
+                </ul>
+
+                <div class="d-flex align-items-center text-white">
+                    @if (AuthService.PuedeVerIncidencias)
+                    {
+                        <a href="incidencias" class="me-3 btn-incidencia" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 2px solid #ffc107; border-radius: 8px; background: transparent; text-decoration: none; transition: all 0.3s ease;" title="Gestión de Incidencias">
+                            <i class="bi bi-exclamation-triangle-fill" style="font-size: 1.1rem; color: #ffc107; margin: 0; padding: 0; line-height: 1;"></i>
+                        </a>
+                    }
+                    
+                    <!-- Menú de usuario con dropdown -->
+                    <div class="dropdown me-3">
+                        <button class="btn btn-link text-white text-decoration-none d-flex align-items-center" 
+                                type="button" 
+                                id="userMenuDropdown" 
+                                data-bs-toggle="dropdown" 
+                                aria-expanded="false"
+                                style="padding: 8px 16px; background: rgba(255, 255, 255, 0.1); border-radius: 8px; backdrop-filter: blur(10px); border: none;">
+                            <i class="bi bi-person-circle me-2" style="font-size: 1.2rem;"></i>
+                            <div class="d-none d-md-block">
+                                <div style="font-size: 0.9rem; font-weight: 500; text-align: left;">@AuthService.UsuarioActual?.NombreUsuario</div>
+                                <div style="font-size: 0.75rem; opacity: 0.8; text-align: left;">@AuthService.UsuarioActual?.Rol</div>
+                            </div>
+                            <i class="bi bi-chevron-down ms-2" style="font-size: 0.8rem;"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuDropdown">
+                            <li>
+                                <a class="dropdown-item" href="/mi-perfil">
+                                    <i class="bi bi-person-circle me-2"></i>Mi Perfil
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/cambiar-password">
+                                    <i class="bi bi-key me-2"></i>Cambiar Contraseña
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Botón cerrar sesión separado -->
+                    <button class="btn btn-link text-white text-decoration-none" 
+                            @onclick="Logout"
+                            style="padding: 8px 12px; background: rgba(220, 53, 69, 0.2); border-radius: 8px; border: 1px solid rgba(220, 53, 69, 0.5);">
+                        <i class="bi bi-box-arrow-right me-1"></i>
+                        <span class="d-none d-md-inline">Salir</span>
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</nav>
+
+<style>
+    .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .btn-incidencia:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .dropdown-menu {
+        background-color: #2d2d2d;
+        border: none !important;
+    }
+
+    .dropdown-item {
+        color: #fff;
+        transition: all 0.3s ease;
+        border: none !important;
+        border-top: none !important;
+        border-bottom: none !important;
+    }
+
+    .dropdown-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+
+    /* Eliminar separadores entre elementos */
+    .dropdown-divider {
+        border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Estilos para submenús multinivel */
+    .dropdown-submenu {
+        position: relative;
+        border: none !important;
+    }
+
+    /* En escritorio, submenús a la derecha */
+    @@media (min-width: 992px) {
+        .dropdown-submenu .dropdown-menu {
+            top: 0;
+            left: 100%;
+            margin-top: -1px;
+            margin-left: 0;
+            border: none !important;
+            display: none;
+        }
+
+        .dropdown-submenu .dropdown-menu.show {
+            display: block;
+        }
+    }
+    
+    /* En móvil, submenús horizontales debajo */
+    @@media (max-width: 991.98px) {
+        .dropdown-submenu .dropdown-menu {
+            position: static !important;
+            display: none;
+        }
+        
+        .dropdown-submenu .dropdown-menu.show {
+            display: flex !important;
+        }
+    }
+
+    .dropdown-submenu > .dropdown-item::after {
+        content: "\f285";
+        font-family: "bootstrap-icons";
+        float: right;
+        margin-left: 10px;
+        border: none !important;
+    }
+
+    /* Eliminar cualquier borde en los items de lista */
+    .dropdown-menu li {
+        border: none !important;
+        border-top: none !important;
+        border-bottom: none !important;
+    }
+</style>
+
+@code {
+    private bool cargado = false;
+    private string? logoUrl;
+
+    protected override void OnInitialized()
+    {
+        AuthService.OnAuthStateChanged += StateHasChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !cargado)
+        {
+            await AuthService.CargarSesionAsync();
+            await CargarLogoAsync();
+            cargado = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarLogoAsync()
+    {
+        try
+        {
+            var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+            logoUrl = configuracion?.LogoUrl;
+        }
+        catch (Exception)
+        {
+            logoUrl = null;
+        }
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("/login", true);
+    }
+
+    public void Dispose()
+    {
+        AuthService.OnAuthStateChanged -= StateHasChanged;
+    }
+}
+
+
