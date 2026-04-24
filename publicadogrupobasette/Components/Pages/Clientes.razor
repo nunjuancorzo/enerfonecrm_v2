@@ -163,7 +163,7 @@ else
                                     {
                                         @foreach (var cliente in clientesFiltrados)
                                         {
-                                            <tr id="cliente-@cliente.Id" style="@(clienteRecienCreado == cliente.Id ? "background-color: #d1ecf1;" : "")">
+                                            <tr id="cliente-@cliente.Id">
                                                 <td><small>@(cliente.FechaAlta?.ToString("dd/MM/yyyy") ?? "-")</small></td>
                                                 <td>
                                                     @if (cliente.TipoCliente == "Pyme")
@@ -175,7 +175,7 @@ else
                                                         <span class="badge bg-secondary">Particular</span>
                                                     }
                                                 </td>
-                                                <td><strong>@cliente.Nombre</strong></td>
+                                                <td style="@ObtenerColorProcedencia(cliente)"><strong>@cliente.Nombre</strong></td>
                                                 <td><small>@cliente.DniCif</small></td>
                                                 <td>@cliente.NombreUsuario</td>
                                                 <td>
@@ -343,6 +343,15 @@ else
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Fecha creación</label>
                                         <input type="text" class="form-control" value="@(clienteSeleccionado.FechaAlta?.ToString("dd/MM/yyyy HH:mm") ?? "-")" disabled />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Procedencia</label>
+                                        <select class="form-select" @bind="clienteSeleccionado.Procedencia">
+                                            <option value="">-- Seleccionar --</option>
+                                            <option value="BASE DE DATOS">BASE DE DATOS</option>
+                                            <option value="RRSS">RRSS</option>
+                                            <option value="REFERIDOS">REFERIDOS</option>
+                                        </select>
                                     </div>
                                     @if (clienteSeleccionado.TipoCliente == "Pyme")
                                     {
@@ -552,9 +561,12 @@ else
                                                                             <button type="button" class="btn btn-outline-success" @onclick="() => DescargarArchivo(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                                 <i class="bi bi-download"></i>
                                                                             </button>
-                                                                            <button type="button" class="btn btn-outline-danger" @onclick="() => EliminarArchivo(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
-                                                                                <i class="bi bi-trash"></i>
-                                                                            </button>
+                                                                            @if (!AuthService.EsUsuario)
+                                                                            {
+                                                                                <button type="button" class="btn btn-outline-danger" @onclick="() => EliminarArchivo(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
+                                                                                    <i class="bi bi-trash"></i>
+                                                                                </button>
+                                                                            }
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -2099,6 +2111,23 @@ else
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
 
+    // Obtener color de fondo según procedencia del cliente
+    private string ObtenerColorProcedencia(Cliente cliente)
+    {
+        // Primero, verificar si es un cliente recién creado (color celeste prioritario)
+        if (clienteRecienCreado == cliente.Id)
+            return "background-color: #d1ecf1;";
+
+        // Luego aplicar color según procedencia
+        return cliente.Procedencia switch
+        {
+            "BASE DE DATOS" => "background-color: #d4edda;", // Verde claro
+            "RRSS" => "background-color: #f8d7da;", // Rojo claro
+            "REFERIDOS" => "background-color: #fff3cd;", // Amarillo claro
+            _ => "" // Sin color si no tiene procedencia
+        };
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -2877,6 +2906,7 @@ else
             Comercial = cliente.Comercial,
             Observaciones = cliente.Observaciones,
             FechaAlta = cliente.FechaAlta,
+            Procedencia = cliente.Procedencia,
             IdUsuario = cliente.IdUsuario,
             NombreUsuario = cliente.NombreUsuario
         };

@@ -30,10 +30,8 @@ public class DbContextProvider
                    ?? _httpContextAccessor.HttpContext?.Request.Host.Host 
                    ?? "";
         
-        // Determinar qué base de datos usar según el hostname
-        var databaseName = host.StartsWith("demo.", StringComparison.OrdinalIgnoreCase) 
-            ? "demoenerfone" 
-            : "enerfone_pre";
+        // Usar base de datos de producción
+        var databaseName = "enerfone_pre";
         
         var baseConnectionString = _configuration.GetConnectionString("DefaultConnection") ?? "";
         var connectionString = baseConnectionString.Replace("enerfone_pre", databaseName);

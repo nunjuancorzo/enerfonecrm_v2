@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 
@@ -6,26 +5,18 @@ namespace EnerfoneCRM.Services
 {
     public class EnvironmentService
     {
-        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IWebHostEnvironment _environment;
         private readonly IConfiguration _configuration;
 
-        public EnvironmentService(IHttpContextAccessor httpContextAccessor, IWebHostEnvironment environment, IConfiguration configuration)
+        public EnvironmentService(IWebHostEnvironment environment, IConfiguration configuration)
         {
-            _httpContextAccessor = httpContextAccessor;
             _environment = environment;
             _configuration = configuration;
         }
 
-        public bool IsDemo()
-        {
-            var host = _httpContextAccessor.HttpContext?.Request.Host.Host;
-            return host != null && host.StartsWith("demo.", StringComparison.OrdinalIgnoreCase);
-        }
-
         public string GetEnvironmentName()
         {
-            return IsDemo() ? "Demo" : "Producción";
+            return "Producción";
         }
 
         public string GetDatabaseName()
@@ -53,7 +44,7 @@ namespace EnerfoneCRM.Services
                 return "enerfonecrm";
             }
             
-            return IsDemo() ? "demoenerfone" : "enerfone_pre";
+            return "enerfone_pre";
         }
 
         public string GetDatabaseUser()

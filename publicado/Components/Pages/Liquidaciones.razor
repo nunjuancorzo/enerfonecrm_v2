@@ -15,7 +15,7 @@
 
 <PageTitle>Liquidaciones - EnerfoneCRM</PageTitle>
 
-<div class="container-fluid">
+<div class="container-fluid" style="max-width: 98%;">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3><i class="bi bi-cash-coin me-2"></i>Liquidaciones</h3>
     </div>
@@ -113,7 +113,7 @@
                                     <th class="text-center">Contratos Facturables</th>
                                     <th class="text-center">Total a liquidar</th>
                                     <th class="text-center">Incidencias</th>
-                                    <th class="text-center">Acciones</th>
+                                    <th class="text-center text-nowrap" style="min-width: 280px;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -161,7 +161,7 @@
                                                 </span>
                                             }
                                         </td>
-                                        <td class="text-center">
+                                        <td class="text-center text-nowrap">
                                             <button class="btn btn-sm btn-primary me-1" @onclick="() => VerDetalleUsuario(item.Usuario.Id)" title="Ver Contratos">
                                                 <i class="bi bi-eye"></i>
                                             </button>
@@ -242,7 +242,7 @@
                                         <th class="text-center">Contratos</th>
                                         <th class="text-center">Total</th>
                                         <th>Aprobado Por</th>
-                                        <th class="text-center">Acciones</th>
+                                        <th class="text-center text-nowrap" style="min-width: 150px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1323,47 +1323,167 @@
 
             await using var context = DbContextProvider.CreateDbContext();
 
-            // Obtener usuarios que tienen contratos de energía, telefonía o alarmas en estado Act/Facturable
-            var query = from usuario in context.Usuarios
-                        where usuario.Activo
-                        let contratosFacturables = context.Contratos
-                            .Where(c => c.Comercial == usuario.NombreUsuario 
-                                && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
-                                && c.Estado == "Act/Facturable")
-                            .Count()
-                        let totalComisiones = context.Contratos
-                            .Where(c => c.Comercial == usuario.NombreUsuario 
-                                && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
-                                && c.Estado == "Act/Facturable")
-                            .Sum(c => c.Comision ?? 0)
-                        let incidenciasPendientes = context.IncidenciasLiquidacion
-                            .Where(i => i.UsuarioColaboradorId == usuario.Id && i.Estado == "Pendiente")
-                            .Count()
-                        let incidenciasTotal = context.IncidenciasLiquidacion
-                            .Where(i => i.UsuarioColaboradorId == usuario.Id)
-                            .Count()
-                        where contratosFacturables > 0
-                        select new UsuarioConContratos
+            // Diccionario para acumular comisiones por usuario
+            // Key: usuarioId, Value: (usuario, totalComision, cantidadContratos)
+            var comisionesPorUsuario = new Dictionary<int, (Usuario usuario, decimal totalComision, int cantidadContratos, int incidenciasPendientes, int incidenciasTotal)>();
+
+            // Obtener TODOS los contratos facturables del sistema
+            var todosContratosFacturables = await context.Contratos
+                .Where(c => (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                    && c.Estado == "Act/Facturable")
+                .ToListAsync();
+
+            Console.WriteLine($"[LIQUIDACIONES] Total contratos facturables en el sistema: {todosContratosFacturables.Count}");
+
+            // Para cada contrato, calcular la distribución y acumular comisiones
+            foreach (var contrato in todosContratosFacturables)
+            {
+                // Obtener el comercial (colaborador) del contrato
+                var comercial = await context.Usuarios
+                    .FirstOrDefaultAsync(u => u.NombreUsuario == contrato.Comercial && u.Activo);
+                
+                if (comercial == null)
+                {
+                    Console.WriteLine($"[LIQUIDACIONES] Comercial '{contrato.Comercial}' no encontrado o inactivo para contrato {contrato.Id}");
+                    continue;
+                }
+
+                // Calcular distribución de comisiones para este contrato
+                var detalle = await ComisionService.CalcularDistribucionComisionAsync(contrato, comercial, null);
+
+                // Acumular comisión del colaborador
+                if (detalle.ComisionColaborador > 0)
+                {
+                    if (!comisionesPorUsuario.ContainsKey(comercial.Id))
+                    {
+                        var incidenciasPendientes = await context.IncidenciasLiquidacion
+                            .Where(i => i.UsuarioColaboradorId == comercial.Id && i.Estado == "Pendiente")
+                            .CountAsync();
+                        var incidenciasTotal = await context.IncidenciasLiquidacion
+                            .Where(i => i.UsuarioColaboradorId == comercial.Id)
+                            .CountAsync();
+                        
+                        comisionesPorUsuario[comercial.Id] = (comercial, 0, 0, incidenciasPendientes, incidenciasTotal);
+                    }
+                    
+                    var actual = comisionesPorUsuario[comercial.Id];
+                    comisionesPorUsuario[comercial.Id] = (actual.usuario, actual.totalComision + detalle.ComisionColaborador, actual.cantidadContratos + 1, actual.incidenciasPendientes, actual.incidenciasTotal);
+                }
+
+                // Acumular comisión del gestor
+                if (detalle.GestorId.HasValue && detalle.ComisionGestor.HasValue && detalle.ComisionGestor.Value > 0)
+                {
+                    var gestor = await context.Usuarios.FindAsync(detalle.GestorId.Value);
+                    if (gestor != null && gestor.Activo)
+                    {
+                        if (!comisionesPorUsuario.ContainsKey(gestor.Id))
                         {
-                            Usuario = usuario,
-                            CantidadContratos = contratosFacturables,
-                            TotalComisiones = totalComisiones,
-                            CantidadIncidenciasPendientes = incidenciasPendientes,
-                            CantidadIncidenciasTotal = incidenciasTotal
-                        };
+                            comisionesPorUsuario[gestor.Id] = (gestor, 0, 0, 0, 0);
+                        }
+                        
+                        var actual = comisionesPorUsuario[gestor.Id];
+                        comisionesPorUsuario[gestor.Id] = (actual.usuario, actual.totalComision + detalle.ComisionGestor.Value, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                    }
+                }
+
+                // Acumular comisión del jefe de ventas
+                if (detalle.JefeVentasId.HasValue && detalle.ComisionJefeVentas.HasValue && detalle.ComisionJefeVentas.Value > 0)
+                {
+                    var jefeVentas = await context.Usuarios.FindAsync(detalle.JefeVentasId.Value);
+                    if (jefeVentas != null && jefeVentas.Activo)
+                    {
+                        if (!comisionesPorUsuario.ContainsKey(jefeVentas.Id))
+                        {
+                            comisionesPorUsuario[jefeVentas.Id] = (jefeVentas, 0, 0, 0, 0);
+                        }
+                        
+                        var actual = comisionesPorUsuario[jefeVentas.Id];
+                        comisionesPorUsuario[jefeVentas.Id] = (actual.usuario, actual.totalComision + detalle.ComisionJefeVentas.Value, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                    }
+                }
+
+                // Acumular comisión del director comercial
+                if (detalle.DirectorComercialId.HasValue && detalle.ComisionDirectorComercial.HasValue && detalle.ComisionDirectorComercial.Value > 0)
+                {
+                    var directorComercial = await context.Usuarios.FindAsync(detalle.DirectorComercialId.Value);
+                    if (directorComercial != null && directorComercial.Activo)
+                    {
+                        if (!comisionesPorUsuario.ContainsKey(directorComercial.Id))
+                        {
+                            comisionesPorUsuario[directorComercial.Id] = (directorComercial, 0, 0, 0, 0);
+                        }
+                        
+                        var actual = comisionesPorUsuario[directorComercial.Id];
+                        comisionesPorUsuario[directorComercial.Id] = (actual.usuario, actual.totalComision + detalle.ComisionDirectorComercial.Value, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                    }
+                }
+
+                // Acumular comisión del administrador
+                if (detalle.ComisionAdministrador > 0)
+                {
+                    var administrador = await context.Usuarios.FindAsync(detalle.AdministradorId);
+                    if (administrador != null && administrador.Activo)
+                    {
+                        if (!comisionesPorUsuario.ContainsKey(administrador.Id))
+                        {
+                            comisionesPorUsuario[administrador.Id] = (administrador, 0, 0, 0, 0);
+                        }
+                        
+                        var actual = comisionesPorUsuario[administrador.Id];
+                        comisionesPorUsuario[administrador.Id] = (actual.usuario, actual.totalComision + detalle.ComisionAdministrador, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                    }
+                }
+            }
+
+            // Restar decomisiones pendientes a cada usuario
+            foreach (var kvp in comisionesPorUsuario.ToList())
+            {
+                var decomisiones = await context.Decomisiones
+                    .Where(d => d.UsuarioId == kvp.Key && d.LiquidacionDecomisionId == null)
+                    .ToListAsync();
+                
+                var totalDecomisiones = decomisiones.Sum(d => d.ImporteDecomision);
+                
+                if (totalDecomisiones > 0)
+                {
+                    var actual = kvp.Value;
+                    comisionesPorUsuario[kvp.Key] = (actual.usuario, actual.totalComision - totalDecomisiones, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                }
+            }
+
+            // Convertir el diccionario a lista de UsuarioConContratos
+            usuariosConContratos = comisionesPorUsuario
+                .Where(kvp => kvp.Value.totalComision > 0) // Solo mostrar usuarios con comisiones positivas
+                .Select(kvp => new UsuarioConContratos
+                {
+                    Usuario = kvp.Value.usuario,
+                    CantidadContratos = kvp.Value.cantidadContratos,
+                    TotalComisiones = kvp.Value.totalComision,
+                    CantidadIncidenciasPendientes = kvp.Value.incidenciasPendientes,
+                    CantidadIncidenciasTotal = kvp.Value.incidenciasTotal
+                })
+                .OrderByDescending(u => u.TotalComisiones)
+                .ToList();
 
             // Filtrar por usuario si no puede gestionar liquidaciones
             if (!AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual != null)
             {
-                query = query.Where(u => u.Usuario.Id == AuthService.UsuarioActual.Id);
+                usuariosConContratos = usuariosConContratos
+                    .Where(u => u.Usuario.Id == AuthService.UsuarioActual.Id)
+                    .ToList();
             }
 
-            usuariosConContratos = await query.ToListAsync();
+            Console.WriteLine($"[LIQUIDACIONES] Total usuarios con comisiones pendientes: {usuariosConContratos.Count}");
+            foreach (var u in usuariosConContratos)
+            {
+                Console.WriteLine($"[LIQUIDACIONES] {u.Usuario.NombreUsuario} ({u.Usuario.Rol}): {u.TotalComisiones:N2}€ de {u.CantidadContratos} contratos");
+            }
         }
         catch (Exception ex)
         {
             mensajeError = $"Error al cargar usuarios: {ex.Message}";
             Console.WriteLine($"[LIQUIDACIONES] Error: {ex.Message}");
+            Console.WriteLine($"[LIQUIDACIONES] Stack trace: {ex.StackTrace}");
         }
         finally
         {
@@ -1390,15 +1510,46 @@
             Console.WriteLine($"Usuario ID: {usuarioId}");
             Console.WriteLine($"Usuario Nombre: {usuarioSeleccionado.NombreUsuario}");
             
-            // Obtener los contratos facturables del usuario (energía, telefonía y alarmas)
-            contratosFacurables = await context.Contratos
-                .Where(c => c.Comercial == usuarioSeleccionado.NombreUsuario 
-                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+            // Obtener TODOS los contratos facturables de los cuales este usuario recibirá comisión
+            // Esto incluye contratos propios y contratos de subordinados si es gestor/jefe/director/admin
+            var todosContratosFacturables = await context.Contratos
+                .Where(c => (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
                 .OrderByDescending(c => c.FechaCreacion)
                 .ToListAsync();
             
-            Console.WriteLine($"Contratos facturables encontrados: {contratosFacurables.Count}");
+            // Filtrar contratos donde este usuario recibirá comisión
+            contratosFacurables = new List<Contrato>();
+            foreach (var contrato in todosContratosFacturables)
+            {
+                var comercial = await context.Usuarios
+                    .FirstOrDefaultAsync(u => u.NombreUsuario == contrato.Comercial && u.Activo);
+                
+                if (comercial == null) continue;
+
+                var detalle = await ComisionService.CalcularDistribucionComisionAsync(contrato, comercial, null);
+                
+                // Verificar si este usuario recibe comisión de este contrato
+                bool recibeComision = false;
+                
+                if (detalle.ColaboradorId == usuarioId && detalle.ComisionColaborador > 0)
+                    recibeComision = true;
+                else if (detalle.GestorId == usuarioId && detalle.ComisionGestor > 0)
+                    recibeComision = true;
+                else if (detalle.JefeVentasId == usuarioId && detalle.ComisionJefeVentas > 0)
+                    recibeComision = true;
+                else if (detalle.DirectorComercialId == usuarioId && detalle.ComisionDirectorComercial > 0)
+                    recibeComision = true;
+                else if (detalle.AdministradorId == usuarioId && detalle.ComisionAdministrador > 0)
+                    recibeComision = true;
+                
+                if (recibeComision)
+                {
+                    contratosFacurables.Add(contrato);
+                }
+            }
+            
+            Console.WriteLine($"Contratos donde el usuario recibirá comisión: {contratosFacurables.Count}");
 
             // Cargar decomisiones pendientes (no asignadas a ninguna liquidación) del usuario
             // IMPORTANTE: No filtrar por idsContratos porque los contratos dados de baja
@@ -1505,8 +1656,38 @@
                 return;
             }
 
-            // Calcular totales
-            var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            // ===== CALCULAR LA COMISIÓN QUE LE CORRESPONDE AL COLABORADOR =====
+            decimal totalComisionesColaborador;
+            
+            // Si el usuario es Backoffice, no recibe comisiones (todo va al Administrador)
+            if (usuario.Rol == "Backoffice")
+            {
+                totalComisionesColaborador = 0;
+            }
+            else
+            {
+                // Calcular el porcentaje promedio ponderado según los contratos
+                decimal totalConPorcentaje = 0;
+                
+                foreach (var contrato in contratos)
+                {
+                    // Calcular la distribución para este contrato
+                    var detalle = await ComisionService.CalcularDistribucionComisionAsync(contrato, usuario, null);
+                    totalConPorcentaje += detalle.ComisionColaborador;
+                }
+                
+                totalComisionesColaborador = totalConPorcentaje;
+            }
+            
+            // Obtener decomisiones pendientes
+            var decomisionesPendientes = await context.Decomisiones
+                .Where(d => d.UsuarioId == usuarioId && d.LiquidacionDecomisionId == null)
+                .ToListAsync();
+            var totalDecomisiones = decomisionesPendientes.Sum(d => d.ImporteDecomision);
+            
+            // Restar decomisiones del total del colaborador
+            totalComisionesColaborador -= totalDecomisiones;
+            
             var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
             
             // Agrupar por tipo
@@ -1673,7 +1854,7 @@
 
             // Total general
             sb.Append("<div class='total'>TOTAL A LIQUIDAR: ");
-            sb.Append(totalComisiones.ToString("N2"));
+            sb.Append(totalComisionesColaborador.ToString("N2"));
             sb.Append("€</div></body></html>");
 
             // Invocar JavaScript para abrir ventana de impresión
@@ -1737,6 +1918,13 @@
 
             // Generar el HTML
             var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            
+            // Si el usuario es Backoffice, no recibe comisiones (todo va al Administrador)
+            if (usuarioDb.Rol == "Backoffice")
+            {
+                totalComisiones = 0;
+            }
+            
             var fechaActual = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
             
             var contratosEnergia = contratos.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
@@ -2000,8 +2188,8 @@
             var contratosTelefonia = contratos.Count(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía");
             var contratosAlarmas = contratos.Count(c => c.Tipo == "alarma" || c.Tipo == "Alarma");
             
-            // Calcular total de comisiones
-            var totalComisiones = contratos.Sum(c => c.Comision ?? 0);
+            // Calcular total base de comisiones (antes de aplicar distribución jerárquica)
+            var totalComisionesBase = contratos.Sum(c => c.Comision ?? 0);
             
             // Obtener decomisiones pendientes del usuario (no asignadas a ninguna liquidación)
             var decomisionesPendientes = await context.Decomisiones
@@ -2010,10 +2198,36 @@
             
             var totalDecomisiones = decomisionesPendientes.Sum(d => d.ImporteDecomision);
             
-            // Restar decomisiones del total
-            totalComisiones -= totalDecomisiones;
+            // ===== CALCULAR LA COMISIÓN QUE LE CORRESPONDE AL COLABORADOR =====
+            decimal totalComisionesColaborador;
             
-            Console.WriteLine($"[LIQUIDACIONES] Total comisiones: {contratos.Sum(c => c.Comision ?? 0)}€, Decomisiones: {totalDecomisiones}€, Total neto: {totalComisiones}€");
+            // Si el usuario es Backoffice, no recibe comisiones (todo va al Administrador)
+            if (usuarioDb.Rol == "Backoffice")
+            {
+                totalComisionesColaborador = 0;
+            }
+            else
+            {
+                // Obtener la configuración de comisiones del usuario
+                // Aquí debemos calcular el porcentaje promedio ponderado según los contratos
+                decimal totalConPorcentaje = 0;
+                
+                foreach (var contrato in contratos)
+                {
+                    // Calcular la distribución para este contrato
+                    var detalle = await ComisionService.CalcularDistribucionComisionAsync(contrato, usuarioDb, null);
+                    Console.WriteLine($"[LIQUIDACIONES] Contrato {contrato.Id}: Base={detalle.ComisionBase}€, %Colaborador={detalle.PorcentajeColaborador}%, Colaborador={detalle.ComisionColaborador}€");
+                    totalConPorcentaje += detalle.ComisionColaborador;
+                }
+                
+                totalComisionesColaborador = totalConPorcentaje;
+                Console.WriteLine($"[LIQUIDACIONES] Total calculado para colaborador: {totalComisionesColaborador}€");
+            }
+            
+            // Restar decomisiones del total del colaborador
+            totalComisionesColaborador -= totalDecomisiones;
+            
+            Console.WriteLine($"[LIQUIDACIONES] Total base: {totalComisionesBase}€, Comisión colaborador: {totalComisionesColaborador}€, Decomisiones: {totalDecomisiones}€");
 
             // Guardar en el histórico (excepto si es superadmin)
             if (AuthService.UsuarioActual?.NombreUsuario != "superadmin")
@@ -2032,7 +2246,7 @@
                     AprobadoPorNombre = AuthService.UsuarioActual.NombreUsuario,
                     Estado = "Aceptada",
                     FechaAceptada = DateTime.Now,
-                    TotalComisiones = totalComisiones
+                    TotalComisiones = totalComisionesColaborador  // Solo la parte del colaborador
                 };
 
                 context.HistoricoLiquidaciones.Add(historico);

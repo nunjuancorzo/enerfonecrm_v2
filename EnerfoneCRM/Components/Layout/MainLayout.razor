@@ -9,12 +9,6 @@
     <NavMenu />
 
     <main class="main-content">
-        @if (EnvService.IsDemo())
-        {
-            <div class="alert alert-warning text-center mb-0" role="alert" style="border-radius: 0; margin: 0; font-weight: bold;">
-                🧪 Entorno Demo
-            </div>
-        }
         <article class="content-wrapper">
             @Body
         </article>

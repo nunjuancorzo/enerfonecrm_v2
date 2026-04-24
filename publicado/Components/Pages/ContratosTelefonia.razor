@@ -1178,7 +1178,7 @@ else
                                                                 <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                     <i class="bi bi-download"></i>
                                                                 </button>
-                                                                @if (PuedeEditar())
+                                                                @if (PuedeEditar() && !AuthService.EsUsuario)
                                                                 {
                                                                     <button type="button" class="btn btn-sm btn-outline-danger" @onclick="async () => await EliminarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
                                                                         <i class="bi bi-trash"></i>
@@ -1580,6 +1580,49 @@ else
             </div>
         }
         
+        @* Modal de observación obligatoria para colaboradores *@
+        @if (mostrarModalObservacionColaborador)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Observación Obligatoria
+                            </h5>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-3">
+                                <strong>Por favor, indique el motivo de la modificación del contrato:</strong>
+                            </p>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Observación *</label>
+                                <textarea @bind="observacionColaborador" class="form-control" rows="4" 
+                                          placeholder="Describa el motivo del cambio realizado..." required></textarea>
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Esta observación se guardará en el histórico del contrato.
+                            </small>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => { mostrarModalObservacionColaborador = false; observacionColaborador = string.Empty; }">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn btn-primary" @onclick="GuardarContratoConObservacion" 
+                                    disabled="@(string.IsNullOrWhiteSpace(observacionColaborador) || guardandoConObservacion)">
+                                @if (guardandoConObservacion)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        
         <!-- Wizard para crear nuevo contrato -->
         <WizardCrearContratoTelefonia @ref="wizardNuevoContrato" 
                                       OnContratoCreado="OnContratoCreado" 
@@ -1615,6 +1658,11 @@ else
 
     // Observaciones históricas
     private List<ObservacionContrato> observacionesHistoricas = new();
+    
+    // Modal de observación obligatoria para colaboradores
+    private bool mostrarModalObservacionColaborador = false;
+    private string observacionColaborador = string.Empty;
+    private bool guardandoConObservacion = false;
     private List<ObservacionContrato> observacionesHistoricasModal = new();
     private Dictionary<int, int> conteoObservacionesPorContrato = new();
 
@@ -1672,6 +1720,45 @@ else
     private int elementosPorPagina = 10;
     private int totalElementos = 0;
     private int totalPaginas = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Detectar si se pasó un ID en la query string para abrir ese contrato
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var idStr = query["id"];
+        
+        if (!string.IsNullOrEmpty(idStr) && int.TryParse(idStr, out int contratoId))
+        {
+            // Guardar el ID para abrirlo después de cargar los datos
+            await Task.Delay(100);
+            _ = AbrirContratoDesdeUrl(contratoId);
+        }
+    }
+
+    private async Task AbrirContratoDesdeUrl(int contratoId)
+    {
+        try
+        {
+            // Esperar a que los datos estén cargados
+            int intentos = 0;
+            while (cargando && intentos < 50)
+            {
+                await Task.Delay(100);
+                intentos++;
+            }
+            
+            var contrato = contratos.FirstOrDefault(c => c.Id == contratoId);
+            if (contrato != null)
+            {
+                await MostrarModalEditar(contrato);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al abrir contrato desde URL: {ex.Message}");
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -2457,6 +2544,20 @@ else
 
     private async Task GuardarContrato()
     {
+        // Si es un colaborador editando un contrato existente, solicitar observación obligatoria
+        if (AuthService.EsUsuario && contratoSeleccionado?.Id > 0)
+        {
+            observacionColaborador = string.Empty;
+            mostrarModalObservacionColaborador = true;
+            return;
+        }
+        
+        // Continuar con la validación y guardado normal
+        await EjecutarGuardadoContrato();
+    }
+    
+    private async Task EjecutarGuardadoContrato()
+    {
         if (contratoSeleccionado == null) return;
 
         // Validar campos obligatorios para contratos de telefonía
@@ -2641,6 +2742,55 @@ else
         finally
         {
             guardando = false;
+        }
+    }
+
+    private async Task GuardarContratoConObservacion()
+    {
+        if (string.IsNullOrWhiteSpace(observacionColaborador))
+        {
+            return;
+        }
+        
+        guardandoConObservacion = true;
+        mostrarModalObservacionColaborador = false;
+        StateHasChanged();
+        
+        try
+        {
+            // Guardar ID y estado del contrato ANTES de ejecutar el guardado
+            // porque EjecutarGuardadoContrato() llama a CerrarModal() que limpia contratoSeleccionado
+            var idContrato = contratoSeleccionado?.Id ?? 0;
+            var estadoContrato = contratoSeleccionado?.Estado ?? "";
+            var textoObservacion = observacionColaborador.Trim();
+            
+            // Guardar el contrato
+            await EjecutarGuardadoContrato();
+            
+            // Crear la observación usando los datos guardados
+            if (idContrato > 0)
+            {
+                var nuevaObservacion = new ObservacionContrato
+                {
+                    IdContrato = idContrato,
+                    Observacion = $"Modificación de contrato: {textoObservacion}",
+                    Usuario = AuthService.UsuarioActual?.NombreUsuario ?? "Colaborador",
+                    FechaHora = DateTime.Now,
+                    EstadoContrato = estadoContrato
+                };
+
+                await ObservacionContratoService.CrearAsync(nuevaObservacion);
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            guardandoConObservacion = false;
+            observacionColaborador = string.Empty;
+            StateHasChanged();
         }
     }
 

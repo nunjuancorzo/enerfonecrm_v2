@@ -99,6 +99,10 @@ namespace EnerfoneCRM.Models
         [Column("fecha_alta")]
         public DateTime? FechaAlta { get; set; }
 
+        [Column("procedencia")]
+        [MaxLength(50)]
+        public string? Procedencia { get; set; }
+
         [Column("copia_recibo_bancario")]
         [MaxLength(500)]
         public string? CopiaReciboBancario { get; set; }

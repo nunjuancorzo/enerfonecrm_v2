@@ -34,10 +34,8 @@ builder.Services.AddScoped<ApplicationDbContext>(serviceProvider =>
     // Log temporal para debugging (ELIMINAR EN PRODUCCIÓN)
     Console.WriteLine($"[DEBUG] Hostname detectado: {host}");
     
-    // Determinar qué base de datos usar según el hostname
-    var databaseName = host.StartsWith("demo.", StringComparison.OrdinalIgnoreCase) 
-        ? "demoenerfone" 
-        : "enerfone_pre";
+    // Usar base de datos de producción
+    var databaseName = "enerfone_pre";
     
     Console.WriteLine($"[DEBUG] Base de datos seleccionada: {databaseName}");
     

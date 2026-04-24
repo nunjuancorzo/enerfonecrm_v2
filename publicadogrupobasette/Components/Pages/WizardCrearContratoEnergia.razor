@@ -587,7 +587,7 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Tarifa</label>
-                                            <select @bind="nuevoContrato.EnTarifa" class="form-select">
+                                            <select value="@nuevoContrato.EnTarifa" @onchange="OnTarifaEnergiaChanged" class="form-select">
                                                 <option value="">Seleccionar tarifa...</option>
                                                 @if (tarifasEnergia == null || !tarifasEnergia.Any())
                                                 {
@@ -1265,6 +1265,29 @@
             nuevoContrato.TitularIbanNombre = "";
             nuevoContrato.TitularIbanNumero = "";
         }
+    }
+
+    private void OnTarifaEnergiaChanged(ChangeEventArgs e)
+    {
+        if (nuevoContrato == null || e.Value == null) return;
+        
+        var nombreTarifa = e.Value.ToString();
+        nuevoContrato.EnTarifa = nombreTarifa;
+        
+        // Buscar la tarifa seleccionada y asignar comisión e ID
+        var tarifaSeleccionada = tarifasEnergia.FirstOrDefault(t => t.Nombre == nombreTarifa);
+        if (tarifaSeleccionada != null)
+        {
+            nuevoContrato.EnTarifaId = tarifaSeleccionada.Id;
+            nuevoContrato.Comision = tarifaSeleccionada.Comision;
+        }
+        else
+        {
+            nuevoContrato.EnTarifaId = null;
+            nuevoContrato.Comision = 0;
+        }
+        
+        StateHasChanged();
     }
 
     // Métodos para manejo de archivos adjuntos

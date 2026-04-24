@@ -1,7 +1,13 @@
 ﻿@using EnerfoneCRM.Services
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Data
+@using Blazored.SessionStorage
+@using System.Timers
 @inject AuthService AuthService
 @inject ConfiguracionService ConfiguracionService
 @inject NavigationManager Navigation
+@inject ContratoService ContratoService
+@inject ISessionStorageService SessionStorage
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -151,6 +157,18 @@
                 </ul>
 
                 <div class="d-flex align-items-center text-white">
+                    @if (AuthService.PuedeVerContratos)
+                    {
+                        <button @onclick="MostrarAvisosModificaciones" class="me-3 btn-avisos-contratos" style="display: flex; align-items: center; justify-content: center; gap: 3px; width: 80px; height: 50px; border: 2px solid #9E9E9E; border-radius: 8px; background: transparent; text-decoration: none; transition: all 0.3s ease; position: relative; cursor: pointer; padding: 0;" title="Avisos de Modificaciones">
+                            <i class="bi bi-bell-fill" style="font-size: 0.85rem; color: #FFD54F; margin: 0; padding: 0; line-height: 1;"></i>
+                            <i class="bi bi-bell-fill" style="font-size: 0.85rem; color: #4FC3F7; margin: 0; padding: 0; line-height: 1;"></i>
+                            <i class="bi bi-bell-fill" style="font-size: 0.85rem; color: #EF5350; margin: 0; padding: 0; line-height: 1;"></i>
+                            @if (hayModificacionesNoVistas)
+                            {
+                                <span class="badge bg-danger" style="position: absolute; top: -5px; right: -5px; font-size: 0.6rem; padding: 3px 5px;">!</span>
+                            }
+                        </button>
+                    }
                     @if (AuthService.PuedeVerIncidencias)
                     {
                         <a href="incidencias" class="me-3 btn-incidencia" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 2px solid #ffc107; border-radius: 8px; background: transparent; text-decoration: none; transition: all 0.3s ease;" title="Gestión de Incidencias">
@@ -200,12 +218,106 @@
     </div>
 </nav>
 
+<!-- Modal de Avisos de Modificaciones -->
+@if (mostrarModalAvisos)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: white;">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bell-fill text-warning me-2"></i>
+                        Contratos Modificados Recientemente
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalAvisos"></button>
+                </div>
+                <div class="modal-body">
+                    @if (cargandoModificaciones)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Cargando modificaciones...</p>
+                        </div>
+                    }
+                    else if (!contratosModificados.Any())
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No hay contratos modificados recientemente
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group">
+                            @foreach (var contrato in contratosModificados)
+                            {
+                                <button class="list-group-item list-group-item-action" @onclick="async () => await IrAContrato(contrato)">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center mb-1">
+                                                @{
+                                                    var tipoLower = contrato.Tipo?.ToLower() ?? "";
+                                                }
+                                                @if (tipoLower == "energia" || tipoLower == "energía")
+                                                {
+                                                    <i class="bi bi-lightning-charge-fill text-warning me-2" style="font-size: 1.2rem;"></i>
+                                                }
+                                                else if (tipoLower == "telefonia" || tipoLower == "telefonía")
+                                                {
+                                                    <i class="bi bi-telephone-fill text-primary me-2" style="font-size: 1.2rem;"></i>
+                                                }
+                                                else if (tipoLower == "alarma" || tipoLower == "alarmas")
+                                                {
+                                                    <i class="bi bi-shield-check text-danger me-2" style="font-size: 1.2rem;"></i>
+                                                }
+                                                <h6 class="mb-0">
+                                                    <strong>Contrato #@contrato.Id</strong> - @contrato.NombreCliente
+                                                </h6>
+                                            </div>
+                                            <p class="mb-1 text-muted" style="font-size: 0.9rem;">
+                                                <strong>Estado:</strong> @contrato.Estado | 
+                                                <strong>Comercial:</strong> @contrato.Comercial
+                                            </p>
+                                            @if (!string.IsNullOrEmpty(contrato.Direccion))
+                                            {
+                                                <p class="mb-0 text-muted" style="font-size: 0.85rem;">
+                                                    <i class="bi bi-geo-alt me-1"></i>@contrato.Direccion
+                                                </p>
+                                            }
+                                        </div>
+                                        <div class="text-end ms-3">
+                                            <small class="text-muted d-block">
+                                                <i class="bi bi-clock me-1"></i>
+                                                @contrato.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")
+                                            </small>
+                                            <span class="badge bg-primary mt-1">Ver contrato</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalAvisos">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <style>
     .nav-link:hover {
         background-color: rgba(255, 255, 255, 0.1) !important;
     }
 
     .btn-incidencia:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .btn-avisos-contratos:hover {
         background-color: rgba(255, 255, 255, 0.1) !important;
     }
 
@@ -285,6 +397,12 @@
 @code {
     private bool cargado = false;
     private string? logoUrl;
+    private bool mostrarModalAvisos = false;
+    private bool cargandoModificaciones = false;
+    private bool hayModificacionesNoVistas = false;
+    private List<Contrato> contratosModificados = new();
+    private const string STORAGE_KEY = "contratos_vistos_v2";
+    private System.Timers.Timer? verificacionTimer;
 
     protected override void OnInitialized()
     {
@@ -295,11 +413,38 @@
     {
         if (firstRender && !cargado)
         {
+            Console.WriteLine("[NavMenu] Iniciando componente NavMenu");
             await AuthService.CargarSesionAsync();
             await CargarLogoAsync();
+            await VerificarModificacionesNoVistas();
+            
+            // Iniciar timer para verificar cada 30 segundos
+            if (AuthService.PuedeVerContratos)
+            {
+                Console.WriteLine("[NavMenu] Timer iniciado - verificará cada 30 segundos");
+                verificacionTimer = new System.Timers.Timer(30000); // 30 segundos
+                verificacionTimer.Elapsed += async (sender, e) => await OnTimerElapsed();
+                verificacionTimer.AutoReset = true;
+                verificacionTimer.Start();
+            }
+            else
+            {
+                Console.WriteLine("[NavMenu] Timer NO iniciado - usuario no puede ver contratos");
+            }
+            
             cargado = true;
             StateHasChanged();
         }
+    }
+
+    private async Task OnTimerElapsed()
+    {
+        Console.WriteLine("[NavMenu] ⏰ Timer ejecutado - verificando modificaciones...");
+        await InvokeAsync(async () =>
+        {
+            await VerificarModificacionesNoVistas();
+            StateHasChanged();
+        });
     }
 
     private async Task CargarLogoAsync()
@@ -315,6 +460,137 @@
         }
     }
 
+    private async Task VerificarModificacionesNoVistas()
+    {
+        try
+        {
+            if (AuthService.PuedeVerContratos)
+            {
+                var contratosEnergia = await ContratoService.ObtenerTodosPorTipoAsync("energia", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
+                var contratosTelefonia = await ContratoService.ObtenerTodosPorTipoAsync("telefonia", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
+                var contratosAlarmas = await ContratoService.ObtenerTodosPorTipoAsync("alarma", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
+                
+                Console.WriteLine($"[NavMenu] Contratos obtenidos - Energía: {contratosEnergia.Count()}, Telefonía: {contratosTelefonia.Count()}, Alarmas: {contratosAlarmas.Count()}");
+                
+                var todosContratos = contratosEnergia.Concat(contratosTelefonia).Concat(contratosAlarmas)
+                    .Where(c => c.FechaModificacion.HasValue)
+                    .OrderByDescending(c => c.FechaModificacion)
+                    .Take(20)
+                    .ToList();
+
+                Console.WriteLine($"[NavMenu] Total contratos con FechaModificacion: {todosContratos.Count}");
+                
+                // Obtener contratos vistos con sus fechas de modificación
+                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                
+                Console.WriteLine($"[NavMenu] Contratos vistos en storage: {contratosVistos.Count}");
+                
+                // Verificar si hay contratos nuevos o modificados después de ser vistos
+                hayModificacionesNoVistas = todosContratos.Any(c => 
+                    !contratosVistos.ContainsKey(c.Id) || 
+                    (c.FechaModificacion.HasValue && contratosVistos[c.Id] < c.FechaModificacion.Value));
+                
+                Console.WriteLine($"[NavMenu] Hay modificaciones no vistas: {hayModificacionesNoVistas}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NavMenu] Error en VerificarModificacionesNoVistas: {ex.Message}");
+            hayModificacionesNoVistas = false;
+        }
+    }
+
+    private async Task MostrarAvisosModificaciones()
+    {
+        mostrarModalAvisos = true;
+        cargandoModificaciones = true;
+        StateHasChanged();
+
+        try
+        {
+            var contratosEnergia = await ContratoService.ObtenerTodosPorTipoAsync("energia", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
+            var contratosTelefonia = await ContratoService.ObtenerTodosPorTipoAsync("telefonia", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
+            var contratosAlarmas = await ContratoService.ObtenerTodosPorTipoAsync("alarma", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
+            
+            var todosContratos = contratosEnergia.Concat(contratosTelefonia).Concat(contratosAlarmas);
+            contratosModificados = todosContratos
+                .Where(c => c.FechaModificacion.HasValue)
+                .OrderByDescending(c => c.FechaModificacion)
+                .Take(20)
+                .ToList();
+
+            Console.WriteLine($"[NavMenu] Modal abierto - Contratos modificados a mostrar: {contratosModificados.Count}");
+            foreach (var c in contratosModificados)
+            {
+                Console.WriteLine($"[NavMenu] Contrato #{c.Id} - {c.NombreCliente} - Última modificación: {c.FechaModificacion}");
+            }
+
+            // Marcar todos los contratos actuales como vistos con sus fechas
+            var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+            foreach (var contrato in contratosModificados)
+            {
+                if (contrato.FechaModificacion.HasValue)
+                {
+                    contratosVistos[contrato.Id] = contrato.FechaModificacion.Value;
+                }
+            }
+            await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
+            
+            // Actualizar el indicador de no vistos
+            hayModificacionesNoVistas = false;
+        }
+        catch (Exception)
+        {
+            contratosModificados = new List<Contrato>();
+        }
+        finally
+        {
+            cargandoModificaciones = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CerrarModalAvisos()
+    {
+        mostrarModalAvisos = false;
+        StateHasChanged();
+    }
+
+    private async Task IrAContrato(Contrato contrato)
+    {
+        try
+        {
+            // Marcar este contrato como visto antes de navegar
+            if (contrato.FechaModificacion.HasValue)
+            {
+                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                contratosVistos[contrato.Id] = contrato.FechaModificacion.Value;
+                await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
+                
+                // Verificar si quedan contratos sin ver
+                await VerificarModificacionesNoVistas();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al marcar contrato como visto: {ex.Message}");
+        }
+        
+        var tipo = contrato.Tipo?.ToLower() ?? "";
+        if (tipo == "energia" || tipo == "energía")
+        {
+            Navigation.NavigateTo($"/contratos/energia?id={contrato.Id}", true);
+        }
+        else if (tipo == "telefonia" || tipo == "telefonía")
+        {
+            Navigation.NavigateTo($"/contratos/telefonia?id={contrato.Id}", true);
+        }
+        else if (tipo == "alarma" || tipo == "alarmas")
+        {
+            Navigation.NavigateTo($"/contratos/alarmas?id={contrato.Id}", true);
+        }
+    }
+
     private async Task Logout()
     {
         await AuthService.Logout();
@@ -324,6 +600,12 @@
     public void Dispose()
     {
         AuthService.OnAuthStateChanged -= StateHasChanged;
+        
+        if (verificacionTimer != null)
+        {
+            verificacionTimer.Stop();
+            verificacionTimer.Dispose();
+        }
     }
 }
 

@@ -543,7 +543,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Kit</label>
-                                            <select class="form-select" @bind="nuevoContrato.KitAlarma">
+                                            <select class="form-select" value="@nuevoContrato.KitAlarma" @onchange="OnKitAlarmaChanged">
                                                 <option value="">-- Seleccionar Kit --</option>
                                                 @foreach (var tarifa in tarifasKit)
                                                 {
@@ -1038,6 +1038,29 @@
             nuevoContrato.TitularIbanNombre = "";
             nuevoContrato.TitularIbanNumero = "";
         }
+    }
+
+    private void OnKitAlarmaChanged(ChangeEventArgs e)
+    {
+        if (nuevoContrato == null || e.Value == null) return;
+        
+        var nombreKit = e.Value.ToString();
+        nuevoContrato.KitAlarma = nombreKit;
+        
+        // Buscar la tarifa seleccionada y asignar comisión e ID
+        var tarifaSeleccionada = tarifasKit.FirstOrDefault(t => t.NombreTarifa == nombreKit);
+        if (tarifaSeleccionada != null)
+        {
+            nuevoContrato.KitAlarmaId = tarifaSeleccionada.Id;
+            nuevoContrato.Comision = tarifaSeleccionada.Comision;
+        }
+        else
+        {
+            nuevoContrato.KitAlarmaId = null;
+            nuevoContrato.Comision = 0;
+        }
+        
+        StateHasChanged();
     }
 
     // Métodos para manejo de archivos adjuntos

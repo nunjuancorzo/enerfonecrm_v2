@@ -18,6 +18,7 @@ namespace EnerfoneCRM.Services
 
         /// <summary>
         /// Obtiene la configuración de comisión para un usuario y proveedor específico
+        /// Primero busca configuración específica del proveedor, luego genérica (ProveedorId = 0 o NULL)
         /// </summary>
         public async Task<ConfiguracionComision?> ObtenerConfiguracionAsync(
             int usuarioId, 
@@ -26,12 +27,38 @@ namespace EnerfoneCRM.Services
         {
             await using var context = _dbContextProvider.CreateDbContext();
 
-            return await context.ConfiguracionesComision
+            // Primero buscar configuración específica para este proveedor
+            var configuracionEspecifica = await context.ConfiguracionesComision
                 .Where(c => c.UsuarioId == usuarioId 
                     && c.TipoProveedor == tipoProveedor 
                     && c.ProveedorId == proveedorId 
                     && c.Activa)
                 .FirstOrDefaultAsync();
+            
+            if (configuracionEspecifica != null)
+            {
+                Console.WriteLine($"[ComisionService] Configuración específica encontrada para usuario {usuarioId}, proveedor {proveedorId}: {configuracionEspecifica.PorcentajeColaborador}%");
+                return configuracionEspecifica;
+            }
+
+            // Si no hay configuración específica, buscar configuración genérica (ProveedorId = 0 o NULL)
+            var configuracionGenerica = await context.ConfiguracionesComision
+                .Where(c => c.UsuarioId == usuarioId 
+                    && c.TipoProveedor == tipoProveedor 
+                    && (c.ProveedorId == 0 || c.ProveedorId == null)
+                    && c.Activa)
+                .FirstOrDefaultAsync();
+            
+            if (configuracionGenerica != null)
+            {
+                Console.WriteLine($"[ComisionService] Configuración genérica encontrada para usuario {usuarioId}: {configuracionGenerica.PorcentajeColaborador}%");
+            }
+            else
+            {
+                Console.WriteLine($"[ComisionService] No se encontró configuración para usuario {usuarioId}, tipo {tipoProveedor}. Usando valores por defecto.");
+            }
+            
+            return configuracionGenerica;
         }
 
         /// <summary>
@@ -95,12 +122,25 @@ namespace EnerfoneCRM.Services
             var proveedorId = ObtenerProveedorId(contrato);
             var nombreProveedor = ObtenerNombreProveedor(contrato);
 
+            Console.WriteLine($"[ComisionService] ===== CALCULANDO DISTRIBUCIÓN =====");
+            Console.WriteLine($"[ComisionService] Contrato ID: {contrato.Id}, Tipo: {contrato.Tipo}");
+            Console.WriteLine($"[ComisionService] Colaborador: {colaborador.NombreUsuario} (ID: {colaborador.Id})");
+            Console.WriteLine($"[ComisionService] TipoProveedor: {tipoProveedor}, ProveedorId: {proveedorId}");
+
             var configuracion = await ObtenerConfiguracionAsync(colaborador.Id, tipoProveedor, proveedorId);
 
             // Si no hay configuración específica, usar porcentajes por defecto
             var pctColaborador = configuracion?.PorcentajeColaborador ?? 70m;
             var pctGestor = configuracion?.PorcentajeGestor ?? 10m;
             var pctJefeVentas = configuracion?.PorcentajeJefeVentas ?? 10m;
+            
+            Console.WriteLine($"[ComisionService] Configuración encontrada: {(configuracion != null ? "SÍ" : "NO (usando defaults)")}");
+            if (configuracion != null)
+            {
+                Console.WriteLine($"[ComisionService] Config ID: {configuracion.Id}, Usuario: {configuracion.UsuarioId}, Proveedor: {configuracion.ProveedorId}");
+                Console.WriteLine($"[ComisionService] Porcentajes: Colab={configuracion.PorcentajeColaborador}%, Gestor={configuracion.PorcentajeGestor}%, Jefe={configuracion.PorcentajeJefeVentas}%, Dir={configuracion.PorcentajeDirectorComercial}%");
+            }
+            Console.WriteLine($"[ComisionService] Porcentajes a usar: Colab={pctColaborador}%, Gestor={pctGestor}%, Jefe={pctJefeVentas}%");
             var pctDirectorComercial = configuracion?.PorcentajeDirectorComercial ?? 0m;
 
             // Si el colaborador es Backoffice, no recibe comisión (todo va al Administrador)

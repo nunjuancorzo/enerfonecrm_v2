@@ -60,7 +60,6 @@ python3 importar_tarifas_servicios.py crmgrupobasette tarifa-energia plantilla_t
 |------------------|---------------------|
 | Enerfone         | `enerfone_pre`      |
 | Grupo Basette    | `crmgrupobasette`   |
-| Demo Enerfone    | `demoenerfone`      |
 
 ## 📦 Archivos Modificados
 

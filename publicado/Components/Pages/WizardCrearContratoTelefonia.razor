@@ -479,7 +479,7 @@
                                             <label class="form-label fw-bold">Tarifa Principal</label>
                                             @if (tarifasDisponibles.Any())
                                             {
-                                                <select class="form-select" @bind="nuevoContrato.TarifaTel">
+                                                <select class="form-select" value="@nuevoContrato.TarifaTel" @onchange="OnTarifaTelefoniaChanged">
                                                     <option value="">-- Seleccionar tarifa --</option>
                                                     @foreach (var tarifa in tarifasDisponibles)
                                                     {
@@ -1420,6 +1420,29 @@
             case 4: nuevoContrato.TipoLinea4Tel = valor ?? string.Empty; break;
             case 5: nuevoContrato.TipoLinea5Tel = valor ?? string.Empty; break;
         }
+    }
+
+    private void OnTarifaTelefoniaChanged(ChangeEventArgs e)
+    {
+        if (nuevoContrato == null || e.Value == null) return;
+        
+        var descripcionTarifa = e.Value.ToString();
+        nuevoContrato.TarifaTel = descripcionTarifa;
+        
+        // Buscar la tarifa seleccionada y asignar comisión e ID
+        var tarifaSeleccionada = tarifasDisponibles.FirstOrDefault(t => ObtenerDescripcionTarifa(t) == descripcionTarifa);
+        if (tarifaSeleccionada != null)
+        {
+            nuevoContrato.TarifaTelId = tarifaSeleccionada.Id;
+            nuevoContrato.Comision = tarifaSeleccionada.ComisionNew;
+        }
+        else
+        {
+            nuevoContrato.TarifaTelId = null;
+            nuevoContrato.Comision = 0;
+        }
+        
+        StateHasChanged();
     }
 
     private string ObtenerCodigoIcc(int index)
