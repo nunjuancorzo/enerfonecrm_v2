@@ -755,5 +755,186 @@ namespace EnerfoneCRM.Services
 
             return (false, diasPendientes, importePenalizacion);
         }
+
+        /// <summary>
+        /// Recalcula las comisiones de todos los contratos con una tarifa específica
+        /// que estén en estados válidos para actualización
+        /// </summary>
+        /// <param name="tarifaId">ID de la tarifa</param>
+        /// <param name="tipoTarifa">Tipo: "Energia", "Telefonia" o "Alarma"</param>
+        /// <param name="nuevaComision">Nueva comisión de la tarifa</param>
+        /// <param name="usuarioService">Servicio de usuarios para obtener porcentajes</param>
+        /// <param name="comisionService">Servicio de comisiones para obtener configuración específica</param>
+        /// <returns>Número de contratos actualizados</returns>
+        public async Task<int> RecalcularComisionesPorTarifaAsync(
+            int tarifaId, 
+            string tipoTarifa, 
+            decimal nuevaComision,
+            UsuarioService usuarioService,
+            ComisionService comisionService)
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            
+            // Estados en los que se debe recalcular la comisión
+            var estadosValidos = new List<string>
+            {
+                "Pte Carga",
+                "Solicitado",
+                "Pte Firma",
+                "En incidencia",
+                "Pte Documentación",
+                "Pte Validación",
+                "En Curso",
+                "En Activación",
+                "En tramitación",
+                "Activo",
+                "Act/Facturable"
+            };
+
+            // Obtener el nombre de la tarifa para buscar también por nombre
+            string? nombreTarifa = null;
+            
+            switch (tipoTarifa)
+            {
+                case "Energia":
+                    var tarifaEnergia = await context.TarifasEnergia.FindAsync(tarifaId);
+                    nombreTarifa = tarifaEnergia?.Nombre;
+                    break;
+                case "Telefonia":
+                    var tarifaTelefonia = await context.TarifasTelefonia.FindAsync(tarifaId);
+                    nombreTarifa = tarifaTelefonia?.Tarifa;
+                    break;
+                case "Alarma":
+                    var tarifaAlarma = await context.TarifasAlarmas.FindAsync(tarifaId);
+                    nombreTarifa = tarifaAlarma?.NombreTarifa;
+                    break;
+            }
+
+            // Buscar contratos según el tipo de tarifa (por ID o por nombre)
+            List<Contrato> contratos;
+            
+            switch (tipoTarifa)
+            {
+                case "Energia":
+                    contratos = await context.Contratos
+                        .Where(c => estadosValidos.Contains(c.Estado) && 
+                               (c.EnTarifaId == tarifaId || 
+                                (!string.IsNullOrEmpty(nombreTarifa) && c.EnTarifa == nombreTarifa)))
+                        .ToListAsync();
+                    break;
+                    
+                case "Telefonia":
+                    contratos = await context.Contratos
+                        .Where(c => estadosValidos.Contains(c.Estado) && 
+                               (c.TarifaTelId == tarifaId || 
+                                (!string.IsNullOrEmpty(nombreTarifa) && c.TarifaTel == nombreTarifa)))
+                        .ToListAsync();
+                    break;
+                    
+                case "Alarma":
+                    contratos = await context.Contratos
+                        .Where(c => estadosValidos.Contains(c.Estado) && 
+                               (c.KitAlarmaId == tarifaId || 
+                                (!string.IsNullOrEmpty(nombreTarifa) && c.KitAlarma == nombreTarifa)))
+                        .ToListAsync();
+                    break;
+                    
+                default:
+                    return 0;
+            }
+
+            int contratosActualizados = 0;
+
+            foreach (var contrato in contratos)
+            {
+                decimal comisionFinal = nuevaComision;
+
+                // Intentar obtener el usuario: primero por ID, luego por nombre del comercial
+                Usuario? usuario = null;
+                
+                if (contrato.UsuarioComercializadoraId.HasValue)
+                {
+                    usuario = await usuarioService.ObtenerPorIdAsync(contrato.UsuarioComercializadoraId.Value);
+                }
+                else if (!string.IsNullOrEmpty(contrato.Comercial))
+                {
+                    // Buscar usuario por nombre de usuario (username)
+                    usuario = await context.Usuarios
+                        .FirstOrDefaultAsync(u => u.NombreUsuario == contrato.Comercial);
+                }
+                
+                // Obtener configuración de comisión específica para usuario + proveedor
+                if (usuario != null)
+                {
+                    // Obtener el nombre del proveedor según el tipo de tarifa
+                    string? nombreProveedor = tipoTarifa switch
+                    {
+                        "Energia" => contrato.EnComercializadora,
+                        "Telefonia" => contrato.OperadoraTel,
+                        "Alarma" => contrato.EmpresaAlarma,
+                        _ => null
+                    };
+
+                    // Buscar el ID del proveedor por nombre
+                    int? proveedorId = null;
+                    if (!string.IsNullOrEmpty(nombreProveedor))
+                    {
+                        proveedorId = tipoTarifa switch
+                        {
+                            "Energia" => (await context.Comercializadoras
+                                .FirstOrDefaultAsync(c => c.Nombre == nombreProveedor))?.Id,
+                            "Telefonia" => (await context.Operadoras
+                                .FirstOrDefaultAsync(o => o.Nombre == nombreProveedor))?.Id,
+                            "Alarma" => (await context.EmpresasAlarmas
+                                .FirstOrDefaultAsync(e => e.Nombre == nombreProveedor))?.Id,
+                            _ => null
+                        };
+                    }
+
+                    // Obtener la configuración de comisión para este usuario + proveedor
+                    if (proveedorId.HasValue)
+                    {
+                        string tipoProveedor = tipoTarifa switch
+                        {
+                            "Energia" => "Comercializadora",
+                            "Telefonia" => "Operadora",
+                            "Alarma" => "EmpresaAlarma",
+                            _ => ""
+                        };
+
+                        var configuracion = await comisionService.ObtenerConfiguracionAsync(
+                            usuario.Id, 
+                            tipoProveedor, 
+                            proveedorId.Value);
+
+                        if (configuracion != null && configuracion.PorcentajeColaborador > 0)
+                        {
+                            comisionFinal = nuevaComision * (configuracion.PorcentajeColaborador / 100);
+                            Console.WriteLine($"[ContratoService] Contrato {contrato.Id}: Aplicando {configuracion.PorcentajeColaborador}% de {nombreProveedor} = {comisionFinal}€");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[ContratoService] Contrato {contrato.Id}: No se encontró configuración de comisión para {usuario.NombreUsuario} + {nombreProveedor}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ContratoService] Contrato {contrato.Id}: No se pudo determinar el proveedor ID (nombre: {nombreProveedor})");
+                    }
+                }
+
+                contrato.Comision = comisionFinal;
+                contrato.FechaModificacion = DateTime.Now;
+                contratosActualizados++;
+            }
+
+            if (contratosActualizados > 0)
+            {
+                await context.SaveChangesAsync();
+                Console.WriteLine($"[ContratoService] Recalculadas comisiones de {contratosActualizados} contratos de tipo {tipoTarifa} con tarifa ID {tarifaId} (nombre: {nombreTarifa})");
+            }
+
+            return contratosActualizados;
+        }
     }
 }

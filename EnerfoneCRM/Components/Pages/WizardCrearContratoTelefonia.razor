@@ -8,6 +8,8 @@
 @inject FicheroClienteService FicheroClienteService
 @inject FicheroContratoService FicheroContratoService
 @inject AuthService AuthService
+@inject ComisionService ComisionService
+@inject UsuarioService UsuarioService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -1422,19 +1424,21 @@
         }
     }
 
-    private void OnTarifaTelefoniaChanged(ChangeEventArgs e)
+    private async void OnTarifaTelefoniaChanged(ChangeEventArgs e)
     {
         if (nuevoContrato == null || e.Value == null) return;
         
         var descripcionTarifa = e.Value.ToString();
         nuevoContrato.TarifaTel = descripcionTarifa;
         
-        // Buscar la tarifa seleccionada y asignar comisión e ID
+        // Buscar la tarifa seleccionada y asignar ID
         var tarifaSeleccionada = tarifasDisponibles.FirstOrDefault(t => ObtenerDescripcionTarifa(t) == descripcionTarifa);
         if (tarifaSeleccionada != null)
         {
             nuevoContrato.TarifaTelId = tarifaSeleccionada.Id;
-            nuevoContrato.Comision = tarifaSeleccionada.ComisionNew;
+            
+            // Calcular comisión aplicando porcentaje del usuario
+            await CalcularComisionConPorcentajeUsuario(tarifaSeleccionada.ComisionNew, "operadora");
         }
         else
         {
@@ -1443,6 +1447,83 @@
         }
         
         StateHasChanged();
+    }
+
+    private async Task CalcularComisionConPorcentajeUsuario(decimal comisionBase, string tipoProveedor)
+    {
+        if (nuevoContrato == null || AuthService.UsuarioActual == null) 
+        {
+            if (nuevoContrato != null) nuevoContrato.Comision = comisionBase;
+            return;
+        }
+
+        // Obtener el ID del proveedor según el tipo
+        int? proveedorId = null;
+        if (tipoProveedor == "operadora" && !string.IsNullOrWhiteSpace(nuevoContrato.OperadoraTel))
+        {
+            var operadora = await OperadoraService.ObtenerPorNombreAsync(nuevoContrato.OperadoraTel);
+            proveedorId = operadora?.Id;
+        }
+
+        if (!proveedorId.HasValue)
+        {
+            nuevoContrato.Comision = comisionBase;
+            return;
+        }
+
+        // Buscar configuración de comisión para este usuario y proveedor
+        var configuracion = await ComisionService.ObtenerConfiguracionAsync(
+            AuthService.UsuarioActual.Id,
+            tipoProveedor,
+            proveedorId.Value
+        );
+
+        if (configuracion != null)
+        {
+            // Calcular porcentaje según el rol del usuario que crea el contrato
+            decimal porcentajeTotal = 0;
+            var rolUsuario = AuthService.UsuarioActual.Rol;
+
+            if (rolUsuario == "Administrador")
+            {
+                // Administrador recibe 100%
+                porcentajeTotal = 100m;
+            }
+            else if (rolUsuario == "Director Comercial")
+            {
+                // Director recibe: colaborador + gestor + jefe + director
+                porcentajeTotal = configuracion.PorcentajeColaborador +
+                                (configuracion.PorcentajeGestor ?? 0) +
+                                (configuracion.PorcentajeJefeVentas ?? 0) +
+                                (configuracion.PorcentajeDirectorComercial ?? 0);
+            }
+            else if (rolUsuario == "Jefe Comercial")
+            {
+                // Jefe recibe: colaborador + gestor + jefe
+                porcentajeTotal = configuracion.PorcentajeColaborador +
+                                (configuracion.PorcentajeGestor ?? 0) +
+                                (configuracion.PorcentajeJefeVentas ?? 0);
+            }
+            else if (rolUsuario == "Gestor")
+            {
+                // Gestor recibe: colaborador + gestor
+                porcentajeTotal = configuracion.PorcentajeColaborador +
+                                (configuracion.PorcentajeGestor ?? 0);
+            }
+            else
+            {
+                // Colaborador recibe solo su porcentaje
+                porcentajeTotal = configuracion.PorcentajeColaborador;
+            }
+
+            // Aplicar porcentaje: comisionFinal = comisionBase * (porcentaje / 100)
+            nuevoContrato.Comision = Math.Round(comisionBase * (porcentajeTotal / 100), 2);
+        }
+        else
+        {
+            // Si no hay configuración, usar comisión completa
+            nuevoContrato.Comision = comisionBase;
+        }
     }
 
     private string ObtenerCodigoIcc(int index)

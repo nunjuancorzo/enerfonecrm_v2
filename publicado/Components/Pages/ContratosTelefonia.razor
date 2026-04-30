@@ -612,12 +612,21 @@ else
                                     </div>
                                 </div>
 
-                                @if (clienteSeleccionadoInfo != null && clienteSeleccionadoInfo.TipoCliente == "Pyme")
+                                @* CNAE, Representante Legal y DNI (para Pyme y Autonomo) *@
+                                @if (clienteSeleccionadoInfo != null && (clienteSeleccionadoInfo.TipoCliente == "Pyme" || clienteSeleccionadoInfo.TipoCliente == "Autonomo"))
                                 {
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label class="form-label fw-bold">Representante</label>
+                                                <label class="form-label fw-bold">CNAE <small class="text-muted">(Código de Actividad Económica)</small></label>
+                                                <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Cnae" disabled />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">Representante Legal</label>
                                                 <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Representante" disabled />
                                             </div>
                                         </div>
@@ -833,7 +842,15 @@ else
                                                 <div class="col-md-4">
                                                     <div class="mb-0">
                                                         <label class="form-label fw-bold">Comisión (€)</label>
-                                                        <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(!PuedeEditar())" />
+                                                        <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(AuthService.UsuarioActual?.Rol != "Administrador" && AuthService.UsuarioActual?.Rol != "Backoffice")" />
+                                                        @if (AuthService.UsuarioActual?.Rol == "Administrador" || AuthService.UsuarioActual?.Rol == "Backoffice")
+                                                        {
+                                                            <small class="text-muted">Editable manualmente por tu rol</small>
+                                                        }
+                                                        else
+                                                        {
+                                                            <small class="text-muted">Se calcula automáticamente desde la tarifa</small>
+                                                        }
                                                     </div>
                                                 </div>
                                             </div>
@@ -2982,7 +2999,7 @@ else
         return tarifa.Tipo ?? "Sin descripción";
     }
 
-    private void ActualizarDatosTarifa()
+    private async Task ActualizarDatosTarifa()
     {
         if (contratoSeleccionado == null || tarifasDisponibles == null || !tarifasDisponibles.Any())
             return;
@@ -2995,8 +3012,33 @@ else
 
         if (tarifaSeleccionada != null)
         {
-            // Actualizar comisión
-            contratoSeleccionado.Comision = tarifaSeleccionada.ComisionNew;
+            // Actualizar comisión aplicando el porcentaje del usuario
+            await CalcularComisionConPorcentajeUsuario(tarifaSeleccionada.ComisionNew);
+        }
+    }
+
+    private async Task CalcularComisionConPorcentajeUsuario(decimal comisionTarifa)
+    {
+        if (contratoSeleccionado == null) return;
+
+        // Si no tiene usuario asignado, usar la comisión completa de la tarifa
+        if (!contratoSeleccionado.UsuarioComercializadoraId.HasValue)
+        {
+            contratoSeleccionado.Comision = comisionTarifa;
+            return;
+        }
+
+        // Obtener el porcentaje de comisión del usuario asignado
+        var usuario = await UsuarioService.ObtenerPorIdAsync(contratoSeleccionado.UsuarioComercializadoraId.Value);
+        if (usuario != null && usuario.Comision > 0)
+        {
+            // Calcular: comisionFinal = comisionTarifa * (porcentajeUsuario / 100)
+            contratoSeleccionado.Comision = comisionTarifa * (usuario.Comision / 100);
+        }
+        else
+        {
+            // Si el usuario no tiene porcentaje configurado, usar la comisión completa
+            contratoSeleccionado.Comision = comisionTarifa;
         }
     }
 

@@ -15,6 +15,7 @@
 @inject FicheroClienteService FicheroClienteService
 @inject FicheroContratoService FicheroContratoService
 @inject ComercializadoraService ComercializadoraService
+@inject ComisionService ComisionService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -80,6 +81,15 @@ else
                                     <input type="text" class="form-control form-control-sm" placeholder="Buscar por DNI/CIF..." @bind="filtroDni" @bind:event="oninput" @onkeyup="AplicarFiltros" />
                                 </div>
                                 <div class="col-md-4 text-end">
+                                    <div class="btn-group me-2">
+                                        <button type="button" class="btn btn-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!clientesFiltrados.Any())">
+                                            <i class="bi bi-download me-2"></i>Exportar
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item" @onclick="ExportarClientesACsv" style="cursor: pointer;"><i class="bi bi-filetype-csv me-2"></i>Exportar a CSV</a></li>
+                                            <li><a class="dropdown-item" @onclick="ExportarClientesAExcel" style="cursor: pointer;"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel (XLSX)</a></li>
+                                        </ul>
+                                    </div>
                                     <button class="btn btn-primary btn-sm" @onclick="MostrarModalCrear">
                                         <i class="bi bi-plus-circle me-2"></i>Nuevo Cliente
                                     </button>
@@ -311,6 +321,7 @@ else
                                         <InputSelect @bind-Value="clienteSeleccionado.TipoCliente" class="form-select">
                                             <option value="Particular">Particular</option>
                                             <option value="Pyme">Pyme</option>
+                                            <option value="Autonomo">Autónomo</option>
                                         </InputSelect>
                                     </div>
                                     <div class="col-md-6">
@@ -353,7 +364,7 @@ else
                                             <option value="REFERIDOS">REFERIDOS</option>
                                         </select>
                                     </div>
-                                    @if (clienteSeleccionado.TipoCliente == "Pyme")
+                                    @if (clienteSeleccionado.TipoCliente == "Pyme" || clienteSeleccionado.TipoCliente == "Autonomo")
                                     {
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Representante</label>
@@ -736,6 +747,27 @@ else
                                             </div>
                                         </div>
 
+                                        @* CNAE, Representante Legal y DNI (para Pyme y Autonomo) *@
+                                        @if (clienteParaContrato != null && (clienteParaContrato.TipoCliente == "Pyme" || clienteParaContrato.TipoCliente == "Autonomo"))
+                                        {
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">CNAE <small class="text-muted">(Código de Actividad Económica)</small></label>
+                                                    <input type="text" class="form-control" value="@clienteParaContrato?.Cnae" readonly />
+                                                </div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">Representante Legal</label>
+                                                    <input type="text" class="form-control" value="@clienteParaContrato?.Representante" readonly />
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">DNI Representante</label>
+                                                    <input type="text" class="form-control" value="@clienteParaContrato?.Dni" readonly />
+                                                </div>
+                                            </div>
+                                        }
+
                                         @* Titular IBAN Diferente *@
                                         <div class="row mb-2">
                                             <div class="col-12">
@@ -934,7 +966,7 @@ else
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label fw-bold">Tarifa</label>
-                                                <select @bind="nuevoContrato.EnTarifa" class="form-select" disabled="@string.IsNullOrEmpty(nuevoContrato.EnComercializadora)">
+                                                <select @bind="nuevoContrato.EnTarifa" @bind:after="ActualizarDatosTarifaEnergia" class="form-select" disabled="@string.IsNullOrEmpty(nuevoContrato.EnComercializadora)">
                                                     <option value="">Seleccionar tarifa...</option>
                                                     @if (tarifasEnergiaDisponibles != null)
                                                     {
@@ -1799,7 +1831,7 @@ else
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Kit</label>
-                                        <InputSelect class="form-select" @bind-Value="nuevoContrato.KitAlarma">
+                                        <InputSelect class="form-select" @bind-Value="nuevoContrato.KitAlarma" @bind-Value:after="ActualizarDatosTarifaAlarmas">
                                             <option value="">-- Seleccionar Kit --</option>
                                             @foreach (var tarifa in tarifasAlarmaKit)
                                             {
@@ -2437,9 +2469,117 @@ else
         return tarifa.Tipo ?? "";
     }
 
-    private void ActualizarDatosTarifaTelefonia()
+    // Método genérico para calcular comisión con porcentaje del usuario según su rol jerárquico
+    private async Task<decimal> CalcularComisionConPorcentajeUsuario(decimal comisionBase, string tipoProveedor, string nombreProveedor)
+    {
+        try
+        {
+            if (AuthService.UsuarioActual == null)
+                return comisionBase;
+
+            // Obtener el ID del proveedor
+            int? proveedorId = null;
+            if (tipoProveedor.Equals("comercializadora", StringComparison.OrdinalIgnoreCase))
+            {
+                var proveedor = await ComercializadoraService.ObtenerPorNombreAsync(nombreProveedor);
+                proveedorId = proveedor?.Id;
+            }
+            else if (tipoProveedor.Equals("operadora", StringComparison.OrdinalIgnoreCase))
+            {
+                var proveedor = await OperadoraService.ObtenerPorNombreAsync(nombreProveedor);
+                proveedorId = proveedor?.Id;
+            }
+            else if (tipoProveedor.Equals("alarma", StringComparison.OrdinalIgnoreCase))
+            {
+                var proveedor = await EmpresaAlarmaService.ObtenerPorNombreAsync(nombreProveedor);
+                proveedorId = proveedor?.Id;
+            }
+
+            // Obtener configuración de comisión del usuario
+            var usuarioId = AuthService.UsuarioActual.Id;
+            var configuracion = await ComisionService.ObtenerConfiguracionAsync(usuarioId, tipoProveedor, proveedorId ?? 0);
+
+            if (configuracion == null)
+            {
+                // Sin configuración, usar comisión base completa
+                return comisionBase;
+            }
+
+            // Calcular porcentaje según el rol del usuario (acumulativo jerárquico)
+            decimal porcentajeTotal = 0;
+            var rolUsuario = AuthService.UsuarioActual.Rol;
+
+            if (rolUsuario == "Administrador")
+            {
+                // Administrador recibe 100%
+                porcentajeTotal = 100m;
+            }
+            else if (rolUsuario == "Director Comercial")
+            {
+                // Director recibe: colaborador + gestor + jefe + director
+                porcentajeTotal = configuracion.PorcentajeColaborador +
+                                (configuracion.PorcentajeGestor ?? 0) +
+                                (configuracion.PorcentajeJefeVentas ?? 0) +
+                                (configuracion.PorcentajeDirectorComercial ?? 0);
+            }
+            else if (rolUsuario == "Jefe Comercial")
+            {
+                // Jefe recibe: colaborador + gestor + jefe
+                porcentajeTotal = configuracion.PorcentajeColaborador +
+                                (configuracion.PorcentajeGestor ?? 0) +
+                                (configuracion.PorcentajeJefeVentas ?? 0);
+            }
+            else if (rolUsuario == "Gestor")
+            {
+                // Gestor recibe: colaborador + gestor
+                porcentajeTotal = configuracion.PorcentajeColaborador +
+                                (configuracion.PorcentajeGestor ?? 0);
+            }
+            else
+            {
+                // Colaborador recibe solo su porcentaje
+                porcentajeTotal = configuracion.PorcentajeColaborador;
+            }
+
+            // Calcular comisión final
+            return Math.Round(comisionBase * (porcentajeTotal / 100), 2);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Clientes] Error calculando comisión: {ex.Message}");
+            return comisionBase; // En caso de error, usar comisión base
+        }
+    }
+
+    private async Task ActualizarDatosTarifaEnergia()
+    {
+        if (nuevoContrato == null || tarifasEnergiaDisponibles == null || !tarifasEnergiaDisponibles.Any())
+            return;
+
+        if (string.IsNullOrEmpty(nuevoContrato.EnTarifa))
+            return;
+
+        // Buscar la tarifa seleccionada
+        var tarifaSeleccionada = tarifasEnergiaDisponibles.FirstOrDefault(t => t.Nombre == nuevoContrato.EnTarifa);
+
+        if (tarifaSeleccionada != null && !string.IsNullOrEmpty(nuevoContrato.EnComercializadora))
+        {
+            // Calcular comisión con porcentaje del usuario
+            var comisionBase = tarifaSeleccionada.Comision;
+            nuevoContrato.Comision = await CalcularComisionConPorcentajeUsuario(
+                comisionBase,
+                "comercializadora",
+                nuevoContrato.EnComercializadora
+            );
+        }
+    }
+
+    private async Task ActualizarDatosTarifaTelefonia()
     {
         if (nuevoContrato == null || tarifasTelefoniaDisponibles == null || !tarifasTelefoniaDisponibles.Any())
+            return;
+
+        if (string.IsNullOrEmpty(nuevoContrato.TarifaTel))
             return;
 
         // Buscar la tarifa seleccionada
@@ -2448,10 +2588,35 @@ else
             ObtenerDescripcionTarifaTelefonia(t) == descripcionSeleccionada
         );
 
-        if (tarifaSeleccionada != null)
+        if (tarifaSeleccionada != null && !string.IsNullOrEmpty(nuevoContrato.OperadoraTel))
         {
-            // Actualizar comisión
-            nuevoContrato.Comision = tarifaSeleccionada.ComisionNew;
+            // Calcular comisión con porcentaje del usuario
+            var comisionBase = tarifaSeleccionada.ComisionNew;
+            nuevoContrato.Comision = await CalcularComisionConPorcentajeUsuario(
+                comisionBase,
+                "operadora",
+                nuevoContrato.OperadoraTel
+            );
+        }
+    }
+
+    private async Task ActualizarDatosTarifaAlarmas()
+    {
+        if (nuevoContrato == null || string.IsNullOrEmpty(nuevoContrato.KitAlarma))
+            return;
+
+        // Buscar la tarifa seleccionada en los kits
+        var tarifaSeleccionada = tarifasAlarmaKit.FirstOrDefault(t => t.NombreTarifa == nuevoContrato.KitAlarma);
+
+        if (tarifaSeleccionada != null && !string.IsNullOrEmpty(nuevoContrato.EmpresaAlarma))
+        {
+            // Calcular comisión con porcentaje del usuario
+            var comisionBase = tarifaSeleccionada.Comision ?? 0;
+            nuevoContrato.Comision = await CalcularComisionConPorcentajeUsuario(
+                comisionBase,
+                "alarma",
+                nuevoContrato.EmpresaAlarma
+            );
         }
     }
 
@@ -2903,6 +3068,7 @@ else
             CodigoPostal = cliente.CodigoPostal,
             Iban = cliente.Iban,
             Representante = cliente.Representante,
+            Cnae = cliente.Cnae,
             Comercial = cliente.Comercial,
             Observaciones = cliente.Observaciones,
             FechaAlta = cliente.FechaAlta,
@@ -4283,5 +4449,191 @@ else
         nuevoContrato.ProvinciaInstalacion = string.Empty;
         
         StateHasChanged();
+    }
+    
+    private async Task ExportarClientesACsv()
+    {
+        try
+        {
+            // Obtener todos los clientes filtrados (sin paginación)
+            var clientesParaExportar = clientes.Where(c =>
+                (string.IsNullOrEmpty(filtroNombre) || (c.Nombre != null && c.Nombre.Contains(filtroNombre, StringComparison.OrdinalIgnoreCase))) &&
+                (string.IsNullOrEmpty(filtroDni) || (c.DniCif != null && c.DniCif.Contains(filtroDni, StringComparison.OrdinalIgnoreCase)))
+            ).ToList();
+
+            if (!clientesParaExportar.Any())
+            {
+                mensajeError = "No hay clientes para exportar";
+                return;
+            }
+
+            // Crear el contenido CSV
+            var csv = new System.Text.StringBuilder();
+            
+            // Encabezados
+            csv.AppendLine("ID,Tipo Cliente,Nombre,DNI/CIF,CNAE,DNI Representante,Email,Teléfono,Tipo Vía,Dirección,Número,Escalera,Piso,Puerta,Aclarador,Población,Provincia,Código Postal,IBAN,Representante,Comercial,Observaciones,Fecha Alta,Procedencia,Usuario");
+
+            // Datos
+            foreach (var cliente in clientesParaExportar)
+            {
+                csv.AppendLine($"{cliente.Id}," +
+                    $"\"{EscaparCsv(cliente.TipoCliente)}\"," +
+                    $"\"{EscaparCsv(cliente.Nombre)}\"," +
+                    $"\"{EscaparCsv(cliente.DniCif)}\"," +
+                    $"\"{EscaparCsv(cliente.Cnae)}\"," +
+                    $"\"{EscaparCsv(cliente.Dni)}\"," +
+                    $"\"{EscaparCsv(cliente.Email)}\"," +
+                    $"\"{EscaparCsv(cliente.Telefono)}\"," +
+                    $"\"{EscaparCsv(cliente.TipoVia)}\"," +
+                    $"\"{EscaparCsv(cliente.Direccion)}\"," +
+                    $"\"{EscaparCsv(cliente.Numero)}\"," +
+                    $"\"{EscaparCsv(cliente.Escalera)}\"," +
+                    $"\"{EscaparCsv(cliente.Piso)}\"," +
+                    $"\"{EscaparCsv(cliente.Puerta)}\"," +
+                    $"\"{EscaparCsv(cliente.Aclarador)}\"," +
+                    $"\"{EscaparCsv(cliente.Poblacion)}\"," +
+                    $"\"{EscaparCsv(cliente.Provincia)}\"," +
+                    $"\"{EscaparCsv(cliente.CodigoPostal)}\"," +
+                    $"\"{EscaparCsv(cliente.Iban)}\"," +
+                    $"\"{EscaparCsv(cliente.Representante)}\"," +
+                    $"\"{EscaparCsv(cliente.Comercial)}\"," +
+                    $"\"{EscaparCsv(cliente.Observaciones)}\"," +
+                    $"\"{(cliente.FechaAlta?.ToString("dd/MM/yyyy") ?? "")}\"," +
+                    $"\"{EscaparCsv(cliente.Procedencia)}\"," +
+                    $"\"{EscaparCsv(cliente.NombreUsuario)}\"");
+            }
+
+            // Descargar el archivo
+            var nombreArchivo = $"clientes_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+
+            await JSRuntime.InvokeVoidAsync("descargarArchivo", nombreArchivo, base64);
+
+            mensajeExito = $"Se exportaron {clientesParaExportar.Count} clientes correctamente";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al exportar clientes: {ex.Message}";
+        }
+    }
+
+    private string EscaparCsv(string? valor)
+    {
+        if (string.IsNullOrEmpty(valor))
+            return "";
+        
+        // Escapar comillas dobles duplicándolas
+        return valor.Replace("\"", "\"\"");
+    }
+
+    private async Task ExportarClientesAExcel()
+    {
+        try
+        {
+            // Obtener todos los clientes filtrados (sin paginación)
+            var clientesParaExportar = clientes.Where(c =>
+                (string.IsNullOrEmpty(filtroNombre) || (c.Nombre != null && c.Nombre.Contains(filtroNombre, StringComparison.OrdinalIgnoreCase))) &&
+                (string.IsNullOrEmpty(filtroDni) || (c.DniCif != null && c.DniCif.Contains(filtroDni, StringComparison.OrdinalIgnoreCase)))
+            ).ToList();
+
+            if (!clientesParaExportar.Any())
+            {
+                mensajeError = "No hay clientes para exportar";
+                return;
+            }
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Clientes");
+
+            // Encabezados
+            worksheet.Cell(1, 1).Value = "ID";
+            worksheet.Cell(1, 2).Value = "Tipo Cliente";
+            worksheet.Cell(1, 3).Value = "Nombre";
+            worksheet.Cell(1, 4).Value = "DNI/CIF";
+            worksheet.Cell(1, 5).Value = "CNAE";
+            worksheet.Cell(1, 6).Value = "DNI Representante";
+            worksheet.Cell(1, 7).Value = "Email";
+            worksheet.Cell(1, 8).Value = "Teléfono";
+            worksheet.Cell(1, 9).Value = "Tipo Vía";
+            worksheet.Cell(1, 10).Value = "Dirección";
+            worksheet.Cell(1, 11).Value = "Número";
+            worksheet.Cell(1, 12).Value = "Escalera";
+            worksheet.Cell(1, 13).Value = "Piso";
+            worksheet.Cell(1, 14).Value = "Puerta";
+            worksheet.Cell(1, 15).Value = "Aclarador";
+            worksheet.Cell(1, 16).Value = "Población";
+            worksheet.Cell(1, 17).Value = "Provincia";
+            worksheet.Cell(1, 18).Value = "Código Postal";
+            worksheet.Cell(1, 19).Value = "IBAN";
+            worksheet.Cell(1, 20).Value = "Representante";
+            worksheet.Cell(1, 21).Value = "Comercial";
+            worksheet.Cell(1, 22).Value = "Observaciones";
+            worksheet.Cell(1, 23).Value = "Fecha Alta";
+            worksheet.Cell(1, 24).Value = "Procedencia";
+            worksheet.Cell(1, 25).Value = "Usuario";
+
+            // Estilo de encabezados
+            var headerRange = worksheet.Range(1, 1, 1, 25);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
+            headerRange.Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Center;
+
+            // Datos
+            int row = 2;
+            foreach (var cliente in clientesParaExportar)
+            {
+                worksheet.Cell(row, 1).Value = cliente.Id;
+                worksheet.Cell(row, 2).Value = cliente.TipoCliente ?? "";
+                worksheet.Cell(row, 3).Value = cliente.Nombre ?? "";
+                worksheet.Cell(row, 4).Value = cliente.DniCif ?? "";
+                worksheet.Cell(row, 5).Value = cliente.Cnae ?? "";
+                worksheet.Cell(row, 6).Value = cliente.Dni ?? "";
+                worksheet.Cell(row, 7).Value = cliente.Email ?? "";
+                worksheet.Cell(row, 8).Value = cliente.Telefono ?? "";
+                worksheet.Cell(row, 9).Value = cliente.TipoVia ?? "";
+                worksheet.Cell(row, 10).Value = cliente.Direccion ?? "";
+                worksheet.Cell(row, 11).Value = cliente.Numero ?? "";
+                worksheet.Cell(row, 12).Value = cliente.Escalera ?? "";
+                worksheet.Cell(row, 13).Value = cliente.Piso ?? "";
+                worksheet.Cell(row, 14).Value = cliente.Puerta ?? "";
+                worksheet.Cell(row, 15).Value = cliente.Aclarador ?? "";
+                worksheet.Cell(row, 16).Value = cliente.Poblacion ?? "";
+                worksheet.Cell(row, 17).Value = cliente.Provincia ?? "";
+                worksheet.Cell(row, 18).Value = cliente.CodigoPostal ?? "";
+                worksheet.Cell(row, 19).Value = cliente.Iban ?? "";
+                worksheet.Cell(row, 20).Value = cliente.Representante ?? "";
+                worksheet.Cell(row, 21).Value = cliente.Comercial ?? "";
+                worksheet.Cell(row, 22).Value = cliente.Observaciones ?? "";
+                worksheet.Cell(row, 23).Value = cliente.FechaAlta?.ToString("dd/MM/yyyy") ?? "";
+                worksheet.Cell(row, 24).Value = cliente.Procedencia ?? "";
+                worksheet.Cell(row, 25).Value = cliente.NombreUsuario ?? "";
+                row++;
+            }
+
+            // Ajustar ancho de columnas
+            worksheet.Columns().AdjustToContents();
+
+            // Guardar en memoria y descargar
+            using var stream = new System.IO.MemoryStream();
+            workbook.SaveAs(stream);
+            var bytes = stream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            var fileName = $"clientes_export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+            // Descargar usando JavaScript
+            await JSRuntime.InvokeVoidAsync("eval", $@"
+                const link = document.createElement('a');
+                link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{base64}';
+                link.download = '{fileName}';
+                link.click();
+            ");
+
+            mensajeExito = $"Se exportaron {clientesParaExportar.Count} clientes a Excel (XLSX)";
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al exportar clientes: {ex.Message}";
+        }
     }
 }

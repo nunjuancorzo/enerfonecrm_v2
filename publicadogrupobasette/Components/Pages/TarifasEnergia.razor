@@ -4,6 +4,9 @@
 @rendermode InteractiveServer
 @inject TarifaEnergiaService TarifaService
 @inject ComercializadoraService ComercializadoraService
+@inject ContratoService ContratoService
+@inject UsuarioService UsuarioService
+@inject ComisionService ComisionService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
@@ -355,7 +358,7 @@ else
                                                 <td><small>@(tarifa.PeajeGas ?? "-")</small></td>
                                                 <td><small>@(tarifa.Potencia1 ?? "-")</small></td>
                                                 <td><small>@(tarifa.Energia1 ?? "-")</small></td>
-                                                <td><span class="badge bg-success">@tarifa.Comision.ToString("N2")%</span></td>
+                                                <td><span class="badge bg-success">@tarifa.Comision.ToString("N2")€</span></td>
                                                 <td><small>@(tarifa.Permanencia ?? "-")</small></td>
                                                 <td>
                                                     @if (!string.IsNullOrEmpty(tarifa.BateriaVirtual) && tarifa.BateriaVirtual == "SI")

@@ -144,13 +144,13 @@ else
                                             <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                         }
                                     </th>
-                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("Comision")'>
+                                    @* <th style="cursor: pointer;" @onclick='() => OrdenarPor("Comision")'>
                                         Comisión
                                         @if (columnaOrden == "Comision")
                                         {
                                             <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                         }
-                                    </th>
+                                    </th> *@
                                     <th style="cursor: pointer;" @onclick='() => OrdenarPor("Activo")'>
                                         Activo
                                         @if (columnaOrden == "Activo")
@@ -178,7 +178,7 @@ else
                                         <td>
                                             <span class="badge bg-@ObtenerColorRol(usuario.Rol)">@usuario.Rol</span>
                                         </td>
-                                        <td>@usuario.Comision.ToString("F2")%</td>
+                                        @* <td>@usuario.Comision.ToString("F2")%</td> *@
                                         <td>
                                             @if (usuario.Activo)
                                             {

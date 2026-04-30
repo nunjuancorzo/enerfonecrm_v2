@@ -704,6 +704,27 @@ else
                                                     <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Email" readonly />
                                                 </div>
                                             </div>
+
+                                            @* CNAE, Representante Legal y DNI (para Pyme y Autonomo) *@
+                                            @if (clienteSeleccionadoInfo.TipoCliente == "Pyme" || clienteSeleccionadoInfo.TipoCliente == "Autonomo")
+                                            {
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">CNAE <small class="text-muted">(Código de Actividad Económica)</small></label>
+                                                        <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Cnae" readonly />
+                                                    </div>
+                                                </div>
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">Representante Legal</label>
+                                                        <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Representante" readonly />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold">DNI Representante</label>
+                                                        <input type="text" class="form-control" value="@clienteSeleccionadoInfo.Dni" readonly />
+                                                    </div>
+                                                </div>
+                                            }
                                         }
 
                                         @* Titular IBAN Diferente *@
@@ -914,7 +935,15 @@ else
                                                 @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
                                                 {
                                                     <label class="form-label fw-bold">Comisión (€)</label>
-                                                    <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(!PuedeEditarCampo())" />
+                                                    <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(AuthService.UsuarioActual?.Rol != "Administrador" && AuthService.UsuarioActual?.Rol != "Backoffice")" />
+                                                    @if (AuthService.UsuarioActual?.Rol == "Administrador" || AuthService.UsuarioActual?.Rol == "Backoffice")
+                                                    {
+                                                        <small class="text-muted">Editable manualmente por tu rol</small>
+                                                    }
+                                                    else
+                                                    {
+                                                        <small class="text-muted">Se calcula automáticamente desde la tarifa</small>
+                                                    }
                                                 }
                                             </div>
                                         </div>
@@ -2109,22 +2138,53 @@ else
         }
     }
 
-    private void OnTarifaChanged(ChangeEventArgs e)
+    private async Task OnTarifaChanged(ChangeEventArgs e)
     {
         if (contratoSeleccionado == null) return;
 
         var nombreTarifa = e.Value?.ToString();
         contratoSeleccionado.EnTarifa = nombreTarifa;
 
-        // Asignar el ID de la tarifa si se encuentra
+        // Asignar el ID de la tarifa y la comisión si se encuentra
         if (!string.IsNullOrWhiteSpace(nombreTarifa))
         {
             var tarifa = tarifasDisponibles.FirstOrDefault(t => t.Nombre == nombreTarifa);
             contratoSeleccionado.EnTarifaId = tarifa?.Id;
+            // Actualizar comisión automáticamente desde la tarifa aplicando el porcentaje del usuario
+            if (tarifa != null)
+            {
+                await CalcularComisionConPorcentajeUsuario(tarifa.Comision);
+            }
         }
         else
         {
             contratoSeleccionado.EnTarifaId = null;
+            contratoSeleccionado.Comision = null;
+        }
+    }
+
+    private async Task CalcularComisionConPorcentajeUsuario(decimal comisionTarifa)
+    {
+        if (contratoSeleccionado == null) return;
+
+        // Si no tiene usuario asignado, usar la comisión completa de la tarifa
+        if (!contratoSeleccionado.UsuarioComercializadoraId.HasValue)
+        {
+            contratoSeleccionado.Comision = comisionTarifa;
+            return;
+        }
+
+        // Obtener el porcentaje de comisión del usuario asignado
+        var usuario = await UsuarioService.ObtenerPorIdAsync(contratoSeleccionado.UsuarioComercializadoraId.Value);
+        if (usuario != null && usuario.Comision > 0)
+        {
+            // Calcular: comisionFinal = comisionTarifa * (porcentajeUsuario / 100)
+            contratoSeleccionado.Comision = comisionTarifa * (usuario.Comision / 100);
+        }
+        else
+        {
+            // Si el usuario no tiene porcentaje configurado, usar la comisión completa
+            contratoSeleccionado.Comision = comisionTarifa;
         }
     }
 

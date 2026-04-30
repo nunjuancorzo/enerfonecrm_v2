@@ -4,6 +4,9 @@
 @rendermode InteractiveServer
 @inject TarifaTelefoniaService TarifaService
 @inject OperadoraService OperadoraService
+@inject ContratoService ContratoService
+@inject UsuarioService UsuarioService
+@inject ComisionService ComisionService
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
@@ -261,7 +264,7 @@ else
                                                 <td>@tarifa.GbMovil</td>
                                                 <td>@tarifa.Tv1</td>
                                                 <td><strong>@tarifa.PrecioNew.ToString("N2")€</strong></td>
-                                                <td><span class="badge bg-success">@tarifa.ComisionNew.ToString("N2")%</span></td>
+                                                <td><span class="badge bg-success">@tarifa.ComisionNew.ToString("N2")€</span></td>
                                                 <td>
                                                     @if (tarifa.Activa)
                                                     {

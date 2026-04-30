@@ -104,7 +104,265 @@ namespace EnerfoneCRM.Services
             }
 
             await context.SaveChangesAsync();
+
+            // Recalcular comisiones de contratos activos/facturables del usuario
+            await RecalcularComisionesContratosActivosAsync(configuracion.UsuarioId, configuracion);
+
             return configuracion;
+        }
+
+        /// <summary>
+        /// Recalcula las comisiones de todos los contratos Act/Facturable de un usuario
+        /// cuando se modifica su configuración de comisiones
+        /// </summary>
+        public async Task RecalcularComisionesContratosActivosAsync(int usuarioId, ConfiguracionComision configuracion)
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+
+            Console.WriteLine($"[ComisionService] ===== RECALCULANDO COMISIONES CONTRATOS ACTIVOS =====");
+            Console.WriteLine($"[ComisionService] Usuario ID: {usuarioId}");
+            Console.WriteLine($"[ComisionService] Nueva configuración - Colaborador: {configuracion.PorcentajeColaborador}%");
+
+            // Estados que deben recalcularse (todos los anteriores y Act/Facturable)
+            var estadosRecalculables = new List<string>
+            {
+                "Pte Carga",
+                "Solicitado",
+                "Pte Firma",
+                "En incidencia",
+                "Pte Documentación",
+                "Pte Validación",
+                "En Curso",
+                "En Activación",
+                "En tramitación",
+                "Activo",
+                "Act/Facturable"
+            };
+
+            // Buscar todos los contratos del usuario en estados recalculables
+            var contratos = await context.Contratos
+                .Where(c => c.Comercial == context.Usuarios
+                    .Where(u => u.Id == usuarioId)
+                    .Select(u => u.NombreUsuario)
+                    .FirstOrDefault()
+                    && estadosRecalculables.Contains(c.Estado))
+                .ToListAsync();
+
+            Console.WriteLine($"[ComisionService] Contratos encontrados: {contratos.Count}");
+
+            // Obtener el usuario para determinar su rol
+            var usuario = await context.Usuarios.FindAsync(usuarioId);
+            if (usuario == null)
+            {
+                Console.WriteLine($"[ComisionService] Usuario {usuarioId} no encontrado");
+                return;
+            }
+
+            foreach (var contrato in contratos)
+            {
+                // Determinar el tipo de proveedor y obtener el ID del proveedor
+                var tipoProveedor = ObtenerTipoProveedorInterno(contrato.Tipo);
+                int? proveedorId = await ObtenerProveedorIdInternoAsync(contrato, context);
+
+                // Verificar si esta configuración aplica a este contrato
+                bool configuracionAplica = false;
+
+                if (configuracion.ProveedorId == null || configuracion.ProveedorId == 0)
+                {
+                    // Configuración genérica - aplica si el tipo coincide
+                    configuracionAplica = configuracion.TipoProveedor.Equals(tipoProveedor, StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    // Configuración específica - debe coincidir tipo y proveedor
+                    configuracionAplica = configuracion.TipoProveedor.Equals(tipoProveedor, StringComparison.OrdinalIgnoreCase)
+                        && configuracion.ProveedorId == proveedorId;
+                }
+
+                if (!configuracionAplica)
+                {
+                    Console.WriteLine($"[ComisionService] Contrato {contrato.Id} - Configuración no aplica (tipo: {tipoProveedor}, proveedor: {proveedorId})");
+                    continue;
+                }
+
+                // Obtener la comisión base de la tarifa
+                decimal comisionBase = await ObtenerComisionBaseTarifaAsync(contrato, context);
+
+                if (comisionBase == 0)
+                {
+                    Console.WriteLine($"[ComisionService] Contrato {contrato.Id} - Sin comisión base, saltando");
+                    continue;
+                }
+
+                // Calcular porcentaje según el rol del usuario
+                decimal porcentajeTotal = 0;
+                var rolUsuario = usuario.Rol;
+
+                if (rolUsuario == "Administrador")
+                {
+                    // Administrador recibe 100%
+                    porcentajeTotal = 100m;
+                }
+                else if (rolUsuario == "Director Comercial")
+                {
+                    // Director recibe: colaborador + gestor + jefe + director
+                    porcentajeTotal = configuracion.PorcentajeColaborador +
+                                    (configuracion.PorcentajeGestor ?? 0) +
+                                    (configuracion.PorcentajeJefeVentas ?? 0) +
+                                    (configuracion.PorcentajeDirectorComercial ?? 0);
+                }
+                else if (rolUsuario == "Jefe Comercial")
+                {
+                    // Jefe recibe: colaborador + gestor + jefe
+                    porcentajeTotal = configuracion.PorcentajeColaborador +
+                                    (configuracion.PorcentajeGestor ?? 0) +
+                                    (configuracion.PorcentajeJefeVentas ?? 0);
+                }
+                else if (rolUsuario == "Gestor")
+                {
+                    // Gestor recibe: colaborador + gestor
+                    porcentajeTotal = configuracion.PorcentajeColaborador +
+                                    (configuracion.PorcentajeGestor ?? 0);
+                }
+                else
+                {
+                    // Colaborador recibe solo su porcentaje
+                    porcentajeTotal = configuracion.PorcentajeColaborador;
+                }
+
+                // Calcular la nueva comisión aplicando el porcentaje total
+                decimal nuevaComision = Math.Round(comisionBase * (porcentajeTotal / 100), 2);
+
+                Console.WriteLine($"[ComisionService] Contrato {contrato.Id} - Comisión: {contrato.Comision} → {nuevaComision} (base: {comisionBase}, rol: {rolUsuario}, %total: {porcentajeTotal})");
+
+                // Actualizar la comisión del contrato
+                contrato.Comision = nuevaComision;
+                contrato.FechaModificacion = DateTime.Now;
+                context.Contratos.Update(contrato);
+            }
+
+            await context.SaveChangesAsync();
+
+            // Recalcular liquidaciones afectadas
+            if (contratos.Any())
+            {
+                await RecalcularLiquidacionesUsuarioAsync(usuarioId, context);
+            }
+
+            Console.WriteLine($"[ComisionService] Recálculo completado - {contratos.Count} contratos actualizados");
+        }
+
+        /// <summary>
+        /// Recalcula las liquidaciones de un usuario que incluyan contratos modificados
+        /// </summary>
+        private async Task RecalcularLiquidacionesUsuarioAsync(int usuarioId, ApplicationDbContext context)
+        {
+            // Buscar liquidaciones pendientes del usuario
+            var liquidacionesPendientes = await context.HistoricoLiquidaciones
+                .Where(l => l.UsuarioId == usuarioId && l.Estado != "Pagada")
+                .ToListAsync();
+
+            foreach (var liquidacion in liquidacionesPendientes)
+            {
+                // Obtener todos los detalles de comisión de esta liquidación
+                var detalles = await context.DetallesComisionLiquidacion
+                    .Where(d => d.HistoricoLiquidacionId == liquidacion.Id)
+                    .ToListAsync();
+
+                // Recalcular totales
+                decimal nuevoTotalComisiones = 0;
+
+                foreach (var detalle in detalles)
+                {
+                    // Obtener el contrato actualizado
+                    var contrato = await context.Contratos.FindAsync(detalle.ContratoId);
+                    if (contrato != null && detalle.ColaboradorId == usuarioId)
+                    {
+                        // Actualizar la comisión del colaborador en el detalle
+                        detalle.ComisionColaborador = contrato.Comision ?? 0m;
+                        context.DetallesComisionLiquidacion.Update(detalle);
+                    }
+
+                    // Sumar comisiones según el rol
+                    if (detalle.ColaboradorId == usuarioId)
+                        nuevoTotalComisiones += detalle.ComisionColaborador;
+                    else if (detalle.GestorId == usuarioId)
+                        nuevoTotalComisiones += detalle.ComisionGestor ?? 0m;
+                    else if (detalle.JefeVentasId == usuarioId)
+                        nuevoTotalComisiones += detalle.ComisionJefeVentas ?? 0m;
+                    else if (detalle.DirectorComercialId == usuarioId)
+                        nuevoTotalComisiones += detalle.ComisionDirectorComercial ?? 0m;
+                    else if (detalle.AdministradorId == usuarioId)
+                        nuevoTotalComisiones += detalle.ComisionAdministrador;
+                }
+
+                // Actualizar el total de la liquidación
+                liquidacion.TotalComisiones = nuevoTotalComisiones;
+                context.HistoricoLiquidaciones.Update(liquidacion);
+
+                Console.WriteLine($"[ComisionService] Liquidación {liquidacion.Id} actualizada - Nuevo total: {nuevoTotalComisiones}€");
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Obtiene el tipo de proveedor interno (sin el await async)
+        /// </summary>
+        private string ObtenerTipoProveedorInterno(string? tipoContrato)
+        {
+            return tipoContrato?.ToLower() switch
+            {
+                "energia" => "Comercializadora",
+                "telefonia" => "Operadora",
+                "alarma" => "EmpresaAlarma",
+                _ => "Comercializadora"
+            };
+        }
+
+        /// <summary>
+        /// Obtiene el ID del proveedor de forma asíncrona buscando en las tablas correspondientes
+        /// </summary>
+        private async Task<int?> ObtenerProveedorIdInternoAsync(Contrato contrato, ApplicationDbContext context)
+        {
+            try
+            {
+                switch (contrato.Tipo?.ToLower())
+                {
+                    case "energia":
+                        if (!string.IsNullOrWhiteSpace(contrato.EnComercializadora))
+                        {
+                            var comercializadora = await context.Comercializadoras
+                                .FirstOrDefaultAsync(c => c.Nombre == contrato.EnComercializadora);
+                            return comercializadora?.Id;
+                        }
+                        break;
+
+                    case "telefonia":
+                        if (!string.IsNullOrWhiteSpace(contrato.OperadoraTel))
+                        {
+                            var operadora = await context.Operadoras
+                                .FirstOrDefaultAsync(o => o.Nombre == contrato.OperadoraTel);
+                            return operadora?.Id;
+                        }
+                        break;
+
+                    case "alarma":
+                        if (!string.IsNullOrWhiteSpace(contrato.EmpresaAlarma))
+                        {
+                            var empresa = await context.EmpresasAlarmas
+                                .FirstOrDefaultAsync(e => e.Nombre == contrato.EmpresaAlarma);
+                            return empresa?.Id;
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ComisionService] Error obteniendo proveedor ID: {ex.Message}");
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -155,8 +413,11 @@ namespace EnerfoneCRM.Services
             // Calcular el porcentaje del administrador (el restante)
             var pctAdministrador = 100m - pctColaborador - pctGestor - pctJefeVentas - pctDirectorComercial;
 
-            // Obtener la comisión base del contrato
-            var comisionBase = contrato.Comision ?? 0;
+            // Obtener la comisión base de la tarifa (antes de aplicar porcentaje de usuario)
+            decimal comisionBaseTarifa = await ObtenerComisionBaseTarifaAsync(contrato, context);
+            
+            // La comisión del contrato ya tiene aplicado el porcentaje del colaborador
+            var comisionColaborador = contrato.Comision ?? 0;
 
             // Obtener el administrador de la empresa
             var administrador = await context.Usuarios
@@ -183,35 +444,35 @@ namespace EnerfoneCRM.Services
                 HistoricoLiquidacionId = liquidacionId ?? 0,
                 ContratoId = contrato.Id,
                 TipoContrato = contrato.Tipo,
-                ComisionBase = comisionBase,
+                ComisionBase = comisionBaseTarifa,
 
-                // Colaborador
+                // Colaborador: usar la comisión del contrato directamente (ya tiene su % aplicado)
                 ColaboradorId = colaborador.Id,
-                ComisionColaborador = Math.Round(comisionBase * pctColaborador / 100, 2),
+                ComisionColaborador = comisionColaborador,
                 PorcentajeColaborador = pctColaborador,
 
-                // Gestor
+                // Gestor: calcular sobre la comisión base de la tarifa
                 GestorId = gestor?.Id,
-                ComisionGestor = gestor != null ? Math.Round(comisionBase * pctGestor / 100, 2) : null,
+                ComisionGestor = gestor != null ? Math.Round(comisionBaseTarifa * pctGestor / 100, 2) : null,
                 PorcentajeGestor = gestor != null ? pctGestor : null,
 
-                // Jefe de Ventas
+                // Jefe de Ventas: calcular sobre la comisión base de la tarifa
                 JefeVentasId = jefeVentas?.Id,
-                ComisionJefeVentas = jefeVentas != null ? Math.Round(comisionBase * pctJefeVentas / 100, 2) : null,
+                ComisionJefeVentas = jefeVentas != null ? Math.Round(comisionBaseTarifa * pctJefeVentas / 100, 2) : null,
                 PorcentajeJefeVentas = jefeVentas != null ? pctJefeVentas : null,
 
-                // Director Comercial
+                // Director Comercial: calcular sobre la comisión base de la tarifa
                 DirectorComercialId = directorComercial?.Id,
                 ComisionDirectorComercial = directorComercial != null && pctDirectorComercial > 0 
-                    ? Math.Round(comisionBase * pctDirectorComercial / 100, 2) 
+                    ? Math.Round(comisionBaseTarifa * pctDirectorComercial / 100, 2) 
                     : null,
                 PorcentajeDirectorComercial = directorComercial != null && pctDirectorComercial > 0 
                     ? pctDirectorComercial 
                     : null,
 
-                // Administrador
+                // Administrador: calcular sobre la comisión base de la tarifa
                 AdministradorId = administrador.Id,
-                ComisionAdministrador = Math.Round(comisionBase * pctAdministrador / 100, 2),
+                ComisionAdministrador = Math.Round(comisionBaseTarifa * pctAdministrador / 100, 2),
                 PorcentajeAdministrador = pctAdministrador,
 
                 // Información del proveedor
@@ -222,6 +483,72 @@ namespace EnerfoneCRM.Services
             };
 
             return detalle;
+        }
+
+        /// <summary>
+        /// Obtiene la comisión base de la tarifa (sin porcentaje de usuario aplicado)
+        /// </summary>
+        private async Task<decimal> ObtenerComisionBaseTarifaAsync(Contrato contrato, ApplicationDbContext context)
+        {
+            try
+            {
+                switch (contrato.Tipo?.ToLower())
+                {
+                    case "energia":
+                        if (contrato.EnTarifaId.HasValue)
+                        {
+                            var tarifa = await context.TarifasEnergia.FindAsync(contrato.EnTarifaId.Value);
+                            return tarifa?.Comision ?? 0;
+                        }
+                        // Si no hay ID, buscar por nombre
+                        if (!string.IsNullOrEmpty(contrato.EnTarifa))
+                        {
+                            var tarifa = await context.TarifasEnergia
+                                .FirstOrDefaultAsync(t => t.Nombre == contrato.EnTarifa);
+                            return tarifa?.Comision ?? 0;
+                        }
+                        break;
+
+                    case "telefonia":
+                    case "telefonía":
+                        if (contrato.TarifaTelId.HasValue)
+                        {
+                            var tarifa = await context.TarifasTelefonia.FindAsync(contrato.TarifaTelId.Value);
+                            return tarifa?.ComisionNew ?? 0;
+                        }
+                        // Si no hay ID, buscar por nombre
+                        if (!string.IsNullOrEmpty(contrato.TarifaTel))
+                        {
+                            var tarifa = await context.TarifasTelefonia
+                                .FirstOrDefaultAsync(t => t.Tarifa == contrato.TarifaTel);
+                            return tarifa?.ComisionNew ?? 0;
+                        }
+                        break;
+
+                    case "alarma":
+                    case "alarmas":
+                        if (contrato.KitAlarmaId.HasValue)
+                        {
+                            var tarifa = await context.TarifasAlarmas.FindAsync(contrato.KitAlarmaId.Value);
+                            return tarifa?.Comision ?? 0;
+                        }
+                        // Si no hay ID, buscar por nombre
+                        if (!string.IsNullOrEmpty(contrato.KitAlarma))
+                        {
+                            var tarifa = await context.TarifasAlarmas
+                                .FirstOrDefaultAsync(t => t.NombreTarifa == contrato.KitAlarma);
+                            return tarifa?.Comision ?? 0;
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ComisionService] Error al obtener comisión base de tarifa: {ex.Message}");
+            }
+
+            // Si no se encuentra, usar la comisión del contrato como fallback
+            return contrato.Comision ?? 0;
         }
 
         /// <summary>
