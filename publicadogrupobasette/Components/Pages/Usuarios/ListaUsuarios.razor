@@ -86,9 +86,9 @@ else
         {
             <div class="card">
                 <div class="card-body">
-                    <!-- Filtro de búsqueda -->
+                    <!-- Filtro de búsqueda y rol -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                                 <input type="text" 
@@ -105,7 +105,89 @@ else
                                 }
                             </div>
                         </div>
-                        <div class="col-md-6 text-end">
+                        <div class="col-md-4">
+                            <div class="btn-group" style="width: 100%;">
+                                <button type="button" class="btn btn-outline-secondary dropdown-toggle text-start" data-bs-toggle="dropdown" aria-expanded="false" style="width: 100%;">
+                                    <i class="bi bi-funnel me-2"></i>
+                                    @if (rolesFiltro.Any())
+                                    {
+                                        <span>Roles (@rolesFiltro.Count)</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Todos los roles</span>
+                                    }
+                                </button>
+                                <ul class="dropdown-menu" style="width: 100%; max-height: 300px; overflow-y: auto; background-color: white;">
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-2" 
+                                                   checked='@rolesFiltro.Contains("Administrador")'
+                                                   @onchange='e => ToggleRolFiltro(e, "Administrador")' />
+                                            <span class="badge bg-danger">Administrador</span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-2" 
+                                                   checked='@rolesFiltro.Contains("Director comercial")'
+                                                   @onchange='e => ToggleRolFiltro(e, "Director comercial")' />
+                                            <span class="badge bg-dark">Director comercial</span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-2" 
+                                                   checked='@rolesFiltro.Contains("Jefe de ventas")'
+                                                   @onchange='e => ToggleRolFiltro(e, "Jefe de ventas")' />
+                                            <span class="badge bg-success">Jefe de ventas</span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-2" 
+                                                   checked='@rolesFiltro.Contains("Gestor")'
+                                                   @onchange='e => ToggleRolFiltro(e, "Gestor")' />
+                                            <span class="badge bg-warning">Gestor</span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-2" 
+                                                   checked='@rolesFiltro.Contains("Colaborador")'
+                                                   @onchange='e => ToggleRolFiltro(e, "Colaborador")' />
+                                            <span class="badge bg-secondary">Colaborador</span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-2" 
+                                                   checked='@rolesFiltro.Contains("Backoffice")'
+                                                   @onchange='e => ToggleRolFiltro(e, "Backoffice")' />
+                                            <span class="badge bg-primary">Backoffice</span>
+                                        </label>
+                                    </li>
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" class="form-check-input me-2" 
+                                                   checked='@rolesFiltro.Contains("Comercializadora")'
+                                                   @onchange='e => ToggleRolFiltro(e, "Comercializadora")' />
+                                            <span class="badge bg-info">Comercializadora</span>
+                                        </label>
+                                    </li>
+                                    @if (rolesFiltro.Any())
+                                    {
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-danger" type="button" @onclick="LimpiarFiltroRol">
+                                                <i class="bi bi-x-circle me-2"></i>Limpiar filtros
+                                            </button>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
                             <small class="text-muted">
                                 Mostrando @usuariosFiltrados.Count de @usuarios.Count usuario(s)
                             </small>
@@ -313,6 +395,7 @@ else
     private List<Usuario> usuariosFiltrados = new();
     private List<Usuario> usuariosCompletos = new(); // Todos los usuarios filtrados sin paginación
     private string textoBusqueda = string.Empty;
+    private List<string> rolesFiltro = new();
     
     // Ordenamiento
     private string columnaOrden = "NombreUsuario";
@@ -406,6 +489,14 @@ else
                 (u.Apellidos?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.Rol?.Contains(textoBusqueda, StringComparison.OrdinalIgnoreCase) ?? false)
             ).ToList();
+        
+        // Luego filtrar por rol si hay roles seleccionados
+        if (rolesFiltro.Any())
+        {
+            usuariosFiltradosPorBusqueda = usuariosFiltradosPorBusqueda
+                .Where(u => rolesFiltro.Contains(u.Rol ?? ""))
+                .ToList();
+        }
 
         // Luego ordenar
         var usuariosParaPaginar = columnaOrden switch
@@ -458,6 +549,29 @@ else
     private void LimpiarBusqueda()
     {
         textoBusqueda = string.Empty;
+        FiltrarUsuarios();
+    }
+    
+    private void LimpiarFiltroRol()
+    {
+        rolesFiltro.Clear();
+        FiltrarUsuarios();
+    }
+    
+    private void ToggleRolFiltro(ChangeEventArgs e, string rol)
+    {
+        bool isChecked = (bool)(e.Value ?? false);
+        if (isChecked)
+        {
+            if (!rolesFiltro.Contains(rol))
+            {
+                rolesFiltro.Add(rol);
+            }
+        }
+        else
+        {
+            rolesFiltro.Remove(rol);
+        }
         FiltrarUsuarios();
     }
     
@@ -628,7 +742,7 @@ else
         mensajeError = string.Empty;
     }
 
-    private async Task GuardarUsuario((Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds) datos)
+    private async Task GuardarUsuario((Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds, List<int> jefesVentasIds) datos)
     {
         try
         {
@@ -649,17 +763,28 @@ else
                 // Actualizar empresas de alarmas permitidas
                 await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(datos.usuario.Id, datos.empresasAlarmasIds);
                 
-                // Si es gestor, actualizar colaboradores asignados
+                // Si es gestor, actualizar colaboradores asignados (actualiza GestorId de colaboradores)
                 if (datos.usuario.Rol == "Gestor")
                 {
+                    Console.WriteLine($"[JERARQUÍA] Gestor {datos.usuario.Id}: Actualizando {datos.colaboradoresIds.Count} colaboradores");
                     await UsuarioService.ActualizarColaboradoresDeGestorAsync(datos.usuario.Id, datos.colaboradoresIds);
                 }
                 
-                // Si es jefe de ventas, actualizar gestores y colaboradores asignados
+                // Si es jefe de ventas, actualizar gestores y colaboradores asignados (actualiza JefeVentasId)
                 if (datos.usuario.Rol == "Jefe de ventas")
                 {
+                    Console.WriteLine($"[JERARQUÍA] Jefe de Ventas {datos.usuario.Id}: Actualizando {datos.gestoresIds.Count} gestores y {datos.colaboradoresIds.Count} colaboradores");
                     await UsuarioService.ActualizarGestoresDeJefeVentasAsync(datos.usuario.Id, datos.gestoresIds);
                     await UsuarioService.ActualizarColaboradoresDeJefeVentasAsync(datos.usuario.Id, datos.colaboradoresIds);
+                }
+                
+                // Si es director comercial, actualizar jefes, gestores y colaboradores asignados (actualiza DirectorComercialId)
+                if (datos.usuario.Rol == "Director comercial")
+                {
+                    Console.WriteLine($"[JERARQUÍA] Director Comercial {datos.usuario.Id}: Actualizando {datos.jefesVentasIds.Count} jefes, {datos.gestoresIds.Count} gestores y {datos.colaboradoresIds.Count} colaboradores");
+                    await UsuarioService.ActualizarJefesVentasDeDirectorAsync(datos.usuario.Id, datos.jefesVentasIds);
+                    await UsuarioService.ActualizarGestoresDeDirectorAsync(datos.usuario.Id, datos.gestoresIds);
+                    await UsuarioService.ActualizarColaboradoresDeDirectorAsync(datos.usuario.Id, datos.colaboradoresIds);
                 }
                 
                 mensajeExito = mensaje;
@@ -869,10 +994,12 @@ else
     private string ObtenerColorRol(string rol) => rol switch
     {
         "Administrador" => "danger",
-        "Backoffice" => "primary",
+        "Director comercial" => "dark",
+        "Jefe de ventas" => "success",
         "Gestor" => "warning",
-        "Comercializadora" => "info",
         "Colaborador" => "secondary",
+        "Backoffice" => "primary",
+        "Comercializadora" => "info",
         _ => "secondary"
     };
 }

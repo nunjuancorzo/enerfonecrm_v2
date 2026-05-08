@@ -74,12 +74,46 @@ def exportar_tarifas_telefonia():
         # Crear DataFrame
         df = pd.DataFrame(datos_excel)
         
+        # Crear DataFrame con valores válidos
+        valores_validos = [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            ['', '', ''],
+            ['TIPO*', '', ''],
+            ['', 'Fibra', 'Solo servicio de fibra óptica'],
+            ['', 'Movil', 'Solo línea móvil principal'],
+            ['', 'MovilAdicional', 'Línea móvil adicional'],
+            ['', 'FibraMovil', 'Fibra + Móvil combinados'],
+            ['', 'FibraMovilTV', 'Fibra + Móvil + TV'],
+            ['', 'FibraSegundaResidencia', 'Fibra para segunda residencia'],
+            ['', '', ''],
+            ['Ejemplos FIBRA', '', ''],
+            ['', '300 Mb', ''],
+            ['', '600 Mb', ''],
+            ['', '1 Gb', ''],
+            ['', '', ''],
+            ['Ejemplos MOVIL', '', ''],
+            ['', '20 GB', ''],
+            ['', '50 GB', ''],
+            ['', '80 GB', ''],
+            ['', '100 GB', ''],
+            ['', 'Ilimitados', ''],
+            ['', '', ''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'Si incluye columna ID, actualiza tarifas existentes', ''],
+            ['', 'Si no incluye ID, crea nuevas tarifas', ''],
+            ['', 'El campo TIPO es fundamental para clasificar correctamente', '']
+        ]
+        df_valores = pd.DataFrame(valores_validos)
+        
         # Nombre del archivo con timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         nombre_archivo = f'tarifas_telefonia_exportacion_{timestamp}.xlsx'
         
-        # Exportar a Excel
-        df.to_excel(nombre_archivo, index=False, sheet_name='Tarifas Telefonía')
+        # Exportar a Excel con múltiples hojas
+        with pd.ExcelWriter(nombre_archivo, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Tarifas Telefonía')
+            df_valores.to_excel(writer, index=False, sheet_name='Valores Válidos', header=False)
         
         print(f"[OK] Tarifas exportadas correctamente a: {nombre_archivo}")
         print(f"[OK] Total de tarifas exportadas: {len(datos_excel)}")

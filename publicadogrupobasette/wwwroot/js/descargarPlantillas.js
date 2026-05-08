@@ -2,11 +2,38 @@
 
 window.descargarPlantillaClientes = function() {
     const rows = [
-        ['TipoCliente*', 'Nombre*', 'DNI/CIF', 'DNI Representante', 'Email', 'Teléfono', 'Dirección', 'Número', 'Escalera', 'Piso', 'Puerta', 'Aclarador', 'Población', 'Provincia', 'Código Postal', 'IBAN', 'Representante', 'Comercial', 'Observaciones'],
-        ['Particular', 'Ejemplo Cliente S.L.', 'B12345678', '12345678A', 'cliente@ejemplo.com', '912345678', 'Calle Mayor', '10', 'A', '3', 'B', 'Junto al parque', 'Madrid', 'Madrid', '28001', 'ES1234567890123456789012', 'Juan Pérez', 'María García', 'Cliente potencial']
+        ['TipoCliente*', 'Nombre*', 'DNI/CIF', 'CNAE', 'DNI Representante', 'Email', 'Teléfono', 'TipoVia', 'Dirección', 'Número', 'Escalera', 'Piso', 'Puerta', 'Aclarador', 'Población', 'Provincia', 'Código Postal', 'IBAN', 'Representante', 'Comercial', 'Procedencia', 'Observaciones'],
+        ['Particular', 'Ejemplo Cliente S.L.', 'B12345678', '4651', '12345678A', 'cliente@ejemplo.com', '912345678', 'Calle', 'Mayor', '10', 'A', '3', 'B', 'Junto al parque', 'Madrid', 'Madrid', '28001', 'ES1234567890123456789012', 'Juan Pérez', 'María García', 'BASE DE DATOS', 'Cliente potencial']
     ];
     
-    descargarExcel(rows, 'plantilla_clientes.xlsx', 'Clientes');
+    // Hoja de ayuda con valores válidos
+    const hojasAdicionales = [{
+        nombre: 'Valores Válidos',
+        datos: [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            [''],
+            ['TipoCliente*', '', ''],
+            ['', 'Particular', 'Para clientes particulares/personas físicas'],
+            ['', 'Autónomo', 'Para trabajadores autónomos'],
+            ['', 'Pyme', 'Para pequeñas y medianas empresas'],
+            [''],
+            ['TipoVia', '', ''],
+            ['', 'Calle', ''],
+            ['', 'Avenida', ''],
+            ['', 'Paseo', ''],
+            ['', 'Plaza', ''],
+            ['', 'Carretera', ''],
+            ['', 'Camino', ''],
+            ['', 'Travesía', ''],
+            [''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'El resto de campos son opcionales', ''],
+            ['', 'CNAE: Código de actividad económica (4 dígitos)', '']
+        ]
+    }];
+    
+    descargarExcel(rows, 'plantilla_clientes.xlsx', 'Clientes', hojasAdicionales);
 };
 
 window.descargarPlantillaContratosEnergia = function() {
@@ -15,7 +42,45 @@ window.descargarPlantillaContratosEnergia = function() {
         ['B12345678', 'Energía', '2026-01-15', 'Activo', 'B12345678', 'Empresa Ejemplo S.L.', 'Calle Mayor', 'Madrid', '28001', 'Madrid', 'Calle', '10', 'A', '3', 'B', 'ES0031234567890123456789AB', '3.0TD', 'Iberdrola', '15', '25000', '0.15', '0.13', '0.11', '', '', '', '0.14', '2026-02-01', '2026-02-01', '2026-03-01', '1250.50', 'Primer contrato de energía']
     ];
     
-    descargarExcel(rows, 'plantilla_contratos_energia.xlsx', 'Contratos Energia');
+    // Hoja de ayuda con valores válidos
+    const hojasAdicionales = [{
+        nombre: 'Valores Válidos',
+        datos: [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            [''],
+            ['Estado*', '', ''],
+            ['', 'Pte Carga', 'Pendiente de carga en plataforma'],
+            ['', 'Pte Firma', 'Pendiente de firma del cliente'],
+            ['', 'En incidencia', 'Contrato con incidencia'],
+            ['', 'Pte Documentación', 'Pendiente de documentación'],
+            ['', 'Pte Validación', 'Pendiente de validación'],
+            ['', 'En Activación', 'En proceso de activación'],
+            ['', 'Activo', 'Contrato activo'],
+            ['', 'Act/Facturable', 'Activo y facturable'],
+            ['', 'En Liquidación', 'En proceso de liquidación'],
+            ['', 'Liquidado', 'Contrato liquidado'],
+            ['', 'Baja', 'Contrato dado de baja'],
+            ['', 'Cancelado', 'Contrato cancelado'],
+            ['', 'Scoring', 'En proceso de scoring'],
+            [''],
+            ['Peaje Luz (Tarifa ATR)', '', ''],
+            ['', '2.0TD', 'Residencial'],
+            ['', '3.0TD', 'Pequeña empresa'],
+            ['', '6.1TD', 'Industria'],
+            ['', '6.2TD, 6.3TD, 6.4TD', 'Grandes empresas'],
+            [''],
+            ['Peaje Gas', '', ''],
+            ['', 'RL1', 'Residencial'],
+            ['', 'RL2', ''],
+            ['', 'RL3', 'Comercios/Industria'],
+            [''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'IdCliente debe coincidir con DNI/CIF del cliente', '']
+        ]
+    }];
+    
+    descargarExcel(rows, 'plantilla_contratos_energia.xlsx', 'Contratos Energia', hojasAdicionales);
 };
 
 window.descargarPlantillaContratosTelefonia = function() {
@@ -47,7 +112,7 @@ window.descargarPlantillaTarifasEnergia = function() {
             'COMISION', 'PERMANENCIA', 'EXCEDENTES', 'BATERIA VIRTUAL', 'FECHA CARGA'
         ],
         [
-            '', 'NATURGY', 'RESIDENCIAL', 'LUZ', 'Tarifa Por Uso Luz', '2.0', '',
+            '', 'NATURGY', 'Residencial', 'LUZ', 'Tarifa Por Uso Luz', '2.0', '',
             0.110970, 0.033677, '', '', '', '',
             '', '',
             0.119900, 0.119900, 0.119900, '', '', '',
@@ -55,7 +120,7 @@ window.descargarPlantillaTarifasEnergia = function() {
             70, 0, 0.07, 'SI', '2026-02-25'
         ],
         [
-            '', 'IBERDROLA', 'PYMES', 'LUZ+GAS', 'Plan Estable', '2.0', 'RL3',
+            '', 'IBERDROLA', 'Pyme', 'LUZ+GAS', 'Plan Estable', '2.0', 'RL3',
             0.115000, 0.035000, '', '', '', '',
             '3.50', '',
             0.125000, 0.120000, 0.085000, '', '', '',
@@ -64,7 +129,44 @@ window.descargarPlantillaTarifasEnergia = function() {
         ]
     ];
     
-    descargarExcel(rows, 'plantilla_tarifas_energia_importacion.xlsx', 'Tarifas Energía');
+    // Hoja de ayuda con valores válidos
+    const hojasAdicionales = [{
+        nombre: 'Valores Válidos',
+        datos: [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            [''],
+            ['TIPO*', '', ''],
+            ['', 'Residencial', 'Para clientes residenciales'],
+            ['', 'Pyme', 'Para pequeñas y medianas empresas'],
+            [''],
+            ['ENERGIA*', '', ''],
+            ['', 'LUZ', 'Solo electricidad'],
+            ['', 'GAS', 'Solo gas'],
+            ['', 'LUZ+GAS', 'Electricidad y gas combinados'],
+            [''],
+            ['PEAJE LUZ', '', ''],
+            ['', '2.0', 'Peaje residencial sin discriminación horaria'],
+            ['', '3.0', 'Peaje para pequeñas empresas'],
+            ['', '6.1', 'Peaje para industrias'],
+            ['', '6.2', 'Peaje para grandes empresas'],
+            [''],
+            ['PEAJE GAS', '', ''],
+            ['', 'RL1', 'Residencial bajo consumo'],
+            ['', 'RL2', 'Comercio pequeño'],
+            ['', 'RL3', 'Comercio/Industria mediano'],
+            ['', 'RL4', 'Industria grande'],
+            ['', 'RL5', 'Gran industria'],
+            ['', 'RL6', 'Muy gran industria'],
+            [''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'Si incluye columna ID, actualiza tarifas existentes', ''],
+            ['', 'Si no incluye ID, crea nuevas tarifas', ''],
+            ['', 'Los precios decimales usar coma (ej: 0,123456)', '']
+        ]
+    }];
+    
+    descargarExcel(rows, 'plantilla_tarifas_energia_importacion.xlsx', 'Tarifas Energía', hojasAdicionales);
 };
 
 window.descargarPlantillaTarifasTelefonia = function() {
@@ -95,7 +197,41 @@ window.descargarPlantillaTarifasTelefonia = function() {
         ]
     ];
     
-    descargarExcel(rows, 'plantilla_tarifas_telefonia_importacion.xlsx', 'Tarifas Telefonía');
+    // Hoja de ayuda con valores válidos
+    const hojasAdicionales = [{
+        nombre: 'Valores Válidos',
+        datos: [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            [''],
+            ['TIPO*', '', ''],
+            ['', 'Fibra', 'Solo servicio de fibra óptica'],
+            ['', 'Movil', 'Solo línea móvil principal'],
+            ['', 'MovilAdicional', 'Línea móvil adicional'],
+            ['', 'FibraMovil', 'Fibra + Móvil combinados'],
+            ['', 'FibraMovilTV', 'Fibra + Móvil + TV'],
+            ['', 'FibraSegundaResidencia', 'Fibra para segunda residencia'],
+            [''],
+            ['Ejemplos FIBRA', '', ''],
+            ['', '300 Mb', ''],
+            ['', '600 Mb', ''],
+            ['', '1 Gb', ''],
+            [''],
+            ['Ejemplos MOVIL', '', ''],
+            ['', '20 GB', ''],
+            ['', '50 GB', ''],
+            ['', '80 GB', ''],
+            ['', '100 GB', ''],
+            ['', 'Ilimitados', ''],
+            [''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'Si incluye columna ID, actualiza tarifas existentes', ''],
+            ['', 'Si no incluye ID, crea nuevas tarifas', ''],
+            ['', 'El campo TIPO es fundamental para clasificar correctamente', '']
+        ]
+    }];
+    
+    descargarExcel(rows, 'plantilla_tarifas_telefonia_importacion.xlsx', 'Tarifas Telefonía', hojasAdicionales);
 };
 
 window.descargarPlantillaServicios = function() {
@@ -117,10 +253,38 @@ window.descargarPlantillaServicios = function() {
         ]
     ];
     
-    descargarExcel(rows, 'plantilla_servicios_importacion.xlsx', 'Servicios');
+    // Hoja de ayuda con valores válidos
+    const hojasAdicionales = [{
+        nombre: 'Valores Válidos',
+        datos: [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            [''],
+            ['Tipo*', '', ''],
+            ['', 'Residencial', 'Para clientes particulares'],
+            ['', 'Pyme', 'Para pequeñas y medianas empresas'],
+            [''],
+            ['Ejemplos Servicios Residencial', '', ''],
+            ['', 'Mantenimiento Caldera', ''],
+            ['', 'Seguro Hogar Eléctrico', ''],
+            ['', 'Revisión Anual', ''],
+            [''],
+            ['Ejemplos Servicios Pyme', '', ''],
+            ['', 'Servicio Técnico Premium', ''],
+            ['', 'Mantenimiento Anual', ''],
+            ['', 'Asesoramiento Energético', ''],
+            [''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'Si incluye columna ID, actualiza servicios existentes', ''],
+            ['', 'Si no incluye ID, crea nuevos servicios', ''],
+            ['', 'El Precio debe ser numérico (usar coma o punto para decimales)', '']
+        ]
+    }];
+    
+    descargarExcel(rows, 'plantilla_servicios_importacion.xlsx', 'Servicios', hojasAdicionales);
 };
 
-function descargarExcel(rows, nombreArchivo, nombreHoja) {
+function descargarExcel(rows, nombreArchivo, nombreHoja, hojasAdicionales) {
     // Usar SheetJS para crear el archivo Excel
     if (typeof XLSX === 'undefined') {
         // Si no está disponible SheetJS, usar CSV simple
@@ -139,8 +303,19 @@ function descargarExcel(rows, nombreArchivo, nombreHoja) {
     }
     
     // Crear workbook con SheetJS
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
+    
+    // Añadir hoja principal con los datos
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
     XLSX.utils.book_append_sheet(workbook, worksheet, nombreHoja);
+    
+    // Añadir hojas adicionales si existen (por ejemplo, hojas de ayuda)
+    if (hojasAdicionales && Array.isArray(hojasAdicionales)) {
+        hojasAdicionales.forEach(hoja => {
+            const worksheetAdicional = XLSX.utils.aoa_to_sheet(hoja.datos);
+            XLSX.utils.book_append_sheet(workbook, worksheetAdicional, hoja.nombre);
+        });
+    }
+    
     XLSX.writeFile(workbook, nombreArchivo);
 }

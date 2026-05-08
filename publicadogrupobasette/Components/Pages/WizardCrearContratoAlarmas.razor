@@ -462,6 +462,15 @@
                                             <label class="form-label fw-bold">Comercial</label>
                                             <InputText @bind-Value="nuevoContrato.Comercial" class="form-control" />
                                         </div>
+                                        <div class="col-md-12 mt-3">
+                                            <div class="form-check">
+                                                <InputCheckbox @bind-Value="nuevoContrato.CargadoEnPlataforma" class="form-check-input" id="cargadoEnPlataformaWizardAlarma" />
+                                                <label class="form-check-label" for="cargadoEnPlataformaWizardAlarma">
+                                                    <i class="bi bi-cloud-check me-1"></i><strong>Ya está cargado en la plataforma de la empresa</strong>
+                                                </label>
+                                                <div class="form-text">Marca esta casilla si el contrato ya fue cargado directamente en la plataforma externa</div>
+                                            </div>
+                                        </div>
 
                                         <!-- Titular IBAN -->
                                         <div class="col-12 mt-3">

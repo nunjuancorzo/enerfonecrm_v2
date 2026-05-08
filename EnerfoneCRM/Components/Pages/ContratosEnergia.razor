@@ -342,6 +342,9 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
+                                        <th style="width: 40px; text-align: center;" title="Cargado en plataforma externa">
+                                            <i class="bi bi-cloud-check"></i>
+                                        </th>
                                         <th style="width: 85px; cursor: pointer;" @onclick='() => OrdenarPor("Comercial")'>
                                             Comercial
                                             @if (columnaOrden == "Comercial")
@@ -420,6 +423,12 @@ else
                                                            style="cursor: pointer; font-size: 0.85rem;" 
                                                            @onclick="() => MostrarHistoricoObservaciones(contrato.Id)"
                                                            title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
+                                                    }
+                                                </td>
+                                                <td style="text-align: center;">
+                                                    @if (contrato.CargadoEnPlataforma)
+                                                    {
+                                                        <i class="bi bi-cloud-check-fill text-success" style="font-size: 1.2rem;" title="Ya cargado en plataforma externa"></i>
                                                     }
                                                 </td>
                                                 <td><small class="@textoClass">@contrato.Comercial</small></td>
@@ -804,6 +813,18 @@ else
                                                     <option value="Gas">Gas</option>
                                                     <option value="Luz y Gas">Luz y Gas</option>
                                                 </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mt-3">
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="cargadoEnPlataforma" @bind="contratoSeleccionado.CargadoEnPlataforma" disabled="@(!PuedeEditarCampo())">
+                                                    <label class="form-check-label" for="cargadoEnPlataforma">
+                                                        <i class="bi bi-cloud-check me-1"></i><strong>Ya está cargado en la plataforma de la comercializadora</strong>
+                                                    </label>
+                                                    <div class="form-text">Marca esta casilla si el contrato ya fue cargado directamente en la plataforma externa</div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -2723,12 +2744,14 @@ else
             var csv = new System.Text.StringBuilder();
             
             // Encabezados
-            csv.AppendLine("Fecha Creación,Estado,Comercial,Comercializadora,Tarifa,DNI Cliente,Cliente,CUPS Luz,CUPS Gas,Comisión");
+            csv.AppendLine("ID,ID Contrato Externo,Fecha Creación,Estado,Comercial,Comercializadora,Tarifa,DNI Cliente,Cliente,CUPS Luz,CUPS Gas,Comisión");
             
             // Datos - usar contratosParaPaginar que contiene todos los filtrados (sin paginación)
             foreach (var contrato in contratosParaPaginar)
             {
-                csv.AppendLine($"\"{contrato.FechaCreacion?.ToString("dd/MM/yyyy")}\"," +
+                csv.AppendLine($"\"{contrato.Id}\"," +
+                    $"\"{contrato.IdContratoExterno}\"," +
+                    $"\"{contrato.FechaCreacion?.ToString("dd/MM/yyyy")}\"," +
                     $"\"{contrato.Estado}\"," +
                     $"\"{contrato.Comercial}\"," +
                     $"\"{ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora)}\"," +
@@ -2769,19 +2792,21 @@ else
             var worksheet = workbook.Worksheets.Add("Contratos Energía");
 
             // Encabezados
-            worksheet.Cell(1, 1).Value = "Fecha Creación";
-            worksheet.Cell(1, 2).Value = "Estado";
-            worksheet.Cell(1, 3).Value = "Comercial";
-            worksheet.Cell(1, 4).Value = "Comercializadora";
-            worksheet.Cell(1, 5).Value = "Tarifa";
-            worksheet.Cell(1, 6).Value = "DNI Cliente";
-            worksheet.Cell(1, 7).Value = "Cliente";
-            worksheet.Cell(1, 8).Value = "CUPS Luz";
-            worksheet.Cell(1, 9).Value = "CUPS Gas";
-            worksheet.Cell(1, 10).Value = "Comisión";
+            worksheet.Cell(1, 1).Value = "ID";
+            worksheet.Cell(1, 2).Value = "ID Contrato Externo";
+            worksheet.Cell(1, 3).Value = "Fecha Creación";
+            worksheet.Cell(1, 4).Value = "Estado";
+            worksheet.Cell(1, 5).Value = "Comercial";
+            worksheet.Cell(1, 6).Value = "Comercializadora";
+            worksheet.Cell(1, 7).Value = "Tarifa";
+            worksheet.Cell(1, 8).Value = "DNI Cliente";
+            worksheet.Cell(1, 9).Value = "Cliente";
+            worksheet.Cell(1, 10).Value = "CUPS Luz";
+            worksheet.Cell(1, 11).Value = "CUPS Gas";
+            worksheet.Cell(1, 12).Value = "Comisión";
 
             // Estilo de encabezados
-            var headerRange = worksheet.Range(1, 1, 1, 10);
+            var headerRange = worksheet.Range(1, 1, 1, 12);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
             headerRange.Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Center;
@@ -2790,16 +2815,18 @@ else
             int row = 2;
             foreach (var contrato in contratosParaPaginar)
             {
-                worksheet.Cell(row, 1).Value = contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "";
-                worksheet.Cell(row, 2).Value = contrato.Estado ?? "";
-                worksheet.Cell(row, 3).Value = contrato.Comercial ?? "";
-                worksheet.Cell(row, 4).Value = ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora) ?? "";
-                worksheet.Cell(row, 5).Value = contrato.EnTarifa ?? "";
-                worksheet.Cell(row, 6).Value = contrato.Dni ?? "";
-                worksheet.Cell(row, 7).Value = contrato.NombreCliente ?? "";
-                worksheet.Cell(row, 8).Value = contrato.EnCups ?? "";
-                worksheet.Cell(row, 9).Value = contrato.EnCupsGas ?? "";
-                worksheet.Cell(row, 10).Value = contrato.Comision?.ToString("N2") ?? "";
+                worksheet.Cell(row, 1).Value = contrato.Id;
+                worksheet.Cell(row, 2).Value = contrato.IdContratoExterno ?? "";
+                worksheet.Cell(row, 3).Value = contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "";
+                worksheet.Cell(row, 4).Value = contrato.Estado ?? "";
+                worksheet.Cell(row, 5).Value = contrato.Comercial ?? "";
+                worksheet.Cell(row, 6).Value = ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora) ?? "";
+                worksheet.Cell(row, 7).Value = contrato.EnTarifa ?? "";
+                worksheet.Cell(row, 8).Value = contrato.Dni ?? "";
+                worksheet.Cell(row, 9).Value = contrato.NombreCliente ?? "";
+                worksheet.Cell(row, 10).Value = contrato.EnCups ?? "";
+                worksheet.Cell(row, 11).Value = contrato.EnCupsGas ?? "";
+                worksheet.Cell(row, 12).Value = contrato.Comision?.ToString("N2") ?? "";
                 row++;
             }
 
@@ -2921,7 +2948,8 @@ else
             LocalidadInstalacion = contrato.LocalidadInstalacion,
             AclaradorInstalacion = contrato.AclaradorInstalacion,
             PdfContratoUrl = contrato.PdfContratoUrl,
-            ObservacionesEstado = contrato.ObservacionesEstado
+            ObservacionesEstado = contrato.ObservacionesEstado,
+            CargadoEnPlataforma = contrato.CargadoEnPlataforma
         };
         
         // Asegurarse de que las comercializadoras están cargadas

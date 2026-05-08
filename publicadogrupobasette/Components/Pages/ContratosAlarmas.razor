@@ -735,6 +735,18 @@ else
                                     </div>
                                 </div>
                                 
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="cargadoEnPlataformaAlarma" @bind="contratoSeleccionado.CargadoEnPlataforma">
+                                            <label class="form-check-label" for="cargadoEnPlataformaAlarma">
+                                                <i class="bi bi-cloud-check me-1"></i><strong>Ya está cargado en la plataforma de la empresa</strong>
+                                            </label>
+                                            <div class="form-text">Marca esta casilla si el contrato ya fue cargado directamente en la plataforma externa</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 @* Titular IBAN Diferente *@
                                 <div class="row mb-3">
                                     <div class="col-12">
@@ -2171,7 +2183,8 @@ else
             ObservacionesAlarma = contrato.ObservacionesAlarma,
             FechaCreacion = contrato.FechaCreacion,
             FechaModificacion = contrato.FechaModificacion,
-            FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion
+            FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion,
+            CargadoEnPlataforma = contrato.CargadoEnPlataforma
         };
         
         Console.WriteLine($"=== CONTRATO SELECCIONADO CREADO ===");

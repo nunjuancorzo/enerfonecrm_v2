@@ -175,7 +175,8 @@ namespace EnerfoneCRM.Services
                     COALESCE(observaciones_alarma, '') as observaciones_alarma,
                     COALESCE(observaciones_estado, '') as observaciones_estado,
                     COALESCE(direccion_segunda_residencia, '') as direccion_segunda_residencia,
-                    COALESCE(tarifa_fibra_segunda_residencia, '') as tarifa_fibra_segunda_residencia
+                    COALESCE(tarifa_fibra_segunda_residencia, '') as tarifa_fibra_segunda_residencia,
+                    COALESCE(cargado_en_plataforma, 0) as cargado_en_plataforma
                 FROM contratos";
             
             var whereConditions = new List<string>();

@@ -246,4 +246,4 @@ Sí. Cada combinación usuario+proveedor puede tener su configuración, siempre 
 
 **Versión del Manual**: 2.0  
 **Fecha**: 30 de abril de 2026  
-**Sistema**: CorCRM v20260430
+**Sistema**: CorCRM v20260507

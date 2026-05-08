@@ -64,6 +64,9 @@ public class HistoricoLiquidacion
     [Column("total_comisiones", TypeName = "decimal(10,2)")]
     public decimal? TotalComisiones { get; set; }
 
+    // Relación con los detalles de comisión
+    public ICollection<DetalleComisionLiquidacion>? Detalles { get; set; }
+
     [NotMapped]
     public bool Reactivando { get; set; }
 }

@@ -549,6 +549,10 @@ namespace EnerfoneCRM.Models
         [NotMapped] // Campo LONGBLOB en BD
         public byte[]? FacturaPdfTel { get; set; }
 
+        // Indicador de que el contrato ya está cargado en la plataforma de la comercializadora
+        [Column("cargado_en_plataforma")]
+        public bool CargadoEnPlataforma { get; set; } = false;
+
         // PDF del contrato
         [Column("pdf_contrato_url")]
         [MaxLength(500)]

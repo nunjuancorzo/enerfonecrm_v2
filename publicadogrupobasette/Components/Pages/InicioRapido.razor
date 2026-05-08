@@ -55,6 +55,10 @@ else
                         </p>
                         
                         <div class="d-grid gap-2">
+                            <button class="btn btn-success" @onclick="ExportarClientes" disabled="@procesando">
+                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>Exportar Clientes Actuales (con ID)
+                            </button>
+                            
                             <button class="btn btn-outline-primary" @onclick="DescargarPlantillaClientes">
                                 <i class="bi bi-download me-2"></i>Descargar Plantilla
                             </button>
@@ -666,10 +670,21 @@ else
             string errores = await proceso.StandardError.ReadToEndAsync();
             await proceso.WaitForExitAsync();
 
-            // Debug: Mostrar salida completa
+            // Log para debug en consola
+            Console.WriteLine($"[ImportarClientes] ExitCode: {proceso.ExitCode}");
+            Console.WriteLine($"[ImportarClientes] Salida: {salida}");
             if (!string.IsNullOrWhiteSpace(errores))
             {
-                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                Console.WriteLine($"[ImportarClientes] Errores: {errores}");
+            }
+
+            // Verificar código de salida
+            if (proceso.ExitCode != 0)
+            {
+                // El script terminó con error
+                mensajeError = !string.IsNullOrWhiteSpace(errores) 
+                    ? $"ERROR DEL SCRIPT:\n{errores}" 
+                    : "El script terminó con errores. Revisa los logs del servidor.";
                 return;
             }
 
@@ -690,10 +705,16 @@ else
             {
                 mensajeError = $"Errores encontrados. Revisa los detalles.";
             }
+            else if (salida.Contains("[OK]", StringComparison.OrdinalIgnoreCase))
+            {
+                // Script terminó correctamente pero sin contadores específicos
+                mensajeExito = "Operación completada correctamente.";
+            }
             else
             {
-                // Mostrar salida completa para debug
-                mensajeError = $"No se pudo parsear el resultado. SALIDA COMPLETA DEL SCRIPT:\n\n{salida}";
+                // No se pudo parsear pero el script terminó sin error
+                Console.WriteLine($"[ImportarClientes] ADVERTENCIA: No se pudo parsear resultado. Salida: {salida}");
+                mensajeExito = "Proceso completado. Revisa los logs para más detalles.";
             }
 
             // Limpiar archivo temporal
@@ -771,10 +792,21 @@ else
             string errores = await proceso.StandardError.ReadToEndAsync();
             await proceso.WaitForExitAsync();
 
-            // Debug: Mostrar salida completa
+            // Log para debug en consola
+            Console.WriteLine($"[ImportarContratos] ExitCode: {proceso.ExitCode}");
+            Console.WriteLine($"[ImportarContratos] Salida: {salida}");
             if (!string.IsNullOrWhiteSpace(errores))
             {
-                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                Console.WriteLine($"[ImportarContratos] Errores: {errores}");
+            }
+
+            // Verificar código de salida
+            if (proceso.ExitCode != 0)
+            {
+                // El script terminó con error
+                mensajeError = !string.IsNullOrWhiteSpace(errores) 
+                    ? $"ERROR DEL SCRIPT:\n{errores}" 
+                    : "El script terminó con errores. Revisa los logs del servidor.";
                 return;
             }
 
@@ -795,10 +827,16 @@ else
             {
                 mensajeError = $"Errores encontrados. Revisa los detalles.";
             }
+            else if (salida.Contains("[OK]", StringComparison.OrdinalIgnoreCase))
+            {
+                // Script terminó correctamente pero sin contadores específicos
+                mensajeExito = "Operación completada correctamente.";
+            }
             else
             {
-                // Mostrar salida completa para debug
-                mensajeError = $"No se pudo parsear el resultado. SALIDA COMPLETA DEL SCRIPT:\n\n{salida}";
+                // No se pudo parsear pero el script terminó sin error
+                Console.WriteLine($"[ImportarContratos] ADVERTENCIA: No se pudo parsear resultado. Salida: {salida}");
+                mensajeExito = "Proceso completado. Revisa los logs para más detalles.";
             }
 
             // Limpiar archivo temporal
@@ -876,10 +914,21 @@ else
             string errores = await proceso.StandardError.ReadToEndAsync();
             await proceso.WaitForExitAsync();
 
-            // Debug: Mostrar salida completa
+            // Log para debug en consola
+            Console.WriteLine($"[ImportarTarifasEnergia] ExitCode: {proceso.ExitCode}");
+            Console.WriteLine($"[ImportarTarifasEnergia] Salida: {salida}");
             if (!string.IsNullOrWhiteSpace(errores))
             {
-                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                Console.WriteLine($"[ImportarTarifasEnergia] Errores: {errores}");
+            }
+
+            // Verificar código de salida
+            if (proceso.ExitCode != 0)
+            {
+                // El script terminó con error
+                mensajeError = !string.IsNullOrWhiteSpace(errores) 
+                    ? $"ERROR DEL SCRIPT:\n{errores}" 
+                    : "El script terminó con errores. Revisa los logs del servidor.";
                 return;
             }
 
@@ -900,10 +949,16 @@ else
             {
                 mensajeError = $"Errores encontrados. Revisa los detalles.";
             }
+            else if (salida.Contains("[OK]", StringComparison.OrdinalIgnoreCase))
+            {
+                // Script terminó correctamente pero sin contadores específicos
+                mensajeExito = "Operación completada correctamente.";
+            }
             else
             {
-                // Mostrar salida completa para debug
-                mensajeError = $"No se pudo parsear el resultado. SALIDA COMPLETA DEL SCRIPT:\n\n{salida}";
+                // No se pudo parsear pero el script terminó sin error
+                Console.WriteLine($"[ImportarTarifasEnergia] ADVERTENCIA: No se pudo parsear resultado. Salida: {salida}");
+                mensajeExito = "Proceso completado. Revisa los logs para más detalles.";
             }
 
             // Limpiar archivo temporal
@@ -981,10 +1036,21 @@ else
             string errores = await proceso.StandardError.ReadToEndAsync();
             await proceso.WaitForExitAsync();
 
-            // Debug: Mostrar salida completa
+            // Log para debug en consola
+            Console.WriteLine($"[ImportarTarifasTelefonia] ExitCode: {proceso.ExitCode}");
+            Console.WriteLine($"[ImportarTarifasTelefonia] Salida: {salida}");
             if (!string.IsNullOrWhiteSpace(errores))
             {
-                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                Console.WriteLine($"[ImportarTarifasTelefonia] Errores: {errores}");
+            }
+
+            // Verificar código de salida
+            if (proceso.ExitCode != 0)
+            {
+                // El script terminó con error
+                mensajeError = !string.IsNullOrWhiteSpace(errores) 
+                    ? $"ERROR DEL SCRIPT:\n{errores}" 
+                    : "El script terminó con errores. Revisa los logs del servidor.";
                 return;
             }
 
@@ -1005,10 +1071,16 @@ else
             {
                 mensajeError = $"Errores encontrados. Revisa los detalles.";
             }
+            else if (salida.Contains("[OK]", StringComparison.OrdinalIgnoreCase))
+            {
+                // Script terminó correctamente pero sin contadores específicos
+                mensajeExito = "Operación completada correctamente.";
+            }
             else
             {
-                // Mostrar salida completa para debug
-                mensajeError = $"No se pudo parsear el resultado. SALIDA COMPLETA DEL SCRIPT:\n\n{salida}";
+                // No se pudo parsear pero el script terminó sin error
+                Console.WriteLine($"[ImportarTarifasTelefonia] ADVERTENCIA: No se pudo parsear resultado. Salida: {salida}");
+                mensajeExito = "Proceso completado. Revisa los logs para más detalles.";
             }
 
             // Limpiar archivo temporal
@@ -1396,10 +1468,21 @@ else
             string errores = await proceso.StandardError.ReadToEndAsync();
             await proceso.WaitForExitAsync();
 
-            // Debug: Mostrar salida completa
+            // Log para debug en consola
+            Console.WriteLine($"[ImportarServicios] ExitCode: {proceso.ExitCode}");
+            Console.WriteLine($"[ImportarServicios] Salida: {salida}");
             if (!string.IsNullOrWhiteSpace(errores))
             {
-                mensajeError = $"ERROR DEL SCRIPT:\n{errores}";
+                Console.WriteLine($"[ImportarServicios] Errores: {errores}");
+            }
+
+            // Verificar código de salida
+            if (proceso.ExitCode != 0)
+            {
+                // El script terminó con error
+                mensajeError = !string.IsNullOrWhiteSpace(errores) 
+                    ? $"ERROR DEL SCRIPT:\n{errores}" 
+                    : "El script terminó con errores. Revisa los logs del servidor.";
                 return;
             }
 
@@ -1412,18 +1495,18 @@ else
             // Parsear resultado
             resultadoServicios = ParsearResultado(salida);
 
-            // DEBUG: Mostrar salida completa del script en consola (no en pantalla)
-            Console.WriteLine("=== SALIDA COMPLETA DEL SCRIPT ===");
-            Console.WriteLine(salida);
-            Console.WriteLine("=== FIN SALIDA ===");
-
             if (resultadoServicios.Importados > 0)
             {
                 mensajeExito = $"Importación completada: {resultadoServicios.Importados} servicios importados.";
             }
             else if (resultadoServicios.Errores > 0 || resultadoServicios.DetalleErrores.Any())
             {
-                mensajeError = $"Errores encontrados. Revisa los detalles.\n\n--- DEBUG OUTPUT ---\n{salida}";
+                mensajeError = $"Errores encontrados. Revisa los detalles.";
+            }
+            else if (salida.Contains("[OK]", StringComparison.OrdinalIgnoreCase))
+            {
+                // Script terminó correctamente pero sin contadores específicos
+                mensajeExito = "Operación completada correctamente.";
             }
             else
             {
@@ -1566,6 +1649,152 @@ else
                     await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
                     
                     mensajeExito = $"Servicios exportados correctamente: {nombreArchivo}";
+                    
+                    // Opcional: eliminar el archivo temporal del servidor
+                    File.Delete(rutaArchivo);
+                }
+                else
+                {
+                    mensajeError = $"Archivo generado pero no encontrado: {rutaArchivo}";
+                }
+            }
+            else
+            {
+                mensajeError = "No se pudo determinar el nombre del archivo exportado";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error durante la exportación: {ex.Message}";
+        }
+        finally
+        {
+            procesando = false;
+            tipoImportacion = string.Empty;
+        }
+    }
+
+    private async Task ExportarClientes()
+    {
+        try
+        {
+            procesando = true;
+            tipoImportacion = "exportar-clientes";
+            mensajeError = string.Empty;
+            mensajeExito = string.Empty;
+            StateHasChanged();
+
+            var directorioActual = Directory.GetCurrentDirectory();
+            var scriptPath = Path.Combine(directorioActual, "exportar_clientes.py");
+            var directorioTrabajo = directorioActual;
+            
+            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
+            if (!File.Exists(scriptPath))
+            {
+                directorioTrabajo = Path.Combine(directorioActual, "..");
+                scriptPath = Path.Combine(directorioTrabajo, "exportar_clientes.py");
+            }
+
+            // Verificar que el script existe
+            if (!File.Exists(scriptPath))
+            {
+                throw new Exception($"No se encontró el script exportar_clientes.py");
+            }
+
+            // Obtener nombre de base de datos según entorno
+            var databaseName = EnvironmentService.GetDatabaseName();
+            var dbUser = EnvironmentService.GetDatabaseUser();
+            var dbPassword = EnvironmentService.GetDatabasePassword();
+
+            // Ejecutar script de Python
+            var proceso = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = ObtenerRutaPython(),
+                    Arguments = $"exportar_clientes.py \"{databaseName}\" \"{dbUser}\" \"{dbPassword}\"",
+                    WorkingDirectory = directorioTrabajo,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            proceso.Start();
+            string salida = await proceso.StandardOutput.ReadToEndAsync();
+            string errores = await proceso.StandardError.ReadToEndAsync();
+            await proceso.WaitForExitAsync();
+
+            // Debug: Mostrar toda la salida
+            Console.WriteLine($"[EXPORTAR CLIENTES] Salida completa del script: {salida}");
+            Console.WriteLine($"[EXPORTAR CLIENTES] Errores: {errores}");
+            Console.WriteLine($"[EXPORTAR CLIENTES] Código de salida: {proceso.ExitCode}");
+
+            if (!string.IsNullOrWhiteSpace(errores))
+            {
+                mensajeError = $"Error al exportar: {errores}";
+                return;
+            }
+
+            // Verificar si hay errores en la salida del script
+            if (salida.Contains("[ERROR]"))
+            {
+                var lineasError = salida.Split('\n')
+                    .Where(l => l.Contains("[ERROR]"))
+                    .Select(l => l.Replace("[ERROR]", "").Trim())
+                    .ToList();
+                mensajeError = $"Error al exportar: {string.Join("\n", lineasError)}";
+                return;
+            }
+
+            // Buscar el nombre del archivo generado en la salida
+            var lineas = salida.Split('\n');
+            string? nombreArchivo = null;
+            foreach (var linea in lineas)
+            {
+                Console.WriteLine($"[EXPORTAR CLIENTES] Procesando línea: '{linea}'");
+                if (linea.Contains("clientes_exportados_") && linea.Contains(".xlsx"))
+                {
+                    var inicio = linea.IndexOf("clientes_exportados_");
+                    var fin = linea.IndexOf(".xlsx", inicio);
+                    Console.WriteLine($"[EXPORTAR CLIENTES] Encontrado en línea - inicio: {inicio}, fin: {fin}");
+                    if (inicio >= 0 && fin > inicio)
+                    {
+                        nombreArchivo = linea.Substring(inicio, fin - inicio + 5);
+                        Console.WriteLine($"[EXPORTAR CLIENTES] Nombre extraído: {nombreArchivo}");
+                        break;
+                    }
+                }
+            }
+
+            // Si no se encontró, intentar buscar en todo el directorio
+            if (nombreArchivo == null)
+            {
+                Console.WriteLine($"[EXPORTAR CLIENTES] Buscando archivos en: {directorioTrabajo}");
+                var archivos = Directory.GetFiles(directorioTrabajo, "clientes_exportados_*.xlsx")
+                    .OrderByDescending(f => File.GetCreationTime(f))
+                    .ToList();
+                Console.WriteLine($"[EXPORTAR CLIENTES] Archivos encontrados: {archivos.Count}");
+                if (archivos.Any())
+                {
+                    nombreArchivo = Path.GetFileName(archivos.First());
+                    Console.WriteLine($"[EXPORTAR CLIENTES] Usando archivo: {nombreArchivo}");
+                }
+            }
+
+            if (nombreArchivo != null)
+            {
+                // El archivo se genera en el directorio de trabajo
+                var rutaArchivo = Path.Combine(directorioTrabajo, nombreArchivo);
+                
+                if (File.Exists(rutaArchivo))
+                {
+                    // Descargar archivo
+                    var bytes = await File.ReadAllBytesAsync(rutaArchivo);
+                    await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    
+                    mensajeExito = $"Clientes exportados correctamente: {nombreArchivo}";
                     
                     // Opcional: eliminar el archivo temporal del servidor
                     File.Delete(rutaArchivo);

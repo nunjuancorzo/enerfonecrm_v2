@@ -816,6 +816,18 @@ else
                                             </div>
                                         </div>
                                         
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="cargadoEnPlataformaTel" @bind="contratoSeleccionado.CargadoEnPlataforma" disabled="@(!PuedeEditar())">
+                                                    <label class="form-check-label" for="cargadoEnPlataformaTel">
+                                                        <i class="bi bi-cloud-check me-1"></i><strong>Ya está cargado en la plataforma de la operadora</strong>
+                                                    </label>
+                                                    <div class="form-text">Marca esta casilla si el contrato ya fue cargado directamente en la plataforma externa</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
                                         @if (contratoSeleccionado.Estado == "Activo" && mostrarCampoFechaActivo)
                                         {
                                             <div class="row">
@@ -2522,7 +2534,8 @@ else
             LocalidadInstalacion = contrato.LocalidadInstalacion,
             AclaradorInstalacion = contrato.AclaradorInstalacion,
             DireccionSegundaResidencia = contrato.DireccionSegundaResidencia,
-            TarifaFibraSegundaResidencia = contrato.TarifaFibraSegundaResidencia
+            TarifaFibraSegundaResidencia = contrato.TarifaFibraSegundaResidencia,
+            CargadoEnPlataforma = contrato.CargadoEnPlataforma
         };
         
         // Verificar si tiene fibra segunda residencia

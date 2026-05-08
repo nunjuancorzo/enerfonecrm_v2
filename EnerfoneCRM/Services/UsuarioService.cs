@@ -448,6 +448,108 @@ public class UsuarioService
         
         await context.SaveChangesAsync();
     }
+
+    public async Task ActualizarJefesVentasDeDirectorAsync(int directorId, List<int> jefeIds)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        
+        // Obtener todos los jefes de ventas actuales del director
+        var jefesActuales = await context.Usuarios
+            .Where(u => u.DirectorComercialId == directorId && u.Rol == "Jefe de ventas")
+            .ToListAsync();
+        
+        // Quitar el director de jefes que ya no están seleccionados
+        foreach (var jefe in jefesActuales)
+        {
+            if (!jefeIds.Contains(jefe.Id))
+            {
+                jefe.DirectorComercialId = null;
+                Console.WriteLine($"[JERARQUÍA] Jefe de Ventas {jefe.Id}: DirectorComercialId cambiado de {directorId} a null");
+            }
+        }
+        
+        // Asignar el director a los nuevos jefes seleccionados
+        foreach (var jefeId in jefeIds)
+        {
+            var jefe = await context.Usuarios.FindAsync(jefeId);
+            if (jefe != null && jefe.Rol == "Jefe de ventas")
+            {
+                var directorAnterior = jefe.DirectorComercialId;
+                jefe.DirectorComercialId = directorId;
+                Console.WriteLine($"[JERARQUÍA] Jefe de Ventas {jefeId}: DirectorComercialId cambiado de {directorAnterior} a {directorId}");
+            }
+        }
+        
+        await context.SaveChangesAsync();
+    }
+
+    public async Task ActualizarGestoresDeDirectorAsync(int directorId, List<int> gestorIds)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        
+        // Obtener todos los gestores actuales del director
+        var gestoresActuales = await context.Usuarios
+            .Where(u => u.DirectorComercialId == directorId && u.Rol == "Gestor")
+            .ToListAsync();
+        
+        // Quitar el director de gestores que ya no están seleccionados
+        foreach (var gestor in gestoresActuales)
+        {
+            if (!gestorIds.Contains(gestor.Id))
+            {
+                gestor.DirectorComercialId = null;
+                Console.WriteLine($"[JERARQUÍA] Gestor {gestor.Id}: DirectorComercialId cambiado de {directorId} a null");
+            }
+        }
+        
+        // Asignar el director a los nuevos gestores seleccionados
+        foreach (var gestorId in gestorIds)
+        {
+            var gestor = await context.Usuarios.FindAsync(gestorId);
+            if (gestor != null && gestor.Rol == "Gestor")
+            {
+                var directorAnterior = gestor.DirectorComercialId;
+                gestor.DirectorComercialId = directorId;
+                Console.WriteLine($"[JERARQUÍA] Gestor {gestorId}: DirectorComercialId cambiado de {directorAnterior} a {directorId}");
+            }
+        }
+        
+        await context.SaveChangesAsync();
+    }
+
+    public async Task ActualizarColaboradoresDeDirectorAsync(int directorId, List<int> colaboradorIds)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        
+        // Obtener todos los colaboradores actuales del director
+        var colaboradoresActuales = await context.Usuarios
+            .Where(u => u.DirectorComercialId == directorId && u.Rol == "Colaborador")
+            .ToListAsync();
+        
+        // Quitar el director de colaboradores que ya no están seleccionados
+        foreach (var colaborador in colaboradoresActuales)
+        {
+            if (!colaboradorIds.Contains(colaborador.Id))
+            {
+                colaborador.DirectorComercialId = null;
+                Console.WriteLine($"[JERARQUÍA] Colaborador {colaborador.Id}: DirectorComercialId cambiado de {directorId} a null");
+            }
+        }
+        
+        // Asignar el director a los nuevos colaboradores seleccionados
+        foreach (var colaboradorId in colaboradorIds)
+        {
+            var colaborador = await context.Usuarios.FindAsync(colaboradorId);
+            if (colaborador != null && colaborador.Rol == "Colaborador")
+            {
+                var directorAnterior = colaborador.DirectorComercialId;
+                colaborador.DirectorComercialId = directorId;
+                Console.WriteLine($"[JERARQUÍA] Colaborador {colaboradorId}: DirectorComercialId cambiado de {directorAnterior} a {directorId}");
+            }
+        }
+        
+        await context.SaveChangesAsync();
+    }
     
     // Obtener usuarios (comerciales) permitidos según el rol del usuario actual
     public async Task<List<Usuario>> ObtenerUsuariosPermitidosAsync(string? rolUsuario, int? usuarioId)

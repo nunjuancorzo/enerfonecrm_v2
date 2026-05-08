@@ -130,62 +130,104 @@
                         <InputNumber class="form-control" @bind-Value="usuario.Comision" />
                     </div> *@
 
-                    @if (usuario.Rol == "Jefe de ventas" || usuario.Rol == "Gestor" || usuario.Rol == "Colaborador")
+                    @* JERARQUÍA: Vista de solo lectura para subordinados *@
+                    @if (usuario.Rol == "Colaborador" || usuario.Rol == "Gestor" || usuario.Rol == "Jefe de ventas")
                     {
                         <div class="mb-3">
-                            <label class="form-label">Director Comercial Asignado</label>
-                            <InputSelect class="form-select" @bind-Value="usuario.DirectorComercialId" @bind-Value:after="OnDirectorComercialChanged">
-                                <option value="">Sin director comercial asignado</option>
-                                @foreach (var director in directoresComerciales)
+                            <hr />
+                            <h6 class="mb-3">
+                                <i class="bi bi-diagram-3 me-2"></i>Tu Jerarquía Actual
+                                <span class="badge bg-info ms-2">Solo lectura</span>
+                            </h6>
+                            <div class="alert alert-light border">
+                                @if (usuario.Rol == "Colaborador")
                                 {
-                                    <option value="@director.Id">@director.NombreUsuario - @director.Nombre @director.Apellidos</option>
+                                    <div class="mb-2">
+                                        <strong>Gestor:</strong> 
+                                        @if (usuario.GestorId.HasValue)
+                                        {
+                                            var gestor = gestoresDisponibles.FirstOrDefault(g => g.Id == usuario.GestorId.Value);
+                                            @(gestor != null ? $"{gestor.NombreUsuario} - {gestor.Nombre} {gestor.Apellidos}" : "No asignado")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No asignado</span>
+                                        }
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Jefe de Ventas:</strong> 
+                                        @if (usuario.JefeVentasId.HasValue)
+                                        {
+                                            var jefe = jefesVentasDisponibles.FirstOrDefault(j => j.Id == usuario.JefeVentasId.Value);
+                                            @(jefe != null ? $"{jefe.NombreUsuario} - {jefe.Nombre} {jefe.Apellidos}" : "No asignado")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No asignado</span>
+                                        }
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Director Comercial:</strong> 
+                                        @if (usuario.DirectorComercialId.HasValue)
+                                        {
+                                            var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
+                                            @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No asignado</span>
+                                        }
+                                    </div>
                                 }
-                            </InputSelect>
-                            <div class="form-text">Director comercial que supervisará a este usuario</div>
+                                @if (usuario.Rol == "Gestor")
+                                {
+                                    <div class="mb-2">
+                                        <strong>Jefe de Ventas:</strong> 
+                                        @if (usuario.JefeVentasId.HasValue)
+                                        {
+                                            var jefe = jefesVentasDisponibles.FirstOrDefault(j => j.Id == usuario.JefeVentasId.Value);
+                                            @(jefe != null ? $"{jefe.NombreUsuario} - {jefe.Nombre} {jefe.Apellidos}" : "No asignado")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No asignado</span>
+                                        }
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Director Comercial:</strong> 
+                                        @if (usuario.DirectorComercialId.HasValue)
+                                        {
+                                            var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
+                                            @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No asignado</span>
+                                        }
+                                    </div>
+                                }
+                                @if (usuario.Rol == "Jefe de ventas")
+                                {
+                                    <div class="mb-2">
+                                        <strong>Director Comercial:</strong> 
+                                        @if (usuario.DirectorComercialId.HasValue)
+                                        {
+                                            var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
+                                            @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No asignado</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
                         </div>
                     }
 
-                    @if (usuario.Rol == "Colaborador")
-                    {
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Gestor Asignado</label>
-                                <InputSelect class="form-select" @bind-Value="usuario.GestorId" @bind-Value:after="OnGestorChanged">
-                                    <option value="">Sin gestor asignado</option>
-                                    @foreach (var gestor in gestoresDisponibles)
-                                    {
-                                        <option value="@gestor.Id">@gestor.NombreUsuario - @gestor.Nombre @gestor.Apellidos</option>
-                                    }
-                                </InputSelect>
-                                <div class="form-text">Gestor que supervisará a este colaborador</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Jefe de Ventas Asignado</label>
-                                <InputSelect class="form-select" @bind-Value="usuario.JefeVentasId" @bind-Value:after="OnJefeVentasChanged">
-                                    <option value="">Sin jefe de ventas asignado</option>
-                                    @foreach (var jefe in jefesVentasDisponibles)
-                                    {
-                                        <option value="@jefe.Id">@jefe.NombreUsuario - @jefe.Nombre @jefe.Apellidos</option>
-                                    }
-                                </InputSelect>
-                                <div class="form-text">Jefe de ventas que supervisará a este colaborador</div>
-                            </div>
-                        </div>
-                    }
-
+                    @* JERARQUÍA: Interfaz de asignación para superiores *@
                     @if (usuario.Rol == "Gestor")
                     {
-                        <div class="mb-3">
-                            <label class="form-label">Jefe de Ventas Asignado</label>
-                            <InputSelect class="form-select" @bind-Value="usuario.JefeVentasId">
-                                <option value="">Sin jefe de ventas asignado</option>
-                                @foreach (var jefe in jefesVentasDisponibles)
-                                {
-                                    <option value="@jefe.Id">@jefe.NombreUsuario - @jefe.Nombre @jefe.Apellidos</option>
-                                }
-                            </InputSelect>
-                            <div class="form-text">Jefe de ventas que supervisará a este gestor</div>
-                        </div>
 
                         <div class="mb-3">
                             <hr />
@@ -225,67 +267,229 @@
                     {
                         <div class="mb-3">
                             <hr />
-                            <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i>Gestores Asignados</h6>
-                            <p class="text-muted small">Selecciona los gestores que reportarán a este jefe de ventas. El jefe de ventas podrá ver los contratos de los gestores y sus colaboradores.</p>
+                            <h6 class="mb-3">
+                                <i class="bi bi-diagram-3 me-2"></i>Gestión de Equipo
+                                <span class="badge bg-primary ms-2">Asignación de Subordinados</span>
+                            </h6>
+                            <p class="text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Selecciona los gestores y colaboradores que reportarán a este jefe de ventas. 
+                                Los cambios actualizarán el campo <code>JefeVentasId</code> de cada usuario seleccionado.
+                            </p>
                             
-                            <div class="row">
-                                @if (gestoresDisponibles.Any())
-                                {
-                                    @foreach (var gestor in gestoresDisponibles)
-                                    {
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check">
-                                                <input type="checkbox" 
-                                                       class="form-check-input" 
-                                                       id="ges_@gestor.Id" 
-                                                       checked="@gestoresSeleccionados.Contains(gestor.Id)"
-                                                       @onchange="@((e) => OnGestorToggle(gestor.Id, (bool)e.Value!))" />
-                                                <label class="form-check-label" for="ges_@gestor.Id">
-                                                    @gestor.NombreUsuario - @gestor.Nombre @gestor.Apellidos
-                                                </label>
+                            <div class="accordion" id="accordionJefeVentas">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGestores">
+                                            <i class="bi bi-diagram-3 me-2"></i>Gestores Asignados 
+                                            <span class="badge bg-secondary ms-2">@gestoresSeleccionados.Count</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseGestores" class="accordion-collapse collapse show" data-bs-parent="#accordionJefeVentas">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                @if (gestoresDisponibles.Any())
+                                                {
+                                                    @foreach (var gestor in gestoresDisponibles)
+                                                    {
+                                                        <div class="col-md-6 mb-2">
+                                                            <div class="form-check">
+                                                                <input type="checkbox" 
+                                                                       class="form-check-input" 
+                                                                       id="ges_@gestor.Id" 
+                                                                       checked="@gestoresSeleccionados.Contains(gestor.Id)"
+                                                                       @onchange="@((e) => OnGestorToggle(gestor.Id, (bool)e.Value!))" />
+                                                                <label class="form-check-label" for="ges_@gestor.Id">
+                                                                    <strong>@gestor.NombreUsuario</strong> - @gestor.Nombre @gestor.Apellidos
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="alert alert-info mb-0">No hay gestores disponibles para asignar.</div>
+                                                    </div>
+                                                }
                                             </div>
                                         </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <div class="col-12">
-                                        <div class="alert alert-info">No hay gestores disponibles para asignar.</div>
                                     </div>
-                                }
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseColaboradores">
+                                            <i class="bi bi-people me-2"></i>Colaboradores Directos 
+                                            <span class="badge bg-secondary ms-2">@colaboradoresSeleccionados.Count</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseColaboradores" class="accordion-collapse collapse" data-bs-parent="#accordionJefeVentas">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                @if (colaboradoresDisponibles.Any())
+                                                {
+                                                    @foreach (var colaborador in colaboradoresDisponibles)
+                                                    {
+                                                        <div class="col-md-6 mb-2">
+                                                            <div class="form-check">
+                                                                <input type="checkbox" 
+                                                                       class="form-check-input" 
+                                                                       id="col_jv_@colaborador.Id" 
+                                                                       checked="@colaboradoresSeleccionados.Contains(colaborador.Id)"
+                                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, (bool)e.Value!))" />
+                                                                <label class="form-check-label" for="col_jv_@colaborador.Id">
+                                                                    <strong>@colaborador.NombreUsuario</strong> - @colaborador.Nombre @colaborador.Apellidos
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="alert alert-info mb-0">No hay colaboradores disponibles para asignar.</div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    }
 
+                    @if (usuario.Rol == "Director comercial")
+                    {
                         <div class="mb-3">
                             <hr />
-                            <h6 class="mb-3"><i class="bi bi-people me-2"></i>Colaboradores Directos Asignados</h6>
-                            <p class="text-muted small">Selecciona los colaboradores directos de este jefe de ventas (adicionales a los que dependen de los gestores).</p>
+                            <h6 class="mb-3">
+                                <i class="bi bi-building me-2"></i>Gestión de Estructura Comercial
+                                <span class="badge bg-primary ms-2">Asignación de Subordinados</span>
+                            </h6>
+                            <p class="text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Selecciona los jefes de ventas, gestores y colaboradores que reportarán a este director comercial. 
+                                Los cambios actualizarán el campo <code>DirectorComercialId</code> de cada usuario seleccionado.
+                            </p>
                             
-                            <div class="row">
-                                @if (colaboradoresDisponibles.Any())
-                                {
-                                    @foreach (var colaborador in colaboradoresDisponibles)
-                                    {
-                                        <div class="col-md-6 mb-2">
-                                            <div class="form-check">
-                                                <input type="checkbox" 
-                                                       class="form-check-input" 
-                                                       id="col_@colaborador.Id" 
-                                                       checked="@colaboradoresSeleccionados.Contains(colaborador.Id)"
-                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, (bool)e.Value!))" />
-                                                <label class="form-check-label" for="col_@colaborador.Id">
-                                                    @colaborador.NombreUsuario - @colaborador.Nombre @colaborador.Apellidos
-                                                </label>
+                            <div class="accordion" id="accordionDirector">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseJefesVentas">
+                                            <i class="bi bi-person-badge me-2"></i>Jefes de Ventas Asignados 
+                                            <span class="badge bg-secondary ms-2">@jefesVentasSeleccionados.Count</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseJefesVentas" class="accordion-collapse collapse show" data-bs-parent="#accordionDirector">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                @if (jefesVentasDisponibles.Any())
+                                                {
+                                                    @foreach (var jefe in jefesVentasDisponibles)
+                                                    {
+                                                        <div class="col-md-6 mb-2">
+                                                            <div class="form-check">
+                                                                <input type="checkbox" 
+                                                                       class="form-check-input" 
+                                                                       id="jef_@jefe.Id" 
+                                                                       checked="@jefesVentasSeleccionados.Contains(jefe.Id)"
+                                                                       @onchange="@((e) => OnJefeVentasToggle(jefe.Id, (bool)e.Value!))" />
+                                                                <label class="form-check-label" for="jef_@jefe.Id">
+                                                                    <strong>@jefe.NombreUsuario</strong> - @jefe.Nombre @jefe.Apellidos
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="alert alert-info mb-0">No hay jefes de ventas disponibles para asignar.</div>
+                                                    </div>
+                                                }
                                             </div>
                                         </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <div class="col-12">
-                                        <div class="alert alert-info">No hay colaboradores disponibles para asignar.</div>
                                     </div>
-                                }
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGestoresDirector">
+                                            <i class="bi bi-diagram-3 me-2"></i>Gestores Directos 
+                                            <span class="badge bg-secondary ms-2">@gestoresSeleccionados.Count</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseGestoresDirector" class="accordion-collapse collapse" data-bs-parent="#accordionDirector">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                @if (gestoresDisponibles.Any())
+                                                {
+                                                    @foreach (var gestor in gestoresDisponibles)
+                                                    {
+                                                        <div class="col-md-6 mb-2">
+                                                            <div class="form-check">
+                                                                <input type="checkbox" 
+                                                                       class="form-check-input" 
+                                                                       id="ges_dir_@gestor.Id" 
+                                                                       checked="@gestoresSeleccionados.Contains(gestor.Id)"
+                                                                       @onchange="@((e) => OnGestorToggle(gestor.Id, (bool)e.Value!))" />
+                                                                <label class="form-check-label" for="ges_dir_@gestor.Id">
+                                                                    <strong>@gestor.NombreUsuario</strong> - @gestor.Nombre @gestor.Apellidos
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="alert alert-info mb-0">No hay gestores disponibles para asignar.</div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseColaboradoresDirector">
+                                            <i class="bi bi-people me-2"></i>Colaboradores Directos 
+                                            <span class="badge bg-secondary ms-2">@colaboradoresSeleccionados.Count</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseColaboradoresDirector" class="accordion-collapse collapse" data-bs-parent="#accordionDirector">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                @if (colaboradoresDisponibles.Any())
+                                                {
+                                                    @foreach (var colaborador in colaboradoresDisponibles)
+                                                    {
+                                                        <div class="col-md-6 mb-2">
+                                                            <div class="form-check">
+                                                                <input type="checkbox" 
+                                                                       class="form-check-input" 
+                                                                       id="col_dir_@colaborador.Id" 
+                                                                       checked="@colaboradoresSeleccionados.Contains(colaborador.Id)"
+                                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, (bool)e.Value!))" />
+                                                                <label class="form-check-label" for="col_dir_@colaborador.Id">
+                                                                    <strong>@colaborador.NombreUsuario</strong> - @colaborador.Nombre @colaborador.Apellidos
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="col-12">
+                                                        <div class="alert alert-info mb-0">No hay colaboradores disponibles para asignar.</div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     }
@@ -630,7 +834,7 @@
 @code {
     [Parameter] public Usuario? Usuario { get; set; }
     [Parameter] public string? MensajeError { get; set; }
-    [Parameter] public EventCallback<(Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds)> OnGuardar { get; set; }
+    [Parameter] public EventCallback<(Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds, List<int> jefesVentasIds)> OnGuardar { get; set; }
     [Parameter] public EventCallback OnCancelar { get; set; }
 
     private Usuario usuario = new();
@@ -651,6 +855,7 @@
     private List<Usuario> colaboradoresDisponibles = new();
     private HashSet<int> colaboradoresSeleccionados = new();
     private HashSet<int> gestoresSeleccionados = new();
+    private HashSet<int> jefesVentasSeleccionados = new();
 
     // Variables para los archivos adjuntos
     private string? archivoDniNombre;
@@ -880,6 +1085,33 @@
                     .ToList();
                 colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
             }
+            
+            // Cargar jefes, gestores y colaboradores asignados al director comercial
+            if (usuario.Rol == "Director comercial")
+            {
+                await CargarJefesVentas();
+                await CargarGestores();
+                await CargarColaboradores();
+                var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+                
+                var jefesAsignados = todosUsuarios
+                    .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Jefe de ventas")
+                    .Select(u => u.Id)
+                    .ToList();
+                jefesVentasSeleccionados = new HashSet<int>(jefesAsignados);
+                
+                var gestoresAsignados = todosUsuarios
+                    .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Gestor")
+                    .Select(u => u.Id)
+                    .ToList();
+                gestoresSeleccionados = new HashSet<int>(gestoresAsignados);
+                
+                var colaboradoresAsignados = todosUsuarios
+                    .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Colaborador")
+                    .Select(u => u.Id)
+                    .ToList();
+                colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
+            }
         }
     }
 
@@ -900,40 +1132,26 @@
         if (isChecked)
         {
             gestoresSeleccionados.Add(gestorId);
+            Console.WriteLine($"[JERARQUÍA] Gestor {gestorId} añadido a la selección");
         }
         else
         {
             gestoresSeleccionados.Remove(gestorId);
+            Console.WriteLine($"[JERARQUÍA] Gestor {gestorId} eliminado de la selección");
         }
     }
 
-    private void OnGestorChanged()
+    private void OnJefeVentasToggle(int jefeId, bool isChecked)
     {
-        // Si se asigna un gestor, limpiar jefe de ventas y director comercial (solo puede tener uno)
-        if (usuario.GestorId.HasValue)
+        if (isChecked)
         {
-            usuario.JefeVentasId = null;
-            usuario.DirectorComercialId = null;
+            jefesVentasSeleccionados.Add(jefeId);
+            Console.WriteLine($"[JERARQUÍA] Jefe de ventas {jefeId} añadido a la selección");
         }
-    }
-
-    private void OnJefeVentasChanged()
-    {
-        // Si se asigna un jefe de ventas, limpiar gestor y director comercial (solo puede tener uno)
-        if (usuario.JefeVentasId.HasValue)
+        else
         {
-            usuario.GestorId = null;
-            usuario.DirectorComercialId = null;
-        }
-    }
-
-    private void OnDirectorComercialChanged()
-    {
-        // Si se asigna un director comercial, limpiar gestor y jefe de ventas (solo puede tener uno)
-        if (usuario.DirectorComercialId.HasValue)
-        {
-            usuario.GestorId = null;
-            usuario.JefeVentasId = null;
+            jefesVentasSeleccionados.Remove(jefeId);
+            Console.WriteLine($"[JERARQUÍA] Jefe de ventas {jefeId} eliminado de la selección");
         }
     }
 
@@ -1036,6 +1254,27 @@
             usuario.PasswordHash = nuevaPassword;
         }
         
+        // Actualizar la jerarquía basándose en las selecciones de los checkboxes
+        // Esto asegura que los campos *Id de los subordinados se actualicen correctamente
+        
+        // Si es Gestor: actualizar GestorId de los colaboradores seleccionados
+        if (usuario.Rol == "Gestor")
+        {
+            Console.WriteLine($"[JERARQUÍA] Gestor {usuario.Id} - {colaboradoresSeleccionados.Count} colaboradores seleccionados");
+        }
+        
+        // Si es Jefe de Ventas: actualizar JefeVentasId de gestores y colaboradores seleccionados
+        if (usuario.Rol == "Jefe de ventas")
+        {
+            Console.WriteLine($"[JERARQUÍA] Jefe de Ventas {usuario.Id} - {gestoresSeleccionados.Count} gestores y {colaboradoresSeleccionados.Count} colaboradores seleccionados");
+        }
+        
+        // Si es Director Comercial: actualizar DirectorComercialId de jefes, gestores y colaboradores
+        if (usuario.Rol == "Director comercial")
+        {
+            Console.WriteLine($"[JERARQUÍA] Director Comercial {usuario.Id} - {jefesVentasSeleccionados.Count} jefes, {gestoresSeleccionados.Count} gestores y {colaboradoresSeleccionados.Count} colaboradores seleccionados");
+        }
+        
         // Invocar OnGuardar con todos los datos necesarios
         await OnGuardar.InvokeAsync((
             usuario,
@@ -1043,7 +1282,8 @@
             operadorasSeleccionadas.ToList(),
             empresasAlarmasSeleccionadas.ToList(),
             colaboradoresSeleccionados.ToList(),
-            gestoresSeleccionados.ToList()
+            gestoresSeleccionados.ToList(),
+            jefesVentasSeleccionados.ToList()
         ));
     }
 

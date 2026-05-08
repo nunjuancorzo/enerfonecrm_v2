@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Script para exportar todos los servicios existentes con ID a un archivo Excel
+Script para exportar todos los clientes existentes con ID a un archivo Excel
 Los parámetros de conexión se leen desde appsettings.*.json si no se proporcionan
 
 Uso: 
-  python3 exportar_servicios.py
-  python3 exportar_servicios.py <nombre_bd> [db_user] [db_password]
+  python3 exportar_clientes.py
+  python3 exportar_clientes.py <nombre_bd> [db_user] [db_password]
 """
 
 import sys
@@ -95,7 +95,7 @@ else:
         db_password = config['password']
         db_host = config['host']
     else:
-        print("Uso: python3 exportar_servicios.py [nombre_bd] [db_user] [db_password]")
+        print("Uso: python3 exportar_clientes.py [nombre_bd] [db_user] [db_password]")
         sys.exit(1)
 
 # Configuración de la base de datos
@@ -106,50 +106,60 @@ DB_CONFIG = {
     'password': db_password
 }
 
-def exportar_servicios():
-    """Exporta todos los servicios con ID"""
+def exportar_clientes():
+    """Exporta todos los clientes con ID"""
     try:
         print(f"Conectando a la base de datos {database_name}...")
         conexion = mysql.connector.connect(**DB_CONFIG)
         cursor = conexion.cursor(dictionary=True)
         
-        # Consultar todos los servicios
+        # Consultar todos los clientes
         sql = """
         SELECT 
-            id, tipo, nombreServicio, precio, empresa
-        FROM servicios
+            id, tipo_cliente, nombre, dni_cif, cnae, dni_representante,
+            email, telefono, tipo_via, direccion, numero, escalera,
+            piso, puerta, aclarador, poblacion, provincia, codigo_postal,
+            iban, representante, comercial, procedencia, observaciones
+        FROM clientes_simple
         ORDER BY id
         """
         
         cursor.execute(sql)
-        servicios = cursor.fetchall()
+        clientes = cursor.fetchall()
         
-        print(f"[OK] Se encontraron {len(servicios)} servicios")
+        print(f"[OK] Se encontraron {len(clientes)} clientes")
         
-        if not servicios:
-            print("[INFO] No hay servicios para exportar")
+        if not clientes:
+            print("[INFO] No hay clientes para exportar")
             return
         
         # Preparar datos para Excel
         datos_excel = []
-        for servicio in servicios:
-            # Formatear precio con coma como separador decimal
-            precio = servicio['precio'] or ''
-            if precio:
-                try:
-                    # Convertir a decimal y formatear con coma
-                    precio_formateado = str(float(precio)).replace('.', ',')
-                except:
-                    precio_formateado = str(precio).replace('.', ',')
-            else:
-                precio_formateado = ''
-            
+        for cliente in clientes:
             datos_excel.append({
-                'ID': servicio['id'],
-                'Tipo': servicio['tipo'] or '',
-                'NombreServicio': servicio['nombreServicio'] or '',
-                'Precio': precio_formateado,
-                'Empresa': servicio['empresa'] or ''
+                'ID': cliente['id'],
+                'TipoCliente': cliente['tipo_cliente'] or '',
+                'Nombre': cliente['nombre'] or '',
+                'DNI/CIF': cliente['dni_cif'] or '',
+                'CNAE': cliente['cnae'] or '',
+                'DNI Representante': cliente['dni_representante'] or '',
+                'Email': cliente['email'] or '',
+                'Teléfono': cliente['telefono'] or '',
+                'TipoVia': cliente['tipo_via'] or '',
+                'Dirección': cliente['direccion'] or '',
+                'Número': cliente['numero'] or '',
+                'Escalera': cliente['escalera'] or '',
+                'Piso': cliente['piso'] or '',
+                'Puerta': cliente['puerta'] or '',
+                'Aclarador': cliente['aclarador'] or '',
+                'Población': cliente['poblacion'] or '',
+                'Provincia': cliente['provincia'] or '',
+                'Código Postal': cliente['codigo_postal'] or '',
+                'IBAN': cliente['iban'] or '',
+                'Representante': cliente['representante'] or '',
+                'Comercial': cliente['comercial'] or '',
+                'Procedencia': cliente['procedencia'] or '',
+                'Observaciones': cliente['observaciones'] or ''
             })
         
         # Crear DataFrame
@@ -159,39 +169,39 @@ def exportar_servicios():
         valores_validos = [
             ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
             ['', '', ''],
-            ['Tipo*', '', ''],
-            ['', 'Residencial', 'Para clientes particulares'],
+            ['TipoCliente*', '', ''],
+            ['', 'Particular', 'Para clientes particulares/personas físicas'],
+            ['', 'Autónomo', 'Para trabajadores autónomos'],
             ['', 'Pyme', 'Para pequeñas y medianas empresas'],
             ['', '', ''],
-            ['Ejemplos Servicios Residencial', '', ''],
-            ['', 'Mantenimiento Caldera', ''],
-            ['', 'Seguro Hogar Eléctrico', ''],
-            ['', 'Revisión Anual', ''],
-            ['', '', ''],
-            ['Ejemplos Servicios Pyme', '', ''],
-            ['', 'Servicio Técnico Premium', ''],
-            ['', 'Mantenimiento Anual', ''],
-            ['', 'Asesoramiento Energético', ''],
+            ['TipoVia', '', ''],
+            ['', 'Calle', ''],
+            ['', 'Avenida', ''],
+            ['', 'Paseo', ''],
+            ['', 'Plaza', ''],
+            ['', 'Carretera', ''],
+            ['', 'Camino', ''],
+            ['', 'Travesía', ''],
             ['', '', ''],
             ['NOTAS', '', ''],
             ['', '* Campos obligatorios', ''],
-            ['', 'Si incluye columna ID, actualiza servicios existentes', ''],
-            ['', 'Si no incluye ID, crea nuevos servicios', ''],
-            ['', 'El Precio debe ser numérico (usar coma o punto para decimales)', '']
+            ['', 'Si incluye columna ID, actualiza clientes existentes', ''],
+            ['', 'Si no incluye ID, crea nuevos clientes', ''],
+            ['', 'CNAE: Código de actividad económica (4 dígitos)', '']
         ]
         df_valores = pd.DataFrame(valores_validos)
         
         # Nombre del archivo con fecha actual
         fecha_actual = datetime.now().strftime('%Y%m%d_%H%M%S')
-        nombre_archivo = f'servicios_exportados_{fecha_actual}.xlsx'
+        nombre_archivo = f'clientes_exportados_{fecha_actual}.xlsx'
         
         # Exportar a Excel con múltiples hojas
         with pd.ExcelWriter(nombre_archivo, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Servicios')
+            df.to_excel(writer, index=False, sheet_name='Clientes')
             df_valores.to_excel(writer, index=False, sheet_name='Valores Válidos', header=False)
         
-        print(f"[OK] Servicios exportados correctamente a: {nombre_archivo}")
-        print(f"[OK] Total de servicios exportados: {len(datos_excel)}")
+        print(f"[OK] Clientes exportados correctamente a: {nombre_archivo}")
+        print(f"[OK] Total de clientes exportados: {len(datos_excel)}")
         
         cursor.close()
         conexion.close()
@@ -204,4 +214,4 @@ def exportar_servicios():
         sys.exit(1)
 
 if __name__ == "__main__":
-    exportar_servicios()
+    exportar_clientes()

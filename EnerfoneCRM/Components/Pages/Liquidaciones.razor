@@ -1,6 +1,7 @@
 @page "/liquidaciones"
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
+@using EnerfoneCRM.Data
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
 @inject AuthService AuthService
@@ -197,6 +198,12 @@
                                                     }
                                                 </button>
                                             }
+                                            @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                            {
+                                                <button class="btn btn-sm btn-danger ms-1" @onclick="() => RechazarLiquidacionPendiente(item.Usuario.Id)" title="Rechazar Liquidación Pendiente">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
                                         </td>
                                     </tr>
                                 }
@@ -278,6 +285,12 @@
                                                 <button class="btn btn-sm btn-success me-1" @onclick="() => MarcarComoAceptada(liq.Id)" title="Marcar como Aceptada">
                                                     <i class="bi bi-check-circle"></i>
                                                 </button>
+                                                @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                                {
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => EliminarLiquidacion(liq.Id)" title="Eliminar Liquidación">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                }
                                             </td>
                                         </tr>
                                     }
@@ -362,6 +375,12 @@
                                                 <button class="btn btn-sm btn-danger me-1" @onclick="() => MarcarConIncidencia(liq.Id)" title="Marcar con Incidencia">
                                                     <i class="bi bi-exclamation-triangle"></i>
                                                 </button>
+                                                @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                                {
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => EliminarLiquidacion(liq.Id)" title="Eliminar Liquidación">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                }
                                             </td>
                                         </tr>
                                     }
@@ -463,9 +482,15 @@
                                                 <button class="btn btn-sm btn-info me-1" @onclick="() => VerContratosHistorico(liq)" title="Ver Contratos">
                                                     <i class="bi bi-eye"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-warning" @onclick="() => VolverAceptada(liq.Id)" title="Volver a Aceptada">
+                                                <button class="btn btn-sm btn-warning me-1" @onclick="() => VolverAceptada(liq.Id)" title="Volver a Aceptada">
                                                     <i class="bi bi-arrow-counterclockwise"></i>
                                                 </button>
+                                                @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                                {
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => EliminarLiquidacion(liq.Id)" title="Eliminar Liquidación">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                }
                                             </td>
                                         </tr>
                                     }
@@ -578,7 +603,7 @@
                                             <td><small>@contrato.NombreCliente</small></td>
                                             <td><small>@contrato.EnCups</small></td>
                                             <td><small>@contrato.EnCupsGas</small></td>
-                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td><small>@(ObtenerComisionUsuario(contrato.Id).ToString("N2"))€</small></td>
                                             <td>
                                                 @if (tieneDecomision)
                                                 {
@@ -637,7 +662,7 @@
                                             <td><small>@contrato.FijoTel</small></td>
                                             <td><small>@contrato.LineaMovilPrincipal</small></td>
                                             <td><small>@contrato.NumeroLineasTel</small></td>
-                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td><small>@(ObtenerComisionUsuario(contrato.Id).ToString("N2"))€</small></td>
                                             <td>
                                                 @if (tieneDecomision)
                                                 {
@@ -694,7 +719,7 @@
                                             <td><small>@contrato.SubtipoInmueble</small></td>
                                             <td><small>@contrato.KitAlarma</small></td>
                                             <td><small>@contrato.CampanaAlarma</small></td>
-                                            <td><small>@(contrato.Comision?.ToString("N2") ?? "")€</small></td>
+                                            <td><small>@(ObtenerComisionUsuario(contrato.Id).ToString("N2"))€</small></td>
                                             <td>
                                                 @if (tieneDecomision)
                                                 {
@@ -1099,6 +1124,7 @@
                                         <th>Cliente</th>
                                         <th>CUPS Luz</th>
                                         <th>CUPS Gas</th>
+                                        <th>Comisión</th>
                                         <th>Decomisión</th>
                                     </tr>
                                 </thead>
@@ -1116,6 +1142,9 @@
                                             <td>@contrato.NombreCliente</td>
                                             <td><small>@contrato.EnCups</small></td>
                                             <td><small>@contrato.EnCupsGas</small></td>
+                                            <td>
+                                                <strong>@((contrato.Comision ?? 0).ToString("N2"))€</strong>
+                                            </td>
                                             <td>
                                                 @if (tieneDecomision)
                                                 {
@@ -1151,6 +1180,7 @@
                                         <th>DNI Cliente</th>
                                         <th>Cliente</th>
                                         <th>Teléfono</th>
+                                        <th>Comisión</th>
                                         <th>Decomisión</th>
                                     </tr>
                                 </thead>
@@ -1167,6 +1197,9 @@
                                             <td>@contrato.Dni</td>
                                             <td>@contrato.NombreCliente</td>
                                             <td>@contrato.LineaMovilPrincipal</td>
+                                            <td>
+                                                <strong>@((contrato.Comision ?? 0).ToString("N2"))€</strong>
+                                            </td>
                                             <td>
                                                 @if (tieneDecomision)
                                                 {
@@ -1202,6 +1235,7 @@
                                         <th>DNI Cliente</th>
                                         <th>Cliente</th>
                                         <th>Dirección</th>
+                                        <th>Comisión</th>
                                         <th>Decomisión</th>
                                     </tr>
                                 </thead>
@@ -1218,6 +1252,9 @@
                                             <td>@contrato.Dni</td>
                                             <td>@contrato.NombreCliente</td>
                                             <td>@contrato.DireccionInstalacionAlarma</td>
+                                            <td>
+                                                <strong>@((contrato.Comision ?? 0).ToString("N2"))€</strong>
+                                            </td>
                                             <td>
                                                 @if (tieneDecomision)
                                                 {
@@ -1255,6 +1292,7 @@
     private List<Contrato> contratosFacurables = new();
     private Usuario? usuarioSeleccionado = null;
     private bool enviandoEmail = false;
+    private Dictionary<int, decimal> comisionesPorContrato = new(); // Guarda la comisión que le corresponde al usuario por cada contrato
 
     // Variables para incidencias
     private bool mostrarModalIncidencias = false;
@@ -1382,7 +1420,7 @@
                         }
                         
                         var actual = comisionesPorUsuario[gestor.Id];
-                        comisionesPorUsuario[gestor.Id] = (actual.usuario, actual.totalComision + detalle.ComisionGestor.Value, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                        comisionesPorUsuario[gestor.Id] = (actual.usuario, actual.totalComision + detalle.ComisionGestor.Value, actual.cantidadContratos + 1, actual.incidenciasPendientes, actual.incidenciasTotal);
                     }
                 }
 
@@ -1398,7 +1436,7 @@
                         }
                         
                         var actual = comisionesPorUsuario[jefeVentas.Id];
-                        comisionesPorUsuario[jefeVentas.Id] = (actual.usuario, actual.totalComision + detalle.ComisionJefeVentas.Value, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                        comisionesPorUsuario[jefeVentas.Id] = (actual.usuario, actual.totalComision + detalle.ComisionJefeVentas.Value, actual.cantidadContratos + 1, actual.incidenciasPendientes, actual.incidenciasTotal);
                     }
                 }
 
@@ -1414,7 +1452,7 @@
                         }
                         
                         var actual = comisionesPorUsuario[directorComercial.Id];
-                        comisionesPorUsuario[directorComercial.Id] = (actual.usuario, actual.totalComision + detalle.ComisionDirectorComercial.Value, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                        comisionesPorUsuario[directorComercial.Id] = (actual.usuario, actual.totalComision + detalle.ComisionDirectorComercial.Value, actual.cantidadContratos + 1, actual.incidenciasPendientes, actual.incidenciasTotal);
                     }
                 }
 
@@ -1430,7 +1468,7 @@
                         }
                         
                         var actual = comisionesPorUsuario[administrador.Id];
-                        comisionesPorUsuario[administrador.Id] = (actual.usuario, actual.totalComision + detalle.ComisionAdministrador, actual.cantidadContratos, actual.incidenciasPendientes, actual.incidenciasTotal);
+                        comisionesPorUsuario[administrador.Id] = (actual.usuario, actual.totalComision + detalle.ComisionAdministrador, actual.cantidadContratos + 1, actual.incidenciasPendientes, actual.incidenciasTotal);
                     }
                 }
             }
@@ -1465,12 +1503,10 @@
                 .OrderByDescending(u => u.TotalComisiones)
                 .ToList();
 
-            // Filtrar por usuario si no puede gestionar liquidaciones
-            if (!AuthService.PuedeGestionarLiquidaciones && AuthService.UsuarioActual != null)
+            // Filtrar por jerarquía según el rol del usuario actual
+            if (AuthService.UsuarioActual != null)
             {
-                usuariosConContratos = usuariosConContratos
-                    .Where(u => u.Usuario.Id == AuthService.UsuarioActual.Id)
-                    .ToList();
+                usuariosConContratos = await FiltrarUsuariosPorJerarquiaAsync(usuariosConContratos);
             }
 
             Console.WriteLine($"[LIQUIDACIONES] Total usuarios con comisiones pendientes: {usuariosConContratos.Count}");
@@ -1520,6 +1556,8 @@
             
             // Filtrar contratos donde este usuario recibirá comisión
             contratosFacurables = new List<Contrato>();
+            comisionesPorContrato = new Dictionary<int, decimal>(); // Limpiar el diccionario
+            
             foreach (var contrato in todosContratosFacturables)
             {
                 var comercial = await context.Usuarios
@@ -1530,22 +1568,40 @@
                 var detalle = await ComisionService.CalcularDistribucionComisionAsync(contrato, comercial, null);
                 
                 // Verificar si este usuario recibe comisión de este contrato
+                // y guardar la comisión específica que le corresponde
                 bool recibeComision = false;
+                decimal comisionUsuario = 0;
                 
                 if (detalle.ColaboradorId == usuarioId && detalle.ComisionColaborador > 0)
+                {
                     recibeComision = true;
+                    comisionUsuario = detalle.ComisionColaborador;
+                }
                 else if (detalle.GestorId == usuarioId && detalle.ComisionGestor > 0)
+                {
                     recibeComision = true;
+                    comisionUsuario = detalle.ComisionGestor ?? 0;
+                }
                 else if (detalle.JefeVentasId == usuarioId && detalle.ComisionJefeVentas > 0)
+                {
                     recibeComision = true;
+                    comisionUsuario = detalle.ComisionJefeVentas ?? 0;
+                }
                 else if (detalle.DirectorComercialId == usuarioId && detalle.ComisionDirectorComercial > 0)
+                {
                     recibeComision = true;
+                    comisionUsuario = detalle.ComisionDirectorComercial ?? 0;
+                }
                 else if (detalle.AdministradorId == usuarioId && detalle.ComisionAdministrador > 0)
+                {
                     recibeComision = true;
+                    comisionUsuario = detalle.ComisionAdministrador;
+                }
                 
                 if (recibeComision)
                 {
                     contratosFacurables.Add(contrato);
+                    comisionesPorContrato[contrato.Id] = comisionUsuario;
                 }
             }
             
@@ -2168,6 +2224,14 @@
                 return;
             }
 
+            Console.WriteLine($"[LIQUIDACIONES] ===== APROBANDO LIQUIDACIÓN =====");
+            Console.WriteLine($"[LIQUIDACIONES] Usuario: {usuarioDb.NombreUsuario} (ID: {usuarioDb.Id}, Rol: {usuarioDb.Rol})");
+            Console.WriteLine($"[LIQUIDACIONES] Jerarquía:");
+            Console.WriteLine($"[LIQUIDACIONES]   - GestorId: {usuarioDb.GestorId}");
+            Console.WriteLine($"[LIQUIDACIONES]   - JefeVentasId: {usuarioDb.JefeVentasId}");
+            Console.WriteLine($"[LIQUIDACIONES]   - DirectorComercialId: {usuarioDb.DirectorComercialId}");
+            Console.WriteLine($"[LIQUIDACIONES] =====================================");
+
             // Obtener todos los contratos facturables del usuario
             var contratos = await context.Contratos
                 .Where(c => c.Comercial == usuarioDb.NombreUsuario
@@ -2232,75 +2296,231 @@
             // Guardar en el histórico (excepto si es superadmin)
             if (AuthService.UsuarioActual?.NombreUsuario != "superadmin")
             {
-                var historico = new HistoricoLiquidacion
+                // ===== RECOPILAR TODOS LOS USUARIOS QUE RECIBIRÁN COMISIÓN =====
+                var usuariosConComision = new Dictionary<int, (Usuario usuario, decimal totalComision)>();
+                
+                // Calcular distribución para todos los contratos y acumular por usuario
+                foreach (var contrato in contratos)
                 {
-                    UsuarioId = usuarioDb.Id,
-                    UsuarioNombre = usuarioDb.NombreUsuario,
-                    UsuarioEmail = usuarioDb.Email,
-                    CantidadContratos = contratos.Count,
-                    ContratosEnergia = contratosEnergia,
-                    ContratosTelefonia = contratosTelefonia,
-                    ContratosAlarmas = contratosAlarmas,
-                    FechaAprobacion = DateTime.Now,
-                    AprobadoPorId = AuthService.UsuarioActual!.Id,
-                    AprobadoPorNombre = AuthService.UsuarioActual.NombreUsuario,
-                    Estado = "Aceptada",
-                    FechaAceptada = DateTime.Now,
-                    TotalComisiones = totalComisionesColaborador  // Solo la parte del colaborador
-                };
-
-                context.HistoricoLiquidaciones.Add(historico);
-                await context.SaveChangesAsync();
-
-                // ===== DISTRIBUCIÓN JERÁRQUICA DE COMISIONES =====
-                // Crear detalles de comisión para cada contrato
-                Console.WriteLine($"[LIQUIDACIONES] Calculando distribución de comisiones para {contratos.Count} contratos");
+                    var detalleComision = await ComisionService.CalcularDistribucionComisionAsync(contrato, usuarioDb, null);
+                    
+                    Console.WriteLine($"[LIQUIDACIONES] Contrato {contrato.Id}:");
+                    Console.WriteLine($"  - Colaborador (ID {detalleComision.ColaboradorId}): {detalleComision.ComisionColaborador}€ ({detalleComision.PorcentajeColaborador}%)");
+                    Console.WriteLine($"  - Gestor (ID {detalleComision.GestorId}): {detalleComision.ComisionGestor}€ ({detalleComision.PorcentajeGestor}%)");
+                    Console.WriteLine($"  - Jefe Ventas (ID {detalleComision.JefeVentasId}): {detalleComision.ComisionJefeVentas}€ ({detalleComision.PorcentajeJefeVentas}%)");
+                    Console.WriteLine($"  - Director (ID {detalleComision.DirectorComercialId}): {detalleComision.ComisionDirectorComercial}€ ({detalleComision.PorcentajeDirectorComercial}%)");
+                    Console.WriteLine($"  - Administrador (ID {detalleComision.AdministradorId}): {detalleComision.ComisionAdministrador}€ ({detalleComision.PorcentajeAdministrador}%)");
+                    
+                    // Colaborador
+                    if (detalleComision.ComisionColaborador > 0)
+                    {
+                        if (!usuariosConComision.ContainsKey(detalleComision.ColaboradorId))
+                        {
+                            usuariosConComision[detalleComision.ColaboradorId] = (usuarioDb, 0);
+                        }
+                        var actual = usuariosConComision[detalleComision.ColaboradorId];
+                        usuariosConComision[detalleComision.ColaboradorId] = (actual.usuario, actual.totalComision + detalleComision.ComisionColaborador);
+                    }
+                    
+                    // Gestor
+                    if (detalleComision.GestorId.HasValue && detalleComision.ComisionGestor.HasValue && detalleComision.ComisionGestor.Value > 0)
+                    {
+                        var gestor = await context.Usuarios.FindAsync(detalleComision.GestorId.Value);
+                        if (gestor != null && gestor.Activo)
+                        {
+                            if (!usuariosConComision.ContainsKey(gestor.Id))
+                            {
+                                usuariosConComision[gestor.Id] = (gestor, 0);
+                                Console.WriteLine($"[LIQUIDACIONES] *** Agregando Gestor ID {gestor.Id} ({gestor.NombreUsuario}) al diccionario");
+                            }
+                            var actual = usuariosConComision[gestor.Id];
+                            usuariosConComision[gestor.Id] = (actual.usuario, actual.totalComision + detalleComision.ComisionGestor.Value);
+                            Console.WriteLine($"[LIQUIDACIONES] *** Gestor acumulado: {usuariosConComision[gestor.Id].totalComision}€");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[LIQUIDACIONES] *** ADVERTENCIA: Gestor ID {detalleComision.GestorId} no encontrado o inactivo");
+                        }
+                    }
+                    else
+                    {
+                        if (!detalleComision.GestorId.HasValue)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: No tiene GestorId asignado");
+                        else if (!detalleComision.ComisionGestor.HasValue)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: ComisionGestor es NULL");
+                        else if (detalleComision.ComisionGestor.Value <= 0)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: ComisionGestor es 0 o negativa");
+                    }
+                    
+                    // Jefe de Ventas
+                    if (detalleComision.JefeVentasId.HasValue && detalleComision.ComisionJefeVentas.HasValue && detalleComision.ComisionJefeVentas.Value > 0)
+                    {
+                        var jefeVentas = await context.Usuarios.FindAsync(detalleComision.JefeVentasId.Value);
+                        if (jefeVentas != null && jefeVentas.Activo)
+                        {
+                            if (!usuariosConComision.ContainsKey(jefeVentas.Id))
+                            {
+                                usuariosConComision[jefeVentas.Id] = (jefeVentas, 0);
+                                Console.WriteLine($"[LIQUIDACIONES] *** Agregando Jefe de Ventas ID {jefeVentas.Id} ({jefeVentas.NombreUsuario}) al diccionario");
+                            }
+                            var actual = usuariosConComision[jefeVentas.Id];
+                            usuariosConComision[jefeVentas.Id] = (actual.usuario, actual.totalComision + detalleComision.ComisionJefeVentas.Value);
+                            Console.WriteLine($"[LIQUIDACIONES] *** Jefe de Ventas acumulado: {usuariosConComision[jefeVentas.Id].totalComision}€");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[LIQUIDACIONES] *** ADVERTENCIA: Jefe de Ventas ID {detalleComision.JefeVentasId} no encontrado o inactivo");
+                        }
+                    }
+                    else
+                    {
+                        if (!detalleComision.JefeVentasId.HasValue)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: No tiene JefeVentasId asignado");
+                        else if (!detalleComision.ComisionJefeVentas.HasValue)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: ComisionJefeVentas es NULL");
+                        else if (detalleComision.ComisionJefeVentas.Value <= 0)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: ComisionJefeVentas es 0 o negativa");
+                    }
+                    
+                    // Director Comercial
+                    if (detalleComision.DirectorComercialId.HasValue && detalleComision.ComisionDirectorComercial.HasValue && detalleComision.ComisionDirectorComercial.Value > 0)
+                    {
+                        var director = await context.Usuarios.FindAsync(detalleComision.DirectorComercialId.Value);
+                        if (director != null && director.Activo)
+                        {
+                            if (!usuariosConComision.ContainsKey(director.Id))
+                            {
+                                usuariosConComision[director.Id] = (director, 0);
+                                Console.WriteLine($"[LIQUIDACIONES] *** Agregando Director Comercial ID {director.Id} ({director.NombreUsuario}) al diccionario");
+                            }
+                            var actual = usuariosConComision[director.Id];
+                            usuariosConComision[director.Id] = (actual.usuario, actual.totalComision + detalleComision.ComisionDirectorComercial.Value);
+                            Console.WriteLine($"[LIQUIDACIONES] *** Director Comercial acumulado: {usuariosConComision[director.Id].totalComision}€");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[LIQUIDACIONES] *** ADVERTENCIA: Director Comercial ID {detalleComision.DirectorComercialId} no encontrado o inactivo");
+                        }
+                    }
+                    else
+                    {
+                        if (!detalleComision.DirectorComercialId.HasValue)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: No tiene DirectorComercialId asignado");
+                        else if (!detalleComision.ComisionDirectorComercial.HasValue)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: ComisionDirectorComercial es NULL");
+                        else if (detalleComision.ComisionDirectorComercial.Value <= 0)
+                            Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: ComisionDirectorComercial es 0 o negativa");
+                    }
+                    
+                    // Administrador
+                    if (detalleComision.ComisionAdministrador > 0)
+                    {
+                        var admin = await context.Usuarios.FindAsync(detalleComision.AdministradorId);
+                        if (admin != null && admin.Activo)
+                        {
+                            if (!usuariosConComision.ContainsKey(admin.Id))
+                            {
+                                usuariosConComision[admin.Id] = (admin, 0);
+                                Console.WriteLine($"[LIQUIDACIONES] *** Agregando Administrador ID {admin.Id} ({admin.NombreUsuario}) al diccionario");
+                            }
+                            var actual = usuariosConComision[admin.Id];
+                            usuariosConComision[admin.Id] = (actual.usuario, actual.totalComision + detalleComision.ComisionAdministrador);
+                            Console.WriteLine($"[LIQUIDACIONES] *** Administrador acumulado: {usuariosConComision[admin.Id].totalComision}€");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[LIQUIDACIONES] *** ADVERTENCIA: Administrador ID {detalleComision.AdministradorId} no encontrado o inactivo");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[LIQUIDACIONES] *** Contrato {contrato.Id}: ComisionAdministrador es 0 o negativa");
+                    }
+                }
+                
+                // Restar decomisiones del colaborador principal
+                if (usuariosConComision.ContainsKey(usuarioDb.Id))
+                {
+                    var actual = usuariosConComision[usuarioDb.Id];
+                    usuariosConComision[usuarioDb.Id] = (actual.usuario, actual.totalComision - totalDecomisiones);
+                }
+                
+                Console.WriteLine($"[LIQUIDACIONES] ===== RESUMEN DE USUARIOS CON COMISIÓN =====");
+                Console.WriteLine($"[LIQUIDACIONES] Total usuarios: {usuariosConComision.Count}");
+                foreach (var kvp in usuariosConComision)
+                {
+                    var usr = kvp.Value.usuario;
+                    var total = kvp.Value.totalComision;
+                    Console.WriteLine($"[LIQUIDACIONES]   - {usr.NombreUsuario} (ID: {usr.Id}, Rol: {usr.Rol}): {total:N2}€");
+                }
+                Console.WriteLine($"[LIQUIDACIONES] ==========================================");
+                
+                Console.WriteLine($"[LIQUIDACIONES] Creando liquidaciones históricas para {usuariosConComision.Count} usuarios");
+                
+                // ===== CREAR LIQUIDACIÓN HISTÓRICA PARA CADA USUARIO =====
+                var liquidacionesCreadas = new Dictionary<int, int>(); // usuarioId -> liquidacionId
+                
+                foreach (var kvp in usuariosConComision)
+                {
+                    var usuarioLiq = kvp.Value.usuario;
+                    var totalComision = kvp.Value.totalComision;
+                    
+                    // TODAS las liquidaciones se crean en estado "Pendiente"
+                    // Cada usuario deberá aceptar su propia liquidación individualmente
+                    var historico = new HistoricoLiquidacion
+                    {
+                        UsuarioId = usuarioLiq.Id,
+                        UsuarioNombre = usuarioLiq.NombreUsuario,
+                        UsuarioEmail = usuarioLiq.Email,
+                        CantidadContratos = contratos.Count,
+                        ContratosEnergia = contratosEnergia,
+                        ContratosTelefonia = contratosTelefonia,
+                        ContratosAlarmas = contratosAlarmas,
+                        FechaAprobacion = DateTime.Now,
+                        AprobadoPorId = AuthService.UsuarioActual!.Id,
+                        AprobadoPorNombre = AuthService.UsuarioActual.NombreUsuario,
+                        Estado = "Pendiente",
+                        FechaAceptada = null,
+                        TotalComisiones = totalComision
+                    };
+                    
+                    context.HistoricoLiquidaciones.Add(historico);
+                    await context.SaveChangesAsync();
+                    
+                    liquidacionesCreadas[usuarioLiq.Id] = historico.Id;
+                    
+                    Console.WriteLine($"[LIQUIDACIONES] Creada liquidación {historico.Id} para {usuarioLiq.NombreUsuario} (Rol: {usuarioLiq.Rol}): {totalComision:N2}€ - Estado: Pendiente");
+                }
+                
+                // ===== CREAR DETALLES DE COMISIÓN Y VINCULAR CONTRATOS =====
+                var liquidacionPrincipalId = liquidacionesCreadas[usuarioDb.Id];
                 
                 foreach (var contrato in contratos)
                 {
-                    try
-                    {
-                        // Calcular la distribución de comisiones según la jerarquía
-                        var detalleComision = await ComisionService.CalcularDistribucionComisionAsync(
-                            contrato, 
-                            usuarioDb, 
-                            historico.Id
-                        );
-
-                        // Guardar el detalle de comisión
-                        await ComisionService.GuardarDetalleComisionAsync(detalleComision);
-
-                        Console.WriteLine($"[LIQUIDACIONES] Distribución creada para contrato {contrato.Id}: " +
-                            $"Colaborador={detalleComision.ComisionColaborador}€, " +
-                            $"Gestor={detalleComision.ComisionGestor ?? 0}€, " +
-                            $"Admin={detalleComision.ComisionAdministrador}€");
-                    }
-                    catch (Exception exDetalle)
-                    {
-                        Console.WriteLine($"[LIQUIDACIONES] Error al crear detalle de comisión para contrato {contrato.Id}: {exDetalle.Message}");
-                        // Continuar con el siguiente contrato aunque falle uno
-                    }
-
-                    // Vincular contrato a esta liquidación y cambiar estado
-                    contrato.Estado = "Liquidado";
-                    contrato.HistoricoLiquidacionId = historico.Id;
+                    // Calcular distribución de comisiones
+                    var detalleComision = await ComisionService.CalcularDistribucionComisionAsync(contrato, usuarioDb, liquidacionPrincipalId);
+                    await ComisionService.GuardarDetalleComisionAsync(detalleComision);
+                    
+                    // Vincular contrato a la liquidación principal (del colaborador)
+                    // IMPORTANTE: NO cambiar el estado a "Liquidado" aún, solo cuando el colaborador acepte su liquidación
+                    contrato.HistoricoLiquidacionId = liquidacionPrincipalId;
                 }
                 
-                // Vincular decomisiones pendientes a esta liquidación
+                // Vincular decomisiones pendientes a la liquidación del colaborador
                 foreach (var decomision in decomisionesPendientes)
                 {
-                    decomision.LiquidacionDecomisionId = historico.Id;
+                    decomision.LiquidacionDecomisionId = liquidacionPrincipalId;
                     context.Decomisiones.Update(decomision);
                 }
                 
                 if (decomisionesPendientes.Any())
                 {
-                    Console.WriteLine($"[LIQUIDACIONES] Vinculadas {decomisionesPendientes.Count} decomisiones a liquidación {historico.Id}");
+                    Console.WriteLine($"[LIQUIDACIONES] Vinculadas {decomisionesPendientes.Count} decomisiones a liquidación {liquidacionPrincipalId}");
                 }
                 
                 await context.SaveChangesAsync();
-
-                Console.WriteLine($"[LIQUIDACIONES] Distribución de comisiones completada para liquidación {historico.Id}");
+                
+                Console.WriteLine($"[LIQUIDACIONES] Liquidaciones creadas exitosamente para {liquidacionesCreadas.Count} usuarios");
             }
             else
             {
@@ -2469,6 +2689,72 @@
         finally
         {
             guardandoRespuesta = false;
+        }
+    }
+
+    private async Task RechazarLiquidacionPendiente(int usuarioId)
+    {
+        try
+        {
+            // Verificar que el usuario sea Administrador
+            if (AuthService.UsuarioActual?.Rol != "Administrador")
+            {
+                mensajeError = "Solo los administradores pueden rechazar liquidaciones pendientes.";
+                return;
+            }
+
+            // Obtener información del usuario
+            await using var context = DbContextProvider.CreateDbContext();
+            var usuario = await context.Usuarios.FindAsync(usuarioId);
+            
+            if (usuario == null)
+            {
+                mensajeError = "Usuario no encontrado.";
+                return;
+            }
+
+            // Contar contratos facturables
+            var cantidadContratos = await context.Contratos
+                .Where(c => c.Comercial == usuario.NombreUsuario
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                    && c.Estado == "Act/Facturable")
+                .CountAsync();
+
+            // Solicitar confirmación
+            bool confirmado = await JSRuntime.InvokeAsync<bool>(
+                "confirm", 
+                $"¿Está seguro de que desea rechazar la liquidación pendiente de {usuario.NombreUsuario}?\\n\\n" +
+                $"Esto cambiará el estado de {cantidadContratos} contrato(s) de 'Act/Facturable' a 'Pendiente'.\\n\\n" +
+                $"Esta acción se puede revertir cambiando manualmente el estado de los contratos.");
+            
+            if (!confirmado)
+            {
+                return;
+            }
+
+            // Obtener todos los contratos facturables del usuario
+            var contratos = await context.Contratos
+                .Where(c => c.Comercial == usuario.NombreUsuario
+                    && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
+                    && c.Estado == "Act/Facturable")
+                .ToListAsync();
+
+            // Cambiar el estado de todos los contratos a "Pendiente"
+            foreach (var contrato in contratos)
+            {
+                contrato.Estado = "Pendiente";
+            }
+
+            await context.SaveChangesAsync();
+            
+            // Recargar la lista de usuarios con contratos
+            await CargarUsuariosConContratos();
+            
+            mensajeError = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al rechazar la liquidación pendiente: {ex.Message}";
         }
     }
 
@@ -2759,13 +3045,34 @@
                 {
                     liquidacion.FechaAceptada = DateTime.Now;
                 }
+                
+                // Si el usuario que acepta es un Colaborador, marcar sus contratos como "Liquidado"
+                var usuario = await context.Usuarios.FindAsync(liquidacion.UsuarioId);
+                if (usuario != null && usuario.Rol == "Colaborador")
+                {
+                    // Obtener todos los contratos vinculados a esta liquidación
+                    var contratosVinculados = await context.Contratos
+                        .Where(c => c.HistoricoLiquidacionId == liquidacionId)
+                        .ToListAsync();
+                    
+                    foreach (var contrato in contratosVinculados)
+                    {
+                        contrato.Estado = "Liquidado";
+                    }
+                    
+                    Console.WriteLine($"[LIQUIDACIONES] Colaborador {usuario.NombreUsuario} aceptó su liquidación. {contratosVinculados.Count} contratos marcados como Liquidado");
+                }
+                
                 await context.SaveChangesAsync();
                 await CargarLiquidacionesPorEstado();
+                
+                Console.WriteLine($"[LIQUIDACIONES] Liquidación {liquidacionId} marcada como Aceptada");
             }
         }
         catch (Exception ex)
         {
             mensajeError = $"Error: {ex.Message}";
+            Console.WriteLine($"[LIQUIDACIONES] Error al marcar como aceptada: {ex.Message}");
         }
     }
 
@@ -2811,6 +3118,62 @@
         }
     }
 
+    private async Task EliminarLiquidacion(int liquidacionId)
+    {
+        try
+        {
+            // Verificar que el usuario sea Administrador
+            if (AuthService.UsuarioActual?.Rol != "Administrador")
+            {
+                mensajeError = "Solo los administradores pueden eliminar liquidaciones.";
+                return;
+            }
+
+            // Solicitar confirmación
+            bool confirmado = await JSRuntime.InvokeAsync<bool>(
+                "confirm", 
+                "¿Está seguro de que desea eliminar esta liquidación?\n\nEsta acción no se puede deshacer y eliminará la liquidación y todos sus detalles asociados.");
+            
+            if (!confirmado)
+            {
+                return;
+            }
+
+            await using var context = DbContextProvider.CreateDbContext();
+            
+            // Obtener la liquidación
+            var liquidacion = await context.HistoricoLiquidaciones
+                .Include(l => l.Detalles)
+                .FirstOrDefaultAsync(l => l.Id == liquidacionId);
+            
+            if (liquidacion == null)
+            {
+                mensajeError = "No se encontró la liquidación.";
+                return;
+            }
+
+            // Eliminar los detalles de la liquidación
+            if (liquidacion.Detalles != null && liquidacion.Detalles.Any())
+            {
+                context.DetallesComisionLiquidacion.RemoveRange(liquidacion.Detalles);
+            }
+
+            // Eliminar la liquidación
+            context.HistoricoLiquidaciones.Remove(liquidacion);
+            
+            await context.SaveChangesAsync();
+            
+            // Recargar las liquidaciones
+            await CargarLiquidacionesPorEstado();
+            
+            mensajeError = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar la liquidación: {ex.Message}";
+        }
+    }
+
     private void CerrarModalIncidencias()
     {
         mostrarModalIncidencias = false;
@@ -2830,12 +3193,169 @@
     }
 
     /// <summary>
+    /// Obtiene la comisión que le corresponde al usuario actual para un contrato específico
+    /// </summary>
+    private decimal ObtenerComisionUsuario(int contratoId)
+    {
+        if (comisionesPorContrato.TryGetValue(contratoId, out decimal comision))
+        {
+            return comision;
+        }
+        // Si no está en el diccionario, devolver 0
+        return 0;
+    }
+
+    /// <summary>
     /// Obtiene el importe de decomisión de un contrato
     /// </summary>
+    private async Task<decimal?> ObtenerComisionUsuarioContrato(int contratoId, int usuarioId)
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            
+            // Buscar el detalle de comisión para este contrato
+            var detalle = await context.DetallesComisionLiquidacion
+                .FirstOrDefaultAsync(d => d.ContratoId == contratoId);
+            
+            if (detalle == null)
+            {
+                Console.WriteLine($"[LIQUIDACIONES] No se encontró detalle de comisión para contrato {contratoId}");
+                return null;
+            }
+            
+            // Determinar qué comisión corresponde a este usuario
+            if (detalle.ColaboradorId == usuarioId)
+                return detalle.ComisionColaborador;
+            
+            if (detalle.GestorId == usuarioId)
+                return detalle.ComisionGestor;
+            
+            if (detalle.JefeVentasId == usuarioId)
+                return detalle.ComisionJefeVentas;
+            
+            if (detalle.DirectorComercialId == usuarioId)
+                return detalle.ComisionDirectorComercial;
+            
+            if (detalle.AdministradorId == usuarioId)
+                return detalle.ComisionAdministrador;
+            
+            Console.WriteLine($"[LIQUIDACIONES] Usuario {usuarioId} no encontrado en la distribución de comisión del contrato {contratoId}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LIQUIDACIONES] Error al obtener comisión: {ex.Message}");
+            return null;
+        }
+    }
+
     private decimal? ObtenerImporteDecomision(int contratoId)
     {
         var decomision = decomisionesVisibles.FirstOrDefault(d => d.ContratoId == contratoId);
         return decomision?.ImporteDecomision;
+    }
+
+    /// <summary>
+    /// Filtra la lista de usuarios según la jerarquía del usuario actual
+    /// </summary>
+    private async Task<List<UsuarioConContratos>> FiltrarUsuariosPorJerarquiaAsync(
+        List<UsuarioConContratos> todosLosUsuarios)
+    {
+        var usuarioActual = AuthService.UsuarioActual;
+        if (usuarioActual == null) return new List<UsuarioConContratos>();
+
+        // Administrador o con permisos de gestión: ve todos
+        if (AuthService.PuedeGestionarLiquidaciones || usuarioActual.Rol == "Administrador")
+        {
+            Console.WriteLine($"[LIQUIDACIONES] Usuario {usuarioActual.NombreUsuario} puede ver TODOS los usuarios (Administrador o permisos)");
+            return todosLosUsuarios;
+        }
+
+        // Obtener todos los usuarios activos para construir la jerarquía
+        await using var context = DbContextProvider.CreateDbContext();
+        var todosUsuarios = await context.Usuarios.Where(u => u.Activo).ToListAsync();
+        var idsVisibles = new HashSet<int> { usuarioActual.Id }; // Siempre se ve a sí mismo
+
+        Console.WriteLine($"[LIQUIDACIONES] Filtrando jerarquía para {usuarioActual.NombreUsuario} (Rol: {usuarioActual.Rol})");
+
+        if (usuarioActual.Rol == "Director comercial")
+        {
+            // Director ve: sus jefes de ventas + los gestores de esos jefes + los colaboradores de esos gestores
+            var jefesDeVentas = todosUsuarios.Where(u => u.DirectorComercialId == usuarioActual.Id).ToList();
+            Console.WriteLine($"[LIQUIDACIONES] Director tiene {jefesDeVentas.Count} jefes de ventas");
+            
+            foreach (var jefe in jefesDeVentas)
+            {
+                idsVisibles.Add(jefe.Id);
+                Console.WriteLine($"[LIQUIDACIONES]   - Jefe: {jefe.NombreUsuario} (ID: {jefe.Id})");
+                
+                // Gestores de este jefe
+                var gestores = todosUsuarios.Where(u => u.JefeVentasId == jefe.Id).ToList();
+                Console.WriteLine($"[LIQUIDACIONES]     - Tiene {gestores.Count} gestores");
+                
+                foreach (var gestor in gestores)
+                {
+                    idsVisibles.Add(gestor.Id);
+                    Console.WriteLine($"[LIQUIDACIONES]       - Gestor: {gestor.NombreUsuario} (ID: {gestor.Id})");
+                    
+                    // Colaboradores de este gestor
+                    var colaboradores = todosUsuarios.Where(u => u.GestorId == gestor.Id).ToList();
+                    Console.WriteLine($"[LIQUIDACIONES]         - Tiene {colaboradores.Count} colaboradores");
+                    
+                    foreach (var colab in colaboradores)
+                    {
+                        idsVisibles.Add(colab.Id);
+                        Console.WriteLine($"[LIQUIDACIONES]           - Colaborador: {colab.NombreUsuario} (ID: {colab.Id})");
+                    }
+                }
+            }
+        }
+        else if (usuarioActual.Rol == "Jefe de ventas")
+        {
+            // Jefe ve: sus gestores + los colaboradores de esos gestores
+            var gestores = todosUsuarios.Where(u => u.JefeVentasId == usuarioActual.Id).ToList();
+            Console.WriteLine($"[LIQUIDACIONES] Jefe tiene {gestores.Count} gestores");
+            
+            foreach (var gestor in gestores)
+            {
+                idsVisibles.Add(gestor.Id);
+                Console.WriteLine($"[LIQUIDACIONES]   - Gestor: {gestor.NombreUsuario} (ID: {gestor.Id})");
+                
+                // Colaboradores de este gestor
+                var colaboradores = todosUsuarios.Where(u => u.GestorId == gestor.Id).ToList();
+                Console.WriteLine($"[LIQUIDACIONES]     - Tiene {colaboradores.Count} colaboradores");
+                
+                foreach (var colab in colaboradores)
+                {
+                    idsVisibles.Add(colab.Id);
+                    Console.WriteLine($"[LIQUIDACIONES]       - Colaborador: {colab.NombreUsuario} (ID: {colab.Id})");
+                }
+            }
+        }
+        else if (usuarioActual.Rol == "Gestor")
+        {
+            // Gestor ve: sus colaboradores
+            var colaboradores = todosUsuarios.Where(u => u.GestorId == usuarioActual.Id).ToList();
+            Console.WriteLine($"[LIQUIDACIONES] Gestor tiene {colaboradores.Count} colaboradores");
+            
+            foreach (var colab in colaboradores)
+            {
+                idsVisibles.Add(colab.Id);
+                Console.WriteLine($"[LIQUIDACIONES]   - Colaborador: {colab.NombreUsuario} (ID: {colab.Id})");
+            }
+        }
+        else // Colaborador u otros roles
+        {
+            // Solo ve sus propias liquidaciones
+            Console.WriteLine($"[LIQUIDACIONES] Colaborador solo ve sus propias liquidaciones");
+        }
+
+        // Filtrar la lista original
+        var usuariosFiltrados = todosLosUsuarios.Where(u => idsVisibles.Contains(u.Usuario.Id)).ToList();
+        Console.WriteLine($"[LIQUIDACIONES] Total usuarios visibles después del filtro: {usuariosFiltrados.Count}");
+        
+        return usuariosFiltrados;
     }
 
     private class UsuarioConContratos

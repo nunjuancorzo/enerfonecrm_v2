@@ -155,12 +155,40 @@ def exportar_servicios():
         # Crear DataFrame
         df = pd.DataFrame(datos_excel)
         
+        # Crear DataFrame con valores válidos
+        valores_validos = [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            ['', '', ''],
+            ['Tipo*', '', ''],
+            ['', 'Residencial', 'Para clientes particulares'],
+            ['', 'Pyme', 'Para pequeñas y medianas empresas'],
+            ['', '', ''],
+            ['Ejemplos Servicios Residencial', '', ''],
+            ['', 'Mantenimiento Caldera', ''],
+            ['', 'Seguro Hogar Eléctrico', ''],
+            ['', 'Revisión Anual', ''],
+            ['', '', ''],
+            ['Ejemplos Servicios Pyme', '', ''],
+            ['', 'Servicio Técnico Premium', ''],
+            ['', 'Mantenimiento Anual', ''],
+            ['', 'Asesoramiento Energético', ''],
+            ['', '', ''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'Si incluye columna ID, actualiza servicios existentes', ''],
+            ['', 'Si no incluye ID, crea nuevos servicios', ''],
+            ['', 'El Precio debe ser numérico (usar coma o punto para decimales)', '']
+        ]
+        df_valores = pd.DataFrame(valores_validos)
+        
         # Nombre del archivo con fecha actual
         fecha_actual = datetime.now().strftime('%Y%m%d_%H%M%S')
         nombre_archivo = f'servicios_exportados_{fecha_actual}.xlsx'
         
-        # Exportar a Excel (sin xlsxwriter, usando openpyxl por defecto)
-        df.to_excel(nombre_archivo, index=False, sheet_name='Servicios')
+        # Exportar a Excel con múltiples hojas
+        with pd.ExcelWriter(nombre_archivo, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Servicios')
+            df_valores.to_excel(writer, index=False, sheet_name='Valores Válidos', header=False)
         
         print(f"[OK] Servicios exportados correctamente a: {nombre_archivo}")
         print(f"[OK] Total de servicios exportados: {len(datos_excel)}")

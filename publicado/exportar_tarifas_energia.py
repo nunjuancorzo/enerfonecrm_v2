@@ -51,12 +51,15 @@ def exportar_tarifas_energia():
         # Consultar todas las tarifas
         sql = """
         SELECT 
-            id, empresa, tipo, nombre,
+            id, empresa, tipo, nombre, precio, precioNew,
             potencia1, potencia2, potencia3, potencia4, potencia5, potencia6,
             energia1, energia2, energia3, energia4, energia5, energia6,
             tipo_cliente, peaje, peaje_gas, termino_fijo_gas, pvd_sva, termino_variable_gas,
             descuento, observaciones_descuentos, comision, permanencia, excedentes,
-            bateria_virtual, fecha_carga
+            bateria_virtual, fecha_carga,
+            termino_fijo_diario, precio_potencia_p1, precio_potencia_p2, precio_potencia_p3,
+            precio_energia_p1, precio_energia_p2, precio_energia_p3,
+            dias_penalizacion, tipo_penalizacion, activa
         FROM tarifasenergia
         ORDER BY id
         """
@@ -96,24 +99,73 @@ def exportar_tarifas_energia():
                 'ENERGIA 5': formatear_decimal_con_coma(tarifa['energia5']),
                 'ENERGIA 6': formatear_decimal_con_coma(tarifa['energia6']),
                 'T. VARIABLE GAS': tarifa['termino_variable_gas'] or '',
+                'PRECIO': tarifa['precio'] or '',
+                'PRECIO NEW': formatear_decimal_con_coma(tarifa['precioNew']),
+                'TERMINO FIJO DIARIO': formatear_decimal_con_coma(tarifa['termino_fijo_diario']),
+                'PRECIO POTENCIA P1': formatear_decimal_con_coma(tarifa['precio_potencia_p1']),
+                'PRECIO POTENCIA P2': formatear_decimal_con_coma(tarifa['precio_potencia_p2']),
+                'PRECIO POTENCIA P3': formatear_decimal_con_coma(tarifa['precio_potencia_p3']),
+                'PRECIO ENERGIA P1': formatear_decimal_con_coma(tarifa['precio_energia_p1']),
+                'PRECIO ENERGIA P2': formatear_decimal_con_coma(tarifa['precio_energia_p2']),
+                'PRECIO ENERGIA P3': formatear_decimal_con_coma(tarifa['precio_energia_p3']),
                 'DESCUENTO': tarifa['descuento'] or '',
                 'OBJERVACIONES DESCUENTOS': tarifa['observaciones_descuentos'] or '',
                 'COMISION': formatear_decimal_con_coma(tarifa['comision']),
                 'PERMANENCIA': tarifa['permanencia'] or '',
+                'DIAS PENALIZACION': tarifa['dias_penalizacion'] or '',
+                'TIPO PENALIZACION': tarifa['tipo_penalizacion'] or '',
                 'EXCEDENTES': formatear_decimal_con_coma(tarifa['excedentes']),
                 'BATERIA VIRTUAL': tarifa['bateria_virtual'] or '',
+                'ACTIVA': 'Sí' if tarifa['activa'] else 'No',
                 'FECHA CARGA': tarifa['fecha_carga'].strftime('%Y-%m-%d') if tarifa['fecha_carga'] else ''
             })
         
         # Crear DataFrame
         df = pd.DataFrame(datos_excel)
         
+        # Crear DataFrame con valores válidos
+        valores_validos = [
+            ['CAMPO', 'VALORES VÁLIDOS', 'DESCRIPCIÓN'],
+            ['', '', ''],
+            ['TIPO*', '', ''],
+            ['', 'Residencial', 'Para clientes residenciales'],
+            ['', 'Pyme', 'Para pequeñas y medianas empresas'],
+            ['', '', ''],
+            ['ENERGIA*', '', ''],
+            ['', 'LUZ', 'Solo electricidad'],
+            ['', 'GAS', 'Solo gas'],
+            ['', 'LUZ+GAS', 'Electricidad y gas combinados'],
+            ['', '', ''],
+            ['PEAJE LUZ', '', ''],
+            ['', '2.0', 'Peaje residencial sin discriminación horaria'],
+            ['', '3.0', 'Peaje para pequeñas empresas'],
+            ['', '6.1', 'Peaje para industrias'],
+            ['', '6.2', 'Peaje para grandes empresas'],
+            ['', '', ''],
+            ['PEAJE GAS', '', ''],
+            ['', 'RL1', 'Residencial bajo consumo'],
+            ['', 'RL2', 'Comercio pequeño'],
+            ['', 'RL3', 'Comercio/Industria mediano'],
+            ['', 'RL4', 'Industria grande'],
+            ['', 'RL5', 'Gran industria'],
+            ['', 'RL6', 'Muy gran industria'],
+            ['', '', ''],
+            ['NOTAS', '', ''],
+            ['', '* Campos obligatorios', ''],
+            ['', 'Si incluye columna ID, actualiza tarifas existentes', ''],
+            ['', 'Si no incluye ID, crea nuevas tarifas', ''],
+            ['', 'Los precios decimales usar coma (ej: 0,123456)', '']
+        ]
+        df_valores = pd.DataFrame(valores_validos)
+        
         # Nombre del archivo con timestamp
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         nombre_archivo = f'tarifas_energia_exportacion_{timestamp}.xlsx'
         
-        # Exportar a Excel
-        df.to_excel(nombre_archivo, index=False, sheet_name='Tarifas Energía')
+        # Exportar a Excel con múltiples hojas
+        with pd.ExcelWriter(nombre_archivo, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Tarifas Energía')
+            df_valores.to_excel(writer, index=False, sheet_name='Valores Válidos', header=False)
         
         print(f"[OK] Tarifas exportadas correctamente a: {nombre_archivo}")
         print(f"[OK] Total de tarifas exportadas: {len(datos_excel)}")
