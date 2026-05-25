@@ -524,10 +524,44 @@
                                                             <option value="6.2">6.2</option>
                                                         </select>
                                                     </div>
+                                                    
+                                                    <!-- Periodos de potencia -->
                                                     <div class="mb-3">
                                                         <label class="form-label fw-bold">Potencia Contratada (kW)</label>
-                                                        <InputNumber @bind-Value="nuevoContrato.PotenciaContratada" class="form-control" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                        @{
+                                                            var numPeriodos = peajeLuzSeleccionado == "2.0" ? 2 : 6;
+                                                        }
+                                                        <div class="row g-2">
+                                                            <div class="col-6 col-md-4">
+                                                                <label class="form-label small">P1</label>
+                                                                <InputNumber @bind-Value="nuevoContrato.PotenciaContratadaP1" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                            </div>
+                                                            <div class="col-6 col-md-4">
+                                                                <label class="form-label small">P2</label>
+                                                                <InputNumber @bind-Value="nuevoContrato.PotenciaContratadaP2" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                            </div>
+                                                            @if (numPeriodos > 2)
+                                                            {
+                                                                <div class="col-6 col-md-4">
+                                                                    <label class="form-label small">P3</label>
+                                                                    <InputNumber @bind-Value="nuevoContrato.PotenciaContratadaP3" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                                </div>
+                                                                <div class="col-6 col-md-4">
+                                                                    <label class="form-label small">P4</label>
+                                                                    <InputNumber @bind-Value="nuevoContrato.PotenciaContratadaP4" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                                </div>
+                                                                <div class="col-6 col-md-4">
+                                                                    <label class="form-label small">P5</label>
+                                                                    <InputNumber @bind-Value="nuevoContrato.PotenciaContratadaP5" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                                </div>
+                                                                <div class="col-6 col-md-4">
+                                                                    <label class="form-label small">P6</label>
+                                                                    <InputNumber @bind-Value="nuevoContrato.PotenciaContratadaP6" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                                </div>
+                                                            }
+                                                        </div>
                                                     </div>
+                                                    
                                                     <div class="mb-0">
                                                         <label class="form-label fw-bold">Consumo Anual Luz (kWh)</label>
                                                         <InputNumber @bind-Value="nuevoContrato.ConsumoAnual" class="form-control" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
@@ -1309,7 +1343,7 @@
     {
         if (nuevoContrato == null || AuthService.UsuarioActual == null) 
         {
-            if (nuevoContrato != null) nuevoContrato.Comision = comisionBase;
+            nuevoContrato.Comision = comisionBase;
             return;
         }
 

@@ -76,6 +76,7 @@ builder.Services.AddScoped<LogActivacionContratoService>();
 builder.Services.AddScoped<MensajeBienvenidaService>();
 builder.Services.AddScoped<IncidenciaLiquidacionService>();
 builder.Services.AddScoped<ComisionService>();
+builder.Services.AddScoped<LiquidacionService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddScoped<PdfSipsService>();

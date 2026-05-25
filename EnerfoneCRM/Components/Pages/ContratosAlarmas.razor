@@ -14,6 +14,7 @@
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
+@inject LiquidacionService LiquidacionService
 @inject EmailService EmailService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -2342,6 +2343,32 @@ else
             if (exito)
             {
                 mensajeExito = contratoSeleccionado.Id > 0 ? "Contrato actualizado exitosamente" : "Contrato creado exitosamente";
+                
+                // Si el estado cambió a Act/Facturable, generar liquidación pendiente automáticamente
+                bool cambioAActFacturable = estadoAnterior != "Act/Facturable" && contratoSeleccionado.Estado == "Act/Facturable";
+                if (cambioAActFacturable && contratoSeleccionado.Id > 0)
+                {
+                    Console.WriteLine($"[ContratosAlarmas] Contrato {contratoSeleccionado.Id} cambió a Act/Facturable, generando liquidación pendiente");
+                    
+                    // Obtener el usuario dueño del contrato
+                    var usuarioDueno = await UsuarioService.ObtenerPorNombreUsuarioAsync(contratoSeleccionado.Comercial);
+                    if (usuarioDueno != null)
+                    {
+                        var liquidacionGenerada = await LiquidacionService.GenerarLiquidacionPendienteAsync(contratoSeleccionado.Id, usuarioDueno.Id);
+                        if (liquidacionGenerada)
+                        {
+                            Console.WriteLine($"[ContratosAlarmas] Liquidación pendiente generada exitosamente para usuario {usuarioDueno.NombreUsuario}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[ContratosAlarmas] Error al generar liquidación pendiente");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ContratosAlarmas] No se encontró el usuario dueño del contrato: {contratoSeleccionado.Comercial}");
+                    }
+                }
                 
                 // Enviar notificación por email si el contrato fue actualizado (no creado) y el usuario tiene activadas las notificaciones
                 if (contratoSeleccionado.Id > 0)

@@ -83,4 +83,11 @@ public class ConfiguracionEmpresa
     [Column("smtp_nombre_desde")]
     [StringLength(255)]
     public string? SmtpNombreDesde { get; set; }
+
+    // Control de módulos
+    [Column("modulo_liquidaciones_activo")]
+    public bool ModuloLiquidacionesActivo { get; set; } = true;
+
+    [Column("modulo_sips_activo")]
+    public bool ModuloSipsActivo { get; set; } = true;
 }

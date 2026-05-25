@@ -4,6 +4,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject SipsService SipsService
+@inject ConfiguracionService ConfiguracionService
 @rendermode InteractiveServer
 
 <PageTitle>Histórico SIPS - CRM</PageTitle>
@@ -20,15 +21,30 @@ else if (!AuthService.EstaAutenticado)
 {
     Navigation.NavigateTo("/login", false);
 }
-else if (!AuthService.EsSuperAdmin)
+else if (!moduloActivo)
 {
-    <div class="container-fluid p-4">
-        <div class="alert alert-warning" role="alert">
-            No tienes permisos para acceder al histórico de SIPS.
+    <!-- Módulo desactivado -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-6 col-md-8">
+                <div class="card border-warning shadow">
+                    <div class="card-body text-center p-5">
+                        <div class="mb-4">
+                            <i class="bi bi-tools" style="font-size: 4rem; color: #ffc107;"></i>
+                        </div>
+                        <h3 class="card-title mb-3">Módulo en Mantenimiento</h3>
+                        <p class="card-text text-muted mb-4">
+                            El módulo SIPS se encuentra temporalmente desactivado.
+                            <br />
+                            Por favor, contacte al administrador del sistema.
+                        </p>
+                        <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/home"))">
+                            <i class="bi bi-house-door me-2"></i>Volver al Inicio
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-        <button class="btn btn-secondary" @onclick="@(() => Navigation.NavigateTo("/home"))">
-            Volver
-        </button>
     </div>
 }
 else
@@ -177,6 +193,7 @@ else
 
 @code {
     private bool cargado;
+    private bool moduloActivo = true;
     private bool cargando;
     private string? mensajeError;
     private List<HistoricoSipsConsulta>? items;
@@ -189,6 +206,14 @@ else
         if (!firstRender) return;
 
         await AuthService.CargarSesionAsync();
+
+        // Verificar si el módulo está activo
+        var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+        if (configuracion != null)
+        {
+            moduloActivo = configuracion.ModuloSipsActivo;
+        }
+
         cargado = true;
         StateHasChanged();
 

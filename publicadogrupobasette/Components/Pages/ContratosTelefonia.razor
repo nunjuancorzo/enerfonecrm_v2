@@ -13,6 +13,7 @@
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
+@inject LiquidacionService LiquidacionService
 @inject EmailService EmailService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -2752,6 +2753,32 @@ else
             if (resultado)
             {
                 mensajeExito = "Contrato actualizado correctamente";
+                
+                // Si el estado cambió a Act/Facturable, generar liquidación pendiente automáticamente
+                bool cambioAActFacturable = estadoAnterior != "Act/Facturable" && contratoSeleccionado.Estado == "Act/Facturable";
+                if (cambioAActFacturable)
+                {
+                    Console.WriteLine($"[ContratosTelefonia] Contrato {contratoSeleccionado.Id} cambió a Act/Facturable, generando liquidación pendiente");
+                    
+                    // Obtener el usuario dueño del contrato
+                    var usuarioDueno = await UsuarioService.ObtenerPorNombreUsuarioAsync(contratoSeleccionado.Comercial);
+                    if (usuarioDueno != null)
+                    {
+                        var liquidacionGenerada = await LiquidacionService.GenerarLiquidacionPendienteAsync(contratoSeleccionado.Id, usuarioDueno.Id);
+                        if (liquidacionGenerada)
+                        {
+                            Console.WriteLine($"[ContratosTelefonia] Liquidación pendiente generada exitosamente para usuario {usuarioDueno.NombreUsuario}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[ContratosTelefonia] Error al generar liquidación pendiente");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ContratosTelefonia] No se encontró el usuario dueño del contrato: {contratoSeleccionado.Comercial}");
+                    }
+                }
                 
                 // Enviar notificación por email si el usuario tiene activadas las notificaciones
                 await EnviarNotificacionCambioContrato(contratoSeleccionado);

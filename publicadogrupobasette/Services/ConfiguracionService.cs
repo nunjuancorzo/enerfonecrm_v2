@@ -51,6 +51,10 @@ public class ConfiguracionService
                 existente.SmtpEmailDesde = configuracion.SmtpEmailDesde;
                 existente.SmtpNombreDesde = configuracion.SmtpNombreDesde;
                 
+                // Control de módulos
+                existente.ModuloLiquidacionesActivo = configuracion.ModuloLiquidacionesActivo;
+                existente.ModuloSipsActivo = configuracion.ModuloSipsActivo;
+                
                 context.ConfiguracionesEmpresa.Update(existente);
             }
             else

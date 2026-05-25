@@ -14,6 +14,7 @@
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
+@inject LiquidacionService LiquidacionService
 @inject IConfiguration Configuration
 @inject LogActivacionContratoService LogActivacionContratoService
 @inject EmailService EmailService
@@ -886,10 +887,44 @@ else
                                                                 <option value="6.2">6.2</option>
                                                             </select>
                                                         </div>
+                                                        
+                                                        <!-- Periodos de potencia -->
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">Potencia Contratada (kW)</label>
-                                                            <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratada" class="form-control" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                            @{
+                                                                var numPeriodos = contratoSeleccionado.PeajeLuz == "2.0" ? 2 : 6;
+                                                            }
+                                                            <div class="row g-2">
+                                                                <div class="col-6 col-md-4">
+                                                                    <label class="form-label small">P1</label>
+                                                                    <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratadaP1" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                                </div>
+                                                                <div class="col-6 col-md-4">
+                                                                    <label class="form-label small">P2</label>
+                                                                    <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratadaP2" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                                </div>
+                                                                @if (numPeriodos > 2)
+                                                                {
+                                                                    <div class="col-6 col-md-4">
+                                                                        <label class="form-label small">P3</label>
+                                                                        <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratadaP3" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                                    </div>
+                                                                    <div class="col-6 col-md-4">
+                                                                        <label class="form-label small">P4</label>
+                                                                        <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratadaP4" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                                    </div>
+                                                                    <div class="col-6 col-md-4">
+                                                                        <label class="form-label small">P5</label>
+                                                                        <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratadaP5" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                                    </div>
+                                                                    <div class="col-6 col-md-4">
+                                                                        <label class="form-label small">P6</label>
+                                                                        <InputNumber @bind-Value="contratoSeleccionado.PotenciaContratadaP6" class="form-control form-control-sm" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                                    </div>
+                                                                }
+                                                            </div>
                                                         </div>
+                                                        
                                                         <div class="mb-0">
                                                             <label class="form-label fw-bold">Consumo Anual Luz (kWh)</label>
                                                             <InputNumber @bind-Value="contratoSeleccionado.ConsumoAnual" class="form-control" step="0.01" placeholder="0.00" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
@@ -2933,6 +2968,12 @@ else
             EnIban = contrato.EnIban,
             TipoOperacion = contrato.TipoOperacion,
             PotenciaContratada = contrato.PotenciaContratada,
+            PotenciaContratadaP1 = contrato.PotenciaContratadaP1 ?? contrato.PotenciaContratada,
+            PotenciaContratadaP2 = contrato.PotenciaContratadaP2,
+            PotenciaContratadaP3 = contrato.PotenciaContratadaP3,
+            PotenciaContratadaP4 = contrato.PotenciaContratadaP4,
+            PotenciaContratadaP5 = contrato.PotenciaContratadaP5,
+            PotenciaContratadaP6 = contrato.PotenciaContratadaP6,
             ConsumoAnual = contrato.ConsumoAnual,
             ConsumoAnualGas = contrato.ConsumoAnualGas,
             PeajeLuz = contrato.PeajeLuz,
@@ -3310,6 +3351,32 @@ else
                 await CargarConteoObservaciones();
 
                 mensajeExito = "Contrato actualizado correctamente";
+                
+                // Si el estado cambió a Act/Facturable, generar liquidación pendiente automáticamente
+                bool cambioAActFacturable = estadoAnterior != "Act/Facturable" && contratoSeleccionado.Estado == "Act/Facturable";
+                if (cambioAActFacturable)
+                {
+                    Console.WriteLine($"[ContratosEnergia] Contrato {contratoSeleccionado.Id} cambió a Act/Facturable, generando liquidación pendiente");
+                    
+                    // Obtener el usuario dueño del contrato
+                    var usuarioDueno = await UsuarioService.ObtenerPorNombreUsuarioAsync(contratoSeleccionado.Comercial);
+                    if (usuarioDueno != null)
+                    {
+                        var liquidacionGenerada = await LiquidacionService.GenerarLiquidacionPendienteAsync(contratoSeleccionado.Id, usuarioDueno.Id);
+                        if (liquidacionGenerada)
+                        {
+                            Console.WriteLine($"[ContratosEnergia] Liquidación pendiente generada exitosamente para usuario {usuarioDueno.NombreUsuario}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[ContratosEnergia] Error al generar liquidación pendiente");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[ContratosEnergia] No se encontró el usuario dueño del contrato: {contratoSeleccionado.Comercial}");
+                    }
+                }
                 
                 // Enviar notificación por email si el usuario tiene activadas las notificaciones
                 await EnviarNotificacionCambioContrato(contratoSeleccionado);
@@ -3898,6 +3965,7 @@ else
         {
             int actualizados = 0;
             int errores = 0;
+            int liquidacionesGeneradas = 0;
 
             foreach (var contratoId in contratosSeleccionados)
             {
@@ -3906,6 +3974,8 @@ else
                     var contrato = await ContratoService.ObtenerPorIdAsync(contratoId);
                     if (contrato != null)
                     {
+                        var estadoAnterior = contrato.Estado;
+                        
                         contrato.Estado = nuevoEstadoMasivo;
                         contrato.FechaModificacion = DateTime.Now;
                         
@@ -3917,6 +3987,37 @@ else
                         
                         await ContratoService.ActualizarAsync(contrato);
                         actualizados++;
+
+                        // ===== GENERAR LIQUIDACIÓN PENDIENTE SI CAMBIA A ACT/FACTURABLE =====
+                        bool cambioAActFacturable = estadoAnterior != "Act/Facturable" && nuevoEstadoMasivo == "Act/Facturable";
+                        
+                        if (cambioAActFacturable && !string.IsNullOrEmpty(contrato.Comercial))
+                        {
+                            Console.WriteLine($"[ContratosEnergia] Contrato {contrato.Id} cambió a Act/Facturable, generando liquidación pendiente...");
+                            
+                            // Obtener el usuario dueño del contrato
+                            var usuarioDueno = await UsuarioService.ObtenerPorNombreUsuarioAsync(contrato.Comercial);
+                            
+                            if (usuarioDueno != null)
+                            {
+                                // Generar liquidación pendiente para el usuario dueño
+                                var liquidacionGenerada = await LiquidacionService.GenerarLiquidacionPendienteAsync(contrato.Id, usuarioDueno.Id);
+                                
+                                if (liquidacionGenerada)
+                                {
+                                    liquidacionesGeneradas++;
+                                    Console.WriteLine($"[ContratosEnergia] Liquidación pendiente generada para usuario {usuarioDueno.NombreUsuario}");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[ContratosEnergia] No se pudo generar liquidación pendiente para contrato {contrato.Id}");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[ContratosEnergia] Usuario dueño no encontrado: {contrato.Comercial}");
+                            }
+                        }
                     }
                 }
                 catch
@@ -3928,6 +4029,10 @@ else
             if (actualizados > 0)
             {
                 mensajeExito = $"Se actualizaron {actualizados} contratos al estado '{nuevoEstadoMasivo}'";
+                if (liquidacionesGeneradas > 0)
+                {
+                    mensajeExito += $". Se generaron {liquidacionesGeneradas} liquidaciones pendientes";
+                }
                 if (errores > 0)
                 {
                     mensajeExito += $" ({errores} con errores)";

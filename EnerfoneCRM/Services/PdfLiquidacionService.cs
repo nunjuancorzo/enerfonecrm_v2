@@ -12,7 +12,8 @@ public class PdfLiquidacionService
         List<Contrato> contratosEnergia,
         List<Contrato> contratosTelefonia,
         List<Contrato> contratosAlarmas,
-        decimal totalComisiones)
+        decimal totalComisiones,
+        ConfiguracionEmpresa? configuracion = null)
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -32,11 +33,65 @@ public class PdfLiquidacionService
                     .PaddingBottom(10)
                     .Column(column =>
                     {
+                        // Logo de la empresa si existe
+                        if (configuracion != null && !string.IsNullOrEmpty(configuracion.LogoUrl))
+                        {
+                            try
+                            {
+                                byte[]? logoBytes = null;
+                                
+                                // Verificar si el logo es un data URL base64
+                                if (configuracion.LogoUrl.StartsWith("data:"))
+                                {
+                                    // Extraer el base64 del data URL
+                                    var base64Data = configuracion.LogoUrl.Split(',')[1];
+                                    logoBytes = Convert.FromBase64String(base64Data);
+                                }
+                                else
+                                {
+                                    // Es una ruta de archivo
+                                    var logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wwwroot", configuracion.LogoUrl.TrimStart('/'));
+                                    if (File.Exists(logoPath))
+                                    {
+                                        logoBytes = File.ReadAllBytes(logoPath);
+                                    }
+                                }
+
+                                // Mostrar el logo si se obtuvieron los bytes
+                                if (logoBytes != null && logoBytes.Length > 0)
+                                {
+                                    column.Item().AlignCenter().Height(60).Image(logoBytes);
+                                    column.Item().PaddingTop(10);
+                                }
+                            }
+                            catch
+                            {
+                                // Si hay error al cargar el logo, simplemente no lo mostramos
+                            }
+                        }
+
                         column.Item().Text("LIQUIDACIÓN DE CONTRATOS")
                             .FontSize(20)
                             .Bold()
                             .FontColor(Colors.Blue.Darken2)
                             .AlignCenter();
+
+                        // Información de la empresa si existe
+                        if (configuracion != null)
+                        {
+                            column.Item().PaddingTop(5).Text(configuracion.NombreEmpresa)
+                                .FontSize(12)
+                                .FontColor(Colors.Grey.Darken1)
+                                .AlignCenter();
+                            
+                            if (!string.IsNullOrEmpty(configuracion.Cif))
+                            {
+                                column.Item().Text($"CIF: {configuracion.Cif}")
+                                    .FontSize(10)
+                                    .FontColor(Colors.Grey.Darken1)
+                                    .AlignCenter();
+                            }
+                        }
 
                         column.Item().PaddingTop(10).LineHorizontal(2).LineColor(Colors.Blue.Darken2);
                     });
@@ -124,14 +179,14 @@ public class PdfLiquidacionService
                                 // Encabezado
                                 table.Header(header =>
                                 {
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Fecha").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Cliente").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("DNI").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Comercial.").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Tarifa").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("CUPS Luz").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("CUPS Gas").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Comisión").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("Fecha").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("Cliente").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("DNI").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("Comercial.").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("Tarifa").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("CUPS Luz").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("CUPS Gas").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Orange.Darken1).Padding(5).Text("Comisión").FontColor(Colors.White).Bold().FontSize(9);
                                 });
 
                                 // Datos
@@ -178,15 +233,15 @@ public class PdfLiquidacionService
                                 // Encabezado
                                 table.Header(header =>
                                 {
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Fecha").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Cliente").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("DNI").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Operadora").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Tarifa").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Fijo").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Móvil").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Líneas").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Comisión").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Fecha").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Cliente").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("DNI").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Operadora").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Tarifa").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Fijo").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Móvil").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Líneas").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Blue.Medium).Padding(5).Text("Comisión").FontColor(Colors.White).Bold().FontSize(9);
                                 });
 
                                 // Datos
@@ -233,14 +288,14 @@ public class PdfLiquidacionService
                                 // Encabezado
                                 table.Header(header =>
                                 {
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Fecha").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Cliente").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("DNI").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Tipo").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Subtipo").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Kit").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Campaña").FontColor(Colors.White).Bold().FontSize(9);
-                                    header.Cell().Background(Colors.Grey.Darken1).Padding(5).Text("Comisión").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("Fecha").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("Cliente").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("DNI").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("Tipo").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("Subtipo").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("Kit").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("Campaña").FontColor(Colors.White).Bold().FontSize(9);
+                                    header.Cell().Background(Colors.Red.Darken1).Padding(5).Text("Comisión").FontColor(Colors.White).Bold().FontSize(9);
                                 });
 
                                 // Datos
@@ -273,6 +328,61 @@ public class PdfLiquidacionService
                             .FontSize(14)
                             .Bold()
                             .FontColor(Colors.White);
+
+                        // Nota aclaratoria con información de la empresa
+                        if (configuracion != null)
+                        {
+                            column.Item().PaddingTop(15).Border(2).BorderColor(Colors.Blue.Darken2).Padding(10)
+                                .Column(noteColumn =>
+                                {
+                                    noteColumn.Item().Text("Nota aclaratoria: el total a liquidar es la base sin impuestos, debes generar una factura a:")
+                                        .FontSize(9)
+                                        .Bold();
+                                    
+                                    noteColumn.Item().PaddingTop(8).Text(configuracion.NombreEmpresa)
+                                        .FontSize(10)
+                                        .Bold();
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.Cif))
+                                    {
+                                        noteColumn.Item().Text($"CIF: {configuracion.Cif}")
+                                            .FontSize(9);
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.Direccion))
+                                    {
+                                        noteColumn.Item().Text(configuracion.Direccion)
+                                            .FontSize(9);
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.CodigoPostal) || !string.IsNullOrEmpty(configuracion.Ciudad))
+                                    {
+                                        var ubicacion = $"{configuracion.CodigoPostal ?? ""} {configuracion.Ciudad ?? ""}".Trim();
+                                        if (!string.IsNullOrEmpty(ubicacion))
+                                        {
+                                            noteColumn.Item().Text(ubicacion)
+                                                .FontSize(9);
+                                        }
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.Telefono) || !string.IsNullOrEmpty(configuracion.Email))
+                                    {
+                                        var contacto = "Contacto: ";
+                                        var partes = new List<string>();
+                                        
+                                        if (!string.IsNullOrEmpty(configuracion.Telefono))
+                                            partes.Add(configuracion.Telefono);
+                                        
+                                        if (!string.IsNullOrEmpty(configuracion.Email))
+                                            partes.Add(configuracion.Email);
+                                        
+                                        contacto += string.Join(" / ", partes);
+                                        
+                                        noteColumn.Item().Text(contacto)
+                                            .FontSize(9);
+                                    }
+                                });
+                        }
 
                         column.Item().PaddingTop(10).Text(txt =>
                         {

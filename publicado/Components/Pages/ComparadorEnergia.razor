@@ -936,7 +936,7 @@ else
                             <div class="text-center mb-4">
                                 <label class="form-label text-muted fw-normal">Descuento</label>
                             </div>
-                            <div class="row justify-content-center">
+                            <div class="row justify-content-center mb-5">
                                 <div class="col-md-6">
                                     <div class="input-group input-group-lg">
                                         <input type="number" 
@@ -948,6 +948,31 @@ else
                                                placeholder=""
                                                style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px; text-align: right;" />
                                         <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Total Factura Actual (Opcional) -->
+                            <div class="border-top pt-4 mt-4">
+                                <div class="text-center mb-3">
+                                    <label class="form-label fw-bold text-primary">Total Factura Actual (Opcional)</label>
+                                    <p class="text-muted small mb-3">
+                                        Si conoces el importe total de tu factura mensual actual, introdúcelo aquí. 
+                                        Se usará para calcular el ahorro en lugar del cálculo detallado anterior.
+                                    </p>
+                                </div>
+                                <div class="row justify-content-center">
+                                    <div class="col-md-6">
+                                        <div class="input-group input-group-lg">
+                                            <input type="number" 
+                                                   class="form-control" 
+                                                   @bind="totalFacturaActual"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="Ej: 85.50"
+                                                   style="border: 2px solid #0d6efd; border-radius: 10px 0 0 10px; text-align: right; font-weight: bold;" />
+                                            <span class="input-group-text" style="border: 2px solid #0d6efd; border-left: none; border-radius: 0 10px 10px 0; background-color: #cfe2ff; font-weight: bold;">€/mes</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1503,6 +1528,7 @@ else
     private decimal consumoValle = 0;
     private decimal precioConsumoValle = 0;
     private decimal descuentoConsumo = 0;
+    private decimal totalFacturaActual = 0; // Total directo de la factura actual (opcional)
 
     // Resultados y vista
     private string vistaActual = "coste"; // coste o filtro
@@ -1969,20 +1995,30 @@ else
 
             // Calcular el coste actual del cliente para comparación
             decimal costeActualMensual = 0;
-            decimal costePotenciaMensual = ((potenciaPunta * precioPotenciaPunta) + (potenciaValle * precioPotenciaValle)) * 
-                                           (tipoFacturacionPotencia == "Diaria" ? 30 : tipoFacturacionPotencia == "Mensual" ? 1 : 1.0m/12);
-            decimal costeConsumoMensual = (consumoPunta * precioConsumoPunta + consumoLlano * precioConsumoLlano + consumoValle * precioConsumoValle);
             
-            // Aplicar descuentos
-            if (descuentoPotencia > 0)
-                costePotenciaMensual *= (1 - descuentoPotencia / 100);
-            if (descuentoConsumo > 0)
-                costeConsumoMensual *= (1 - descuentoConsumo / 100);
-            
-            // Aplicar impuestos
-            decimal baseImponible = costePotenciaMensual + costeConsumoMensual + alquilerContador;
-            baseImponible *= (1 + porcentajeImpuestoElectricidad / 100);
-            costeActualMensual = baseImponible * (1 + porcentajeIVA / 100);
+            // Si el usuario ingresó el total de factura directamente, usar ese valor
+            if (totalFacturaActual > 0)
+            {
+                costeActualMensual = totalFacturaActual;
+            }
+            else
+            {
+                // Calcular desde los componentes individuales
+                decimal costePotenciaMensual = ((potenciaPunta * precioPotenciaPunta) + (potenciaValle * precioPotenciaValle)) * 
+                                               (tipoFacturacionPotencia == "Diaria" ? 30 : tipoFacturacionPotencia == "Mensual" ? 1 : 1.0m/12);
+                decimal costeConsumoMensual = (consumoPunta * precioConsumoPunta + consumoLlano * precioConsumoLlano + consumoValle * precioConsumoValle);
+                
+                // Aplicar descuentos
+                if (descuentoPotencia > 0)
+                    costePotenciaMensual *= (1 - descuentoPotencia / 100);
+                if (descuentoConsumo > 0)
+                    costeConsumoMensual *= (1 - descuentoConsumo / 100);
+                
+                // Aplicar impuestos
+                decimal baseImponible = costePotenciaMensual + costeConsumoMensual + alquilerContador;
+                baseImponible *= (1 + porcentajeImpuestoElectricidad / 100);
+                costeActualMensual = baseImponible * (1 + porcentajeIVA / 100);
+            }
 
             foreach (var tarifa in todasLasTarifas)
             {
@@ -2380,6 +2416,7 @@ else
         consumoValle = 0;
         precioConsumoValle = 0;
         descuentoConsumo = 0;
+        totalFacturaActual = 0;
         vistaActual = "coste";
         presentacion = "detallada";
         ofertasSeleccionadas.Clear();

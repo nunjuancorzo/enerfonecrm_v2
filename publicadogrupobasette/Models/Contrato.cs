@@ -106,8 +106,32 @@ namespace EnerfoneCRM.Models
         [MaxLength(100)]
         public string? TipoOperacion { get; set; }
 
+        // Periodos de potencia contratada (kW)
         [Column("potencia_contratada_p1")]
-        public decimal? PotenciaContratada { get; set; }
+        public decimal? PotenciaContratadaP1 { get; set; }
+
+        [Column("potencia_contratada_p2")]
+        public decimal? PotenciaContratadaP2 { get; set; }
+
+        [Column("potencia_contratada_p3")]
+        public decimal? PotenciaContratadaP3 { get; set; }
+
+        [Column("potencia_contratada_p4")]
+        public decimal? PotenciaContratadaP4 { get; set; }
+
+        [Column("potencia_contratada_p5")]
+        public decimal? PotenciaContratadaP5 { get; set; }
+
+        [Column("potencia_contratada_p6")]
+        public decimal? PotenciaContratadaP6 { get; set; }
+
+        // Propiedad legacy para compatibilidad (alias de P1)
+        [NotMapped]
+        public decimal? PotenciaContratada
+        {
+            get => PotenciaContratadaP1;
+            set => PotenciaContratadaP1 = value;
+        }
 
         [Column("consumo_ultimos_12_meses")]
         public decimal? ConsumoAnual { get; set; }

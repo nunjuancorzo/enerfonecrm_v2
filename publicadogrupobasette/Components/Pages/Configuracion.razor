@@ -189,6 +189,43 @@ else
 
                                 <hr class="my-4" />
 
+                                <h5 class="mb-3"><i class="bi bi-toggles me-2"></i>Control de Módulos</h5>
+                                <p class="text-muted small mb-3">Activa o desactiva módulos del sistema</p>
+
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox class="form-check-input" id="moduloLiquidaciones" @bind-Value="configuracion.ModuloLiquidacionesActivo" />
+                                        <label class="form-check-label" for="moduloLiquidaciones">
+                                            <strong>Módulo de Liquidaciones</strong>
+                                            <br />
+                                            <small class="text-muted">
+                                                Cuando está desactivado, ningún usuario podrá acceder al módulo de liquidaciones. 
+                                                Se mostrará un mensaje de módulo en mantenimiento.
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                @if (AuthService.EsSuperAdmin)
+                                {
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <InputCheckbox class="form-check-input" id="moduloSips" @bind-Value="configuracion.ModuloSipsActivo" />
+                                            <label class="form-check-label" for="moduloSips">
+                                                <strong>Módulo SIPS</strong>
+                                                <span class="badge bg-warning text-dark ms-2">Solo SuperAdmin</span>
+                                                <br />
+                                                <small class="text-muted">
+                                                    Control de acceso al módulo SIPS (Sistema de Información de Puntos de Suministro). 
+                                                    Cuando está desactivado, ningún usuario podrá acceder a las consultas SIPS.
+                                                </small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                }
+
+                                <hr class="my-4" />
+
                                 <h5 class="mb-3"><i class="bi bi-image me-2"></i>Imagen Corporativa</h5>
 
                                 <div class="mb-3">

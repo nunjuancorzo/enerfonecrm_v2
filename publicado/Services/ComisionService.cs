@@ -425,18 +425,47 @@ namespace EnerfoneCRM.Services
                 .FirstOrDefaultAsync() 
                 ?? throw new InvalidOperationException("No se encontró un administrador activo");
 
-            // Obtener los usuarios de la jerarquía
-            var gestor = colaborador.GestorId.HasValue 
-                ? await context.Usuarios.FindAsync(colaborador.GestorId.Value) 
-                : null;
+            // Obtener los usuarios de la jerarquía EN CASCADA
+            // 1. Obtener el Gestor del Colaborador
+            Usuario? gestor = null;
+            Usuario? jefeVentas = null;
+            Usuario? directorComercial = null;
 
-            var jefeVentas = colaborador.JefeVentasId.HasValue 
-                ? await context.Usuarios.FindAsync(colaborador.JefeVentasId.Value) 
-                : null;
+            if (colaborador.GestorId.HasValue)
+            {
+                gestor = await context.Usuarios
+                    .Where(u => u.Id == colaborador.GestorId.Value && u.Activo)
+                    .FirstOrDefaultAsync();
+                
+                Console.WriteLine($"[ComisionService] Gestor del colaborador: {(gestor != null ? $"{gestor.NombreUsuario} (ID: {gestor.Id})" : "NO ENCONTRADO")}");
+                
+                // 2. Si existe Gestor, obtener su Jefe de Ventas
+                if (gestor != null && gestor.JefeVentasId.HasValue)
+                {
+                    jefeVentas = await context.Usuarios
+                        .Where(u => u.Id == gestor.JefeVentasId.Value && u.Activo)
+                        .FirstOrDefaultAsync();
+                    
+                    Console.WriteLine($"[ComisionService] Jefe de Ventas del gestor: {(jefeVentas != null ? $"{jefeVentas.NombreUsuario} (ID: {jefeVentas.Id})" : "NO ENCONTRADO")}");
+                    
+                    // 3. Si existe Jefe de Ventas, obtener su Director Comercial
+                    if (jefeVentas != null && jefeVentas.DirectorComercialId.HasValue)
+                    {
+                        directorComercial = await context.Usuarios
+                            .Where(u => u.Id == jefeVentas.DirectorComercialId.Value && u.Activo)
+                            .FirstOrDefaultAsync();
+                        
+                        Console.WriteLine($"[ComisionService] Director Comercial del jefe: {(directorComercial != null ? $"{directorComercial.NombreUsuario} (ID: {directorComercial.Id})" : "NO ENCONTRADO")}");
+                    }
+                }
+            }
 
-            var directorComercial = colaborador.DirectorComercialId.HasValue 
-                ? await context.Usuarios.FindAsync(colaborador.DirectorComercialId.Value) 
-                : null;
+            Console.WriteLine($"[ComisionService] === JERARQUÍA EN CASCADA ===");
+            Console.WriteLine($"[ComisionService] Colaborador: {colaborador.NombreUsuario} (ID: {colaborador.Id})");
+            Console.WriteLine($"[ComisionService]   └─> Gestor: {(gestor != null ? $"{gestor.NombreUsuario} (ID: {gestor.Id})" : "NULL")}");
+            Console.WriteLine($"[ComisionService]       └─> Jefe Ventas: {(jefeVentas != null ? $"{jefeVentas.NombreUsuario} (ID: {jefeVentas.Id})" : "NULL")}");
+            Console.WriteLine($"[ComisionService]           └─> Director: {(directorComercial != null ? $"{directorComercial.NombreUsuario} (ID: {directorComercial.Id})" : "NULL")}");
+            Console.WriteLine($"[ComisionService] Porcentajes: Gestor={pctGestor}%, Jefe={pctJefeVentas}%, Dir={pctDirectorComercial}%");
 
             // Crear el detalle de comisión
             var detalle = new DetalleComisionLiquidacion
