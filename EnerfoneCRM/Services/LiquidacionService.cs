@@ -204,28 +204,11 @@ namespace EnerfoneCRM.Services
                 {
                     _logger.LogInformation("[LiquidacionService] Procesando contrato {ContratoId} ({Tipo})", contrato.Id, contrato.Tipo);
 
-                    // Determinar tipo de proveedor
-                    string tipoProveedor = contrato.Tipo?.ToLower() switch
-                    {
-                        "energia" => "Comercializadora",
-                        "telefonia" => "Operadora",
-                        "telefonía" => "Operadora",
-                        "alarma" => "EmpresaAlarma",
-                        _ => "Comercializadora"
-                    };
+                    var pctGestor = ObtenerComisionJerarquia(gestor);
+                    var pctJefeVentas = ObtenerComisionJerarquia(jefeVentas);
+                    var pctDirectorComercial = ObtenerComisionJerarquia(directorComercial);
 
-                    // Para simplificar, usar proveedorId = 0 para buscar configuración genérica
-                    int proveedorId = 0;
-
-                    // Buscar configuración para este colaborador y proveedor
-                    var configuracion = await _comisionService.ObtenerConfiguracionAsync(colaborador.Id, tipoProveedor, proveedorId);
-
-                    // Si no hay configuración, usar valores por defecto
-                    var pctGestor = configuracion?.PorcentajeGestor ?? 10m;
-                    var pctJefeVentas = configuracion?.PorcentajeJefeVentas ?? 10m;
-                    var pctDirectorComercial = configuracion?.PorcentajeDirectorComercial ?? 0m;
-
-                    _logger.LogInformation("[LiquidacionService] Config para contrato {ContratoId}: Gestor={PctGestor}%, Jefe={PctJefe}%, Director={PctDirector}%", contrato.Id, pctGestor, pctJefeVentas, pctDirectorComercial);
+                    _logger.LogInformation("[LiquidacionService] Comisión jerárquica para contrato {ContratoId}: Gestor={PctGestor}%, Jefe={PctJefe}%, Director={PctDirector}%", contrato.Id, pctGestor, pctJefeVentas, pctDirectorComercial);
 
                     // Obtener comisión base: primero del contrato, luego de la tarifa
                     decimal comisionBase = 0;
@@ -482,6 +465,22 @@ namespace EnerfoneCRM.Services
             await context.SaveChangesAsync();
 
             Console.WriteLine($"[LiquidacionService] Liquidación {liquidacionId} recalculada: {liquidacion.CantidadContratos} contratos, {liquidacion.TotalComisiones:N2}€");
+        }
+
+        private static decimal ObtenerComisionJerarquia(Usuario? usuarioJerarquia)
+        {
+            if (usuarioJerarquia == null)
+                return 0m;
+
+            var rol = usuarioJerarquia.Rol ?? string.Empty;
+            if (rol.Equals("Colaborador", StringComparison.OrdinalIgnoreCase)
+                || rol.Equals("Comercializadora", StringComparison.OrdinalIgnoreCase)
+                || rol.Equals("Administrador", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0m;
+            }
+
+            return decimal.Clamp(usuarioJerarquia.Comision, 0m, 99.99m);
         }
     }
 }

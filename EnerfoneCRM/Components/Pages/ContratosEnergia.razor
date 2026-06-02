@@ -14,7 +14,6 @@
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
-@inject LiquidacionService LiquidacionService
 @inject IConfiguration Configuration
 @inject LogActivacionContratoService LogActivacionContratoService
 @inject EmailService EmailService
@@ -2779,7 +2778,7 @@ else
             var csv = new System.Text.StringBuilder();
             
             // Encabezados
-            csv.AppendLine("ID,ID Contrato Externo,Fecha Creación,Estado,Comercial,Comercializadora,Tarifa,DNI Cliente,Cliente,CUPS Luz,CUPS Gas,Comisión");
+            csv.AppendLine("ID,ID Contrato Externo,Fecha Creación,Fecha Activación,Estado,Comercial,Comercializadora,Tarifa,DNI Cliente,Cliente,CUPS Luz,CUPS Gas,Comisión");
             
             // Datos - usar contratosParaPaginar que contiene todos los filtrados (sin paginación)
             foreach (var contrato in contratosParaPaginar)
@@ -2787,6 +2786,7 @@ else
                 csv.AppendLine($"\"{contrato.Id}\"," +
                     $"\"{contrato.IdContratoExterno}\"," +
                     $"\"{contrato.FechaCreacion?.ToString("dd/MM/yyyy")}\"," +
+                    $"\"{contrato.FechaActivo?.ToString("dd/MM/yyyy")}\"," +
                     $"\"{contrato.Estado}\"," +
                     $"\"{contrato.Comercial}\"," +
                     $"\"{ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora)}\"," +
@@ -2830,18 +2830,19 @@ else
             worksheet.Cell(1, 1).Value = "ID";
             worksheet.Cell(1, 2).Value = "ID Contrato Externo";
             worksheet.Cell(1, 3).Value = "Fecha Creación";
-            worksheet.Cell(1, 4).Value = "Estado";
-            worksheet.Cell(1, 5).Value = "Comercial";
-            worksheet.Cell(1, 6).Value = "Comercializadora";
-            worksheet.Cell(1, 7).Value = "Tarifa";
-            worksheet.Cell(1, 8).Value = "DNI Cliente";
-            worksheet.Cell(1, 9).Value = "Cliente";
-            worksheet.Cell(1, 10).Value = "CUPS Luz";
-            worksheet.Cell(1, 11).Value = "CUPS Gas";
-            worksheet.Cell(1, 12).Value = "Comisión";
+            worksheet.Cell(1, 4).Value = "Fecha Activación";
+            worksheet.Cell(1, 5).Value = "Estado";
+            worksheet.Cell(1, 6).Value = "Comercial";
+            worksheet.Cell(1, 7).Value = "Comercializadora";
+            worksheet.Cell(1, 8).Value = "Tarifa";
+            worksheet.Cell(1, 9).Value = "DNI Cliente";
+            worksheet.Cell(1, 10).Value = "Cliente";
+            worksheet.Cell(1, 11).Value = "CUPS Luz";
+            worksheet.Cell(1, 12).Value = "CUPS Gas";
+            worksheet.Cell(1, 13).Value = "Comisión";
 
             // Estilo de encabezados
-            var headerRange = worksheet.Range(1, 1, 1, 12);
+            var headerRange = worksheet.Range(1, 1, 1, 13);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
             headerRange.Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Center;
@@ -2853,15 +2854,16 @@ else
                 worksheet.Cell(row, 1).Value = contrato.Id;
                 worksheet.Cell(row, 2).Value = contrato.IdContratoExterno ?? "";
                 worksheet.Cell(row, 3).Value = contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "";
-                worksheet.Cell(row, 4).Value = contrato.Estado ?? "";
-                worksheet.Cell(row, 5).Value = contrato.Comercial ?? "";
-                worksheet.Cell(row, 6).Value = ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora) ?? "";
-                worksheet.Cell(row, 7).Value = contrato.EnTarifa ?? "";
-                worksheet.Cell(row, 8).Value = contrato.Dni ?? "";
-                worksheet.Cell(row, 9).Value = contrato.NombreCliente ?? "";
-                worksheet.Cell(row, 10).Value = contrato.EnCups ?? "";
-                worksheet.Cell(row, 11).Value = contrato.EnCupsGas ?? "";
-                worksheet.Cell(row, 12).Value = contrato.Comision?.ToString("N2") ?? "";
+                worksheet.Cell(row, 4).Value = contrato.FechaActivo?.ToString("dd/MM/yyyy") ?? "";
+                worksheet.Cell(row, 5).Value = contrato.Estado ?? "";
+                worksheet.Cell(row, 6).Value = contrato.Comercial ?? "";
+                worksheet.Cell(row, 7).Value = ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora) ?? "";
+                worksheet.Cell(row, 8).Value = contrato.EnTarifa ?? "";
+                worksheet.Cell(row, 9).Value = contrato.Dni ?? "";
+                worksheet.Cell(row, 10).Value = contrato.NombreCliente ?? "";
+                worksheet.Cell(row, 11).Value = contrato.EnCups ?? "";
+                worksheet.Cell(row, 12).Value = contrato.EnCupsGas ?? "";
+                worksheet.Cell(row, 13).Value = contrato.Comision?.ToString("N2") ?? "";
                 row++;
             }
 
@@ -3352,31 +3354,7 @@ else
 
                 mensajeExito = "Contrato actualizado correctamente";
                 
-                // Si el estado cambió a Act/Facturable, generar liquidación pendiente automáticamente
-                bool cambioAActFacturable = estadoAnterior != "Act/Facturable" && contratoSeleccionado.Estado == "Act/Facturable";
-                if (cambioAActFacturable)
-                {
-                    Console.WriteLine($"[ContratosEnergia] Contrato {contratoSeleccionado.Id} cambió a Act/Facturable, generando liquidación pendiente");
-                    
-                    // Obtener el usuario dueño del contrato
-                    var usuarioDueno = await UsuarioService.ObtenerPorNombreUsuarioAsync(contratoSeleccionado.Comercial);
-                    if (usuarioDueno != null)
-                    {
-                        var liquidacionGenerada = await LiquidacionService.GenerarLiquidacionPendienteAsync(contratoSeleccionado.Id, usuarioDueno.Id);
-                        if (liquidacionGenerada)
-                        {
-                            Console.WriteLine($"[ContratosEnergia] Liquidación pendiente generada exitosamente para usuario {usuarioDueno.NombreUsuario}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[ContratosEnergia] Error al generar liquidación pendiente");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[ContratosEnergia] No se encontró el usuario dueño del contrato: {contratoSeleccionado.Comercial}");
-                    }
-                }
+                // La liquidación pendiente se genera manualmente desde el módulo de liquidaciones.
                 
                 // Enviar notificación por email si el usuario tiene activadas las notificaciones
                 await EnviarNotificacionCambioContrato(contratoSeleccionado);
@@ -3965,7 +3943,6 @@ else
         {
             int actualizados = 0;
             int errores = 0;
-            int liquidacionesGeneradas = 0;
 
             foreach (var contratoId in contratosSeleccionados)
             {
@@ -3974,8 +3951,6 @@ else
                     var contrato = await ContratoService.ObtenerPorIdAsync(contratoId);
                     if (contrato != null)
                     {
-                        var estadoAnterior = contrato.Estado;
-                        
                         contrato.Estado = nuevoEstadoMasivo;
                         contrato.FechaModificacion = DateTime.Now;
                         
@@ -3988,36 +3963,7 @@ else
                         await ContratoService.ActualizarAsync(contrato);
                         actualizados++;
 
-                        // ===== GENERAR LIQUIDACIÓN PENDIENTE SI CAMBIA A ACT/FACTURABLE =====
-                        bool cambioAActFacturable = estadoAnterior != "Act/Facturable" && nuevoEstadoMasivo == "Act/Facturable";
-                        
-                        if (cambioAActFacturable && !string.IsNullOrEmpty(contrato.Comercial))
-                        {
-                            Console.WriteLine($"[ContratosEnergia] Contrato {contrato.Id} cambió a Act/Facturable, generando liquidación pendiente...");
-                            
-                            // Obtener el usuario dueño del contrato
-                            var usuarioDueno = await UsuarioService.ObtenerPorNombreUsuarioAsync(contrato.Comercial);
-                            
-                            if (usuarioDueno != null)
-                            {
-                                // Generar liquidación pendiente para el usuario dueño
-                                var liquidacionGenerada = await LiquidacionService.GenerarLiquidacionPendienteAsync(contrato.Id, usuarioDueno.Id);
-                                
-                                if (liquidacionGenerada)
-                                {
-                                    liquidacionesGeneradas++;
-                                    Console.WriteLine($"[ContratosEnergia] Liquidación pendiente generada para usuario {usuarioDueno.NombreUsuario}");
-                                }
-                                else
-                                {
-                                    Console.WriteLine($"[ContratosEnergia] No se pudo generar liquidación pendiente para contrato {contrato.Id}");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine($"[ContratosEnergia] Usuario dueño no encontrado: {contrato.Comercial}");
-                            }
-                        }
+                        // La liquidación pendiente se genera manualmente desde el módulo de liquidaciones.
                     }
                 }
                 catch
@@ -4029,10 +3975,6 @@ else
             if (actualizados > 0)
             {
                 mensajeExito = $"Se actualizaron {actualizados} contratos al estado '{nuevoEstadoMasivo}'";
-                if (liquidacionesGeneradas > 0)
-                {
-                    mensajeExito += $". Se generaron {liquidacionesGeneradas} liquidaciones pendientes";
-                }
                 if (errores > 0)
                 {
                     mensajeExito += $" ({errores} con errores)";

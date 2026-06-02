@@ -307,6 +307,44 @@ public class UsuarioService
         return (true, "Empresas de alarmas actualizadas exitosamente");
     }
 
+    public async Task<Dictionary<int, decimal>> ObtenerComisionesProveedorAsync(int usuarioId, string tipoProveedor)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+
+        return await context.UsuarioComisionesProveedores
+            .Where(c => c.UsuarioId == usuarioId && c.TipoProveedor == tipoProveedor)
+            .ToDictionaryAsync(c => c.ProveedorId, c => c.PorcentajeComision);
+    }
+
+    public async Task ActualizarComisionesProveedorAsync(int usuarioId, string tipoProveedor, List<int> proveedoresIds, Dictionary<int, decimal> comisiones)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+
+        var existentes = await context.UsuarioComisionesProveedores
+            .Where(c => c.UsuarioId == usuarioId && c.TipoProveedor == tipoProveedor)
+            .ToListAsync();
+
+        context.UsuarioComisionesProveedores.RemoveRange(existentes);
+
+        foreach (var proveedorId in proveedoresIds.Distinct())
+        {
+            var porcentaje = comisiones.TryGetValue(proveedorId, out var valor) ? valor : 0m;
+            porcentaje = decimal.Clamp(porcentaje, 0m, 99.99m);
+
+            context.UsuarioComisionesProveedores.Add(new UsuarioComisionProveedor
+            {
+                UsuarioId = usuarioId,
+                TipoProveedor = tipoProveedor,
+                ProveedorId = proveedorId,
+                PorcentajeComision = porcentaje,
+                FechaCreacion = DateTime.Now,
+                FechaActualizacion = DateTime.Now
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     public async Task<(bool exito, string mensaje)> CambiarPasswordAsync(int usuarioId, string passwordActual, string passwordNuevo)
     {
         await using var context = _dbContextProvider.CreateDbContext();

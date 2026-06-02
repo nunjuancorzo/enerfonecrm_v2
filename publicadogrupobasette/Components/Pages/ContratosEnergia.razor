@@ -2779,7 +2779,7 @@ else
             var csv = new System.Text.StringBuilder();
             
             // Encabezados
-            csv.AppendLine("ID,ID Contrato Externo,Fecha Creación,Estado,Comercial,Comercializadora,Tarifa,DNI Cliente,Cliente,CUPS Luz,CUPS Gas,Comisión");
+            csv.AppendLine("ID,ID Contrato Externo,Fecha Creación,Fecha Activación,Estado,Comercial,Comercializadora,Tarifa,DNI Cliente,Cliente,CUPS Luz,CUPS Gas,Comisión");
             
             // Datos - usar contratosParaPaginar que contiene todos los filtrados (sin paginación)
             foreach (var contrato in contratosParaPaginar)
@@ -2787,6 +2787,7 @@ else
                 csv.AppendLine($"\"{contrato.Id}\"," +
                     $"\"{contrato.IdContratoExterno}\"," +
                     $"\"{contrato.FechaCreacion?.ToString("dd/MM/yyyy")}\"," +
+                    $"\"{contrato.FechaActivo?.ToString("dd/MM/yyyy")}\"," +
                     $"\"{contrato.Estado}\"," +
                     $"\"{contrato.Comercial}\"," +
                     $"\"{ContratoService.ObtenerComercializadoraParaVisualizacion(contrato.EnComercializadora)}\"," +
@@ -2830,18 +2831,19 @@ else
             worksheet.Cell(1, 1).Value = "ID";
             worksheet.Cell(1, 2).Value = "ID Contrato Externo";
             worksheet.Cell(1, 3).Value = "Fecha Creación";
-            worksheet.Cell(1, 4).Value = "Estado";
-            worksheet.Cell(1, 5).Value = "Comercial";
-            worksheet.Cell(1, 6).Value = "Comercializadora";
-            worksheet.Cell(1, 7).Value = "Tarifa";
-            worksheet.Cell(1, 8).Value = "DNI Cliente";
-            worksheet.Cell(1, 9).Value = "Cliente";
-            worksheet.Cell(1, 10).Value = "CUPS Luz";
-            worksheet.Cell(1, 11).Value = "CUPS Gas";
-            worksheet.Cell(1, 12).Value = "Comisión";
+            worksheet.Cell(1, 4).Value = "Fecha Activación";
+            worksheet.Cell(1, 5).Value = "Estado";
+            worksheet.Cell(1, 6).Value = "Comercial";
+            worksheet.Cell(1, 7).Value = "Comercializadora";
+            worksheet.Cell(1, 8).Value = "Tarifa";
+            worksheet.Cell(1, 9).Value = "DNI Cliente";
+            worksheet.Cell(1, 10).Value = "Cliente";
+            worksheet.Cell(1, 11).Value = "CUPS Luz";
+            worksheet.Cell(1, 12).Value = "CUPS Gas";
+            worksheet.Cell(1, 13).Value = "Comisión";
 
             // Estilo de encabezados
-            var headerRange = worksheet.Range(1, 1, 1, 12);
+            var headerRange = worksheet.Range(1, 1, 1, 13);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
             headerRange.Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Center;

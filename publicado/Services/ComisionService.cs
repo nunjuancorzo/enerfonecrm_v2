@@ -416,6 +416,12 @@ namespace EnerfoneCRM.Services
             // Obtener la comisión base de la tarifa (antes de aplicar porcentaje de usuario)
             decimal comisionBaseTarifa = await ObtenerComisionBaseTarifaAsync(contrato, context);
             
+            // Obtener el porcentaje de comisión del proveedor y ajustar la comisión base
+            decimal porcentajeProveedor = await ObtenerPorcentajeProveedorAsync(tipoProveedor, proveedorId);
+            decimal comisionAjustada = comisionBaseTarifa * (porcentajeProveedor / 100m);
+            
+            Console.WriteLine($"[ComisionService] ComisionBaseTarifa: {comisionBaseTarifa}, PorcentajeProveedor: {porcentajeProveedor}%, ComisionAjustada: {comisionAjustada}");
+            
             // La comisión del contrato ya tiene aplicado el porcentaje del colaborador
             var comisionColaborador = contrato.Comision ?? 0;
 
@@ -473,35 +479,35 @@ namespace EnerfoneCRM.Services
                 HistoricoLiquidacionId = liquidacionId ?? 0,
                 ContratoId = contrato.Id,
                 TipoContrato = contrato.Tipo,
-                ComisionBase = comisionBaseTarifa,
+                ComisionBase = comisionAjustada,
 
                 // Colaborador: usar la comisión del contrato directamente (ya tiene su % aplicado)
                 ColaboradorId = colaborador.Id,
                 ComisionColaborador = comisionColaborador,
                 PorcentajeColaborador = pctColaborador,
 
-                // Gestor: calcular sobre la comisión base de la tarifa
+                // Gestor: calcular sobre la comisión ajustada de la tarifa
                 GestorId = gestor?.Id,
-                ComisionGestor = gestor != null ? Math.Round(comisionBaseTarifa * pctGestor / 100, 2) : null,
+                ComisionGestor = gestor != null ? Math.Round(comisionAjustada * pctGestor / 100, 2) : null,
                 PorcentajeGestor = gestor != null ? pctGestor : null,
 
-                // Jefe de Ventas: calcular sobre la comisión base de la tarifa
+                // Jefe de Ventas: calcular sobre la comisión ajustada de la tarifa
                 JefeVentasId = jefeVentas?.Id,
-                ComisionJefeVentas = jefeVentas != null ? Math.Round(comisionBaseTarifa * pctJefeVentas / 100, 2) : null,
+                ComisionJefeVentas = jefeVentas != null ? Math.Round(comisionAjustada * pctJefeVentas / 100, 2) : null,
                 PorcentajeJefeVentas = jefeVentas != null ? pctJefeVentas : null,
 
-                // Director Comercial: calcular sobre la comisión base de la tarifa
+                // Director Comercial: calcular sobre la comisión ajustada de la tarifa
                 DirectorComercialId = directorComercial?.Id,
                 ComisionDirectorComercial = directorComercial != null && pctDirectorComercial > 0 
-                    ? Math.Round(comisionBaseTarifa * pctDirectorComercial / 100, 2) 
+                    ? Math.Round(comisionAjustada * pctDirectorComercial / 100, 2) 
                     : null,
                 PorcentajeDirectorComercial = directorComercial != null && pctDirectorComercial > 0 
                     ? pctDirectorComercial 
                     : null,
 
-                // Administrador: calcular sobre la comisión base de la tarifa
+                // Administrador: calcular sobre la comisión ajustada de la tarifa
                 AdministradorId = administrador.Id,
-                ComisionAdministrador = Math.Round(comisionBaseTarifa * pctAdministrador / 100, 2),
+                ComisionAdministrador = Math.Round(comisionAjustada * pctAdministrador / 100, 2),
                 PorcentajeAdministrador = pctAdministrador,
 
                 // Información del proveedor
@@ -834,6 +840,60 @@ namespace EnerfoneCRM.Services
                 .Where(d => d.UsuarioId == usuarioId && d.Estado == "Pendiente")
                 .OrderByDescending(d => d.FechaCreacion)
                 .ToListAsync();
+        }
+
+        /// <summary>
+        /// Obtiene el porcentaje de comisión de un proveedor específico
+        /// </summary>
+        /// <param name="tipoProveedor">Tipo de proveedor: "Comercializadora", "Operadora" o "EmpresaAlarma"</param>
+        /// <param name="proveedorId">ID del proveedor</param>
+        /// <returns>El porcentaje de comisión (ej: 5.50 para 5.50%), o 0 si no existe o no está configurado</returns>
+                public async Task<decimal> ObtenerPorcentajeProveedorAsync(string tipoProveedor, int proveedorId)
+        {
+            if (proveedorId <= 0)
+                return 0;
+
+            await using var context = _dbContextProvider.CreateDbContext();
+
+            try
+            {
+                decimal porcentaje = 0m;
+
+                switch (tipoProveedor?.ToLower())
+                {
+                    case "comercializadora":
+                        var comercializadora = await context.Comercializadoras
+                            .Where(c => c.Id == proveedorId && c.Activo)
+                            .FirstOrDefaultAsync();
+                        porcentaje = comercializadora?.PorcentajeComision ?? 0m;
+                        break;
+                    
+                    case "operadora":
+                        var operadora = await context.Operadoras
+                            .Where(o => o.Id == proveedorId && o.Activo)
+                            .FirstOrDefaultAsync();
+                        porcentaje = operadora?.PorcentajeComision ?? 0m;
+                        break;
+                    
+                    case "empresaalarma":
+                        var empresaAlarma = await context.EmpresasAlarmas
+                            .Where(e => e.Id == proveedorId && e.Activo)
+                            .FirstOrDefaultAsync();
+                        porcentaje = empresaAlarma?.PorcentajeComision ?? 0m;
+                        break;
+                }
+
+                if (porcentaje < 0)
+                    porcentaje = 0;
+
+                Console.WriteLine($"[DEBUG ComisionService] Porcentaje de {tipoProveedor} (ID: {proveedorId}): {porcentaje}%");
+                return porcentaje;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR ComisionService] Error obteniendo porcentaje de {tipoProveedor} (ID: {proveedorId}): {ex.Message}");
+                return 0;
+            }
         }
 
         // Métodos auxiliares privados

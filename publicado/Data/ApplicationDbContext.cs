@@ -29,6 +29,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<UsuarioComercializadora> UsuarioComercializadoras { get; set; }
     public DbSet<UsuarioOperadora> UsuarioOperadoras { get; set; }
     public DbSet<UsuarioEmpresaAlarma> UsuarioEmpresasAlarmas { get; set; }
+    public DbSet<UsuarioComisionProveedor> UsuarioComisionesProveedores { get; set; }
     public DbSet<LogActivacionContrato> LogActivacionesContratos { get; set; }
     public DbSet<MensajeBienvenida> MensajesBienvenida { get; set; }
     public DbSet<NoticiaImagen> NoticiasImagenes { get; set; }

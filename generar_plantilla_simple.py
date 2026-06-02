@@ -36,7 +36,7 @@ headers = [
     'TipoCliente*', 'Nombre*', 'DNI/CIF', 'DNI Representante', 'Email', 
     'Teléfono', 'Dirección', 'Número', 'Escalera', 'Piso', 
     'Puerta', 'Aclarador', 'Población', 'Provincia', 'Código Postal', 
-    'IBAN', 'Representante', 'Comercial', 'Observaciones'
+    'IBAN', 'Representante', 'ID_Usuario', 'Observaciones'
 ]
 
 # Escribir encabezados
@@ -62,7 +62,7 @@ ejemplo = [
     '28001',                         # Código Postal
     'ES1234567890123456789012',      # IBAN
     'Juan Pérez',                    # Representante
-    'María García',                  # Comercial
+    '1',                             # ID_Usuario
     'Cliente potencial importante'   # Observaciones
 ]
 
@@ -121,7 +121,7 @@ instrucciones = [
     '- Población, Provincia, Código Postal: Datos de localización',
     '- IBAN: Cuenta bancaria (máximo 34 caracteres)',
     '- Representante: Nombre del representante legal',
-    '- Comercial: Nombre del comercial asignado al cliente',
+    '- ID_Usuario: ID numérico del usuario asignado al cliente (ej: 1, 2, 3...)',
     '- Observaciones: Notas adicionales sobre el cliente'
 ]
 for inst in instrucciones:

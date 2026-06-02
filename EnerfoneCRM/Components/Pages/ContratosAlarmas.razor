@@ -14,7 +14,6 @@
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
-@inject LiquidacionService LiquidacionService
 @inject EmailService EmailService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -1995,13 +1994,14 @@ else
             var csv = new System.Text.StringBuilder();
             
             // Encabezados
-            csv.AppendLine("ID,Fecha Creación,Estado,Comercial,Cliente,DNI,Dirección,Tipo Alarma,Subtipo Inmueble,Kit,Opcionales,Campaña,Dirección Instalación,Comisión,Observaciones");
+            csv.AppendLine("ID,Fecha Creación,Fecha Activación,Estado,Comercial,Cliente,DNI,Dirección,Tipo Alarma,Subtipo Inmueble,Kit,Opcionales,Campaña,Dirección Instalación,Comisión,Observaciones");
             
             // Datos - usar contratosParaPaginar que contiene todos los filtrados (sin paginación)
             foreach (var contrato in contratosParaPaginar)
             {
                 csv.AppendLine($"\"{contrato.Id}\"," +
                     $"\"{contrato.FechaCreacion?.ToString("dd/MM/yyyy")}\"," +
+                    $"\"{contrato.FechaActivo?.ToString("dd/MM/yyyy")}\"," +
                     $"\"{contrato.Estado}\"," +
                     $"\"{contrato.Comercial}\"," +
                     $"\"{contrato.NombreCliente}\"," +
@@ -2048,22 +2048,23 @@ else
             // Encabezados
             worksheet.Cell(1, 1).Value = "ID";
             worksheet.Cell(1, 2).Value = "Fecha Creación";
-            worksheet.Cell(1, 3).Value = "Estado";
-            worksheet.Cell(1, 4).Value = "Comercial";
-            worksheet.Cell(1, 5).Value = "Cliente";
-            worksheet.Cell(1, 6).Value = "DNI";
-            worksheet.Cell(1, 7).Value = "Dirección";
-            worksheet.Cell(1, 8).Value = "Tipo Alarma";
-            worksheet.Cell(1, 9).Value = "Subtipo Inmueble";
-            worksheet.Cell(1, 10).Value = "Kit";
-            worksheet.Cell(1, 11).Value = "Opcionales";
-            worksheet.Cell(1, 12).Value = "Campaña";
-            worksheet.Cell(1, 13).Value = "Dirección Instalación";
-            worksheet.Cell(1, 14).Value = "Comisión";
-            worksheet.Cell(1, 15).Value = "Observaciones";
+            worksheet.Cell(1, 3).Value = "Fecha Activación";
+            worksheet.Cell(1, 4).Value = "Estado";
+            worksheet.Cell(1, 5).Value = "Comercial";
+            worksheet.Cell(1, 6).Value = "Cliente";
+            worksheet.Cell(1, 7).Value = "DNI";
+            worksheet.Cell(1, 8).Value = "Dirección";
+            worksheet.Cell(1, 9).Value = "Tipo Alarma";
+            worksheet.Cell(1, 10).Value = "Subtipo Inmueble";
+            worksheet.Cell(1, 11).Value = "Kit";
+            worksheet.Cell(1, 12).Value = "Opcionales";
+            worksheet.Cell(1, 13).Value = "Campaña";
+            worksheet.Cell(1, 14).Value = "Dirección Instalación";
+            worksheet.Cell(1, 15).Value = "Comisión";
+            worksheet.Cell(1, 16).Value = "Observaciones";
 
             // Estilo de encabezados
-            var headerRange = worksheet.Range(1, 1, 1, 15);
+            var headerRange = worksheet.Range(1, 1, 1, 16);
             headerRange.Style.Font.Bold = true;
             headerRange.Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.LightGray;
             headerRange.Style.Alignment.Horizontal = ClosedXML.Excel.XLAlignmentHorizontalValues.Center;
@@ -2074,19 +2075,20 @@ else
             {
                 worksheet.Cell(row, 1).Value = contrato.Id;
                 worksheet.Cell(row, 2).Value = contrato.FechaCreacion?.ToString("dd/MM/yyyy") ?? "";
-                worksheet.Cell(row, 3).Value = contrato.Estado ?? "";
-                worksheet.Cell(row, 4).Value = contrato.Comercial ?? "";
-                worksheet.Cell(row, 5).Value = contrato.NombreCliente ?? "";
-                worksheet.Cell(row, 6).Value = contrato.Dni ?? "";
-                worksheet.Cell(row, 7).Value = contrato.Direccion ?? "";
-                worksheet.Cell(row, 8).Value = contrato.TipoAlarma ?? "";
-                worksheet.Cell(row, 9).Value = contrato.SubtipoInmueble ?? "";
-                worksheet.Cell(row, 10).Value = contrato.KitAlarma ?? "";
-                worksheet.Cell(row, 11).Value = contrato.OpcionalesAlarma ?? "";
-                worksheet.Cell(row, 12).Value = contrato.CampanaAlarma ?? "";
-                worksheet.Cell(row, 13).Value = contrato.DireccionInstalacionAlarma ?? "";
-                worksheet.Cell(row, 14).Value = contrato.Comision?.ToString("N2") ?? "";
-                worksheet.Cell(row, 15).Value = contrato.ObservacionesAlarma ?? "";
+                worksheet.Cell(row, 3).Value = contrato.FechaActivo?.ToString("dd/MM/yyyy") ?? "";
+                worksheet.Cell(row, 4).Value = contrato.Estado ?? "";
+                worksheet.Cell(row, 5).Value = contrato.Comercial ?? "";
+                worksheet.Cell(row, 6).Value = contrato.NombreCliente ?? "";
+                worksheet.Cell(row, 7).Value = contrato.Dni ?? "";
+                worksheet.Cell(row, 8).Value = contrato.Direccion ?? "";
+                worksheet.Cell(row, 9).Value = contrato.TipoAlarma ?? "";
+                worksheet.Cell(row, 10).Value = contrato.SubtipoInmueble ?? "";
+                worksheet.Cell(row, 11).Value = contrato.KitAlarma ?? "";
+                worksheet.Cell(row, 12).Value = contrato.OpcionalesAlarma ?? "";
+                worksheet.Cell(row, 13).Value = contrato.CampanaAlarma ?? "";
+                worksheet.Cell(row, 14).Value = contrato.DireccionInstalacionAlarma ?? "";
+                worksheet.Cell(row, 15).Value = contrato.Comision?.ToString("N2") ?? "";
+                worksheet.Cell(row, 16).Value = contrato.ObservacionesAlarma ?? "";
                 row++;
             }
 
@@ -2344,31 +2346,7 @@ else
             {
                 mensajeExito = contratoSeleccionado.Id > 0 ? "Contrato actualizado exitosamente" : "Contrato creado exitosamente";
                 
-                // Si el estado cambió a Act/Facturable, generar liquidación pendiente automáticamente
-                bool cambioAActFacturable = estadoAnterior != "Act/Facturable" && contratoSeleccionado.Estado == "Act/Facturable";
-                if (cambioAActFacturable && contratoSeleccionado.Id > 0)
-                {
-                    Console.WriteLine($"[ContratosAlarmas] Contrato {contratoSeleccionado.Id} cambió a Act/Facturable, generando liquidación pendiente");
-                    
-                    // Obtener el usuario dueño del contrato
-                    var usuarioDueno = await UsuarioService.ObtenerPorNombreUsuarioAsync(contratoSeleccionado.Comercial);
-                    if (usuarioDueno != null)
-                    {
-                        var liquidacionGenerada = await LiquidacionService.GenerarLiquidacionPendienteAsync(contratoSeleccionado.Id, usuarioDueno.Id);
-                        if (liquidacionGenerada)
-                        {
-                            Console.WriteLine($"[ContratosAlarmas] Liquidación pendiente generada exitosamente para usuario {usuarioDueno.NombreUsuario}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"[ContratosAlarmas] Error al generar liquidación pendiente");
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[ContratosAlarmas] No se encontró el usuario dueño del contrato: {contratoSeleccionado.Comercial}");
-                    }
-                }
+                // La liquidación pendiente se genera manualmente desde el módulo de liquidaciones.
                 
                 // Enviar notificación por email si el contrato fue actualizado (no creado) y el usuario tiene activadas las notificaciones
                 if (contratoSeleccionado.Id > 0)

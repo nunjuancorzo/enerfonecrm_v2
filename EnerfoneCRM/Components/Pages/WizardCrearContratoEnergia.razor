@@ -1238,6 +1238,22 @@
             guardando = true;
             mensajeError = string.Empty;
 
+            // Normalizar tarifa seleccionada antes de guardar.
+            if (nuevoContrato.EnTarifaId.HasValue)
+            {
+                var tarifaSeleccionadaPorId = tarifasEnergia.FirstOrDefault(t => t.Id == nuevoContrato.EnTarifaId.Value);
+                if (tarifaSeleccionadaPorId != null)
+                {
+                    nuevoContrato.EnTarifa = tarifaSeleccionadaPorId.Nombre;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
+            {
+                mensajeError = "Debe seleccionar una tarifa antes de guardar el contrato.";
+                return;
+            }
+
             // Asignar peajes al contrato
             nuevoContrato.PeajeLuz = peajeLuzSeleccionado;
             nuevoContrato.PeajeGas = peajeGasSeleccionado;
@@ -1314,7 +1330,7 @@
         }
     }
 
-    private async void OnTarifaEnergiaChanged(ChangeEventArgs e)
+    private async Task OnTarifaEnergiaChanged(ChangeEventArgs e)
     {
         if (nuevoContrato == null || e.Value == null) return;
         

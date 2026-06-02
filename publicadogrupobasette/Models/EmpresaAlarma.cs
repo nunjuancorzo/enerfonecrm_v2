@@ -25,6 +25,9 @@ namespace EnerfoneCRM.Models
         [Column("activo")]
         public bool Activo { get; set; } = true;
 
+        [Column("porcentaje_comision", TypeName = "decimal(5,2)")]
+        public decimal PorcentajeComision { get; set; } = 0;
+
         [Column("fecha_creacion")]
         public DateTime? FechaCreacion { get; set; }
     }

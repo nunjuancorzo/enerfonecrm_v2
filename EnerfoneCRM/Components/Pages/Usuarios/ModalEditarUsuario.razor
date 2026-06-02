@@ -15,6 +15,10 @@
                 <h5 class="modal-title">
                     <i class="bi bi-person-badge me-2"></i>
                     Editar Usuario
+                    @if (usuario?.Id > 0)
+                    {
+                        <span class="badge bg-light text-primary ms-2">ID: @usuario.Id</span>
+                    }
                 </h5>
                 <button type="button" class="btn-close btn-close-white" @onclick="OnCancelar"></button>
             </div>
@@ -125,101 +129,107 @@
                         }
                     </div>
 
-                    @* <div class="mb-3">
-                        <label class="form-label">Comisión (%)</label>
-                        <InputNumber class="form-control" @bind-Value="usuario.Comision" />
-                    </div> *@
+                    @if (RequiereComisionJerarquia(usuario.Rol))
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Comisión de Jerarquía (%)</label>
+                            <input type="number" class="form-control" @bind="comisionTexto" placeholder="" />
+                            <div class="form-text">Se usará para calcular las liquidaciones de roles adicionales.</div>
+                        </div>
+                    }
 
-                    @* JERARQUÍA: Vista de solo lectura para subordinados *@
-                    @if (usuario.Rol == "Colaborador" || usuario.Rol == "Gestor" || usuario.Rol == "Jefe de ventas")
+                    @* JERARQUÍA: Visualización de superiores asignados *@
+                    @if (usuario.Rol == "Colaborador")
                     {
                         <div class="mb-3">
                             <hr />
-                            <h6 class="mb-3">
-                                <i class="bi bi-diagram-3 me-2"></i>Tu Jerarquía Actual
-                                <span class="badge bg-info ms-2">Solo lectura</span>
-                            </h6>
-                            <div class="alert alert-light border">
-                                @if (usuario.Rol == "Colaborador")
+                            <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i>Jerarquía Asignada</h6>
+                            <div class="mb-2">
+                                <strong>Gestor:</strong>
+                                @if (usuario.GestorId.HasValue)
                                 {
-                                    <div class="mb-2">
-                                        <strong>Gestor:</strong> 
-                                        @if (usuario.GestorId.HasValue)
-                                        {
-                                            var gestor = gestoresDisponibles.FirstOrDefault(g => g.Id == usuario.GestorId.Value);
-                                            @(gestor != null ? $"{gestor.NombreUsuario} - {gestor.Nombre} {gestor.Apellidos}" : "No asignado")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No asignado</span>
-                                        }
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Jefe de Ventas:</strong> 
-                                        @if (usuario.JefeVentasId.HasValue)
-                                        {
-                                            var jefe = jefesVentasDisponibles.FirstOrDefault(j => j.Id == usuario.JefeVentasId.Value);
-                                            @(jefe != null ? $"{jefe.NombreUsuario} - {jefe.Nombre} {jefe.Apellidos}" : "No asignado")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No asignado</span>
-                                        }
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Director Comercial:</strong> 
-                                        @if (usuario.DirectorComercialId.HasValue)
-                                        {
-                                            var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
-                                            @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No asignado</span>
-                                        }
-                                    </div>
+                                    var gestor = gestoresDisponibles.FirstOrDefault(g => g.Id == usuario.GestorId.Value);
+                                    @(gestor != null ? $"{gestor.NombreUsuario} - {gestor.Nombre} {gestor.Apellidos}" : "No asignado")
                                 }
-                                @if (usuario.Rol == "Gestor")
+                                else
                                 {
-                                    <div class="mb-2">
-                                        <strong>Jefe de Ventas:</strong> 
-                                        @if (usuario.JefeVentasId.HasValue)
-                                        {
-                                            var jefe = jefesVentasDisponibles.FirstOrDefault(j => j.Id == usuario.JefeVentasId.Value);
-                                            @(jefe != null ? $"{jefe.NombreUsuario} - {jefe.Nombre} {jefe.Apellidos}" : "No asignado")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No asignado</span>
-                                        }
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Director Comercial:</strong> 
-                                        @if (usuario.DirectorComercialId.HasValue)
-                                        {
-                                            var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
-                                            @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No asignado</span>
-                                        }
-                                    </div>
+                                    <span class="text-muted">No asignado</span>
                                 }
-                                @if (usuario.Rol == "Jefe de ventas")
+                            </div>
+                            <div class="mb-2">
+                                <strong>Jefe de Ventas:</strong>
+                                @if (usuario.JefeVentasId.HasValue)
                                 {
-                                    <div class="mb-2">
-                                        <strong>Director Comercial:</strong> 
-                                        @if (usuario.DirectorComercialId.HasValue)
-                                        {
-                                            var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
-                                            @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">No asignado</span>
-                                        }
-                                    </div>
+                                    var jefe = jefesVentasDisponibles.FirstOrDefault(j => j.Id == usuario.JefeVentasId.Value);
+                                    @(jefe != null ? $"{jefe.NombreUsuario} - {jefe.Nombre} {jefe.Apellidos}" : "No asignado")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No asignado</span>
+                                }
+                            </div>
+                            <div class="mb-2">
+                                <strong>Director Comercial:</strong>
+                                @if (usuario.DirectorComercialId.HasValue)
+                                {
+                                    var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
+                                    @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No asignado</span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (usuario.Rol == "Gestor")
+                    {
+                        <div class="mb-3">
+                            <hr />
+                            <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i>Jerarquía Asignada</h6>
+                            <div class="mb-2">
+                                <strong>Jefe de Ventas:</strong>
+                                @if (usuario.JefeVentasId.HasValue)
+                                {
+                                    var jefe = jefesVentasDisponibles.FirstOrDefault(j => j.Id == usuario.JefeVentasId.Value);
+                                    @(jefe != null ? $"{jefe.NombreUsuario} - {jefe.Nombre} {jefe.Apellidos}" : "No asignado")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No asignado</span>
+                                }
+                            </div>
+                            <div class="mb-2">
+                                <strong>Director Comercial:</strong>
+                                @if (usuario.DirectorComercialId.HasValue)
+                                {
+                                    var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
+                                    @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No asignado</span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (usuario.Rol == "Jefe de ventas")
+                    {
+                        <div class="mb-3">
+                            <hr />
+                            <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i>Jerarquía Asignada</h6>
+                            <div class="mb-2">
+                                <strong>Director Comercial:</strong>
+                                @if (usuario.DirectorComercialId.HasValue)
+                                {
+                                    var director = directoresComerciales.FirstOrDefault(d => d.Id == usuario.DirectorComercialId.Value);
+                                    @(director != null ? $"{director.NombreUsuario} - {director.Nombre} {director.Apellidos}" : "No asignado")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No asignado</span>
                                 }
                             </div>
                         </div>
@@ -245,7 +255,7 @@
                                                        class="form-check-input" 
                                                        id="col_@colaborador.Id" 
                                                        checked="@colaboradoresSeleccionados.Contains(colaborador.Id)"
-                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, (bool)e.Value!))" />
+                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, ObtenerValorCheckbox(e)))" />
                                                 <label class="form-check-label" for="col_@colaborador.Id">
                                                     @colaborador.NombreUsuario - @colaborador.Nombre @colaborador.Apellidos
                                                 </label>
@@ -298,7 +308,7 @@
                                                                        class="form-check-input" 
                                                                        id="ges_@gestor.Id" 
                                                                        checked="@gestoresSeleccionados.Contains(gestor.Id)"
-                                                                       @onchange="@((e) => OnGestorToggle(gestor.Id, (bool)e.Value!))" />
+                                                                       @onchange="@((e) => OnGestorToggle(gestor.Id, ObtenerValorCheckbox(e)))" />
                                                                 <label class="form-check-label" for="ges_@gestor.Id">
                                                                     <strong>@gestor.NombreUsuario</strong> - @gestor.Nombre @gestor.Apellidos
                                                                 </label>
@@ -337,7 +347,7 @@
                                                                        class="form-check-input" 
                                                                        id="col_jv_@colaborador.Id" 
                                                                        checked="@colaboradoresSeleccionados.Contains(colaborador.Id)"
-                                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, (bool)e.Value!))" />
+                                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, ObtenerValorCheckbox(e)))" />
                                                                 <label class="form-check-label" for="col_jv_@colaborador.Id">
                                                                     <strong>@colaborador.NombreUsuario</strong> - @colaborador.Nombre @colaborador.Apellidos
                                                                 </label>
@@ -394,7 +404,7 @@
                                                                        class="form-check-input" 
                                                                        id="jef_@jefe.Id" 
                                                                        checked="@jefesVentasSeleccionados.Contains(jefe.Id)"
-                                                                       @onchange="@((e) => OnJefeVentasToggle(jefe.Id, (bool)e.Value!))" />
+                                                                       @onchange="@((e) => OnJefeVentasToggle(jefe.Id, ObtenerValorCheckbox(e)))" />
                                                                 <label class="form-check-label" for="jef_@jefe.Id">
                                                                     <strong>@jefe.NombreUsuario</strong> - @jefe.Nombre @jefe.Apellidos
                                                                 </label>
@@ -433,7 +443,7 @@
                                                                        class="form-check-input" 
                                                                        id="ges_dir_@gestor.Id" 
                                                                        checked="@gestoresSeleccionados.Contains(gestor.Id)"
-                                                                       @onchange="@((e) => OnGestorToggle(gestor.Id, (bool)e.Value!))" />
+                                                                       @onchange="@((e) => OnGestorToggle(gestor.Id, ObtenerValorCheckbox(e)))" />
                                                                 <label class="form-check-label" for="ges_dir_@gestor.Id">
                                                                     <strong>@gestor.NombreUsuario</strong> - @gestor.Nombre @gestor.Apellidos
                                                                 </label>
@@ -472,7 +482,7 @@
                                                                        class="form-check-input" 
                                                                        id="col_dir_@colaborador.Id" 
                                                                        checked="@colaboradoresSeleccionados.Contains(colaborador.Id)"
-                                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, (bool)e.Value!))" />
+                                                                       @onchange="@((e) => OnColaboradorToggle(colaborador.Id, ObtenerValorCheckbox(e)))" />
                                                                 <label class="form-check-label" for="col_dir_@colaborador.Id">
                                                                     <strong>@colaborador.NombreUsuario</strong> - @colaborador.Nombre @colaborador.Apellidos
                                                                 </label>
@@ -496,85 +506,163 @@
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras Permitidas</h6>
-                        <p class="text-muted small">Selecciona las comercializadoras que este usuario podrá visualizar. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras Permitidas y Comisiones</h6>
+                        <p class="text-muted small">Marca las comercializadoras que este usuario podrá visualizar y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
                         
-                        <div class="row">
-                            @foreach (var comercializadora in todasComercializadoras)
-                            {
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input type="checkbox" 
-                                               class="form-check-input" 
-                                               id="com_@comercializadora.Id" 
-                                               checked="@comercializadorasSeleccionadas.Contains(comercializadora.Id)"
-                                               @onchange="@((e) => OnComercializadoraToggle(comercializadora.Id, (bool)e.Value!))" />
-                                        <label class="form-check-label" for="com_@comercializadora.Id">
-                                            @comercializadora.Nombre
-                                        </label>
-                                    </div>
-                                </div>
-                            }
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;"><strong>✓</strong></th>
+                                        <th><strong>Comercializadora</strong></th>
+                                        <th style="width: 120px;"><strong>Comisión (%)</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (todasComercializadoras.Any())
+                                    {
+                                        @foreach (var comercializadora in todasComercializadoras)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           id="com_@comercializadora.Id" 
+                                                           checked="@comercializadorasSeleccionadas.Contains(comercializadora.Id)"
+                                                           @onchange="@((e) => OnComercializadoraToggle(comercializadora.Id, ObtenerValorCheckbox(e)))" />
+                                                </td>
+                                                <td>
+                                                    <label class="form-check-label" for="com_@comercializadora.Id">
+                                                        @comercializadora.Nombre
+                                                    </label>
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm" 
+                                                           step="0.01" 
+                                                           min="0" 
+                                                           max="99.99"
+                                                           placeholder="0.00"
+                                                           value="@ObtenerComision(comisionesComercializadoras, comercializadora.Id)"
+                                                           @oninput="(e) => ActualizarComision(comisionesComercializadoras, comercializadora.Id, e.Value?.ToString())" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                         @if (!todasComercializadoras.Any())
                         {
-                            <div class="alert alert-info">No hay comercializadoras registradas en el sistema.</div>
+                            <div class="alert alert-info mb-0">No hay comercializadoras registradas en el sistema.</div>
                         }
                     </div>
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-phone me-2"></i>Operadoras Permitidas</h6>
-                        <p class="text-muted small">Selecciona las operadoras que este usuario podrá visualizar. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-phone me-2"></i>Operadoras Permitidas y Comisiones</h6>
+                        <p class="text-muted small">Marca las operadoras que este usuario podrá visualizar y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
                         
-                        <div class="row">
-                            @foreach (var operadora in todasOperadoras)
-                            {
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input type="checkbox" 
-                                               class="form-check-input" 
-                                               id="ope_@operadora.Id" 
-                                               checked="@operadorasSeleccionadas.Contains(operadora.Id)"
-                                               @onchange="@((e) => OnOperadoraToggle(operadora.Id, (bool)e.Value!))" />
-                                        <label class="form-check-label" for="ope_@operadora.Id">
-                                            @operadora.Nombre
-                                        </label>
-                                    </div>
-                                </div>
-                            }
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;"><strong>✓</strong></th>
+                                        <th><strong>Operadora</strong></th>
+                                        <th style="width: 120px;"><strong>Comisión (%)</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (todasOperadoras.Any())
+                                    {
+                                        @foreach (var operadora in todasOperadoras)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           id="ope_@operadora.Id" 
+                                                           checked="@operadorasSeleccionadas.Contains(operadora.Id)"
+                                                           @onchange="@((e) => OnOperadoraToggle(operadora.Id, ObtenerValorCheckbox(e)))" />
+                                                </td>
+                                                <td>
+                                                    <label class="form-check-label" for="ope_@operadora.Id">
+                                                        @operadora.Nombre
+                                                    </label>
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm" 
+                                                           step="0.01" 
+                                                           min="0" 
+                                                           max="99.99"
+                                                           placeholder="0.00"
+                                                           value="@ObtenerComision(comisionesOperadoras, operadora.Id)"
+                                                           @oninput="(e) => ActualizarComision(comisionesOperadoras, operadora.Id, e.Value?.ToString())" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                         @if (!todasOperadoras.Any())
                         {
-                            <div class="alert alert-info">No hay operadoras registradas en el sistema.</div>
+                            <div class="alert alert-info mb-0">No hay operadoras registradas en el sistema.</div>
                         }
                     </div>
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-shield-check me-2"></i>Empresas de Alarmas Permitidas</h6>
-                        <p class="text-muted small">Selecciona las empresas de alarmas que este usuario podrá visualizar. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-shield-check me-2"></i>Empresas de Alarmas Permitidas y Comisiones</h6>
+                        <p class="text-muted small">Marca las empresas de alarmas que este usuario podrá visualizar y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
                         
-                        <div class="row">
-                            @foreach (var empresaAlarma in todasEmpresasAlarmas)
-                            {
-                                <div class="col-md-4 mb-2">
-                                    <div class="form-check">
-                                        <input type="checkbox" 
-                                               class="form-check-input" 
-                                               id="emp_@empresaAlarma.Id" 
-                                               checked="@empresasAlarmasSeleccionadas.Contains(empresaAlarma.Id)"
-                                               @onchange="@((e) => OnEmpresaAlarmaToggle(empresaAlarma.Id, (bool)e.Value!))" />
-                                        <label class="form-check-label" for="emp_@empresaAlarma.Id">
-                                            @empresaAlarma.Nombre
-                                        </label>
-                                    </div>
-                                </div>
-                            }
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;"><strong>✓</strong></th>
+                                        <th><strong>Empresa de Alarma</strong></th>
+                                        <th style="width: 120px;"><strong>Comisión (%)</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (todasEmpresasAlarmas.Any())
+                                    {
+                                        @foreach (var empresaAlarma in todasEmpresasAlarmas)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           id="emp_@empresaAlarma.Id" 
+                                                           checked="@empresasAlarmasSeleccionadas.Contains(empresaAlarma.Id)"
+                                                           @onchange="@((e) => OnEmpresaAlarmaToggle(empresaAlarma.Id, ObtenerValorCheckbox(e)))" />
+                                                </td>
+                                                <td>
+                                                    <label class="form-check-label" for="emp_@empresaAlarma.Id">
+                                                        @empresaAlarma.Nombre
+                                                    </label>
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control form-control-sm" 
+                                                           step="0.01" 
+                                                           min="0" 
+                                                           max="99.99"
+                                                           placeholder="0.00"
+                                                           value="@ObtenerComision(comisionesEmpresasAlarmas, empresaAlarma.Id)"
+                                                           @oninput="(e) => ActualizarComision(comisionesEmpresasAlarmas, empresaAlarma.Id, e.Value?.ToString())" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                         @if (!todasEmpresasAlarmas.Any())
                         {
-                            <div class="alert alert-info">No hay empresas de alarmas registradas en el sistema.</div>
+                            <div class="alert alert-info mb-0">No hay empresas de alarmas registradas en el sistema.</div>
                         }
                     </div>
 
@@ -834,11 +922,12 @@
 @code {
     [Parameter] public Usuario? Usuario { get; set; }
     [Parameter] public string? MensajeError { get; set; }
-    [Parameter] public EventCallback<(Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds, List<int> jefesVentasIds)> OnGuardar { get; set; }
+    [Parameter] public EventCallback<(Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds, List<int> jefesVentasIds, Dictionary<int, decimal> comisionesComercializadoras, Dictionary<int, decimal> comisionesOperadoras, Dictionary<int, decimal> comisionesEmpresasAlarmas)> OnGuardar { get; set; }
     [Parameter] public EventCallback OnCancelar { get; set; }
 
     private Usuario usuario = new();
     private string mensajeError = string.Empty;
+    private string? comisionTexto;  // Campo auxiliar para permitir valores vacíos
     private string rolOriginal = string.Empty;  // Para validar cambios de rol a Administrador
     private string nuevaPassword = string.Empty;
     private bool enviandoEmail = false;
@@ -856,6 +945,12 @@
     private HashSet<int> colaboradoresSeleccionados = new();
     private HashSet<int> gestoresSeleccionados = new();
     private HashSet<int> jefesVentasSeleccionados = new();
+    private List<Usuario>? usuariosJerarquiaCache;
+
+    // Comisiones por proveedor
+    private Dictionary<int, decimal> comisionesComercializadoras = new();
+    private Dictionary<int, decimal> comisionesOperadoras = new();
+    private Dictionary<int, decimal> comisionesEmpresasAlarmas = new();
 
     // Variables para los archivos adjuntos
     private string? archivoDniNombre;
@@ -873,10 +968,7 @@
         await CargarTodasComercializadoras();
         await CargarTodasOperadoras();
         await CargarTodasEmpresasAlarmas();
-        await CargarGestores();
-        await CargarJefesVentas();
-        await CargarDirectoresComerciales();
-        await CargarColaboradores();
+        InicializarDiccionariosComision();
     }
 
     private async Task CargarComercializadoras()
@@ -895,10 +987,11 @@
     {
         try
         {
-            todasComercializadoras = await ComercializadoraService.ObtenerTodasAsync();
+            todasComercializadoras = await ComercializadoraService.ObtenerTodasAsync() ?? new List<Comercializadora>();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ModalEditarUsuario] Error al cargar comercializadoras: {ex.Message}");
             todasComercializadoras = new List<Comercializadora>();
         }
     }
@@ -907,10 +1000,11 @@
     {
         try
         {
-            todasOperadoras = await OperadoraService.ObtenerTodasAsync();
+            todasOperadoras = await OperadoraService.ObtenerTodasAsync() ?? new List<Operadora>();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ModalEditarUsuario] Error al cargar operadoras: {ex.Message}");
             todasOperadoras = new List<Operadora>();
         }
     }
@@ -919,10 +1013,11 @@
     {
         try
         {
-            todasEmpresasAlarmas = await EmpresaAlarmaService.ObtenerTodasAsync();
+            todasEmpresasAlarmas = await EmpresaAlarmaService.ObtenerTodasAsync() ?? new List<EmpresaAlarma>();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ModalEditarUsuario] Error al cargar empresas de alarmas: {ex.Message}");
             todasEmpresasAlarmas = new List<EmpresaAlarma>();
         }
     }
@@ -931,11 +1026,12 @@
     {
         try
         {
-            var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            var todosUsuarios = await ObtenerUsuariosJerarquiaAsync();
             gestoresDisponibles = todosUsuarios.Where(u => u.Rol == "Gestor" && u.Activo && u.Id != usuario.Id).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ModalEditarUsuario] Error al cargar gestores: {ex.Message}");
             gestoresDisponibles = new List<Usuario>();
         }
     }
@@ -944,11 +1040,12 @@
     {
         try
         {
-            var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            var todosUsuarios = await ObtenerUsuariosJerarquiaAsync();
             jefesVentasDisponibles = todosUsuarios.Where(u => u.Rol == "Jefe de ventas" && u.Activo && u.Id != usuario.Id).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ModalEditarUsuario] Error al cargar jefes de ventas: {ex.Message}");
             jefesVentasDisponibles = new List<Usuario>();
         }
     }
@@ -957,11 +1054,12 @@
     {
         try
         {
-            var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            var todosUsuarios = await ObtenerUsuariosJerarquiaAsync();
             directoresComerciales = todosUsuarios.Where(u => u.Rol == "Director comercial" && u.Activo && u.Id != usuario.Id).ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ModalEditarUsuario] Error al cargar directores comerciales: {ex.Message}");
             directoresComerciales = new List<Usuario>();
         }
     }
@@ -970,148 +1068,239 @@
     {
         try
         {
-            var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+            var todosUsuarios = await ObtenerUsuariosJerarquiaAsync();
             colaboradoresDisponibles = todosUsuarios
                 .Where(u => u.Rol == "Colaborador" && u.Activo && u.Id != usuario.Id)
                 .ToList();
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[ModalEditarUsuario] Error al cargar colaboradores: {ex.Message}");
             colaboradoresDisponibles = new List<Usuario>();
         }
     }
 
+    private async Task<List<Usuario>> ObtenerUsuariosJerarquiaAsync()
+    {
+        if (usuariosJerarquiaCache != null)
+        {
+            return usuariosJerarquiaCache;
+        }
+
+        usuariosJerarquiaCache = await UsuarioService.ObtenerTodosAsync();
+        return usuariosJerarquiaCache;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
-        // Sincronizar mensaje de error del padre
-        if (!string.IsNullOrEmpty(MensajeError))
+        try
         {
-            mensajeError = MensajeError;
-        }
-        
-        if (Usuario != null)
-        {
-            // Guardar rol original para validación
-            rolOriginal = Usuario.Rol ?? "";
-            
-            usuario = new Usuario
+            InicializarDiccionariosComision();
+
+            // Sincronizar mensaje de error del padre
+            if (!string.IsNullOrEmpty(MensajeError))
             {
-                Id = Usuario.Id,
-                NombreUsuario = Usuario.NombreUsuario,
-                Email = Usuario.Email,
-                Nombre = Usuario.Nombre,
-                Apellidos = Usuario.Apellidos,
-                Telefono = Usuario.Telefono,
-                Direccion = Usuario.Direccion,
-                CodigoPostal = Usuario.CodigoPostal,
-                Localidad = Usuario.Localidad,
-                Rol = Usuario.Rol,
-                GestorId = Usuario.GestorId,
-                JefeVentasId = Usuario.JefeVentasId,
-                Comercializadora = Usuario.Comercializadora,
-                Comision = Usuario.Comision,
-                PasswordHash = Usuario.PasswordHash,
-                Activo = Usuario.Activo,
-                ExcluirLogAcceso = Usuario.ExcluirLogAcceso,
-                RecibirNotificaciones = Usuario.RecibirNotificaciones,
-                FechaCreacion = Usuario.FechaCreacion
-            };
-            nuevaPassword = string.Empty;
-            
-            // Cargar comercializadoras permitidas
-            var comercializadorasPermitidas = await UsuarioService.ObtenerComercializadorasPermitidasAsync(usuario.Id);
-            // Si no hay ninguna seleccionada, marcar todas por defecto
-            if (!comercializadorasPermitidas.Any() && todasComercializadoras.Any())
-            {
-                comercializadorasSeleccionadas = new HashSet<int>(todasComercializadoras.Select(c => c.Id));
-            }
-            else
-            {
-                comercializadorasSeleccionadas = new HashSet<int>(comercializadorasPermitidas);
+                mensajeError = MensajeError;
             }
             
-            // Cargar operadoras permitidas
-            var operadorasPermitidas = await UsuarioService.ObtenerOperadorasPermitidasAsync(usuario.Id);
-            // Si no hay ninguna seleccionada, marcar todas por defecto
-            if (!operadorasPermitidas.Any() && todasOperadoras.Any())
+            if (Usuario != null)
             {
-                operadorasSeleccionadas = new HashSet<int>(todasOperadoras.Select(o => o.Id));
-            }
-            else
-            {
-                operadorasSeleccionadas = new HashSet<int>(operadorasPermitidas);
-            }
-            
-            // Cargar empresas de alarmas permitidas
-            var empresasAlarmasPermitidas = await UsuarioService.ObtenerEmpresasAlarmasPermitidasAsync(usuario.Id);
-            // Si no hay ninguna seleccionada, marcar todas por defecto
-            if (!empresasAlarmasPermitidas.Any() && todasEmpresasAlarmas.Any())
-            {
-                empresasAlarmasSeleccionadas = new HashSet<int>(todasEmpresasAlarmas.Select(e => e.Id));
-            }
-            else
-            {
-                empresasAlarmasSeleccionadas = new HashSet<int>(empresasAlarmasPermitidas);
-            }
-            
-            // Cargar colaboradores asignados al gestor
-            if (usuario.Rol == "Gestor")
-            {
-                await CargarColaboradores();
-                var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
-                var colaboradoresAsignados = todosUsuarios
-                    .Where(u => u.GestorId == usuario.Id)
-                    .Select(u => u.Id)
-                    .ToList();
-                colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
-            }
-            
-            // Cargar gestores y colaboradores asignados al jefe de ventas
-            if (usuario.Rol == "Jefe de ventas")
-            {
+                usuariosJerarquiaCache = null;
+
+                // Guardar rol original para validación
+                rolOriginal = Usuario.Rol ?? "";
+                
+                // Inicializar comisionTexto solo si la comisión es mayor a 0
+                comisionTexto = Usuario.Comision > 0 ? Usuario.Comision.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : null;
+                
+                usuario = new Usuario
+                {
+                    Id = Usuario.Id,
+                    NombreUsuario = Usuario.NombreUsuario,
+                    Email = Usuario.Email,
+                    Nombre = Usuario.Nombre,
+                    Apellidos = Usuario.Apellidos,
+                    Telefono = Usuario.Telefono,
+                    Direccion = Usuario.Direccion,
+                    CodigoPostal = Usuario.CodigoPostal,
+                    Localidad = Usuario.Localidad,
+                    Rol = Usuario.Rol,
+                    GestorId = Usuario.GestorId,
+                    JefeVentasId = Usuario.JefeVentasId,
+                    DirectorComercialId = Usuario.DirectorComercialId,
+                    Comercializadora = Usuario.Comercializadora,
+                    Comision = Usuario.Comision,
+                    PasswordHash = Usuario.PasswordHash,
+                    Activo = Usuario.Activo,
+                    ExcluirLogAcceso = Usuario.ExcluirLogAcceso,
+                    RecibirNotificaciones = Usuario.RecibirNotificaciones,
+                    PuedeVerClientes = Usuario.PuedeVerClientes,
+                    PuedeVerContratos = Usuario.PuedeVerContratos,
+                    PuedeVerTarifas = Usuario.PuedeVerTarifas,
+                    PuedeVerLiquidaciones = Usuario.PuedeVerLiquidaciones,
+                    PuedeVerSips = Usuario.PuedeVerSips,
+                    PuedeVerIncidencias = Usuario.PuedeVerIncidencias,
+                    PuedeVerOfertas = Usuario.PuedeVerOfertas,
+                    PuedeVerUsuarios = Usuario.PuedeVerUsuarios,
+                    NumeroCuenta = Usuario.NumeroCuenta,
+                    TipoEntidad = Usuario.TipoEntidad,
+                    ArchivoDni = Usuario.ArchivoDni,
+                    ArchivoCif = Usuario.ArchivoCif,
+                    ArchivoPoder = Usuario.ArchivoPoder,
+                    ArchivoContrato = Usuario.ArchivoContrato,
+                    FechaCreacion = Usuario.FechaCreacion
+                };
+                nuevaPassword = string.Empty;
+
                 await CargarGestores();
-                await CargarColaboradores();
-                var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
-                
-                var gestoresAsignados = todosUsuarios
-                    .Where(u => u.JefeVentasId == usuario.Id && u.Rol == "Gestor")
-                    .Select(u => u.Id)
-                    .ToList();
-                gestoresSeleccionados = new HashSet<int>(gestoresAsignados);
-                
-                var colaboradoresAsignados = todosUsuarios
-                    .Where(u => u.JefeVentasId == usuario.Id && u.Rol == "Colaborador")
-                    .Select(u => u.Id)
-                    .ToList();
-                colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
-            }
-            
-            // Cargar jefes, gestores y colaboradores asignados al director comercial
-            if (usuario.Rol == "Director comercial")
-            {
                 await CargarJefesVentas();
-                await CargarGestores();
+                await CargarDirectoresComerciales();
                 await CargarColaboradores();
-                var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
                 
-                var jefesAsignados = todosUsuarios
-                    .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Jefe de ventas")
-                    .Select(u => u.Id)
-                    .ToList();
-                jefesVentasSeleccionados = new HashSet<int>(jefesAsignados);
+                // Cargar comercializadoras permitidas
+                var comercializadorasPermitidas = await UsuarioService.ObtenerComercializadorasPermitidasAsync(usuario.Id) ?? new List<int>();
+                // Si no hay ninguna seleccionada, marcar todas por defecto
+                if (!comercializadorasPermitidas.Any() && todasComercializadoras.Any())
+                {
+                    comercializadorasSeleccionadas = new HashSet<int>(todasComercializadoras.Select(c => c.Id));
+                }
+                else
+                {
+                    comercializadorasSeleccionadas = new HashSet<int>(comercializadorasPermitidas);
+                }
                 
-                var gestoresAsignados = todosUsuarios
-                    .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Gestor")
-                    .Select(u => u.Id)
-                    .ToList();
-                gestoresSeleccionados = new HashSet<int>(gestoresAsignados);
+                // Cargar operadoras permitidas
+                var operadorasPermitidas = await UsuarioService.ObtenerOperadorasPermitidasAsync(usuario.Id) ?? new List<int>();
+                // Si no hay ninguna seleccionada, marcar todas por defecto
+                if (!operadorasPermitidas.Any() && todasOperadoras.Any())
+                {
+                    operadorasSeleccionadas = new HashSet<int>(todasOperadoras.Select(o => o.Id));
+                }
+                else
+                {
+                    operadorasSeleccionadas = new HashSet<int>(operadorasPermitidas);
+                }
                 
-                var colaboradoresAsignados = todosUsuarios
-                    .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Colaborador")
-                    .Select(u => u.Id)
-                    .ToList();
-                colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
+                // Cargar empresas de alarmas permitidas
+                var empresasAlarmasPermitidas = await UsuarioService.ObtenerEmpresasAlarmasPermitidasAsync(usuario.Id) ?? new List<int>();
+                // Si no hay ninguna seleccionada, marcar todas por defecto
+                if (!empresasAlarmasPermitidas.Any() && todasEmpresasAlarmas.Any())
+                {
+                    empresasAlarmasSeleccionadas = new HashSet<int>(todasEmpresasAlarmas.Select(e => e.Id));
+                }
+                else
+                {
+                    empresasAlarmasSeleccionadas = new HashSet<int>(empresasAlarmasPermitidas);
+                }
+
+                // Cargar comisiones personalizadas y usar el porcentaje por defecto del proveedor cuando no exista personalización
+                var comisionesComercializadorasDb = await UsuarioService.ObtenerComisionesProveedorAsync(usuario.Id, "comercializadora");
+                comisionesComercializadoras = todasComercializadoras.ToDictionary(
+                    c => c.Id,
+                    c => comisionesComercializadorasDb.TryGetValue(c.Id, out var valor) ? valor : c.PorcentajeComision);
+
+                var comisionesOperadorasDb = await UsuarioService.ObtenerComisionesProveedorAsync(usuario.Id, "operadora");
+                comisionesOperadoras = todasOperadoras.ToDictionary(
+                    o => o.Id,
+                    o => comisionesOperadorasDb.TryGetValue(o.Id, out var valor) ? valor : o.PorcentajeComision);
+
+                var comisionesEmpresasAlarmasDb = await UsuarioService.ObtenerComisionesProveedorAsync(usuario.Id, "empresa_alarma");
+                comisionesEmpresasAlarmas = todasEmpresasAlarmas.ToDictionary(
+                    e => e.Id,
+                    e => comisionesEmpresasAlarmasDb.TryGetValue(e.Id, out var valor) ? valor : e.PorcentajeComision);
+                
+                // Cargar colaboradores asignados al gestor
+                if (usuario.Rol == "Gestor")
+                {
+                    await CargarColaboradores();
+                    var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+                    var colaboradoresAsignados = todosUsuarios
+                        .Where(u => u.GestorId == usuario.Id)
+                        .Select(u => u.Id)
+                        .ToList();
+                    colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
+                }
+                
+                // Cargar gestores y colaboradores asignados al jefe de ventas
+                if (usuario.Rol == "Jefe de ventas")
+                {
+                    await CargarGestores();
+                    await CargarColaboradores();
+                    var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+                    
+                    var gestoresAsignados = todosUsuarios
+                        .Where(u => u.JefeVentasId == usuario.Id && u.Rol == "Gestor")
+                        .Select(u => u.Id)
+                        .ToList();
+                    gestoresSeleccionados = new HashSet<int>(gestoresAsignados);
+                    
+                    var colaboradoresAsignados = todosUsuarios
+                        .Where(u => u.JefeVentasId == usuario.Id && u.Rol == "Colaborador")
+                        .Select(u => u.Id)
+                        .ToList();
+                    colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
+                }
+                
+                // Cargar jefes, gestores y colaboradores asignados al director comercial
+                if (usuario.Rol == "Director comercial")
+                {
+                    await CargarJefesVentas();
+                    await CargarGestores();
+                    await CargarColaboradores();
+                    var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
+                    
+                    var jefesAsignados = todosUsuarios
+                        .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Jefe de ventas")
+                        .Select(u => u.Id)
+                        .ToList();
+                    jefesVentasSeleccionados = new HashSet<int>(jefesAsignados);
+                    
+                    var gestoresAsignados = todosUsuarios
+                        .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Gestor")
+                        .Select(u => u.Id)
+                        .ToList();
+                    gestoresSeleccionados = new HashSet<int>(gestoresAsignados);
+                    
+                    var colaboradoresAsignados = todosUsuarios
+                        .Where(u => u.DirectorComercialId == usuario.Id && u.Rol == "Colaborador")
+                        .Select(u => u.Id)
+                        .ToList();
+                    colaboradoresSeleccionados = new HashSet<int>(colaboradoresAsignados);
+                }
             }
+
+            InicializarDiccionariosComision();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ModalEditarUsuario] Error en OnParametersSetAsync: {ex.Message}");
+            Console.WriteLine($"[ModalEditarUsuario] StackTrace: {ex.StackTrace}");
+            mensajeError = "Error al cargar los datos del usuario. Revisa los logs del servidor para más detalles.";
+        }
+    }
+
+    private void InicializarDiccionariosComision()
+    {
+        SincronizarDiccionarioComisiones(todasComercializadoras.Select(c => c.Id), comisionesComercializadoras);
+        SincronizarDiccionarioComisiones(todasOperadoras.Select(o => o.Id), comisionesOperadoras);
+        SincronizarDiccionarioComisiones(todasEmpresasAlarmas.Select(e => e.Id), comisionesEmpresasAlarmas);
+    }
+
+    private static void SincronizarDiccionarioComisiones(IEnumerable<int> idsProveedor, Dictionary<int, decimal> diccionarioComisiones)
+    {
+        var idsActuales = idsProveedor.ToHashSet();
+
+        foreach (var id in idsActuales)
+        {
+            if (!diccionarioComisiones.ContainsKey(id))
+            {
+                diccionarioComisiones[id] = 0m;
+            }
+        }
+
+        foreach (var idObsoleto in diccionarioComisiones.Keys.Where(id => !idsActuales.Contains(id)).ToList())
+        {
+            diccionarioComisiones.Remove(idObsoleto);
         }
     }
 
@@ -1191,6 +1380,47 @@
         }
     }
 
+    private static bool ObtenerValorCheckbox(ChangeEventArgs e)
+    {
+        if (e.Value is bool valorBool)
+        {
+            return valorBool;
+        }
+
+        var valorTexto = e.Value?.ToString();
+        return string.Equals(valorTexto, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(valorTexto, "on", StringComparison.OrdinalIgnoreCase)
+            || valorTexto == "1";
+    }
+
+    private static string ObtenerComision(Dictionary<int, decimal> diccionario, int proveedorId)
+    {
+        var valor = diccionario.TryGetValue(proveedorId, out var comision) ? comision : 0m;
+        return valor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static void ActualizarComision(Dictionary<int, decimal> diccionario, int proveedorId, string? valorTexto)
+    {
+        if (string.IsNullOrWhiteSpace(valorTexto))
+        {
+            diccionario[proveedorId] = 0m;
+            return;
+        }
+
+        var textoNormalizado = valorTexto.Trim();
+
+        if (decimal.TryParse(textoNormalizado, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out var valor)
+            || decimal.TryParse(textoNormalizado, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out valor)
+            || decimal.TryParse(textoNormalizado.Replace(',', '.'), System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out valor)
+            || decimal.TryParse(textoNormalizado.Replace('.', ','), System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.CurrentCulture, out valor))
+        {
+            diccionario[proveedorId] = decimal.Clamp(valor, 0m, 99.99m);
+            return;
+        }
+
+        diccionario[proveedorId] = 0m;
+    }
+
     private void OnRolChanged()
     {
         // Limpiar comercializadora si cambia el rol y no es Comercializadora
@@ -1198,10 +1428,40 @@
         {
             usuario.Comercializadora = null;
         }
+
+        if (!RequiereComisionJerarquia(usuario.Rol))
+        {
+            usuario.Comision = 0m;
+        }
+    }
+
+    private static bool RequiereComisionJerarquia(string? rol)
+    {
+        return !string.Equals(rol, "Colaborador", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(rol, "Comercializadora", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(rol, "Administrador", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task HandleSubmit()
     {
+        // Convertir comisionTexto a decimal
+        if (string.IsNullOrWhiteSpace(comisionTexto))
+        {
+            usuario.Comision = 0m;
+        }
+        else if (decimal.TryParse(comisionTexto, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var valor))
+        {
+            usuario.Comision = valor;
+        }
+        else if (decimal.TryParse(comisionTexto.Replace(",", "."), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var valor2))
+        {
+            usuario.Comision = valor2;
+        }
+        else
+        {
+            usuario.Comision = 0m;
+        }
+
         // Validar comercializadora obligatoria para rol Comercializadora
         if (usuario.Rol == "Comercializadora" && string.IsNullOrEmpty(usuario.Comercializadora))
         {
@@ -1283,7 +1543,10 @@
             empresasAlarmasSeleccionadas.ToList(),
             colaboradoresSeleccionados.ToList(),
             gestoresSeleccionados.ToList(),
-            jefesVentasSeleccionados.ToList()
+            jefesVentasSeleccionados.ToList(),
+            comisionesComercializadoras,
+            comisionesOperadoras,
+            comisionesEmpresasAlarmas
         ));
     }
 

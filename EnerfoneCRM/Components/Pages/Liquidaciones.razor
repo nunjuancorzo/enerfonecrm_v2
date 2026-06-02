@@ -54,6 +54,19 @@ else
 <div class="container-fluid" style="max-width: 98%;">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3><i class="bi bi-cash-coin me-2"></i>Liquidaciones</h3>
+        @if (AuthService.EsAdministrador || AuthService.EsSuperAdmin)
+        {
+            <button class="btn btn-primary"
+                    @onclick="AbrirModalGeneracionManual"
+                    disabled="@generandoLiquidacionesManual">
+                @if (generandoLiquidacionesManual)
+                {
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                }
+                <i class="bi bi-plus-circle me-2"></i>
+                Generar liquidaciones
+            </button>
+        }
     </div>
 
     @if (cargando)
@@ -554,6 +567,105 @@ else
         </div>
     }
 </div>
+
+<!-- Modal Generación Manual de Liquidaciones -->
+@if (mostrarModalGeneracionManual)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-people me-2"></i>
+                        Generar liquidaciones manualmente
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalGeneracionManual"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Selecciona los usuarios para generar sus liquidaciones pendientes con contratos en estado "Act/Facturable".
+                    </div>
+
+                    @if (!usuariosGeneracionManual.Any())
+                    {
+                        <div class="alert alert-warning mb-0">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No hay usuarios con contratos en "Act/Facturable".
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-check mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="seleccionarTodoGeneracion"
+                                   checked="@seleccionarTodosGeneracion"
+                                   @onchange="AlternarSeleccionTodosGeneracion" />
+                            <label class="form-check-label fw-semibold" for="seleccionarTodoGeneracion">
+                                Seleccionar todo (solo usuarios con contratos pendientes de vincular)
+                            </label>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover table-striped align-middle">
+                                <thead style="background-color: #6c757d; color: white;">
+                                    <tr>
+                                        <th style="width: 60px;">Sel.</th>
+                                        <th>Usuario</th>
+                                        <th>Rol</th>
+                                        <th class="text-center">Contratos Act/Facturable</th>
+                                        <th class="text-center">Pendientes de vincular</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var usuario in usuariosGeneracionManual)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox"
+                                                       class="form-check-input"
+                                                       checked="@usuario.Seleccionado"
+                                                       disabled="@(usuario.ContratosPendientes <= 0 || generandoLiquidacionesManual)"
+                                                       @onchange="(e) => AlternarSeleccionUsuarioGeneracion(usuario, e)" />
+                                            </td>
+                                            <td><strong>@usuario.NombreUsuario</strong></td>
+                                            <td>
+                                                <span class="badge @ObtenerColorRol(usuario.Rol)">@usuario.Rol</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-primary">@usuario.ContratosActFacturable</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge @(usuario.ContratosPendientes > 0 ? "bg-success" : "bg-secondary")">@usuario.ContratosPendientes</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalGeneracionManual" disabled="@generandoLiquidacionesManual">
+                        Cancelar
+                    </button>
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="GenerarLiquidacionesManualAsync"
+                            disabled="@(!usuariosGeneracionManual.Any(u => u.Seleccionado && u.ContratosPendientes > 0) || generandoLiquidacionesManual)">
+                        @if (generandoLiquidacionesManual)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        <i class="bi bi-play-fill me-1"></i>
+                        Generar seleccionadas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Modal Ver Contratos -->
 @if (mostrarModalContratos)
@@ -1365,6 +1477,10 @@ else
     private bool moduloActivo = true;
     private string mensajeError = string.Empty;
     private string mensajeExito = string.Empty;
+    private bool mostrarModalGeneracionManual = false;
+    private bool generandoLiquidacionesManual = false;
+    private bool seleccionarTodosGeneracion = false;
+    private List<UsuarioGeneracionManual> usuariosGeneracionManual = new();
     private List<UsuarioConContratos> usuariosConContratos = new();
     private bool verificado = false;
     private bool mostrarModalContratos = false;
@@ -1624,6 +1740,178 @@ else
         finally
         {
             cargando = false;
+        }
+    }
+
+    private async Task AbrirModalGeneracionManual()
+    {
+        if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+        {
+            mensajeError = "No tienes permisos para generar liquidaciones manualmente.";
+            return;
+        }
+
+        await CargarUsuariosGeneracionManualAsync();
+        mostrarModalGeneracionManual = true;
+    }
+
+    private void CerrarModalGeneracionManual()
+    {
+        mostrarModalGeneracionManual = false;
+        seleccionarTodosGeneracion = false;
+        usuariosGeneracionManual.ForEach(u => u.Seleccionado = false);
+    }
+
+    private async Task CargarUsuariosGeneracionManualAsync()
+    {
+        try
+        {
+            mensajeError = string.Empty;
+
+            await using var context = DbContextProvider.CreateDbContext();
+            var tiposValidos = new[] { "energia", "Energía", "telefonia", "Telefonía", "alarma", "Alarma" };
+
+            var contratosActFacturable = await context.Contratos
+                .Where(c => tiposValidos.Contains(c.Tipo ?? string.Empty)
+                    && c.Estado == "Act/Facturable"
+                    && !string.IsNullOrWhiteSpace(c.Comercial))
+                .ToListAsync();
+
+            var resumenPorComercial = contratosActFacturable
+                .GroupBy(c => c.Comercial!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => new
+                    {
+                        Total = g.Count(),
+                        Pendientes = g.Count(c => !c.HistoricoLiquidacionId.HasValue)
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            var comerciales = resumenPorComercial.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var usuariosActivos = await context.Usuarios
+                .Where(u => u.Activo)
+                .ToListAsync();
+
+            usuariosGeneracionManual = usuariosActivos
+                .Where(u => !string.IsNullOrWhiteSpace(u.NombreUsuario) && comerciales.Contains(u.NombreUsuario.Trim()))
+                .Select(u =>
+                {
+                    var key = u.NombreUsuario!.Trim();
+                    var resumen = resumenPorComercial[key];
+                    return new UsuarioGeneracionManual
+                    {
+                        UsuarioId = u.Id,
+                        NombreUsuario = u.NombreUsuario,
+                        Rol = u.Rol ?? "Sin rol",
+                        ContratosActFacturable = resumen.Total,
+                        ContratosPendientes = resumen.Pendientes,
+                        Seleccionado = false
+                    };
+                })
+                .OrderBy(u => u.NombreUsuario)
+                .ToList();
+
+            seleccionarTodosGeneracion = false;
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar usuarios para generación manual: {ex.Message}";
+        }
+    }
+
+    private void AlternarSeleccionTodosGeneracion(ChangeEventArgs e)
+    {
+        seleccionarTodosGeneracion = e.Value is bool valor && valor;
+        foreach (var usuario in usuariosGeneracionManual.Where(u => u.ContratosPendientes > 0))
+        {
+            usuario.Seleccionado = seleccionarTodosGeneracion;
+        }
+    }
+
+    private void AlternarSeleccionUsuarioGeneracion(UsuarioGeneracionManual usuario, ChangeEventArgs e)
+    {
+        usuario.Seleccionado = e.Value is bool valor && valor;
+
+        var elegibles = usuariosGeneracionManual.Where(u => u.ContratosPendientes > 0).ToList();
+        seleccionarTodosGeneracion = elegibles.Any() && elegibles.All(u => u.Seleccionado);
+    }
+
+    private async Task GenerarLiquidacionesManualAsync()
+    {
+        if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+        {
+            mensajeError = "No tienes permisos para generar liquidaciones manualmente.";
+            return;
+        }
+
+        var usuariosSeleccionados = usuariosGeneracionManual
+            .Where(u => u.Seleccionado && u.ContratosPendientes > 0)
+            .ToList();
+
+        if (!usuariosSeleccionados.Any())
+        {
+            mensajeError = "Selecciona al menos un usuario con contratos pendientes de vincular.";
+            return;
+        }
+
+        try
+        {
+            generandoLiquidacionesManual = true;
+            mensajeError = string.Empty;
+
+            await using var context = DbContextProvider.CreateDbContext();
+            var tiposValidos = new[] { "energia", "Energía", "telefonia", "Telefonía", "alarma", "Alarma" };
+
+            int totalContratosProcesados = 0;
+            int totalContratosGenerados = 0;
+            int usuariosConGeneracion = 0;
+
+            foreach (var usuario in usuariosSeleccionados)
+            {
+                var idsContratos = await context.Contratos
+                    .Where(c => tiposValidos.Contains(c.Tipo ?? string.Empty)
+                        && c.Estado == "Act/Facturable"
+                        && c.Comercial == usuario.NombreUsuario
+                        && !c.HistoricoLiquidacionId.HasValue)
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                int contratosGeneradosUsuario = 0;
+
+                foreach (var contratoId in idsContratos)
+                {
+                    totalContratosProcesados++;
+                    var generado = await LiquidacionService.GenerarLiquidacionPendienteAsync(contratoId, usuario.UsuarioId);
+                    if (generado)
+                    {
+                        totalContratosGenerados++;
+                        contratosGeneradosUsuario++;
+                    }
+                }
+
+                if (contratosGeneradosUsuario > 0)
+                {
+                    usuariosConGeneracion++;
+                }
+            }
+
+            mensajeExito = $"Generación manual completada. Usuarios actualizados: {usuariosConGeneracion}. Contratos procesados: {totalContratosProcesados}. Contratos vinculados: {totalContratosGenerados}.";
+
+            mostrarModalGeneracionManual = false;
+            seleccionarTodosGeneracion = false;
+            await CargarUsuariosConContratos();
+            await CargarLiquidacionesPorEstado();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error en la generación manual: {ex.Message}";
+        }
+        finally
+        {
+            generandoLiquidacionesManual = false;
+            StateHasChanged();
         }
     }
 
@@ -4584,6 +4872,16 @@ else
         public bool TieneIncidenciasPendientes => CantidadIncidenciasPendientes > 0;
         public bool Aprobando { get; set; }
         public bool Enviando { get; set; }
+    }
+
+    private class UsuarioGeneracionManual
+    {
+        public int UsuarioId { get; set; }
+        public string NombreUsuario { get; set; } = string.Empty;
+        public string Rol { get; set; } = string.Empty;
+        public int ContratosActFacturable { get; set; }
+        public int ContratosPendientes { get; set; }
+        public bool Seleccionado { get; set; }
     }
 }
 

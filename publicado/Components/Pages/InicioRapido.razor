@@ -476,6 +476,15 @@ else
         return "python3"; // Por defecto
     }
 
+    private static void ConfigurarCodificacionProcesoPython(System.Diagnostics.ProcessStartInfo startInfo)
+    {
+        // Evita errores de codificación en Windows cuando los scripts imprimen caracteres Unicode (p.ej. ✓).
+        startInfo.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
+        startInfo.EnvironmentVariables["PYTHONUTF8"] = "1";
+        startInfo.StandardOutputEncoding = System.Text.Encoding.UTF8;
+        startInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !verificacionRealizada)
@@ -665,6 +674,7 @@ else
                 }
             };
 
+            ConfigurarCodificacionProcesoPython(proceso.StartInfo);
             proceso.Start();
             string salida = await proceso.StandardOutput.ReadToEndAsync();
             string errores = await proceso.StandardError.ReadToEndAsync();

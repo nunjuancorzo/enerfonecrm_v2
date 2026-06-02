@@ -203,15 +203,47 @@ namespace EnerfoneCRM.Services
                 }
                 else if (rolUsuario == "Gestor" && usuarioId.HasValue)
                 {
-                    // El gestor ve sus propios contratos y los de sus colaboradores
+                    // El gestor ve:
+                    // 1. Sus propios contratos
+                    // 2. Los contratos de sus colaboradores directos
+                    // 3. Los contratos de su Jefe de Ventas (superior)
+                    // 4. Los contratos de los colaboradores del Jefe de Ventas
+                    
+                    var nombresUsuarios = new List<string> { nombreUsuario };
+                    
+                    // Obtener colaboradores directos del gestor
                     var colaboradores = await context.Usuarios
                         .Where(u => u.GestorId == usuarioId.Value)
                         .Select(u => u.NombreUsuario)
                         .ToListAsync();
-                    
-                    // Añadir el propio nombre del gestor a la lista
-                    var nombresUsuarios = new List<string> { nombreUsuario };
                     nombresUsuarios.AddRange(colaboradores);
+                    
+                    // Obtener el Jefe de Ventas del gestor (su superior)
+                    var gestor = await context.Usuarios
+                        .FirstOrDefaultAsync(u => u.Id == usuarioId.Value);
+                    
+                    if (gestor != null && gestor.JefeVentasId.HasValue)
+                    {
+                        // Obtener el Jefe de Ventas
+                        var jefeVentas = await context.Usuarios
+                            .FirstOrDefaultAsync(u => u.Id == gestor.JefeVentasId.Value);
+                        
+                        if (jefeVentas != null)
+                        {
+                            // Añadir el jefe de ventas
+                            nombresUsuarios.Add(jefeVentas.NombreUsuario);
+                            
+                            // Obtener colaboradores directos del jefe de ventas
+                            var colaboradoresJefe = await context.Usuarios
+                                .Where(u => u.JefeVentasId == jefeVentas.Id && u.Rol == "Colaborador")
+                                .Select(u => u.NombreUsuario)
+                                .ToListAsync();
+                            nombresUsuarios.AddRange(colaboradoresJefe);
+                        }
+                    }
+                    
+                    // Eliminar duplicados
+                    nombresUsuarios = nombresUsuarios.Distinct().ToList();
                     
                     // Crear condición IN para múltiples usuarios
                     var inConditions = string.Join(" OR ", nombresUsuarios.Select((_, i) => $"comercial = {{{parameters.Count + i}}}"));
@@ -347,6 +379,16 @@ namespace EnerfoneCRM.Services
                         whereConditions.Add($"en_Comercializadora = {{{parameters.Count}}}");
                         parameters.Add(usuario.Comercializadora);
                     }
+                }
+                else if (rolUsuario == "Administrador")
+                {
+                    // Administrador ve TODOS los contratos sin restricción
+                    // No agregar restricción de comercial
+                }
+                else if (rolUsuario == "Backoffice")
+                {
+                    // Backoffice ve TODOS los contratos sin restricción
+                    // No agregar restricción de comercial
                 }
             }
             

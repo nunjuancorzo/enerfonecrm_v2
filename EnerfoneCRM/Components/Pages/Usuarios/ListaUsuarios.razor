@@ -742,7 +742,7 @@ else
         mensajeError = string.Empty;
     }
 
-    private async Task GuardarUsuario((Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds, List<int> jefesVentasIds) datos)
+    private async Task GuardarUsuario((Usuario usuario, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds, List<int> jefesVentasIds, Dictionary<int, decimal> comisionesComercializadoras, Dictionary<int, decimal> comisionesOperadoras, Dictionary<int, decimal> comisionesEmpresasAlarmas) datos)
     {
         try
         {
@@ -762,6 +762,25 @@ else
                 
                 // Actualizar empresas de alarmas permitidas
                 await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(datos.usuario.Id, datos.empresasAlarmasIds);
+
+                // Actualizar comisiones personalizadas por proveedor
+                await UsuarioService.ActualizarComisionesProveedorAsync(
+                    datos.usuario.Id,
+                    "comercializadora",
+                    datos.comercializadorasIds,
+                    datos.comisionesComercializadoras);
+
+                await UsuarioService.ActualizarComisionesProveedorAsync(
+                    datos.usuario.Id,
+                    "operadora",
+                    datos.operadorasIds,
+                    datos.comisionesOperadoras);
+
+                await UsuarioService.ActualizarComisionesProveedorAsync(
+                    datos.usuario.Id,
+                    "empresa_alarma",
+                    datos.empresasAlarmasIds,
+                    datos.comisionesEmpresasAlarmas);
                 
                 // Si es gestor, actualizar colaboradores asignados (actualiza GestorId de colaboradores)
                 if (datos.usuario.Rol == "Gestor")

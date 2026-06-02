@@ -119,7 +119,7 @@ def exportar_clientes():
             id, tipo_cliente, nombre, dni_cif, cnae, dni_representante,
             email, telefono, tipo_via, direccion, numero, escalera,
             piso, puerta, aclarador, poblacion, provincia, codigo_postal,
-            iban, representante, comercial, procedencia, observaciones
+            iban, representante, id_usuario, procedencia, observaciones
         FROM clientes_simple
         ORDER BY id
         """
@@ -157,7 +157,7 @@ def exportar_clientes():
                 'Código Postal': cliente['codigo_postal'] or '',
                 'IBAN': cliente['iban'] or '',
                 'Representante': cliente['representante'] or '',
-                'Comercial': cliente['comercial'] or '',
+                'ID_Usuario': cliente['id_usuario'] if cliente['id_usuario'] else '',
                 'Procedencia': cliente['procedencia'] or '',
                 'Observaciones': cliente['observaciones'] or ''
             })
@@ -187,7 +187,8 @@ def exportar_clientes():
             ['', '* Campos obligatorios', ''],
             ['', 'Si incluye columna ID, actualiza clientes existentes', ''],
             ['', 'Si no incluye ID, crea nuevos clientes', ''],
-            ['', 'CNAE: Código de actividad económica (4 dígitos)', '']
+            ['', 'CNAE: Código de actividad económica (4 dígitos)', ''],
+            ['', 'ID_Usuario: ID numérico del usuario asignado (debe existir en la base de datos)', '']
         ]
         df_valores = pd.DataFrame(valores_validos)
         

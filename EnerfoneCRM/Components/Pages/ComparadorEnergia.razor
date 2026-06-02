@@ -459,7 +459,7 @@ else
                                     </div>
                                 </div>
                                 <div class="col-md-2 text-center">
-                                    <label class="form-label text-muted fw-normal mb-0">Precio Punta</label>
+                                    <label class="form-label text-muted fw-normal mb-0">Precio Punta (@ObtenerUnidadFacturacionPotencia())</label>
                                 </div>
                                 <div class="col-md-5">
                                     <div class="input-group input-group-lg">
@@ -470,7 +470,7 @@ else
                                                min="0"
                                                placeholder=""
                                                style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px; text-align: right;" />
-                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">€/kW/día</span>
+                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">@ObtenerUnidadFacturacionPotencia()</span>
                                     </div>
                                 </div>
                             </div>
@@ -493,7 +493,7 @@ else
                                     </div>
                                 </div>
                                 <div class="col-md-2 text-center">
-                                    <label class="form-label text-muted fw-normal mb-0">Precio Valle</label>
+                                    <label class="form-label text-muted fw-normal mb-0">Precio Valle (@ObtenerUnidadFacturacionPotencia())</label>
                                 </div>
                                 <div class="col-md-5">
                                     <div class="input-group input-group-lg">
@@ -504,7 +504,7 @@ else
                                                min="0"
                                                placeholder=""
                                                style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px; text-align: right;" />
-                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">€/kW/día</span>
+                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">@ObtenerUnidadFacturacionPotencia()</span>
                                     </div>
                                 </div>
                             </div>
@@ -782,6 +782,31 @@ else
                                                        style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px; text-align: right;" />
                                                 <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">€/kW/mes</span>
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Total Factura Actual (Opcional) -->
+                            <div class="border-top pt-4 mt-4 mb-4">
+                                <div class="text-center mb-3">
+                                    <label class="form-label fw-bold text-primary">Total Factura Actual (Opcional)</label>
+                                    <p class="text-muted small mb-3">
+                                        Si conoces el importe total de tu factura mensual actual, introdúcelo aquí.
+                                        Se usará para calcular el ahorro en lugar del cálculo detallado.
+                                    </p>
+                                </div>
+                                <div class="row justify-content-center">
+                                    <div class="col-md-6">
+                                        <div class="input-group input-group-lg">
+                                            <input type="number"
+                                                   class="form-control"
+                                                   @bind="totalFacturaActual"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="Ej: 85.50"
+                                                   style="border: 2px solid #0d6efd; border-radius: 10px 0 0 10px; text-align: right; font-weight: bold;" />
+                                            <span class="input-group-text" style="border: 2px solid #0d6efd; border-left: none; border-radius: 0 10px 10px 0; background-color: #cfe2ff; font-weight: bold;">€/mes</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1887,8 +1912,8 @@ else
         // Validar Paso 4: Consumo anual y facturación
         if (consumoAnual <= 0)
             errores.Add("Paso 4: El consumo anual debe ser mayor que 0");
-        if (!fechaInicioFacturacion.HasValue || !fechaFinFacturacion.HasValue)
-            errores.Add("Paso 4: Las fechas de facturación son obligatorias");
+        if (tipoFacturacionPotencia == "Diaria" && (!fechaInicioFacturacion.HasValue || !fechaFinFacturacion.HasValue))
+            errores.Add("Paso 4: Para facturación diaria, las fechas de facturación son obligatorias");
         if (fechaInicioFacturacion.HasValue && fechaFinFacturacion.HasValue && 
             fechaFinFacturacion.Value <= fechaInicioFacturacion.Value)
             errores.Add("Paso 4: La fecha de fin debe ser posterior a la de inicio");
@@ -1992,6 +2017,8 @@ else
             var todasLasTarifas = await TarifaEnergiaService.ObtenerTodasAsync();
             
             comercializadoras.Clear();
+            var factorPotenciaMensual = ObtenerFactorFacturacionPotenciaAMensual();
+            var diasEquivalentesMensual = ObtenerDiasFacturacionEquivalentesMensual();
 
             // Calcular el coste actual del cliente para comparación
             decimal costeActualMensual = 0;
@@ -2005,7 +2032,7 @@ else
             {
                 // Calcular desde los componentes individuales
                 decimal costePotenciaMensual = ((potenciaPunta * precioPotenciaPunta) + (potenciaValle * precioPotenciaValle)) * 
-                                               (tipoFacturacionPotencia == "Diaria" ? 30 : tipoFacturacionPotencia == "Mensual" ? 1 : 1.0m/12);
+                                               factorPotenciaMensual;
                 decimal costeConsumoMensual = (consumoPunta * precioConsumoPunta + consumoLlano * precioConsumoLlano + consumoValle * precioConsumoValle);
                 
                 // Aplicar descuentos
@@ -2026,11 +2053,15 @@ else
                 if (!tarifa.Activa)
                     continue;
 
+                // Filtrar por tipo de cliente (Particular/Empresa) para evitar mezclar Residencial/Pyme.
+                if (!TarifaCompatibleConTipoCliente(tarifa))
+                    continue;
+
                 // Calcular costes mensuales estimados
-                decimal terminoFijo = (tarifa.TerminoFijoDiario ?? 0) * 30;
+                decimal terminoFijo = (tarifa.TerminoFijoDiario ?? 0) * diasEquivalentesMensual;
                 
                 decimal costePotencia = ((tarifa.PrecioPotenciaP1 ?? 0) * potenciaPunta + 
-                                        (tarifa.PrecioPotenciaP2 ?? 0) * potenciaValle) * 30;
+                                        (tarifa.PrecioPotenciaP2 ?? 0) * potenciaValle) * diasEquivalentesMensual;
                 
                 decimal costeEnergia = (tarifa.PrecioEnergiaP1 ?? 0) * consumoPunta + 
                                       (tarifa.PrecioEnergiaP2 ?? 0) * consumoLlano + 
@@ -2153,15 +2184,94 @@ else
         if (consumoAnual <= 0)
             return false;
 
-        // Validar que las fechas estén completas
-        if (!fechaInicioFacturacion.HasValue || !fechaFinFacturacion.HasValue)
+        // En facturación diaria, las fechas son obligatorias.
+        if (tipoFacturacionPotencia == "Diaria" && (!fechaInicioFacturacion.HasValue || !fechaFinFacturacion.HasValue))
             return false;
 
-        // Validar que la fecha de fin sea posterior a la de inicio
-        if (fechaFinFacturacion.Value <= fechaInicioFacturacion.Value)
+        // Si ambas fechas existen, validar coherencia.
+        if (fechaInicioFacturacion.HasValue && fechaFinFacturacion.HasValue &&
+            fechaFinFacturacion.Value <= fechaInicioFacturacion.Value)
             return false;
 
         return true;
+    }
+
+    private string ObtenerUnidadFacturacionPotencia()
+    {
+        return tipoFacturacionPotencia switch
+        {
+            "Mensual" => "€/kW/mes",
+            "Anual" => "€/kW/año",
+            _ => "€/kW/día"
+        };
+    }
+
+    private decimal ObtenerFactorFacturacionPotenciaAMensual()
+    {
+        return tipoFacturacionPotencia switch
+        {
+            "Mensual" => 1m,
+            "Anual" => 1m / 12m,
+            _ => ObtenerDiasFacturacionEquivalentesMensual()
+        };
+    }
+
+    private decimal ObtenerDiasFacturacionEquivalentesMensual()
+    {
+        if (fechaInicioFacturacion.HasValue && fechaFinFacturacion.HasValue)
+        {
+            var dias = (decimal)(fechaFinFacturacion.Value.DayNumber - fechaInicioFacturacion.Value.DayNumber + 1);
+            if (dias > 0)
+            {
+                var mesesEquivalentes = dias / 30m;
+                if (mesesEquivalentes > 0)
+                    return dias / mesesEquivalentes;
+            }
+        }
+
+        // Promedio mensual estándar.
+        return 30.42m;
+    }
+
+    private bool TarifaCompatibleConTipoCliente(TarifaEnergia tarifa)
+    {
+        var tipoClienteNormalizado = NormalizarTexto(tipoCliente);
+        var tipoTarifa = NormalizarTexto(tarifa.Tipo);
+        var tipoClienteTarifa = NormalizarTexto(tarifa.TipoCliente);
+
+        var tipoCompuesto = $"{tipoTarifa} {tipoClienteTarifa}";
+
+        bool esPyme = ContieneAlguno(tipoCompuesto, "pyme", "pymes", "empresa", "empresas", "business");
+        bool esResidencial = ContieneAlguno(tipoCompuesto, "residencial", "particular", "hogar", "domestico");
+
+        // Si no hay clasificación explícita en la tarifa, no se descarta.
+        if (!esPyme && !esResidencial)
+            return true;
+
+        if (tipoClienteNormalizado == "empresa")
+            return esPyme;
+
+        return esResidencial;
+    }
+
+    private static bool ContieneAlguno(string origen, params string[] valores)
+    {
+        return valores.Any(v => origen.Contains(v, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizarTexto(string? valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor))
+            return string.Empty;
+
+        return valor
+            .Trim()
+            .ToLowerInvariant()
+            .Replace("á", "a")
+            .Replace("é", "e")
+            .Replace("í", "i")
+            .Replace("ó", "o")
+            .Replace("ú", "u");
     }
 
     private bool ValidarPaso5()

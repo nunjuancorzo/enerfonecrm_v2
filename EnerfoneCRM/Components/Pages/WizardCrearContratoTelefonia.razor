@@ -1251,6 +1251,23 @@
             guardando = true;
             mensajeError = string.Empty;
 
+            // Normalizar tarifa seleccionada antes de guardar.
+            if (nuevoContrato.TarifaTelId.HasValue)
+            {
+                var tarifaSeleccionadaPorId = tarifasDisponibles.FirstOrDefault(t => t.Id == nuevoContrato.TarifaTelId.Value);
+                if (tarifaSeleccionadaPorId != null)
+                {
+                    nuevoContrato.TarifaTel = ObtenerDescripcionTarifa(tarifaSeleccionadaPorId);
+                    nuevoContrato.TipoTarifaTel = tarifaSeleccionadaPorId.Tipo ?? nuevoContrato.TipoTarifaTel;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(nuevoContrato.TarifaTel))
+            {
+                mensajeError = "Debe seleccionar una tarifa antes de guardar el contrato.";
+                return;
+            }
+
             var exito = await ContratoService.CrearAsync(nuevoContrato);
             if (!exito)
             {
@@ -1433,7 +1450,7 @@
         }
     }
 
-    private async void OnTarifaTelefoniaChanged(ChangeEventArgs e)
+    private async Task OnTarifaTelefoniaChanged(ChangeEventArgs e)
     {
         if (nuevoContrato == null || e.Value == null) return;
         

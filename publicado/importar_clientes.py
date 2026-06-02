@@ -16,6 +16,12 @@ import mysql.connector
 from datetime import datetime
 from mysql.connector import Error
 
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 def obtener_config_bd():
     """Lee la configuración de la base de datos desde appsettings.Production.json"""
     try:
@@ -196,10 +202,44 @@ def importar_clientes(archivo_excel, id_usuario=1):
                     'codigo_postal': limpiar_valor(row.get('Código Postal')),
                     'iban': iban,
                     'representante': limpiar_valor(row.get('Representante')),
-                    'comercial': limpiar_valor(row.get('Comercial')),
                     'procedencia': procedencia,
                     'observaciones': limpiar_valor(row.get('Observaciones'))
                 }
+                
+                # Validar y procesar ID_Usuario si existe
+                id_usuario_valor = limpiar_valor(row.get('ID_Usuario'))
+                id_usuario_validado = None
+                nombre_usuario = None
+                
+                if id_usuario_valor:
+                    try:
+                        id_usuario_int = int(id_usuario_valor)
+                        # Verificar que el usuario existe
+                        cursor.execute("SELECT idusuarios, username, nombre, apellidos FROM usuarios WHERE idusuarios = %s", (id_usuario_int,))
+                        usuario_resultado = cursor.fetchone()
+                        cursor.fetchall()  # Consumir resultados restantes
+                        
+                        if usuario_resultado:
+                            id_usuario_validado = id_usuario_int
+                            # Construir nombre completo del usuario para el campo comercial
+                            username = usuario_resultado[1] if usuario_resultado[1] else ''
+                            nombre = usuario_resultado[2] if usuario_resultado[2] else ''
+                            apellidos = usuario_resultado[3] if usuario_resultado[3] else ''
+                            nombre_usuario = f"{nombre} {apellidos}".strip() if nombre or apellidos else username
+                        else:
+                            errores_detalle.append(f"Fila {fila_num}: ID_Usuario {id_usuario_int} no existe en la base de datos")
+                            errores += 1
+                            print(f"⚠ Fila {fila_num}: {nombre} - Usuario ID {id_usuario_int} no encontrado")
+                            continue
+                    except ValueError:
+                        errores_detalle.append(f"Fila {fila_num}: ID_Usuario '{id_usuario_valor}' debe ser un número entero")
+                        errores += 1
+                        print(f"⚠ Fila {fila_num}: {nombre} - ID_Usuario no es válido")
+                        continue
+                
+                # Agregar campos de usuario validados
+                datos['id_usuario'] = id_usuario_validado
+                datos['comercial'] = nombre_usuario
                 
                 if tiene_id:
                     # Actualizar cliente existente
@@ -238,6 +278,7 @@ def importar_clientes(archivo_excel, id_usuario=1):
                             codigo_postal = %(codigo_postal)s,
                             iban = %(iban)s,
                             representante = %(representante)s,
+                            id_usuario = %(id_usuario)s,
                             comercial = %(comercial)s,
                             procedencia = %(procedencia)s,
                             observaciones = %(observaciones)s
@@ -267,21 +308,21 @@ def importar_clientes(archivo_excel, id_usuario=1):
                     else:
                         # Agregar campos de auditoría para INSERT
                         datos['fecha_alta'] = datetime.now()
-                        datos['id_usuario'] = id_usuario
                         
                         # SQL de inserción
+                        # Nota: id_usuario es el campo principal, comercial es redundante pero se mantiene por compatibilidad
                         sql = """
                             INSERT INTO clientes_simple (
                                 tipo_cliente, nombre, dni_cif, cnae, dni_representante, email, telefono,
                                 tipo_via, direccion, numero, escalera, piso, puerta, aclarador,
                                 poblacion, provincia, codigo_postal, iban, representante,
-                                comercial, procedencia, observaciones, fecha_alta, id_usuario
+                                id_usuario, comercial, procedencia, observaciones, fecha_alta
                             ) VALUES (
                                 %(tipo_cliente)s, %(nombre)s, %(dni_cif)s, %(cnae)s, %(dni_representante)s, 
                                 %(email)s, %(telefono)s, %(tipo_via)s, %(direccion)s, %(numero)s, %(escalera)s, 
                                 %(piso)s, %(puerta)s, %(aclarador)s, %(poblacion)s, %(provincia)s, 
-                                %(codigo_postal)s, %(iban)s, %(representante)s, %(comercial)s, 
-                                %(procedencia)s, %(observaciones)s, %(fecha_alta)s, %(id_usuario)s
+                                %(codigo_postal)s, %(iban)s, %(representante)s, %(id_usuario)s, %(comercial)s, 
+                                %(procedencia)s, %(observaciones)s, %(fecha_alta)s
                             )
                         """
                         
