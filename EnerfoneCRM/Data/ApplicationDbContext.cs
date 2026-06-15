@@ -42,4 +42,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ComentarioIncidencia> ComentariosIncidencias { get; set; }
     public DbSet<SolicitudOferta> SolicitudesOfertas { get; set; }
     public DbSet<HistoricoSipsConsulta> HistoricoSipsConsultas { get; set; }
+    public DbSet<HistoricoComparativa> HistoricoComparativas { get; set; }
+    public DbSet<PlantillaPreCarga> PlantillasPreCarga { get; set; }
+    public DbSet<CodigoPostal> CodigosPostales { get; set; }
 }

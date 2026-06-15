@@ -62,6 +62,36 @@ else
 
             @if (!resultadosCalculados)
             {
+                <!-- Opción de mapeo manual de factura -->
+                <div class="card shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body p-4 text-white">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h4 class="mb-2">
+                                    <i class="bi bi-map me-2"></i>
+                                    ¿Tienes una factura de luz o gas?
+                                </h4>
+                                <p class="mb-0 opacity-75">
+                                    Sube tu factura y marca visualmente dónde están los datos. 
+                                    Sistema de mapeo manual preciso y sin errores de OCR automático.
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-light btn-lg px-4" 
+                                        @onclick='() => Navigation.NavigateTo("/comparador/mapeo-manual")'>
+                                    <i class="bi bi-map me-2"></i>
+                                    Mapeo Manual de Factura
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Separador "o" -->
+                <div class="text-center my-4">
+                    <span class="badge bg-secondary px-4 py-2 fs-6">O introduce los datos manualmente</span>
+                </div>
+
                 <!-- Wizard de comparativa -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-body p-5">

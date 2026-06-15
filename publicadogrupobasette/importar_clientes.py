@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """
-Script para importar clientes desde un archivo Excel a la base de datos MySQL
+Script para importar clientes desde un archivo Excel a la base de datos MySQL.
 
-Lee automáticamente la base de datos desde appsettings.Production.json
+Lee automáticamente la base de datos desde uno de estos archivos:
+- appsettings.Production.json
+- appsettings.Production.Enerfone.json
+- appsettings.Production.GrupoBasette.json
 
-Uso: python3 importar_clientes.py <archivo_excel>
+Uso:
+    python3 importar_clientes.py <archivo_excel> [id_usuario]
 """
 
 import sys
@@ -23,13 +27,22 @@ except Exception:
     pass
 
 def obtener_config_bd():
-    """Lee la configuración de la base de datos desde appsettings.Production.json"""
+    """Lee la configuración de la base de datos desde appsettings de producción."""
     try:
-        config_file = 'appsettings.Production.json'
-        if not os.path.exists(config_file):
-            print(f"[ERROR] Error: No se encuentra {config_file} en el directorio actual")
+        config_files = [
+            'appsettings.Production.json',
+            'appsettings.Production.Enerfone.json',
+            'appsettings.Production.GrupoBasette.json'
+        ]
+
+        config_file = next((f for f in config_files if os.path.exists(f)), None)
+
+        if not config_file:
+            print("[ERROR] Error: No se encontró ningún archivo de configuración de producción")
+            for f in config_files:
+                print(f"   - {f}")
             print(f"   Directorio actual: {os.getcwd()}")
-            print(f"   Ejecuta el script desde la carpeta donde está appsettings.Production.json")
+            print("   Ejecuta el script desde la carpeta raíz del proyecto")
             sys.exit(1)
         
         with open(config_file, 'r', encoding='utf-8') as f:
@@ -62,7 +75,7 @@ def obtener_config_bd():
 
 # Verificar argumentos
 if len(sys.argv) < 2:
-    print("Uso: python3 importar_clientes.py <archivo_excel>")
+    print("Uso: python3 importar_clientes.py <archivo_excel> [id_usuario]")
     print("\nNOTA: El script lee automáticamente la base de datos desde appsettings.Production.json")
     sys.exit(1)
 
@@ -363,8 +376,8 @@ def importar_clientes(archivo_excel, id_usuario=1):
         traceback.print_exc()
 
 if __name__ == "__main__":
-    # ID de usuario opcional (tercer argumento)
-    id_usuario = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+    # ID de usuario opcional (segundo argumento)
+    id_usuario = int(sys.argv[2]) if len(sys.argv) > 2 else 1
     
     print(f"""
 {'='*60}

@@ -10,6 +10,7 @@
 @inject AuthService AuthService
 @inject ComisionService ComisionService
 @inject UsuarioService UsuarioService
+@inject CodigoPostalService CodigoPostalService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -619,7 +620,21 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Código Postal</label>
-                                            <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
+                                            <div class="input-group">
+                                                <input type="text" class="form-control" list="codigosPostalesWizardAlarmas" 
+                                                       value="@nuevoContrato.CodigoPostalInstalacion"
+                                                       @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
+                                                       placeholder="CP" maxlength="5" autocomplete="off" />
+                                                <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
+                                                    <i class="bi bi-plus-circle"></i>
+                                                </button>
+                                                <datalist id="codigosPostalesWizardAlarmas">
+                                                    @foreach (var cp in codigosPostalesDisponibles)
+                                                    {
+                                                        <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                    }
+                                                </datalist>
+                                            </div>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Localidad</label>
@@ -742,6 +757,9 @@
     // Checkbox para usar dirección del cliente
     private bool usarDireccionCliente = false;
 
+    // Códigos postales
+    private List<CodigoPostal> codigosPostalesDisponibles = new();
+
     public async Task Abrir()
     {
         pasoActual = 1;
@@ -756,6 +774,7 @@
         // Cargar datos iniciales
         await CargarClientes();
         await CargarEmpresas();
+        await CargarCodigosPostales();
         
         InicializarNuevoCliente();
         
@@ -1292,5 +1311,39 @@
         nuevoContrato.ProvinciaInstalacion = string.Empty;
         
         StateHasChanged();
+    }
+
+    private async Task CargarCodigosPostales()
+    {
+        try
+        {
+            codigosPostalesDisponibles = await CodigoPostalService.ObtenerActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando códigos postales: {ex.Message}");
+            codigosPostalesDisponibles = new();
+        }
+    }
+
+    private async Task AlSeleccionarCodigoPostal(string? codigoPostal)
+    {
+        if (nuevoContrato == null || string.IsNullOrWhiteSpace(codigoPostal))
+            return;
+
+        nuevoContrato.CodigoPostalInstalacion = codigoPostal;
+
+        var cp = await CodigoPostalService.BuscarPorCodigoAsync(codigoPostal);
+        if (cp != null)
+        {
+            nuevoContrato.LocalidadInstalacion = cp.Ciudad;
+            nuevoContrato.ProvinciaInstalacion = cp.Provincia;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirMaestroCodigosPostales()
+    {
+        Navigation.NavigateTo("/administracion/codigos-postales");
     }
 }

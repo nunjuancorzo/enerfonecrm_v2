@@ -1,0 +1,285 @@
+@page "/comparador/plantillas"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject PlantillaPreCargaService PlantillaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject AuthService AuthService
+@rendermode InteractiveServer
+
+<PageTitle>Plantillas de PreCarga</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="bi bi-folder"></i> Plantillas de Mapeo Visual
+                    </h4>
+                    <button class="btn btn-light btn-sm" @onclick='() => Navigation.NavigateTo("/comparador/mapeo-manual")'>
+                        <i class="bi bi-plus-circle"></i> Nueva Plantilla
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (cargando)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                            <p class="mt-2">Cargando plantillas...</p>
+                        </div>
+                    }
+                    else if (plantillas.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Comercializadora</th>
+                                        <th>Tipo</th>
+                                        <th>Variante</th>
+                                        <th>Prioridad</th>
+                                        <th>Estado</th>
+                                        <th>Fecha Creación</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var plantilla in plantillas)
+                                    {
+                                        <tr>
+                                            <td><strong>@plantilla.Nombre</strong></td>
+                                            <td>
+                                                @plantilla.Comercializadora
+                                                @if (!string.IsNullOrEmpty(plantilla.AliasComercializadora))
+                                                {
+                                                    <br/><small class="text-muted">Alias: @plantilla.AliasComercializadora</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">@plantilla.TipoEnergia</span>
+                                            </td>
+                                            <td>
+                                                @(plantilla.VarianteFactura ?? "-")
+                                            </td>
+                                            <td>@plantilla.Prioridad</td>
+                                            <td>
+                                                @if (plantilla.Activa)
+                                                {
+                                                    <span class="badge bg-success">Activa</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactiva</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small>@plantilla.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" 
+                                                            @onclick="() => VerDetalle(plantilla.Id)"
+                                                            title="Ver Detalle">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-warning" 
+                                                            @onclick="() => ToggleActiva(plantilla)"
+                                                            title="@(plantilla.Activa ? "Desactivar" : "Activar")">
+                                                        <i class="bi bi-@(plantilla.Activa ? "pause" : "play")-circle"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" 
+                                                            @onclick="() => Eliminar(plantilla.Id)"
+                                                            title="Eliminar">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <h5><i class="bi bi-info-circle"></i> No hay plantillas creadas</h5>
+                            <p>Las plantillas de PreCarga te permiten enseñar al OCR dónde están ubicados los datos en las facturas de cada comercializadora.</p>
+                            <button class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/comparador/mapeo-manual")'>
+                                <i class="bi bi-plus-circle"></i> Crear Primera Plantilla
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (plantillaDetalle != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-folder-open"></i> Detalle de Plantilla
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CerrarDetalle"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Nombre:</strong> @plantillaDetalle.Nombre
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Comercializadora:</strong> @plantillaDetalle.Comercializadora
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Tipo:</strong> <span class="badge bg-info">@plantillaDetalle.TipoEnergia</span>
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Variante:</strong> @(plantillaDetalle.VarianteFactura ?? "-")
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Prioridad:</strong> @plantillaDetalle.Prioridad
+                        </div>
+                    </div>
+
+                    <h6 class="mt-4">Campos Mapeados</h6>
+                    @if (!string.IsNullOrEmpty(plantillaDetalle.CamposMapeados))
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Campo</th>
+                                        <th>Página</th>
+                                        <th>Coordenadas</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        var campos = PlantillaService.ObtenerCamposMapeados(plantillaDetalle);
+                                        if (campos != null)
+                                        {
+                                            @foreach (var campo in campos)
+                                            {
+                                                <tr>
+                                                    <td><code>@campo.Field</code></td>
+                                                    <td>@campo.Page</td>
+                                                    <td>
+                                                        <small>
+                                                            X: @campo.X.ToString("P1"), Y: @campo.Y.ToString("P1")<br/>
+                                                            W: @campo.W.ToString("P1"), H: @campo.H.ToString("P1")
+                                                        </small>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(plantillaDetalle.NotasInternas))
+                    {
+                        <h6 class="mt-4">Notas Internas</h6>
+                        <div class="alert alert-secondary">
+                            @plantillaDetalle.NotasInternas
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarDetalle">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+        }
+    }
+}
+
+@code {
+    private List<PlantillaPreCarga> plantillas = new();
+    private PlantillaPreCarga? plantillaDetalle;
+    private bool cargando = true;
+    private bool cargandoSesion = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            cargandoSesion = false;
+
+            if (!AuthService.EstaAutenticado)
+            {
+                Navigation.NavigateTo("/login", true);
+                return;
+            }
+
+            await CargarPlantillas();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarPlantillas()
+    {
+        cargando = true;
+        plantillas = await PlantillaService.ObtenerTodasAsync();
+        cargando = false;
+    }
+
+    private async Task VerDetalle(int id)
+    {
+        plantillaDetalle = await PlantillaService.ObtenerPorIdAsync(id);
+    }
+
+    private void CerrarDetalle()
+    {
+        plantillaDetalle = null;
+    }
+
+    private async Task ToggleActiva(PlantillaPreCarga plantilla)
+    {
+        plantilla.Activa = !plantilla.Activa;
+        await PlantillaService.ActualizarAsync(plantilla);
+        await CargarPlantillas();
+    }
+
+    private async Task Eliminar(int id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", "¿Estás seguro de eliminar esta plantilla?"))
+        {
+            await PlantillaService.EliminarAsync(id);
+            await CargarPlantillas();
+        }
+    }
+}

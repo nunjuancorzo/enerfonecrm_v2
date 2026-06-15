@@ -1,0 +1,553 @@
+@page "/comparador/mapeo-manual"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject PlantillaPreCargaService PlantillaService
+@inject IJSRuntime JSRuntime
+@inject IWebHostEnvironment Environment
+@inject NavigationManager Navigation
+@inject AuthService AuthService
+@rendermode InteractiveServer
+
+<PageTitle>Mapeo Manual de Factura</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 100vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!AuthService.EstaAutenticado)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else
+    {
+        <div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-map"></i> Mapeo Visual de Campos en Factura
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i> @mensajeError
+                            <button type="button" class="btn-close" @onclick="() => mensajeError = null"></button>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(mensajeExito))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i> @mensajeExito
+                            <button type="button" class="btn-close" @onclick="() => mensajeExito = null"></button>
+                        </div>
+                    }
+
+                    @if (paso == 1)
+                    {
+                        <!-- Paso 1: Configuración inicial -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Nueva Plantilla de Mapeo</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Nombre de la Plantilla</label>
+                                    <input type="text" class="form-control" @bind="nombrePlantilla" 
+                                           placeholder="Ej: Iberdrola Luz 2TD" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Comercializadora</label>
+                                    <input type="text" class="form-control" @bind="comercializadora" 
+                                           placeholder="Ej: Iberdrola" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo de Energía</label>
+                                    <select class="form-select" @bind="tipoEnergia">
+                                        <option value="LUZ">Luz</option>
+                                        <option value="GAS">Gas</option>
+                                        <option value="LUZ+GAS">Luz + Gas</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Variante (opcional)</label>
+                                    <input type="text" class="form-control" @bind="variante" 
+                                           placeholder="Ej: 2.0TD, 3.0TD, etc." />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Subir Factura de Ejemplo</label>
+                                    <InputFile class="form-control" accept=".pdf,.jpg,.jpeg,.png" OnChange="OnFileSelected" />
+                                    <small class="form-text text-muted">PDF, JPG o PNG. Máximo 10MB.</small>
+                                    @if (archivoSubido != null)
+                                    {
+                                        <div class="alert alert-success mt-2 mb-0 py-2">
+                                            <i class="bi bi-check-circle"></i> Archivo cargado: <strong>@archivoSubido.Name</strong> (@((archivoSubido.Size / 1024.0).ToString("N0")) KB)
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-info">
+                                    <h6><i class="bi bi-info-circle"></i> ¿Qué es el mapeo visual?</h6>
+                                    <p>El sistema PreCarga te permite enseñar al OCR dónde están ubicados los datos en las facturas de cada comercializadora.</p>
+                                    <ol>
+                                        <li>Sube una factura de ejemplo</li>
+                                        <li>Selecciona un campo de la lista</li>
+                                        <li>Dibuja un rectángulo sobre el dato en la factura</li>
+                                        <li>Repite para cada campo que necesites</li>
+                                        <li>Guarda la plantilla</li>
+                                    </ol>
+                                    <p class="mb-0">
+                                        <strong>Importante:</strong> Usa facturas anonimizadas sin datos personales reales.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-3">
+                            <button class="btn btn-primary" @onclick="IniciarMapeo" disabled="@(archivoSubido == null)">
+                                <i class="bi bi-arrow-right"></i> Iniciar Mapeo
+                            </button>
+                        </div>
+                    }
+                    else if (paso == 2)
+                    {
+                        <!-- Paso 2: Mapeo visual -->
+                        <div class="row">
+                            <div class="col-md-3">
+                                <h5>Campos Disponibles</h5>
+                                <div class="alert alert-warning">
+                                    <small>
+                                        <strong>Campo activo:</strong> @campoActual?.Label<br/>
+                                        Haz clic y arrastra sobre la imagen para marcar el área.
+                                    </small>
+                                </div>
+                                <div class="list-group campo-list">
+                                    @foreach (var campo in camposDisponibles)
+                                    {
+                                        var mapeado = camposMapeados.Any(c => c.Field == campo.Key);
+                                        var activo = campoActual?.Field == campo.Key;
+                                        <button type="button" 
+                                                class="list-group-item list-group-item-action @(activo ? "active" : "") @(mapeado ? "list-group-item-success" : "")"
+                                                @onclick="() => SeleccionarCampo(campo.Key, campo.Value)">
+                                            @if (mapeado)
+                                            {
+                                                <i class="bi bi-check-circle text-success"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-circle"></i>
+                                            }
+                                            @campo.Value
+                                        </button>
+                                    }
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-sm btn-outline-danger w-100" @onclick="LimpiarSeleccionActual" disabled="@(campoActual == null)">
+                                        <i class="bi bi-eraser"></i> Limpiar Selección Actual
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning w-100 mt-2" @onclick="LimpiarTodo">
+                                        <i class="bi bi-trash"></i> Limpiar Todo
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5>Vista de Factura - Página @paginaActual</h5>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-secondary" @onclick="PaginaAnterior" disabled="@(paginaActual <= 1)">
+                                            <i class="bi bi-chevron-left"></i> Anterior
+                                        </button>
+                                        <button class="btn btn-outline-secondary" disabled>
+                                            @paginaActual / @totalPaginas
+                                        </button>
+                                        <button class="btn btn-outline-secondary" @onclick="PaginaSiguiente" disabled="@(paginaActual >= totalPaginas)">
+                                            Siguiente <i class="bi bi-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="canvas-container border" style="position: relative; overflow: auto; max-height: 800px; background: #f5f5f5;">
+                                    <canvas id="pdfCanvas" width="800" height="1000" style="cursor: crosshair;"></canvas>
+                                </div>
+                                <div class="mt-3">
+                                    <h6>Campos Mapeados (@camposMapeados.Count)</h6>
+                                    @if (camposMapeados.Any())
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Campo</th>
+                                                        <th>Página</th>
+                                                        <th>Posición</th>
+                                                        <th>Acciones</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var campo in camposMapeados)
+                                                    {
+                                                        <tr>
+                                                            <td><strong>@campo.Label</strong></td>
+                                                            <td>@campo.Page</td>
+                                                            <td>
+                                                                <small>
+                                                                    X: @campo.X.ToString("P1"), Y: @campo.Y.ToString("P1")<br/>
+                                                                    W: @campo.W.ToString("P1"), H: @campo.H.ToString("P1")
+                                                                </small>
+                                                            </td>
+                                                            <td>
+                                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => EliminarCampo(campo.Field)">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted">No has mapeado ningún campo aún.</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-3">
+                            <button class="btn btn-secondary" @onclick="VolverInicio">
+                                <i class="bi bi-arrow-left"></i> Volver
+                            </button>
+                            <button class="btn btn-success" @onclick="GuardarPlantilla" disabled="@(!camposMapeados.Any())">
+                                <i class="bi bi-save"></i> Guardar Plantilla
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    }
+}
+
+@code {
+    private int paso = 1;
+    private string nombrePlantilla = string.Empty;
+    private string comercializadora = string.Empty;
+    private string tipoEnergia = "LUZ";
+    private string variante = string.Empty;
+    private IBrowserFile? archivoSubido;
+    private string? archivoUrl;
+    private string? mensajeError;
+    private string? mensajeExito;
+
+    private int paginaActual = 1;
+    private int totalPaginas = 1;
+
+    private CampoMapeadoPreCarga? campoActual;
+    private List<CampoMapeadoPreCarga> camposMapeados = new();
+
+    private Dictionary<string, string> camposDisponibles = new()
+    {
+        { "cups", "CUPS" },
+        { "comercializadora_actual", "Comercializadora Actual" },
+        { "tarifa_actual", "Tarifa Actual" },
+        { "peaje_luz", "Peaje Luz (2.0TD, 3.0TD, etc.)" },
+        { "peaje_gas", "Peaje Gas" },
+        { "inicio_periodo", "Inicio Periodo" },
+        { "fin_periodo", "Fin Periodo" },
+        { "dias_periodo", "Días del Periodo" },
+        { "total_factura", "Total Factura €" },
+        { "iva", "IVA %" },
+        { "impuestos", "Impuestos" },
+        { "alquiler_equipos", "Alquiler Contador/Equipos" },
+        { "potencia_p1", "Potencia Contratada P1" },
+        { "potencia_p2", "Potencia Contratada P2" },
+        { "potencia_p3", "Potencia Contratada P3" },
+        { "potencia_p4", "Potencia Contratada P4" },
+        { "potencia_p5", "Potencia Contratada P5" },
+        { "potencia_p6", "Potencia Contratada P6" },
+        { "precio_potencia_p1", "Precio Potencia P1 €/kW" },
+        { "precio_potencia_p2", "Precio Potencia P2 €/kW" },
+        { "precio_potencia_p3", "Precio Potencia P3 €/kW" },
+        { "consumo_p1", "Consumo Energía P1 kWh" },
+        { "consumo_p2", "Consumo Energía P2 kWh" },
+        { "consumo_p3", "Consumo Energía P3 kWh" },
+        { "consumo_p4", "Consumo Energía P4 kWh" },
+        { "consumo_p5", "Consumo Energía P5 kWh" },
+        { "consumo_p6", "Consumo Energía P6 kWh" },
+        { "precio_energia_p1", "Precio Energía P1 €/kWh" },
+        { "precio_energia_p2", "Precio Energía P2 €/kWh" },
+        { "precio_energia_p3", "Precio Energía P3 €/kWh" },
+        { "consumo_gas_kwh", "Consumo Gas kWh" },
+        { "termino_fijo_gas", "Término Fijo Gas €" },
+        { "termino_variable_gas", "Término Variable Gas €/kWh" },
+        { "servicios_adicionales", "Servicios Adicionales" },
+        { "descuentos", "Descuentos" }
+    };
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        Console.WriteLine($"[DEBUG] OnFileSelected ejecutado");
+        Console.WriteLine($"[DEBUG] FileCount: {e.FileCount}");
+        
+        try
+        {
+            if (e.FileCount == 0)
+            {
+                Console.WriteLine($"[DEBUG] No hay archivos en el evento");
+                mensajeError = "No se detectó ningún archivo.";
+                archivoSubido = null;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            var file = e.File;
+            Console.WriteLine($"[DEBUG] Archivo detectado: {file.Name}, Tamaño: {file.Size}");
+            
+            if (file.Size > 10 * 1024 * 1024)
+            {
+                Console.WriteLine($"[DEBUG] Archivo demasiado grande");
+                mensajeError = "El archivo no puede superar los 10MB.";
+                archivoSubido = null;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            archivoSubido = file;
+            mensajeError = null;
+            mensajeExito = $"Archivo cargado correctamente: {archivoSubido.Name}";
+            Console.WriteLine($"[DEBUG] archivoSubido asignado correctamente. Null? {archivoSubido == null}");
+            
+            await InvokeAsync(StateHasChanged);
+            Console.WriteLine($"[DEBUG] StateHasChanged invocado");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG ERROR] {ex.Message}");
+            Console.WriteLine($"[DEBUG ERROR STACK] {ex.StackTrace}");
+            mensajeError = $"Error al cargar archivo: {ex.Message}";
+            archivoSubido = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task IniciarMapeo()
+    {
+        if (archivoSubido == null)
+        {
+            mensajeError = "Debes subir una factura de ejemplo.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(nombrePlantilla) || string.IsNullOrWhiteSpace(comercializadora))
+        {
+            mensajeError = "Debes completar el nombre y la comercializadora.";
+            return;
+        }
+
+        try
+        {
+            mensajeError = null;
+            Console.WriteLine($"[DEBUG Blazor] Iniciando mapeo con archivo: {archivoSubido.Name}");
+            
+            // Guardar archivo temporalmente
+            var uploadsPath = Path.Combine(Environment.WebRootPath, "uploads", "mapeo");
+            if (!Directory.Exists(uploadsPath))
+            {
+                Directory.CreateDirectory(uploadsPath);
+                Console.WriteLine($"[DEBUG Blazor] Directorio creado: {uploadsPath}");
+            }
+
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(archivoSubido.Name)}";
+            var filePath = Path.Combine(uploadsPath, fileName);
+            Console.WriteLine($"[DEBUG Blazor] Guardando archivo en: {filePath}");
+
+            // Leer el archivo desde IBrowserFile (10MB máximo)
+            const long maxFileSize = 10 * 1024 * 1024;
+            using (var stream = archivoSubido.OpenReadStream(maxFileSize))
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await stream.CopyToAsync(fileStream);
+            }
+            
+            Console.WriteLine($"[DEBUG Blazor] Archivo guardado correctamente");
+
+            archivoUrl = $"/uploads/mapeo/{fileName}";
+            Console.WriteLine($"[DEBUG Blazor] URL del archivo: {archivoUrl}");
+
+            // IMPORTANTE: Cambiar al paso 2 PRIMERO para que el canvas exista en el DOM
+            paso = 2;
+            mensajeExito = "Archivo cargado correctamente. Selecciona un campo y dibuja un rectángulo sobre el dato en la imagen.";
+            Console.WriteLine($"[DEBUG Blazor] Cambiado a paso 2, forzando render...");
+            StateHasChanged();
+            
+            // Esperar a que Blazor renderice el canvas en el DOM
+            await Task.Delay(100);
+            Console.WriteLine($"[DEBUG Blazor] DOM actualizado, llamando a initPdfMapeo con canvas: pdfCanvas");
+            
+            // Ahora sí renderizar PDF/Imagen en canvas
+            await JSRuntime.InvokeVoidAsync("initPdfMapeo", archivoUrl, "pdfCanvas");
+            Console.WriteLine($"[DEBUG Blazor] initPdfMapeo completado");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG Blazor ERROR] {ex.Message}");
+            Console.WriteLine($"[DEBUG Blazor ERROR Stack] {ex.StackTrace}");
+            mensajeError = $"Error al iniciar mapeo: {ex.Message}";
+        }
+    }
+
+    private void SeleccionarCampo(string field, string label)
+    {
+        campoActual = new CampoMapeadoPreCarga
+        {
+            Field = field,
+            Label = label,
+            Page = paginaActual
+        };
+        _ = JSRuntime.InvokeVoidAsync("activarModoSeleccion", field);
+    }
+
+    private void LimpiarSeleccionActual()
+    {
+        if (campoActual != null)
+        {
+            camposMapeados.RemoveAll(c => c.Field == campoActual.Field);
+            campoActual = null;
+        }
+    }
+
+    private void LimpiarTodo()
+    {
+        camposMapeados.Clear();
+        campoActual = null;
+    }
+
+    private void EliminarCampo(string field)
+    {
+        camposMapeados.RemoveAll(c => c.Field == field);
+        StateHasChanged();
+    }
+
+    private async Task PaginaAnterior()
+    {
+        if (paginaActual > 1)
+        {
+            paginaActual--;
+            await JSRuntime.InvokeVoidAsync("renderizarPagina", paginaActual);
+        }
+    }
+
+    private async Task PaginaSiguiente()
+    {
+        if (paginaActual < totalPaginas)
+        {
+            paginaActual++;
+            await JSRuntime.InvokeVoidAsync("renderizarPagina", paginaActual);
+        }
+    }
+
+    private void VolverInicio()
+    {
+        paso = 1;
+        camposMapeados.Clear();
+        campoActual = null;
+    }
+
+    private async Task GuardarPlantilla()
+    {
+        if (!camposMapeados.Any())
+        {
+            mensajeError = "Debes mapear al menos un campo.";
+            return;
+        }
+
+        try
+        {
+            var plantilla = new PlantillaPreCarga
+            {
+                Nombre = nombrePlantilla,
+                Comercializadora = comercializadora,
+                TipoEnergia = tipoEnergia,
+                VarianteFactura = variante,
+                Activa = true,
+                ArchivoFacturaEjemplo = archivoUrl,
+                CamposMapeados = System.Text.Json.JsonSerializer.Serialize(camposMapeados),
+                FechaCreacion = DateTime.Now
+            };
+
+            var resultado = await PlantillaService.CrearAsync(plantilla);
+            if (resultado.exito)
+            {
+                mensajeExito = "Plantilla guardada correctamente. Ahora puedes usar esta plantilla para extraer datos automáticamente.";
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/comparador/plantillas");
+            }
+            else
+            {
+                mensajeError = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar plantilla: {ex.Message}";
+        }
+    }
+
+    [JSInvokable]
+    public void OnCampoMapeado(double x, double y, double w, double h)
+    {
+        if (campoActual != null)
+        {
+            // Eliminar mapeo anterior del mismo campo
+            camposMapeados.RemoveAll(c => c.Field == campoActual.Field);
+
+            // Agregar nuevo mapeo con coordenadas relativas
+            camposMapeados.Add(new CampoMapeadoPreCarga
+            {
+                Field = campoActual.Field,
+                Label = campoActual.Label,
+                Page = paginaActual,
+                X = x,
+                Y = y,
+                W = w,
+                H = h
+            });
+
+            campoActual = null;
+            StateHasChanged();
+        }
+    }
+
+    // Variables de autenticación
+    private bool cargandoSesion = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            cargandoSesion = false;
+
+            if (!AuthService.EstaAutenticado)
+            {
+                // Redirigir al login si no está autenticado
+                Navigation.NavigateTo("/login", true);
+                return;
+            }
+
+            StateHasChanged();
+        }
+    }
+}

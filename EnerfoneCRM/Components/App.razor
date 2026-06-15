@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="app.css?v=2.0" />
+    <link rel="stylesheet" href="css/mapeo-factura.css?v=1.0" />
     <link rel="stylesheet" href="EnerfoneCRM.styles.css" />
     <link rel="icon" type="image/png" href="Logo_CorCRM_FIN.png" />
     <HeadOutlet />
@@ -21,11 +22,17 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- PDF.js para visualización de PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <script src="js/navMenu.js?v=2.6"></script>
     <script src="js/fileDownload.js?v=2.0"></script>
     <script src="js/mapaContratos.js"></script>
     <script src="js/descargarPlantillas.js?v=3.0"></script>
     <script src="js/graficos-sips.js"></script>
+    <script src="js/mapeo-factura.js?v=2.0"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 

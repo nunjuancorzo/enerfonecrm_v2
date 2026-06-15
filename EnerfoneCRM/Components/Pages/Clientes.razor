@@ -16,6 +16,7 @@
 @inject FicheroContratoService FicheroContratoService
 @inject ComercializadoraService ComercializadoraService
 @inject ComisionService ComisionService
+@inject CodigoPostalService CodigoPostalService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -68,33 +69,37 @@ else
 
             <div class="card shadow-sm">
                 <div class="card-header bg-white py-3">
-                    <div class="row align-items-center">
-                        <div class="col-md-4">
+                    <div class="row align-items-center mb-2">
+                        <div class="col-md-12">
                             <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Clientes</h5>
                         </div>
-                        <div class="col-md-8">
-                            <div class="row g-2">
-                                <div class="col-md-4">
-                                    <input type="text" class="form-control form-control-sm" placeholder="Buscar por nombre..." @bind="filtroNombre" @bind:event="oninput" @onkeyup="AplicarFiltros" />
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="text" class="form-control form-control-sm" placeholder="Buscar por DNI/CIF..." @bind="filtroDni" @bind:event="oninput" @onkeyup="AplicarFiltros" />
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <div class="btn-group me-2">
-                                        <button type="button" class="btn btn-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!clientesFiltrados.Any())">
-                                            <i class="bi bi-download me-2"></i>Exportar
-                                        </button>
-                                        <ul class="dropdown-menu">
-                                            <li><a class="dropdown-item" @onclick="ExportarClientesACsv" style="cursor: pointer;"><i class="bi bi-filetype-csv me-2"></i>Exportar a CSV</a></li>
-                                            <li><a class="dropdown-item" @onclick="ExportarClientesAExcel" style="cursor: pointer;"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel (XLSX)</a></li>
-                                        </ul>
-                                    </div>
-                                    <button class="btn btn-primary btn-sm" @onclick="MostrarModalCrear">
-                                        <i class="bi bi-plus-circle me-2"></i>Nuevo Cliente
-                                    </button>
-                                </div>
+                    </div>
+                    <div class="row align-items-center g-2">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" placeholder="Buscar por nombre..." @bind="filtroNombre" @bind:event="oninput" @onkeyup="AplicarFiltros" />
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" class="form-control form-control-sm" placeholder="Buscar por DNI/CIF..." @bind="filtroDni" @bind:event="oninput" @onkeyup="AplicarFiltros" />
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" class="form-control form-control-sm" placeholder="Buscar por teléfono..." @bind="filtroTelefono" @bind:event="oninput" @onkeyup="AplicarFiltros" />
+                        </div>
+                        <div class="col-md-2">
+                            <input type="text" class="form-control form-control-sm" placeholder="Buscar por email..." @bind="filtroEmail" @bind:event="oninput" @onkeyup="AplicarFiltros" />
+                        </div>
+                        <div class="col-md-3 text-end">
+                            <div class="btn-group me-2">
+                                <button type="button" class="btn btn-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!clientesFiltrados.Any())">
+                                    <i class="bi bi-download me-2"></i>Exportar
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" @onclick="ExportarClientesACsv" style="cursor: pointer;"><i class="bi bi-filetype-csv me-2"></i>Exportar a CSV</a></li>
+                                    <li><a class="dropdown-item" @onclick="ExportarClientesAExcel" style="cursor: pointer;"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel (XLSX)</a></li>
+                                </ul>
                             </div>
+                            <button class="btn btn-primary btn-sm" @onclick="MostrarModalCrear">
+                                <i class="bi bi-plus-circle me-2"></i>Nuevo Cliente
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -362,6 +367,8 @@ else
                                             <option value="BASE DE DATOS">BASE DE DATOS</option>
                                             <option value="RRSS">RRSS</option>
                                             <option value="REFERIDOS">REFERIDOS</option>
+                                            <option value="RENOVACIÓN">RENOVACIÓN</option>
+                                            <option value="RETENCION">RETENCION</option>
                                         </select>
                                     </div>
                                     @if (clienteSeleccionado.TipoCliente == "Pyme" || clienteSeleccionado.TipoCliente == "Autonomo")
@@ -467,7 +474,21 @@ else
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal <small class="text-muted">(opcional)</small></label>
-                                        <InputText @bind-Value="clienteSeleccionado.CodigoPostal" class="form-control" placeholder="CP" />
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" list="codigosPostalesCliente" 
+                                                   value="@clienteSeleccionado.CodigoPostal"
+                                                   @onchange="@(e => AlSeleccionarCodigoPostalCliente(e.Value?.ToString()))"
+                                                   placeholder="CP" maxlength="5" autocomplete="off" />
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
+                                                <i class="bi bi-plus-circle"></i>
+                                            </button>
+                                            <datalist id="codigosPostalesCliente">
+                                                @foreach (var cp in codigosPostalesDisponibles)
+                                                {
+                                                    <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                }
+                                            </datalist>
+                                        </div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
@@ -1086,7 +1107,21 @@ else
                                         <div class="row mb-0">
                                             <div class="col-md-3">
                                                 <label class="form-label fw-bold">Código Postal</label>
-                                                <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" list="codigosPostalesContrato" 
+                                                           value="@nuevoContrato.CodigoPostalInstalacion"
+                                                           @onchange="@(e => AlSeleccionarCodigoPostalContrato(e.Value?.ToString()))"
+                                                           placeholder="CP" maxlength="5" autocomplete="off" />
+                                                    <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </button>
+                                                    <datalist id="codigosPostalesContrato">
+                                                        @foreach (var cp in codigosPostalesDisponibles)
+                                                        {
+                                                            <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                        }
+                                                    </datalist>
+                                                </div>
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
@@ -1648,7 +1683,21 @@ else
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal</label>
-                                        <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" list="codigosPostalesContrato" 
+                                                   value="@nuevoContrato.CodigoPostalInstalacion"
+                                                   @onchange="@(e => AlSeleccionarCodigoPostalContrato(e.Value?.ToString()))"
+                                                   placeholder="CP" maxlength="5" autocomplete="off" />
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
+                                                <i class="bi bi-plus-circle"></i>
+                                            </button>
+                                            <datalist id="codigosPostalesContrato">
+                                                @foreach (var cp in codigosPostalesDisponibles)
+                                                {
+                                                    <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                }
+                                            </datalist>
+                                        </div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
@@ -2010,7 +2059,21 @@ else
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal</label>
-                                        <InputText class="form-control" @bind-Value="nuevoContrato.CodigoPostalInstalacion" placeholder="CP" />
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" list="codigosPostalesContrato" 
+                                                   value="@nuevoContrato.CodigoPostalInstalacion"
+                                                   @onchange="@(e => AlSeleccionarCodigoPostalContrato(e.Value?.ToString()))"
+                                                   placeholder="CP" maxlength="5" autocomplete="off" />
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
+                                                <i class="bi bi-plus-circle"></i>
+                                            </button>
+                                            <datalist id="codigosPostalesContrato">
+                                                @foreach (var cp in codigosPostalesDisponibles)
+                                                {
+                                                    <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                }
+                                            </datalist>
+                                        </div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Aclarador <small class="text-muted">(opcional)</small></label>
@@ -2127,7 +2190,7 @@ else
     private bool mostrarModalEliminar = false;
     private bool mostrarModalTipoContrato = false;
     private bool mostrarModalContratoEnergia = false;
-    private string tipoContratacionEnergia = "Luz y Gas";
+    private string tipoContratacionEnergia = "Luz";
     private bool mostrarModalContratoTelefonia = false;
     private bool mostrarModalContratoAlarmas = false;
     private bool esNuevo = true;
@@ -2180,11 +2243,16 @@ else
     private bool tieneFibraSegundaResidencia = false;
     private Operadora? operadoraTelefoniaSeleccionada = null;
     
+    // Códigos postales
+    private List<CodigoPostal> codigosPostalesDisponibles = new();
+    
     // Checkbox para usar dirección del cliente
     private bool usarDireccionCliente = false;
 
     private string filtroNombre = string.Empty;
     private string filtroDni = string.Empty;
+    private string filtroTelefono = string.Empty;
+    private string filtroEmail = string.Empty;
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
 
@@ -2201,6 +2269,8 @@ else
             "BASE DE DATOS" => "background-color: #d4edda;", // Verde claro
             "RRSS" => "background-color: #f8d7da;", // Rojo claro
             "REFERIDOS" => "background-color: #fff3cd;", // Amarillo claro
+            "RENOVACIÓN" => "background-color: #cfe2ff;", // Azul claro
+            "RETENCION" => "background-color: #ffd9b3;", // Naranja claro
             _ => "" // Sin color si no tiene procedencia
         };
     }
@@ -2227,7 +2297,8 @@ else
     {
         await Task.WhenAll(
             CargarComercializadorasYOperadoras(),
-            CargarClientes()
+            CargarClientes(),
+            CargarCodigosPostales()
         );
     }
 
@@ -2983,11 +3054,65 @@ else
         }
     }
 
+    private async Task CargarCodigosPostales()
+    {
+        try
+        {
+            codigosPostalesDisponibles = await CodigoPostalService.ObtenerActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar códigos postales: {ex.Message}");
+            codigosPostalesDisponibles = new();
+        }
+    }
+
+    private async Task AlSeleccionarCodigoPostalCliente(string? codigoPostal)
+    {
+        if (clienteSeleccionado == null || string.IsNullOrWhiteSpace(codigoPostal))
+            return;
+
+        clienteSeleccionado.CodigoPostal = codigoPostal;
+
+        // Buscar el código postal en la lista y autocompletar ciudad y provincia
+        var cp = await CodigoPostalService.BuscarPorCodigoAsync(codigoPostal);
+        if (cp != null)
+        {
+            clienteSeleccionado.Poblacion = cp.Ciudad;
+            clienteSeleccionado.Provincia = cp.Provincia;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AlSeleccionarCodigoPostalContrato(string? codigoPostal)
+    {
+        if (nuevoContrato == null || string.IsNullOrWhiteSpace(codigoPostal))
+            return;
+
+        nuevoContrato.CodigoPostalInstalacion = codigoPostal;
+
+        // Buscar el código postal en la lista y autocompletar ciudad y provincia
+        var cp = await CodigoPostalService.BuscarPorCodigoAsync(codigoPostal);
+        if (cp != null)
+        {
+            nuevoContrato.LocalidadInstalacion = cp.Ciudad;
+            nuevoContrato.ProvinciaInstalacion = cp.Provincia;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirMaestroCodigosPostales()
+    {
+        Navigation.NavigateTo("/administracion/codigos-postales");
+    }
+
     private void AplicarFiltros()
     {
         var clientesParaPaginar = clientes.Where(c =>
             (string.IsNullOrEmpty(filtroNombre) || (c.Nombre != null && c.Nombre.Contains(filtroNombre, StringComparison.OrdinalIgnoreCase))) &&
-            (string.IsNullOrEmpty(filtroDni) || (c.DniCif != null && c.DniCif.Contains(filtroDni, StringComparison.OrdinalIgnoreCase)))
+            (string.IsNullOrEmpty(filtroDni) || (c.DniCif != null && c.DniCif.Contains(filtroDni, StringComparison.OrdinalIgnoreCase))) &&
+            (string.IsNullOrEmpty(filtroTelefono) || (c.Telefono != null && c.Telefono.Contains(filtroTelefono, StringComparison.OrdinalIgnoreCase))) &&
+            (string.IsNullOrEmpty(filtroEmail) || (c.Email != null && c.Email.Contains(filtroEmail, StringComparison.OrdinalIgnoreCase)))
         ).ToList();
         
         // Aplicar ordenamiento antes de paginar
@@ -3378,7 +3503,7 @@ else
         }
 
         // Inicializar tipo de contratación
-        tipoContratacionEnergia = "Luz y Gas";
+        tipoContratacionEnergia = "Luz";
 
         nuevoContrato = new Contrato
         {

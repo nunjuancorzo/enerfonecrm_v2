@@ -1,0 +1,438 @@
+@page "/comparador/historico"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using System.Text.Json
+@using Microsoft.JSInterop
+@rendermode InteractiveServer
+@inject HistoricoComparativaService HistoricoService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Histórico de Comparativas</PageTitle>
+
+@if (!AuthService.EstaAutenticado)
+{
+    <div class="alert alert-warning m-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        No tienes acceso a esta página. Por favor, inicia sesión.
+    </div>
+}
+else
+{
+    <div class="container-fluid p-4">
+        <!-- Encabezado -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h2 class="mb-0">
+                    <i class="bi bi-clock-history me-2 text-info"></i>
+                    Histórico de Comparativas
+                </h2>
+                <p class="text-muted">Consulta el registro de todas las comparativas realizadas</p>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Fecha Desde</label>
+                        <input type="date" class="form-control" @bind="fechaDesde" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Fecha Hasta</label>
+                        <input type="date" class="form-control" @bind="fechaHasta" />
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Origen</label>
+                        <select class="form-select" @bind="filtroOrigen">
+                            <option value="">Todos</option>
+                            <option value="frontend">Frontend</option>
+                            <option value="backend">Backend</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Tipo Energía</label>
+                        <select class="form-select" @bind="filtroTipoEnergia">
+                            <option value="">Todos</option>
+                            <option value="LUZ">Luz</option>
+                            <option value="GAS">Gas</option>
+                            <option value="LUZ+GAS">Luz + Gas</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" @onclick="Buscar">
+                        <i class="bi bi-search me-2"></i>Buscar
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="LimpiarFiltros">
+                        <i class="bi bi-x-circle me-2"></i>Limpiar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        @if (estadisticas.Any())
+        {
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">@estadisticas["total"]</h3>
+                            <small>Total Comparativas</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">@estadisticas["con_email"]</h3>
+                            <small>Emails Enviados</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">@estadisticas["con_ocr"]</h3>
+                            <small>Con OCR</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">@estadisticas["backend"]</h3>
+                            <small>Desde Backend</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Tabla de histórico -->
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else if (historico.Any())
+        {
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Origen</th>
+                                    <th>Tipo</th>
+                                    <th>CUPS</th>
+                                    <th>Email Cliente</th>
+                                    <th>Mejor Tarifa</th>
+                                    <th>Ahorro</th>
+                                    <th>OCR</th>
+                                    <th>Email</th>
+                                    <th>Usuario</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in historico)
+                                {
+                                    <tr>
+                                        <td>
+                                            <small>@item.FechaComparativa.ToString("dd/MM/yyyy HH:mm")</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-@(item.Origen == "backend" ? "warning" : "info")">
+                                                @item.Origen
+                                            </span>
+                                        </td>
+                                        <td>@item.TipoEnergia</td>
+                                        <td>
+                                            <small class="text-muted">@(string.IsNullOrEmpty(item.Cups) ? "-" : item.Cups.Substring(0, Math.Min(15, item.Cups.Length)) + "...")</small>
+                                        </td>
+                                        <td>
+                                            <small>@(item.EmailCliente ?? "-")</small>
+                                        </td>
+                                        <td>
+                                            <strong>@item.MejorTarifaEmpresa</strong><br />
+                                            <small class="text-muted">@item.MejorTarifaNombre</small>
+                                        </td>
+                                        <td>
+                                            @if (item.AhorroMensual.HasValue)
+                                            {
+                                                <span class="text-success fw-bold">@item.AhorroMensual.Value.ToString("N2") €/mes</span><br />
+                                                <small class="text-muted">@item.PorcentajeAhorro?.ToString("N1")% ahorro</small>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(item.ProveedorOcr))
+                                            {
+                                                <i class="bi bi-check-circle text-success" title="@item.ProveedorOcr"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-dash-circle text-muted"></i>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (item.EmailEnviado)
+                                            {
+                                                <i class="bi bi-envelope-check text-success" title="@item.FechaEnvioEmail?.ToString("dd/MM/yyyy HH:mm")"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-envelope text-muted"></i>
+                                            }
+                                        </td>
+                                        <td>
+                                            <small>@(item.Usuario?.Nombre ?? "-")</small>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => VerDetalle(item)">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            @if (AuthService.EsSuperAdmin)
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => Eliminar(item.Id)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No se encontraron comparativas con los filtros seleccionados.
+            </div>
+        }
+
+        <!-- Modal de detalles -->
+        @if (mostrarDetalle && detalleSeleccionado != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Detalle de Comparativa</h5>
+                            <button type="button" class="btn-close" @onclick="CerrarDetalle"></button>
+                        </div>
+                        <div class="modal-body">
+                            <dl class="row">
+                                <dt class="col-sm-4">Fecha:</dt>
+                                <dd class="col-sm-8">@detalleSeleccionado.FechaComparativa.ToString("dd/MM/yyyy HH:mm:ss")</dd>
+
+                                <dt class="col-sm-4">Origen:</dt>
+                                <dd class="col-sm-8"><span class="badge bg-@(detalleSeleccionado.Origen == "backend" ? "warning" : "info")">@detalleSeleccionado.Origen</span></dd>
+
+                                <dt class="col-sm-4">Tipo Energía:</dt>
+                                <dd class="col-sm-8">@detalleSeleccionado.TipoEnergia</dd>
+
+                                <dt class="col-sm-4">CUPS:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.Cups ?? "-")</dd>
+
+                                <dt class="col-sm-4">Email Cliente:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.EmailCliente ?? "-")</dd>
+
+                                <dt class="col-sm-4">Comercializadora Actual:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.ComercializadoraActual ?? "-")</dd>
+
+                                <dt class="col-sm-4">Tarifa Actual:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.TarifaActual ?? "-")</dd>
+
+                                <dt class="col-sm-4">Total Factura Actual:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.TotalFacturaActual?.ToString("N2") ?? "-") €</dd>
+
+                                <dt class="col-sm-4">Mejor Opción:</dt>
+                                <dd class="col-sm-8">
+                                    <strong>@detalleSeleccionado.MejorTarifaEmpresa</strong> - @detalleSeleccionado.MejorTarifaNombre
+                                </dd>
+
+                                <dt class="col-sm-4">Ahorro Mensual:</dt>
+                                <dd class="col-sm-8 text-success fw-bold">@(detalleSeleccionado.AhorroMensual?.ToString("N2") ?? "-") €</dd>
+
+                                <dt class="col-sm-4">Ahorro Anual:</dt>
+                                <dd class="col-sm-8 text-success fw-bold">@(detalleSeleccionado.AhorroAnual?.ToString("N2") ?? "-") €</dd>
+
+                                <dt class="col-sm-4">% Ahorro:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.PorcentajeAhorro?.ToString("N1") ?? "-")%</dd>
+
+                                <dt class="col-sm-4">Proveedor OCR:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.ProveedorOcr ?? "Manual")</dd>
+
+                                <dt class="col-sm-4">Email Enviado:</dt>
+                                <dd class="col-sm-8">
+                                    @if (detalleSeleccionado.EmailEnviado)
+                                    {
+                                        <span class="text-success">
+                                            <i class="bi bi-check-circle me-1"></i>
+                                            Sí (@detalleSeleccionado.FechaEnvioEmail?.ToString("dd/MM/yyyy HH:mm"))
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No</span>
+                                    }
+                                </dd>
+
+                                <dt class="col-sm-4">Usuario:</dt>
+                                <dd class="col-sm-8">@(detalleSeleccionado.Usuario?.Nombre ?? "-")</dd>
+
+                                @if (!string.IsNullOrEmpty(detalleSeleccionado.NombreArchivoFactura))
+                                {
+                                    <dt class="col-sm-4">Archivo Factura:</dt>
+                                    <dd class="col-sm-8">@detalleSeleccionado.NombreArchivoFactura</dd>
+                                }
+
+                                @if (!string.IsNullOrEmpty(detalleSeleccionado.Advertencias))
+                                {
+                                    <dt class="col-sm-4">Advertencias:</dt>
+                                    <dd class="col-sm-8">
+                                        <div class="alert alert-warning mb-0">@detalleSeleccionado.Advertencias</div>
+                                    </dd>
+                                }
+                            </dl>
+
+                            @if (!string.IsNullOrEmpty(detalleSeleccionado.DatosUtilizados))
+                            {
+                                <hr />
+                                <h6>Datos Utilizados:</h6>
+                                <pre class="bg-light p-3 rounded small">@FormatJson(detalleSeleccionado.DatosUtilizados)</pre>
+                            }
+
+                            @if (!string.IsNullOrEmpty(detalleSeleccionado.ResultadoRanking))
+                            {
+                                <hr />
+                                <h6>Ranking Completo:</h6>
+                                <pre class="bg-light p-3 rounded small" style="max-height: 200px; overflow-y: auto;">@FormatJson(detalleSeleccionado.ResultadoRanking)</pre>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarDetalle">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<HistoricoComparativa> historico = new();
+    private Dictionary<string, int> estadisticas = new();
+    private bool cargando = false;
+    private bool mostrarDetalle = false;
+    private HistoricoComparativa? detalleSeleccionado;
+
+    // Filtros
+    private DateTime? fechaDesde;
+    private DateTime? fechaHasta;
+    private string filtroOrigen = string.Empty;
+    private string filtroTipoEnergia = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.EstaAutenticado)
+        {
+            // Por defecto, últimos 30 días
+            fechaDesde = DateTime.Now.AddDays(-30);
+            fechaHasta = DateTime.Now;
+            await Buscar();
+            await CargarEstadisticas();
+        }
+    }
+
+    private async Task Buscar()
+    {
+        cargando = true;
+
+        try
+        {
+            // Si no es superadmin, filtrar solo sus comparativas
+            int? usuarioId = AuthService.EsSuperAdmin ? null : AuthService.UsuarioActual?.Id;
+
+            historico = await HistoricoService.BuscarAsync(
+                fechaDesde: fechaDesde,
+                fechaHasta: fechaHasta,
+                origen: string.IsNullOrEmpty(filtroOrigen) ? null : filtroOrigen,
+                tipoEnergia: string.IsNullOrEmpty(filtroTipoEnergia) ? null : filtroTipoEnergia,
+                usuarioId: usuarioId,
+                limite: 100
+            );
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CargarEstadisticas()
+    {
+        estadisticas = await HistoricoService.ObtenerEstadisticasAsync(fechaDesde, fechaHasta);
+    }
+
+    private void LimpiarFiltros()
+    {
+        fechaDesde = DateTime.Now.AddDays(-30);
+        fechaHasta = DateTime.Now;
+        filtroOrigen = string.Empty;
+        filtroTipoEnergia = string.Empty;
+    }
+
+    private void VerDetalle(HistoricoComparativa item)
+    {
+        detalleSeleccionado = item;
+        mostrarDetalle = true;
+    }
+
+    private void CerrarDetalle()
+    {
+        mostrarDetalle = false;
+        detalleSeleccionado = null;
+    }
+
+    private async Task Eliminar(int id)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", new object[] { "¿Estás seguro de eliminar este registro?" }))
+            return;
+
+        var resultado = await HistoricoService.EliminarAsync(id);
+        if (resultado.exito)
+        {
+            await Buscar();
+            await CargarEstadisticas();
+        }
+    }
+
+    private string FormatJson(string json)
+    {
+        try
+        {
+            var obj = JsonSerializer.Deserialize<object>(json);
+            return JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return json;
+        }
+    }
+}

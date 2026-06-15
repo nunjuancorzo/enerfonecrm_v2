@@ -90,4 +90,31 @@ public class ConfiguracionEmpresa
 
     [Column("modulo_sips_activo")]
     public bool ModuloSipsActivo { get; set; } = true;
+
+    // Configuración OCR para análisis de facturas
+    [Column("ocr_proveedor")]
+    [StringLength(100)]
+    public string? OcrProveedor { get; set; } = "tesseract"; // azure, openai, google, tesseract
+
+    [Column("ocr_api_key")]
+    [StringLength(500)]
+    public string? OcrApiKey { get; set; }
+
+    [Column("ocr_endpoint")]
+    [StringLength(500)]
+    public string? OcrEndpoint { get; set; }
+
+    [Column("ocr_modelo")]
+    [StringLength(100)]
+    public string? OcrModelo { get; set; }
+
+    [Column("ocr_timeout")]
+    public int? OcrTimeout { get; set; } = 30;
+
+    [Column("ocr_proveedor_secundario")]
+    [StringLength(100)]
+    public string? OcrProveedorSecundario { get; set; }
+
+    [Column("ocr_fallback_automatico")]
+    public bool OcrFallbackAutomatico { get; set; } = true;
 }

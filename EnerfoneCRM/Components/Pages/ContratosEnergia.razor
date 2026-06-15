@@ -17,6 +17,7 @@
 @inject IConfiguration Configuration
 @inject LogActivacionContratoService LogActivacionContratoService
 @inject EmailService EmailService
+@inject CodigoPostalService CodigoPostalService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -1169,7 +1170,21 @@ else
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-bold">Código Postal</label>
-                                                <InputText class="form-control" @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" placeholder="CP" disabled="@(!PuedeEditarCampo())" />
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control" list="codigosPostalesContrato" 
+                                                           value="@contratoSeleccionado.CodigoPostalInstalacion"
+                                                           @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
+                                                           placeholder="CP" maxlength="5" autocomplete="off" disabled="@(!PuedeEditarCampo())" />
+                                                    <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales" disabled="@(!PuedeEditarCampo())">
+                                                        <i class="bi bi-plus-circle"></i>
+                                                    </button>
+                                                    <datalist id="codigosPostalesContrato">
+                                                        @foreach (var cp in codigosPostalesDisponibles)
+                                                        {
+                                                            <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                        }
+                                                    </datalist>
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="row mb-0">
@@ -1827,6 +1842,9 @@ else
     private string tituloContacto = string.Empty;
     private string subtituloContacto = string.Empty;
     private string iconoContacto = string.Empty;
+
+    // Códigos postales
+    private List<CodigoPostal> codigosPostalesDisponibles = new();
     private string mensajeCopiado = string.Empty;
 
     // Contratos con ficheros adjuntos
@@ -1893,7 +1911,7 @@ else
     // Checkbox para usar dirección del cliente en edición
     private bool usarDireccionClienteEdicion = false;
     private DateTime? fechaActivacionMasivo = null;
-    private string tipoContratacion = "Luz y Gas";
+    private string tipoContratacion = "Luz";
     
     // Activación de contratos
     private bool mostrarCampoFechaActivo = false;
@@ -1972,7 +1990,8 @@ else
             CargarComercializadoras(),
             CargarContratos(),
             CargarUsuarios(),
-            CargarClientes()
+            CargarClientes(),
+            CargarCodigosPostales()
         );
     }
 
@@ -2916,7 +2935,7 @@ else
         }
         else
         {
-            tipoContratacion = "Luz y Gas"; // Por defecto
+            tipoContratacion = "Luz"; // Por defecto
         }
         
         // Resetear checkbox de dirección inicialmente
@@ -4368,5 +4387,40 @@ else
             procesandoBaja = false;
             StateHasChanged();
         }
+    }
+
+    private async Task CargarCodigosPostales()
+    {
+        try
+        {
+            codigosPostalesDisponibles = await CodigoPostalService.ObtenerActivosAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando códigos postales: {ex.Message}");
+            codigosPostalesDisponibles = new();
+        }
+    }
+
+    private async Task AlSeleccionarCodigoPostal(string? codigoPostal)
+    {
+        if (contratoSeleccionado == null || string.IsNullOrWhiteSpace(codigoPostal))
+            return;
+
+        contratoSeleccionado.CodigoPostalInstalacion = codigoPostal;
+
+        // Buscar el código postal en la lista y autocompletar ciudad y provincia
+        var cp = await CodigoPostalService.BuscarPorCodigoAsync(codigoPostal);
+        if (cp != null)
+        {
+            contratoSeleccionado.LocalidadInstalacion = cp.Ciudad;
+            contratoSeleccionado.ProvinciaInstalacion = cp.Provincia;
+            StateHasChanged();
+        }
+    }
+
+    private void AbrirMaestroCodigosPostales()
+    {
+        Navigation.NavigateTo("/administracion/codigos-postales");
     }
 }

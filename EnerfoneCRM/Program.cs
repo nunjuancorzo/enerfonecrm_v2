@@ -82,6 +82,10 @@ builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddScoped<PdfSipsService>();
 builder.Services.AddScoped<PdfComparadorService>();
 builder.Services.AddScoped<OfertaService>();
+builder.Services.AddScoped<OcrService>();
+builder.Services.AddScoped<PlantillaPreCargaService>();
+builder.Services.AddScoped<HistoricoComparativaService>();
+builder.Services.AddScoped<CodigoPostalService>();
 builder.Services.AddSingleton<RepositorioService>();
 
 // Integración externa de incidencias (INTEGRACION.md)
