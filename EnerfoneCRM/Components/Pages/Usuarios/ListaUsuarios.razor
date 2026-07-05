@@ -198,6 +198,13 @@ else
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th style="cursor: pointer;" @onclick='() => OrdenarPor("Id")'>
+                                        ID
+                                        @if (columnaOrden == "Id")
+                                        {
+                                            <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
+                                        }
+                                    </th>
                                     <th style="cursor: pointer;" @onclick='() => OrdenarPor("NombreUsuario")'>
                                         Usuario
                                         @if (columnaOrden == "NombreUsuario")
@@ -254,6 +261,7 @@ else
                                 @foreach (var usuario in usuariosFiltrados)
                                 {
                                     <tr>
+                                        <td class="text-muted"><small>@usuario.Id</small></td>
                                         <td><strong>@usuario.NombreUsuario</strong></td>
                                         <td>@usuario.Email</td>
                                         <td>@(string.IsNullOrEmpty(usuario.Telefono) ? "-" : usuario.Telefono)</td>
@@ -501,6 +509,9 @@ else
         // Luego ordenar
         var usuariosParaPaginar = columnaOrden switch
         {
+            "Id" => ordenAscendente
+                ? usuariosFiltradosPorBusqueda.OrderBy(u => u.Id).ToList()
+                : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.Id).ToList(),
             "NombreUsuario" => ordenAscendente
                 ? usuariosFiltradosPorBusqueda.OrderBy(u => u.NombreUsuario).ToList()
                 : usuariosFiltradosPorBusqueda.OrderByDescending(u => u.NombreUsuario).ToList(),
@@ -764,6 +775,11 @@ else
                 await UsuarioService.ActualizarEmpresasAlarmasPermitidasAsync(datos.usuario.Id, datos.empresasAlarmasIds);
 
                 // Actualizar comisiones personalizadas por proveedor
+                Console.WriteLine($"[ListaUsuarios] ========== ACTUALIZANDO COMISIONES ==========");
+                Console.WriteLine($"[ListaUsuarios] Comercializadoras: IDs={string.Join(",", datos.comercializadorasIds)}, Comisiones={string.Join(", ", datos.comisionesComercializadoras.Select(c => $"{c.Key}={c.Value}%"))}");
+                Console.WriteLine($"[ListaUsuarios] Operadoras: IDs={string.Join(",", datos.operadorasIds)}, Comisiones={string.Join(", ", datos.comisionesOperadoras.Select(c => $"{c.Key}={c.Value}%"))}");
+                Console.WriteLine($"[ListaUsuarios] Empresas Alarmas: IDs={string.Join(",", datos.empresasAlarmasIds)}, Comisiones={string.Join(", ", datos.comisionesEmpresasAlarmas.Select(c => $"{c.Key}={c.Value}%"))}");
+                
                 await UsuarioService.ActualizarComisionesProveedorAsync(
                     datos.usuario.Id,
                     "comercializadora",
@@ -781,6 +797,8 @@ else
                     "empresa_alarma",
                     datos.empresasAlarmasIds,
                     datos.comisionesEmpresasAlarmas);
+                    
+                Console.WriteLine($"[ListaUsuarios] ========== FIN ACTUALIZACION COMISIONES ==========");
                 
                 // Si es gestor, actualizar colaboradores asignados (actualiza GestorId de colaboradores)
                 if (datos.usuario.Rol == "Gestor")

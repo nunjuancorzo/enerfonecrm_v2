@@ -1,0 +1,1092 @@
+@page "/contratos-telefonia-edicion-masiva"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@rendermode InteractiveServer
+@inject ContratoService ContratoService
+@inject UsuarioService UsuarioService
+@inject AuthService AuthService
+@inject DbContextProvider DbContextProvider
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Edición Masiva de Contratos Telefonía - CorCRM</PageTitle>
+
+@if (inicializando)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 50vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+}
+else if (AuthService.UsuarioActual?.Rol != "Administrador")
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes permisos para acceder a esta sección.
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid p-4">
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2><i class="bi bi-table me-2"></i>Edición Masiva de Contratos Telefonía</h2>
+                    <p class="text-muted mb-0">Edita múltiples contratos de telefonía de forma simultánea. Puedes copiar y pegar desde Excel.</p>
+                    <p class="alert alert-info mt-2 mb-0"><strong>Vista Simplificada</strong> - Para editar líneas individuales (Líneas 1-15 con tarifa, tipo, ICC), utiliza el formulario de edición completo de cada contrato</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-secondary" @onclick="CargarContratos" disabled="@guardando">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Recargar
+                </button>
+                <button class="btn btn-info" @onclick="CopiarFilasSeleccionadas" disabled="@(filasSeleccionadas.Count == 0)">
+                    <i class="bi bi-copy me-2"></i>Copiar (@filasSeleccionadas.Count)
+                </button>
+                <button class="btn btn-warning" @onclick="PegarFilas">
+                    <i class="bi bi-clipboard-plus me-2"></i>Pegar
+                </button>
+                <button class="btn btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                    <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                </button>
+                <button class="btn btn-primary" @onclick="GuardarCambios" disabled="@guardando">
+                    @if (guardando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    <i class="bi bi-save me-2"></i>Guardar Cambios
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (erroresValidacion.Any())
+        {
+            <div class="alert alert-warning alert-dismissible fade show">
+                <strong>Errores de validación:</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach (var error in erroresValidacion.Take(10))
+                    {
+                        <li><small>@error</small></li>
+                    }
+                    @if (erroresValidacion.Count > 10)
+                    {
+                        <li><small><em>... y @(erroresValidacion.Count - 10) errores más</em></small></li>
+                    }
+                </ul>
+                <button type="button" class="btn-close" @onclick="() => erroresValidacion.Clear()"></button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-3 text-muted">Cargando contratos...</p>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="contratosTelefoniaTable" style="table-layout: fixed; width: 100%; min-width: 6000px;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 60px;">
+                                        <input type="checkbox" @onchange="ToggleSeleccionarTodas" />
+                                    </th>
+                                    <th style="width: 100px;">Acciones</th>
+                                    <th style="width: 120px;">ID</th>
+                                    <th style="width: 150px;">Usuario ID</th>
+                                    <th style="width: 250px;">Nombre Cliente*</th>
+                                    <th style="width: 200px;">DNI*</th>
+                                    <th style="width: 180px;">Teléfono</th>
+                                    <th style="width: 250px;">Operadora*</th>
+                                    <th style="width: 200px;">Tarifa*</th>
+                                    <th style="width: 180px;">Fijo Tel</th>
+                                    <th style="width: 180px;">Línea Móvil 1</th>
+                                    <th style="width: 200px;">Tipo Móvil 1</th>
+                                    <th style="width: 180px;">ICC Móvil 1</th>
+                                    <th style="width: 180px;">Línea Móvil 2</th>
+                                    <th style="width: 200px;">Tipo Móvil 2</th>
+                                    <th style="width: 180px;">ICC Móvil 2</th>
+                                    <th style="width: 150px;">Núm. Líneas</th>
+                                    <th style="width: 150px;">TV</th>
+                                    <th style="width: 350px;">Dirección</th>
+                                    <th style="width: 150px;">CP</th>
+                                    <th style="width: 350px;">IBAN</th>
+                                    <th style="width: 200px;">Estado</th>
+                                    <th style="width: 180px;">Comisión</th>
+                                    <th style="width: 400px;">Observaciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (contrato, index) in contratos.Select((c, i) => (c, i)))
+                                {
+                                    <tr data-row-index="@index" class="@(filasSeleccionadas.Contains(index) ? "row-selected" : "")">
+                                        <td class="text-center">
+                                            <input type="checkbox" checked="@filasSeleccionadas.Contains(index)" @onchange="() => ToggleSeleccionFila(index)" />
+                                        </td>
+                                        <td class="text-center">
+                                            @if (contrato.Id == 0)
+                                            {
+                                                <button class="btn btn-sm btn-danger" @onclick="() => EliminarFila(index)" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                        <td class="bg-light text-muted">
+                                            @if (contrato.Id > 0)
+                                            {
+                                                @contrato.Id
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Nuevo</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="contrato.UsuarioComercializadoraId" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "UsuarioComercializadoraId"))" min="1" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.NombreCliente" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "NombreCliente"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.Dni" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Dni"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.Telefono" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Telefono"))" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.OperadoraTel" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "OperadoraTel"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.TarifaTel" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "TarifaTel"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.FijoTel" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "FijoTel"))" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.LineaMovilPrincipal" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "LineaMovilPrincipal"))" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <select class="form-select form-control-sm" @bind="contrato.TipoLineaMovilPrincipal" 
+                                                    @onpaste="@((e) => OnPaste(e, index, "TipoLineaMovilPrincipal"))">
+                                                <option value=""></option>
+                                                <option value="Contrato">Contrato</option>
+                                                <option value="Portabilidad">Portabilidad</option>
+                                                <option value="Nueva Alta">Nueva Alta</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.CodigoIccPrincipal" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "CodigoIccPrincipal"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.LineaMovilPrincipal2" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "LineaMovilPrincipal2"))" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <select class="form-select form-control-sm" @bind="contrato.TipoLineaMovilPrincipal2" 
+                                                    @onpaste="@((e) => OnPaste(e, index, "TipoLineaMovilPrincipal2"))">
+                                                <option value=""></option>
+                                                <option value="Contrato">Contrato</option>
+                                                <option value="Portabilidad">Portabilidad</option>
+                                                <option value="Nueva Alta">Nueva Alta</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.CodigoIccPrincipal2" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "CodigoIccPrincipal2"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="contrato.NumeroLineasTel" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "NumeroLineasTel"))" min="0" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.Tv" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Tv"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.Direccion" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Direccion"))" maxlength="500" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.CodigoPostal" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "CodigoPostal"))" maxlength="10" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.Iban" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Iban"))" maxlength="34" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.Estado" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Estado"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="contrato.Comision" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Comision"))" step="0.01" />
+                                        </td>
+                                        <td>
+                                            <textarea class="form-control form-control-sm" @bind="contrato.Observaciones" 
+                                                      @onpaste="@((e) => OnPaste(e, index, "Observaciones"))" rows="1"></textarea>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Total de registros: <strong>@contratos.Count</strong> 
+                            (@contratos.Count(c => c.Id == 0) nuevos, @contratos.Count(c => c.Id > 0) existentes)
+                        </span>
+                        <div>
+                            <span class="text-muted me-3">* Campos obligatorios</span>
+                            <button class="btn btn-sm btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                                <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-success mb-3">
+                <h6><i class="bi bi-check-circle me-2"></i>Cómo usar copiar/pegar:</h6>
+                <ol class="mb-0">
+                    <li><strong>Copiar filas:</strong> Marca los checkboxes → Clic en "Copiar" (incluye el ID)</li>
+                    <li><strong>Pegar para editar:</strong> Las filas con ID se actualizarán en lugar de duplicarse</li>
+                    <li><strong>Pegar sin ID:</strong> Crea nuevos registros (borra el ID en Excel para duplicar)</li>
+                    <li><strong>Filas editadas/nuevas:</strong> Aparecen al inicio de la lista para fácil localización</li>
+                </ol>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <h6><i class="bi bi-lightbulb me-2"></i>Consejos de uso:</h6>
+                <ul class="mb-0">
+                    <li><strong>Pegar en celdas:</strong> Copia desde Excel y pega directamente en campos individuales</li>
+                    <li><strong>Pegar filas completas:</strong> Usa <kbd>Ctrl</kbd>+<kbd>V</kbd> o el botón "Pegar" para añadir filas nuevas</li>
+                    <li>Los campos marcados con * son obligatorios</li>
+                    <li>El campo ID no es editable para registros existentes</li>
+                    <li>Añade nuevas filas vacías con el botón "Añadir Fila"</li>
+                    <li>Guarda todos los cambios cuando termines de editar</li>
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Contrato> contratos = new();
+    private bool inicializando = true;
+    private bool cargando = false;
+    private bool guardando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private List<string> erroresValidacion = new();
+    private DotNetObjectReference<ContratosTelefoniaEdicionMasiva>? dotnetReference;
+    
+    private HashSet<int> filasSeleccionadas = new();
+    private List<Contrato> filasCopia = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Esperar a que AuthService se inicialice
+            var intentos = 0;
+            while (AuthService.UsuarioActual == null && intentos < 10)
+            {
+                await Task.Delay(100);
+                intentos++;
+            }
+            
+            inicializando = false;
+            
+            if (AuthService.UsuarioActual == null)
+            {
+                mensajeError = "No se pudo cargar la información del usuario";
+                return;
+            }
+            
+            if (AuthService.UsuarioActual.Rol != "Administrador")
+            {
+                mensajeError = $"No tienes permisos (Rol: {AuthService.UsuarioActual.Rol})";
+                return;
+            }
+            
+            await CargarContratos();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error en inicialización: {ex.Message}";
+            inicializando = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                dotnetReference = DotNetObjectReference.Create(this);
+                await JSRuntime.InvokeVoidAsync("initializeContratosTelefoniaPaste", dotnetReference);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[TELEFONIA] Error inicializando JavaScript (no crítico): {ex.Message}");
+                // No es crítico, la página puede funcionar sin la funcionalidad de pegar
+            }
+        }
+    }
+    
+    public void Dispose()
+    {
+        dotnetReference?.Dispose();
+    }
+    
+    [JSInvokable]
+    public async Task PasteRowsFromJS(List<List<string>> rowsData)
+    {
+        try
+        {
+            if (rowsData == null || rowsData.Count == 0) return;
+            
+            // El orden de campos en la tabla (ahora con ID como primera columna):
+            // ID, UsuarioComercializadoraId, NombreCliente, Dni, Telefono, OperadoraTel, TarifaTel, FijoTel,
+            // LineaMovilPrincipal, TipoLineaMovilPrincipal, CodigoIccPrincipal, LineaMovilPrincipal2,
+            // TipoLineaMovilPrincipal2, CodigoIccPrincipal2, NumeroLineasTel, Tv, Direccion, CodigoPostal,
+            // Iban, Estado, Comision, Observaciones
+            
+            int filasCreadas = 0;
+            int filasActualizadas = 0;
+            var contratosNuevos = new List<Contrato>();
+            var contratosActualizados = new List<(Contrato contrato, int indiceOriginal)>();
+            
+            foreach (var rowData in rowsData)
+            {
+                // Leer el ID de la primera columna
+                int idContrato = 0;
+                if (rowData.Count > 0 && int.TryParse(rowData[0], out int parsedId))
+                {
+                    idContrato = parsedId;
+                }
+
+                var contrato = new Contrato
+                {
+                    Id = idContrato,
+                    Tipo = "telefonia",
+                    FechaCreacion = DateTime.Now
+                };
+                
+                // Mapear datos según el índice (todos desplazados +1 por el ID)
+                if (rowData.Count > 1 && !string.IsNullOrWhiteSpace(rowData[1]))
+                {
+                    if (int.TryParse(rowData[1], out int usuarioId))
+                        contrato.UsuarioComercializadoraId = usuarioId;
+                }
+                if (rowData.Count > 2 && !string.IsNullOrWhiteSpace(rowData[2])) contrato.NombreCliente = rowData[2];
+                if (rowData.Count > 3 && !string.IsNullOrWhiteSpace(rowData[3])) contrato.Dni = rowData[3];
+                if (rowData.Count > 4 && !string.IsNullOrWhiteSpace(rowData[4])) contrato.Telefono = rowData[4];
+                if (rowData.Count > 5 && !string.IsNullOrWhiteSpace(rowData[5])) contrato.OperadoraTel = rowData[5];
+                if (rowData.Count > 6 && !string.IsNullOrWhiteSpace(rowData[6])) contrato.TarifaTel = rowData[6];
+                if (rowData.Count > 7 && !string.IsNullOrWhiteSpace(rowData[7])) contrato.FijoTel = rowData[7];
+                if (rowData.Count > 8 && !string.IsNullOrWhiteSpace(rowData[8])) contrato.LineaMovilPrincipal = rowData[8];
+                if (rowData.Count > 9 && !string.IsNullOrWhiteSpace(rowData[9])) contrato.TipoLineaMovilPrincipal = rowData[9];
+                if (rowData.Count > 10 && !string.IsNullOrWhiteSpace(rowData[10])) contrato.CodigoIccPrincipal = rowData[10];
+                if (rowData.Count > 11 && !string.IsNullOrWhiteSpace(rowData[11])) contrato.LineaMovilPrincipal2 = rowData[11];
+                if (rowData.Count > 12 && !string.IsNullOrWhiteSpace(rowData[12])) contrato.TipoLineaMovilPrincipal2 = rowData[12];
+                if (rowData.Count > 13 && !string.IsNullOrWhiteSpace(rowData[13])) contrato.CodigoIccPrincipal2 = rowData[13];
+                if (rowData.Count > 14 && !string.IsNullOrWhiteSpace(rowData[14]))
+                {
+                    if (int.TryParse(rowData[14], out int numLineas))
+                        contrato.NumeroLineasTel = numLineas;
+                }
+                if (rowData.Count > 15 && !string.IsNullOrWhiteSpace(rowData[15])) contrato.Tv = rowData[15];
+                if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16])) contrato.Direccion = rowData[16];
+                if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17])) contrato.CodigoPostal = rowData[17];
+                if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18])) contrato.Iban = rowData[18];
+                if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) contrato.Estado = rowData[19];
+                if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20]))
+                {
+                    if (decimal.TryParse(rowData[20], out decimal comision))
+                        contrato.Comision = comision;
+                }
+                if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) contrato.Observaciones = rowData[21];
+                
+                // Si tiene ID válido, buscar y actualizar el existente
+                if (idContrato > 0)
+                {
+                    var indiceExistente = contratos.FindIndex(c => c.Id == idContrato);
+                    if (indiceExistente >= 0)
+                    {
+                        // Actualizar el contrato existente
+                        var contratoExistente = contratos[indiceExistente];
+                        contratoExistente.UsuarioComercializadoraId = contrato.UsuarioComercializadoraId;
+                        contratoExistente.NombreCliente = contrato.NombreCliente;
+                        contratoExistente.Dni = contrato.Dni;
+                        contratoExistente.Telefono = contrato.Telefono;
+                        contratoExistente.OperadoraTel = contrato.OperadoraTel;
+                        contratoExistente.TarifaTel = contrato.TarifaTel;
+                        contratoExistente.FijoTel = contrato.FijoTel;
+                        contratoExistente.LineaMovilPrincipal = contrato.LineaMovilPrincipal;
+                        contratoExistente.TipoLineaMovilPrincipal = contrato.TipoLineaMovilPrincipal;
+                        contratoExistente.CodigoIccPrincipal = contrato.CodigoIccPrincipal;
+                        contratoExistente.LineaMovilPrincipal2 = contrato.LineaMovilPrincipal2;
+                        contratoExistente.TipoLineaMovilPrincipal2 = contrato.TipoLineaMovilPrincipal2;
+                        contratoExistente.CodigoIccPrincipal2 = contrato.CodigoIccPrincipal2;
+                        contratoExistente.NumeroLineasTel = contrato.NumeroLineasTel;
+                        contratoExistente.Tv = contrato.Tv;
+                        contratoExistente.Direccion = contrato.Direccion;
+                        contratoExistente.CodigoPostal = contrato.CodigoPostal;
+                        contratoExistente.Iban = contrato.Iban;
+                        contratoExistente.Estado = contrato.Estado;
+                        contratoExistente.Comision = contrato.Comision;
+                        contratoExistente.Observaciones = contrato.Observaciones;
+                        
+                        contratosActualizados.Add((contratoExistente, indiceExistente));
+                        filasActualizadas++;
+                    }
+                    else
+                    {
+                        // ID no encontrado, agregar como nuevo
+                        contratosNuevos.Add(contrato);
+                        filasCreadas++;
+                    }
+                }
+                else
+                {
+                    // Sin ID, agregar como nuevo
+                    contrato.Id = 0;
+                    contratosNuevos.Add(contrato);
+                    filasCreadas++;
+                }
+            }
+            
+            // Mover contratos actualizados al inicio
+            if (contratosActualizados.Any())
+            {
+                foreach (var (contrato, indice) in contratosActualizados.OrderByDescending(x => x.indiceOriginal))
+                {
+                    contratos.RemoveAt(indice);
+                }
+                contratosActualizados.Reverse();
+                foreach (var (contrato, _) in contratosActualizados)
+                {
+                    contratos.Insert(0, contrato);
+                }
+            }
+            
+            // Insertar todas las filas nuevas al inicio
+            if (contratosNuevos.Any())
+            {
+                contratosNuevos.Reverse();
+                foreach (var contrato in contratosNuevos)
+                {
+                    contratos.Insert(0, contrato);
+                }
+            }
+            
+            if (filasCreadas > 0 || filasActualizadas > 0)
+            {
+                var mensajes = new List<string>();
+                if (filasCreadas > 0) mensajes.Add($"{filasCreadas} nueva(s)");
+                if (filasActualizadas > 0) mensajes.Add($"{filasActualizadas} actualizada(s)");
+                
+                mensajeExito = $"✓ {string.Join(" y ", mensajes)} fila(s) al inicio. No olvides guardar.";
+            }
+            
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al pegar filas: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task CargarContratos()
+    {
+        try
+        {
+            cargando = true;
+            mensajeExito = string.Empty;
+            mensajeError = string.Empty;
+            erroresValidacion.Clear();
+
+            var todosLosContratos = await ContratoService.ObtenerTodosPorTipoAsync(
+                "telefonia",
+                AuthService.UsuarioActual?.Rol,
+                AuthService.UsuarioActual?.NombreUsuario,
+                AuthService.UsuarioActual?.Id
+            );
+            
+            if (todosLosContratos != null)
+            {
+                contratos = todosLosContratos.OrderByDescending(c => c.Id).ToList();
+            }
+            else
+            {
+                contratos = new List<Contrato>();
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar contratos: {ex.Message}";
+            contratos = new List<Contrato>();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AgregarNuevaFila()
+    {
+        var nuevoContrato = new Contrato
+        {
+            Id = 0,
+            Tipo = "telefonia",
+            FechaCreacion = DateTime.Now,
+            UsuarioComercializadoraId = AuthService.UsuarioActual?.Id
+        };
+        contratos.Insert(0, nuevoContrato);
+    }
+
+    private void EliminarFila(int index)
+    {
+        if (index >= 0 && index < contratos.Count)
+        {
+            contratos.RemoveAt(index);
+        }
+    }
+
+    private void ToggleSeleccionFila(int index)
+    {
+        if (filasSeleccionadas.Contains(index))
+        {
+            filasSeleccionadas.Remove(index);
+        }
+        else
+        {
+            filasSeleccionadas.Add(index);
+        }
+    }
+
+    private void ToggleSeleccionarTodas(ChangeEventArgs e)
+    {
+        if ((bool?)e.Value == true)
+        {
+            filasSeleccionadas = Enumerable.Range(0, contratos.Count).ToHashSet();
+        }
+        else
+        {
+            filasSeleccionadas.Clear();
+        }
+    }
+
+    private async Task CopiarFilasSeleccionadas()
+    {
+        filasCopia.Clear();
+        var datosParaPortapapeles = new List<string>();
+        
+        foreach (var index in filasSeleccionadas.OrderBy(x => x))
+        {
+            if (index >= 0 && index < contratos.Count)
+            {
+                var contratoOriginal = contratos[index];
+                
+                // Crear una copia del contrato
+                var copia = new Contrato
+                {
+                    Id = contratoOriginal.Id,
+                    Tipo = "telefonia",
+                    UsuarioComercializadoraId = contratoOriginal.UsuarioComercializadoraId,
+                    NombreCliente = contratoOriginal.NombreCliente,
+                    Dni = contratoOriginal.Dni,
+                    Telefono = contratoOriginal.Telefono,
+                    OperadoraTel = contratoOriginal.OperadoraTel,
+                    TarifaTel = contratoOriginal.TarifaTel,
+                    FijoTel = contratoOriginal.FijoTel,
+                    LineaMovilPrincipal = contratoOriginal.LineaMovilPrincipal,
+                    TipoLineaMovilPrincipal = contratoOriginal.TipoLineaMovilPrincipal,
+                    CodigoIccPrincipal = contratoOriginal.CodigoIccPrincipal,
+                    LineaMovilPrincipal2 = contratoOriginal.LineaMovilPrincipal2,
+                    TipoLineaMovilPrincipal2 = contratoOriginal.TipoLineaMovilPrincipal2,
+                    CodigoIccPrincipal2 = contratoOriginal.CodigoIccPrincipal2,
+                    NumeroLineasTel = contratoOriginal.NumeroLineasTel,
+                    Tv = contratoOriginal.Tv,
+                    Direccion = contratoOriginal.Direccion,
+                    CodigoPostal = contratoOriginal.CodigoPostal,
+                    Iban = contratoOriginal.Iban,
+                    Estado = contratoOriginal.Estado,
+                    Comision = contratoOriginal.Comision,
+                    Observaciones = contratoOriginal.Observaciones
+                };
+                filasCopia.Add(copia);
+                
+                // Construir fila en formato TSV para portapapeles (compatible con Excel)
+                var fila = string.Join("\t",
+                    contratoOriginal.Id.ToString(),
+                    contratoOriginal.UsuarioComercializadoraId?.ToString() ?? "",
+                    contratoOriginal.NombreCliente ?? "",
+                    contratoOriginal.Dni ?? "",
+                    contratoOriginal.Telefono ?? "",
+                    contratoOriginal.OperadoraTel ?? "",
+                    contratoOriginal.TarifaTel ?? "",
+                    contratoOriginal.FijoTel ?? "",
+                    contratoOriginal.LineaMovilPrincipal ?? "",
+                    contratoOriginal.TipoLineaMovilPrincipal ?? "",
+                    contratoOriginal.CodigoIccPrincipal ?? "",
+                    contratoOriginal.LineaMovilPrincipal2 ?? "",
+                    contratoOriginal.TipoLineaMovilPrincipal2 ?? "",
+                    contratoOriginal.CodigoIccPrincipal2 ?? "",
+                    contratoOriginal.NumeroLineasTel?.ToString() ?? "",
+                    contratoOriginal.Tv ?? "",
+                    contratoOriginal.Direccion ?? "",
+                    contratoOriginal.CodigoPostal ?? "",
+                    contratoOriginal.Iban ?? "",
+                    contratoOriginal.Estado ?? "",
+                    contratoOriginal.Comision?.ToString() ?? "",
+                    contratoOriginal.Observaciones ?? ""
+                );
+                datosParaPortapapeles.Add(fila);
+            }
+        }
+        
+        // Copiar al portapapeles del sistema en formato TSV con cabeceras
+        if (datosParaPortapapeles.Any())
+        {
+            var cabeceras = string.Join("\t",
+                "ID", "UsuarioID", "NombreCliente", "DNI", "Telefono", "Operadora",
+                "Tarifa", "FijoTel", "LineaMovil1", "TipoMovil1", "ICCMovil1",
+                "LineaMovil2", "TipoMovil2", "ICCMovil2", "NumLineas", "TV",
+                "Direccion", "CP", "IBAN", "Estado", "Comision", "Observaciones"
+            );
+            
+            var textoConCabeceras = cabeceras + "\n" + string.Join("\n", datosParaPortapapeles);
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", textoConCabeceras);
+            mensajeExito = $"✓ {filasCopia.Count} fila(s) copiada(s) con ID. Al pegar, los registros con ID se actualizarán, sin ID se crearán como nuevos.";
+        }
+        else
+        {
+            mensajeExito = "No hay filas seleccionadas para copiar.";
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task PegarFilas()
+    {
+        try
+        {
+            var textoPortapapeles = await JSRuntime.InvokeAsync<string>("navigator.clipboard.readText");
+            
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                mensajeError = "El portapapeles está vacío.";
+                return;
+            }
+
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al leer del portapapeles: {ex.Message}";
+        }
+    }
+
+    [JSInvokable]
+    public async Task PegarDesdePortapapeles(string textoPortapapeles)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                return;
+            }
+
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al pegar: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcesarYAgregarFilas(string textoPortapapeles)
+    {
+        var lineas = textoPortapapeles.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        int filasCreadas = 0;
+        int filasActualizadas = 0;
+        var contratosNuevos = new List<Contrato>();
+        var contratosActualizados = new List<(Contrato contrato, int indiceOriginal)>();
+        
+        foreach (var linea in lineas)
+        {
+            var columnas = linea.Split('\t');
+            
+            // Omitir línea de cabeceras
+            if (columnas.Length > 0 && (columnas[0].Trim().Equals("ID", StringComparison.OrdinalIgnoreCase) || 
+                                        columnas[0].Trim().Equals("UsuarioID", StringComparison.OrdinalIgnoreCase)))
+                continue;
+            
+            if (columnas.Length < 2)
+                continue;
+
+            // Leer el ID de la primera columna
+            int idContrato = 0;
+            if (columnas.Length > 0 && int.TryParse(columnas[0].Trim(), out int parsedId))
+            {
+                idContrato = parsedId;
+            }
+
+            var contrato = new Contrato
+            {
+                Id = idContrato,
+                Tipo = "telefonia",
+                FechaCreacion = DateTime.Now,
+                UsuarioComercializadoraId = columnas.Length > 1 && int.TryParse(columnas[1].Trim(), out int usuarioId) ? usuarioId : null,
+                NombreCliente = columnas.Length > 2 ? columnas[2].Trim() : "",
+                Dni = columnas.Length > 3 ? columnas[3].Trim() : "",
+                Telefono = columnas.Length > 4 ? columnas[4].Trim() : "",
+                OperadoraTel = columnas.Length > 5 ? columnas[5].Trim() : "",
+                TarifaTel = columnas.Length > 6 ? columnas[6].Trim() : "",
+                FijoTel = columnas.Length > 7 ? columnas[7].Trim() : "",
+                LineaMovilPrincipal = columnas.Length > 8 ? columnas[8].Trim() : "",
+                TipoLineaMovilPrincipal = columnas.Length > 9 ? columnas[9].Trim() : "",
+                CodigoIccPrincipal = columnas.Length > 10 ? columnas[10].Trim() : "",
+                LineaMovilPrincipal2 = columnas.Length > 11 ? columnas[11].Trim() : "",
+                TipoLineaMovilPrincipal2 = columnas.Length > 12 ? columnas[12].Trim() : "",
+                CodigoIccPrincipal2 = columnas.Length > 13 ? columnas[13].Trim() : "",
+                NumeroLineasTel = columnas.Length > 14 && int.TryParse(columnas[14].Trim(), out int numLineas) ? numLineas : null,
+                Tv = columnas.Length > 15 ? columnas[15].Trim() : "",
+                Direccion = columnas.Length > 16 ? columnas[16].Trim() : "",
+                CodigoPostal = columnas.Length > 17 ? columnas[17].Trim() : "",
+                Iban = columnas.Length > 18 ? columnas[18].Trim() : "",
+                Estado = columnas.Length > 19 ? columnas[19].Trim() : "",
+                Comision = columnas.Length > 20 && decimal.TryParse(columnas[20].Trim(), out decimal comision) ? comision : null,
+                Observaciones = columnas.Length > 21 ? columnas[21].Trim() : ""
+            };
+
+            // Si tiene ID válido, buscar y actualizar el existente
+            if (idContrato > 0)
+            {
+                var indiceExistente = contratos.FindIndex(c => c.Id == idContrato);
+                if (indiceExistente >= 0)
+                {
+                    var contratoExistente = contratos[indiceExistente];
+                    contratoExistente.UsuarioComercializadoraId = contrato.UsuarioComercializadoraId;
+                    contratoExistente.NombreCliente = contrato.NombreCliente;
+                    contratoExistente.Dni = contrato.Dni;
+                    contratoExistente.Telefono = contrato.Telefono;
+                    contratoExistente.OperadoraTel = contrato.OperadoraTel;
+                    contratoExistente.TarifaTel = contrato.TarifaTel;
+                    contratoExistente.FijoTel = contrato.FijoTel;
+                    contratoExistente.LineaMovilPrincipal = contrato.LineaMovilPrincipal;
+                    contratoExistente.TipoLineaMovilPrincipal = contrato.TipoLineaMovilPrincipal;
+                    contratoExistente.CodigoIccPrincipal = contrato.CodigoIccPrincipal;
+                    contratoExistente.LineaMovilPrincipal2 = contrato.LineaMovilPrincipal2;
+                    contratoExistente.TipoLineaMovilPrincipal2 = contrato.TipoLineaMovilPrincipal2;
+                    contratoExistente.CodigoIccPrincipal2 = contrato.CodigoIccPrincipal2;
+                    contratoExistente.NumeroLineasTel = contrato.NumeroLineasTel;
+                    contratoExistente.Tv = contrato.Tv;
+                    contratoExistente.Direccion = contrato.Direccion;
+                    contratoExistente.CodigoPostal = contrato.CodigoPostal;
+                    contratoExistente.Iban = contrato.Iban;
+                    contratoExistente.Estado = contrato.Estado;
+                    contratoExistente.Comision = contrato.Comision;
+                    contratoExistente.Observaciones = contrato.Observaciones;
+                    
+                    contratosActualizados.Add((contratoExistente, indiceExistente));
+                    filasActualizadas++;
+                }
+                else
+                {
+                    contratosNuevos.Add(contrato);
+                    filasCreadas++;
+                }
+            }
+            else
+            {
+                contrato.Id = 0;
+                contratosNuevos.Add(contrato);
+                filasCreadas++;
+            }
+        }
+        
+        // Mover contratos actualizados al inicio
+        if (contratosActualizados.Any())
+        {
+            foreach (var (contrato, indice) in contratosActualizados.OrderByDescending(x => x.indiceOriginal))
+            {
+                contratos.RemoveAt(indice);
+            }
+            contratosActualizados.Reverse();
+            foreach (var (contrato, _) in contratosActualizados)
+            {
+                contratos.Insert(0, contrato);
+            }
+        }
+        
+        // Insertar todas las filas nuevas al inicio
+        if (contratosNuevos.Any())
+        {
+            contratosNuevos.Reverse();
+            foreach (var contrato in contratosNuevos)
+            {
+                contratos.Insert(0, contrato);
+            }
+        }
+        
+        if (filasCreadas > 0 || filasActualizadas > 0)
+        {
+            var mensajes = new List<string>();
+            if (filasCreadas > 0) mensajes.Add($"{filasCreadas} nueva(s)");
+            if (filasActualizadas > 0) mensajes.Add($"{filasActualizadas} actualizada(s)");
+            
+            mensajeExito = $"✓ {string.Join(" y ", mensajes)} fila(s) al inicio de la lista. No olvides guardar.";
+            filasSeleccionadas.Clear();
+        }
+        else
+        {
+            mensajeError = "No se pudieron procesar las filas del portapapeles.";
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task GuardarCambios()
+    {
+        try
+        {
+            guardando = true;
+            erroresValidacion.Clear();
+            mensajeExito = string.Empty;
+            mensajeError = string.Empty;
+
+            // Validar todos los contratos
+            if (!await ValidarContratos())
+            {
+                mensajeError = "Por favor, corrige los errores de validación antes de guardar.";
+                return;
+            }
+
+            int creados = 0;
+            int actualizados = 0;
+            int errores = 0;
+
+            await using var context = DbContextProvider.CreateDbContext();
+
+            foreach (var contrato in contratos)
+            {
+                try
+                {
+                    // Asignar usuario actual si no tiene
+                    if (contrato.UsuarioComercializadoraId == null || contrato.UsuarioComercializadoraId == 0)
+                    {
+                        contrato.UsuarioComercializadoraId = AuthService.UsuarioActual?.Id;
+                    }
+
+                    // Asignar fecha de creación si es nuevo
+                    if (contrato.Id == 0 && contrato.FechaCreacion == null)
+                    {
+                        contrato.FechaCreacion = DateTime.Now;
+                    }
+
+                    if (contrato.Id == 0)
+                    {
+                        context.Contratos.Add(contrato);
+                        await context.SaveChangesAsync();
+                        creados++;
+                    }
+                    else
+                    {
+                        context.Contratos.Update(contrato);
+                        await context.SaveChangesAsync();
+                        actualizados++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errores++;
+                    erroresValidacion.Add($"Error en contrato {(contrato.Id > 0 ? contrato.Id.ToString() : "nuevo")}: {ex.Message}");
+                }
+            }
+
+            if (errores == 0)
+            {
+                mensajeExito = $"✓ Cambios guardados correctamente. Creados: {creados}, Actualizados: {actualizados}";
+                await CargarContratos();
+            }
+            else
+            {
+                mensajeError = $"Se guardaron algunos cambios pero hubo {errores} error(es). Creados: {creados}, Actualizados: {actualizados}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar cambios: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task<bool> ValidarContratos()
+    {
+        bool esValido = true;
+        erroresValidacion.Clear();
+
+        await using var context = DbContextProvider.CreateDbContext();
+        var usuariosValidos = await context.Usuarios.Select(u => u.Id).ToListAsync();
+
+        for (int i = 0; i < contratos.Count; i++)
+        {
+            var contrato = contratos[i];
+            var prefijo = $"Fila {i + 1}";
+
+            // Validación 1: Nombre Cliente obligatorio
+            if (string.IsNullOrWhiteSpace(contrato.NombreCliente))
+            {
+                erroresValidacion.Add($"{prefijo}: Nombre Cliente es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 2: DNI obligatorio
+            if (string.IsNullOrWhiteSpace(contrato.Dni))
+            {
+                erroresValidacion.Add($"{prefijo}: DNI es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 3: Operadora obligatorio
+            if (string.IsNullOrWhiteSpace(contrato.OperadoraTel))
+            {
+                erroresValidacion.Add($"{prefijo}: Operadora es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 4: Tarifa obligatorio
+            if (string.IsNullOrWhiteSpace(contrato.TarifaTel))
+            {
+                erroresValidacion.Add($"{prefijo}: Tarifa es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 5: ID Usuario debe existir si tiene valor
+            if (contrato.UsuarioComercializadoraId.HasValue && contrato.UsuarioComercializadoraId.Value > 0)
+            {
+                if (!usuariosValidos.Contains(contrato.UsuarioComercializadoraId.Value))
+                {
+                    erroresValidacion.Add($"{prefijo}: El ID Usuario {contrato.UsuarioComercializadoraId.Value} no existe");
+                    esValido = false;
+                }
+            }
+        }
+
+        return esValido;
+    }
+
+    private async Task OnPaste(ClipboardEventArgs e, int rowIndex, string fieldName)
+    {
+        // Esta función será mejorada con JavaScript para manejar pegado múltiple
+    }
+}
+
+<style>
+    .table-responsive {
+        border: 1px solid #dee2e6;
+    }
+
+    #contratosTelefoniaTable {
+        font-size: 0.875rem;
+    }
+
+    #contratosTelefoniaTable thead th {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 2px solid #dee2e6;
+        white-space: nowrap;
+    }
+
+    #contratosTelefoniaTable tbody tr {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    #contratosTelefoniaTable tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    #contratosTelefoniaTable tbody tr.row-selected {
+        background-color: #0d6efd !important;
+        color: white;
+    }
+
+    #contratosTelefoniaTable tbody tr.row-selected input,
+    #contratosTelefoniaTable tbody tr.row-selected select,
+    #contratosTelefoniaTable tbody tr.row-selected textarea {
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+
+    #contratosTelefoniaTable input,
+    #contratosTelefoniaTable select,
+    #contratosTelefoniaTable textarea {
+        min-width: 100%;
+        border: 1px solid #dee2e6;
+    }
+
+    #contratosTelefoniaTable input:focus,
+    #contratosTelefoniaTable select:focus,
+    #contratosTelefoniaTable textarea:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .form-control-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>

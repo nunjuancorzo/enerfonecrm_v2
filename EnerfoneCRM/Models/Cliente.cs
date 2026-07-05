@@ -20,9 +20,21 @@ namespace EnerfoneCRM.Models
         [MaxLength(255)]
         public string? Nombre { get; set; }
 
+        [Column("apellidos")]
+        [MaxLength(255)]
+        public string? Apellidos { get; set; }
+
         [Column("dni_cif")]
         [MaxLength(50)]
         public string? DniCif { get; set; }
+
+        [Column("empresa")]
+        [MaxLength(255)]
+        public string? Empresa { get; set; }
+
+        [Column("cif")]
+        [MaxLength(20)]
+        public string? Cif { get; set; }
 
         [Column("cnae")]
         [MaxLength(10)]
@@ -73,16 +85,24 @@ namespace EnerfoneCRM.Models
         [MaxLength(100)]
         public string? Poblacion { get; set; }
 
+        [Column("ciudad")]
+        [MaxLength(100)]
+        public string? Ciudad { get; set; }
+
         [Column("provincia")]
         [MaxLength(100)]
         public string? Provincia { get; set; }
+
+        [Column("pais")]
+        [MaxLength(100)]
+        public string? Pais { get; set; }
 
         [Column("codigo_postal")]
         [MaxLength(10)]
         public string? CodigoPostal { get; set; }
 
         [Column("iban")]
-        [MaxLength(34)]
+        [MaxLength(24)]
         public string? Iban { get; set; }
 
         [Column("representante")]

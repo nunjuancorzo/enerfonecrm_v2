@@ -721,11 +721,11 @@ else
                                         <label class="form-label fw-bold">Comercial</label>
                                         @if (AuthService.UsuarioActual?.Rol == "Administrador")
                                         {
-                                            <select @bind="contratoSeleccionado.Comercial" class="form-select">
+                                            <select @onchange="OnUsuarioComercialChanged" class="form-select">
                                                 <option value="">-- Seleccionar Comercial --</option>
                                                 @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                                 {
-                                                    <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                    <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
                                                 }
                                             </select>
                                         }
@@ -952,14 +952,14 @@ else
                                             <input type="text" class="form-control" list="codigosPostalesAlarmas" 
                                                    value="@contratoSeleccionado.CodigoPostalInstalacion"
                                                    @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
-                                                   placeholder="CP" maxlength="5" autocomplete="off" />
+                                                   placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                             <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
                                                 <i class="bi bi-plus-circle"></i>
                                             </button>
                                             <datalist id="codigosPostalesAlarmas">
                                                 @foreach (var cp in codigosPostalesDisponibles)
                                                 {
-                                                    <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                    <option value="@cp.CodigoPostalValor">@cp.CodigoPostalValor - @cp.Ciudad (@cp.Provincia)</option>
                                                 }
                                             </datalist>
                                         </div>
@@ -2266,6 +2266,26 @@ else
         contratoSeleccionado = null;
     }
 
+    private void OnUsuarioComercialChanged(ChangeEventArgs e)
+    {
+        if (contratoSeleccionado == null || e.Value == null) return;
+        
+        if (int.TryParse(e.Value.ToString(), out int usuarioId) && usuarioId > 0)
+        {
+            var usuario = usuarios.FirstOrDefault(u => u.Id == usuarioId);
+            if (usuario != null)
+            {
+                contratoSeleccionado.UsuarioComercializadoraId = usuario.Id;
+                contratoSeleccionado.Comercial = usuario.NombreUsuario;
+            }
+        }
+        else
+        {
+            contratoSeleccionado.UsuarioComercializadoraId = null;
+            contratoSeleccionado.Comercial = string.Empty;
+        }
+    }
+
     private async Task GuardarContrato()
     {
         // Si es un colaborador editando un contrato existente, solicitar observación obligatoria
@@ -2932,16 +2952,44 @@ else
             return;
         }
 
-        // Obtener el porcentaje de comisión del usuario asignado
-        var usuario = await UsuarioService.ObtenerPorIdAsync(contratoSeleccionado.UsuarioComercializadoraId.Value);
-        if (usuario != null && usuario.Comision > 0)
+        // Si no hay empresa de alarma seleccionada, no se puede calcular
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.EmpresaAlarma))
         {
-            // Calcular: comisionFinal = comisionTarifa * (porcentajeUsuario / 100)
-            contratoSeleccionado.Comision = comisionTarifa * (usuario.Comision / 100);
+            contratoSeleccionado.Comision = comisionTarifa;
+            return;
         }
-        else
+
+        try
         {
-            // Si el usuario no tiene porcentaje configurado, usar la comisión completa
+            // Obtener el ID de la empresa de alarma
+            var empresa = await EmpresaAlarmaService.ObtenerPorNombreAsync(contratoSeleccionado.EmpresaAlarma);
+            if (empresa == null)
+            {
+                contratoSeleccionado.Comision = comisionTarifa;
+                return;
+            }
+
+            // Obtener el porcentaje de comisión del usuario para esta empresa
+            var comisionesUsuario = await UsuarioService.ObtenerComisionesProveedorAsync(
+                contratoSeleccionado.UsuarioComercializadoraId.Value,
+                "empresa_alarma"
+            );
+
+            if (!comisionesUsuario.TryGetValue(empresa.Id, out var porcentajeComision))
+            {
+                // Si no hay porcentaje específico configurado, usar comisión completa
+                contratoSeleccionado.Comision = comisionTarifa;
+                return;
+            }
+
+            // Calcular comisión final: comisionTarifa * (porcentajeComision / 100)
+            contratoSeleccionado.Comision = Math.Round(comisionTarifa * (porcentajeComision / 100), 2);
+            
+            Console.WriteLine($"[ContratosAlarmas] Comisión calculada: {comisionTarifa}€ × {porcentajeComision}% = {contratoSeleccionado.Comision}€");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ContratosAlarmas] Error calculando comisión: {ex.Message}");
             contratoSeleccionado.Comision = comisionTarifa;
         }
     }
@@ -3109,8 +3157,8 @@ else
         }
     }
 
-    private void AbrirMaestroCodigosPostales()
+    private async Task AbrirMaestroCodigosPostales()
     {
-        Navigation.NavigateTo("/administracion/codigos-postales");
+        await JS.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
     }
 }

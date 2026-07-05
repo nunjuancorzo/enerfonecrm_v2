@@ -1444,6 +1444,9 @@
 
     private async Task HandleSubmit()
     {
+        Console.WriteLine("[ModalEditarUsuario] ===== HandleSubmit EJECUTADO =====");
+        Console.WriteLine($"[ModalEditarUsuario] Usuario: {usuario?.NombreUsuario}, ID: {usuario?.Id}");
+        
         // Convertir comisionTexto a decimal
         if (string.IsNullOrWhiteSpace(comisionTexto))
         {
@@ -1534,6 +1537,11 @@
         {
             Console.WriteLine($"[JERARQUÍA] Director Comercial {usuario.Id} - {jefesVentasSeleccionados.Count} jefes, {gestoresSeleccionados.Count} gestores y {colaboradoresSeleccionados.Count} colaboradores seleccionados");
         }
+        
+        Console.WriteLine("[ModalEditarUsuario] ===== INVOCANDO OnGuardar =====");
+        Console.WriteLine($"[ModalEditarUsuario] Comercializadoras: {comercializadorasSeleccionadas.Count}, Comisiones: {comisionesComercializadoras.Count}");
+        Console.WriteLine($"[ModalEditarUsuario] Operadoras: {operadorasSeleccionadas.Count}, Comisiones: {comisionesOperadoras.Count}");
+        Console.WriteLine($"[ModalEditarUsuario] Empresas Alarmas: {empresasAlarmasSeleccionadas.Count}, Comisiones: {comisionesEmpresasAlarmas.Count}");
         
         // Invocar OnGuardar con todos los datos necesarios
         await OnGuardar.InvokeAsync((

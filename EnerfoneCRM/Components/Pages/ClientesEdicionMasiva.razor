@@ -1,0 +1,1137 @@
+@page "/clientes/edicion-masiva"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@rendermode InteractiveServer
+@inject ClienteService ClienteService
+@inject UsuarioService UsuarioService
+@inject AuthService AuthService
+@inject DbContextProvider DbContextProvider
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Edición Masiva de Clientes - CorCRM</PageTitle>
+
+@if (AuthService.UsuarioActual?.Rol != "Administrador")
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes permisos para acceder a esta sección.
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid p-4">
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2><i class="bi bi-table me-2"></i>Edición Masiva de Clientes</h2>
+                    <p class="text-muted mb-0">Edita múltiples clientes de forma simultánea. Puedes copiar y pegar desde Excel.</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-secondary" @onclick="CargarClientes" disabled="@guardando">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Recargar
+                </button>
+                <button class="btn btn-info" @onclick="CopiarFilasSeleccionadas" disabled="@(filasSeleccionadas.Count == 0)">
+                    <i class="bi bi-copy me-2"></i>Copiar (@filasSeleccionadas.Count)
+                </button>
+                <button class="btn btn-warning" @onclick="PegarFilas">
+                    <i class="bi bi-clipboard-plus me-2"></i>Pegar
+                </button>
+                <button class="btn btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                    <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                </button>
+                <button class="btn btn-primary" @onclick="GuardarCambios" disabled="@guardando">
+                    @if (guardando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    <i class="bi bi-save me-2"></i>Guardar Cambios
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (erroresValidacion.Any())
+        {
+            <div class="alert alert-warning alert-dismissible fade show">
+                <strong>Errores de validación:</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach (var error in erroresValidacion.Take(10))
+                    {
+                        <li><small>@error</small></li>
+                    }
+                    @if (erroresValidacion.Count > 10)
+                    {
+                        <li><small><em>... y @(erroresValidacion.Count - 10) errores más</em></small></li>
+                    }
+                </ul>
+                <button type="button" class="btn-close" @onclick="() => erroresValidacion.Clear()"></button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-3 text-muted">Cargando clientes...</p>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="clientesTable" style="table-layout: fixed; width: 100%; min-width: 6000px;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 60px;">
+                                        <input type="checkbox" @onchange="ToggleSeleccionarTodas" />
+                                    </th>
+                                    <th style="width: 100px;">Acciones</th>
+                                    <th style="width: 120px;">ID</th>
+                                    <th style="width: 200px;">Tipo Cliente*</th>
+                                    <th style="width: 250px;">Nombre*</th>
+                                    <th style="width: 200px;">DNI/CIF</th>
+                                    <th style="width: 300px;">Email</th>
+                                    <th style="width: 180px;">Teléfono</th>
+                                    <th style="width: 250px;">Empresa</th>
+                                    <th style="width: 200px;">CIF Empresa</th>
+                                    <th style="width: 180px;">Tipo Vía</th>
+                                    <th style="width: 350px;">Dirección</th>
+                                    <th style="width: 120px;">Número</th>
+                                    <th style="width: 120px;">Escalera</th>
+                                    <th style="width: 120px;">Piso</th>
+                                    <th style="width: 120px;">Puerta</th>
+                                    <th style="width: 250px;">Aclarador</th>
+                                    <th style="width: 200px;">Población</th>
+                                    <th style="width: 200px;">Ciudad</th>
+                                    <th style="width: 200px;">Provincia</th>
+                                    <th style="width: 150px;">CP</th>
+                                    <th style="width: 180px;">País</th>
+                                    <th style="width: 350px;">IBAN</th>
+                                    <th style="width: 250px;">Representante</th>
+                                    <th style="width: 200px;">DNI Representante</th>
+                                    <th style="width: 150px;">CNAE</th>
+                                    <th style="width: 220px;">Procedencia</th>
+                                    <th style="width: 150px;">ID Usuario</th>
+                                    <th style="width: 400px;">Observaciones</th>
+                                    <th style="width: 450px;">Copia Recibo Bancario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (cliente, index) in clientes.Select((c, i) => (c, i)))
+                                {
+                                    <tr data-row-index="@index" class="@(filasSeleccionadas.Contains(index) ? "row-selected" : "")">
+                                        <td class="text-center">
+                                            <input type="checkbox" checked="@filasSeleccionadas.Contains(index)" @onchange="() => ToggleSeleccionFila(index)" />
+                                        </td>
+                                        <td class="text-center">
+                                            @if (cliente.Id == 0)
+                                            {
+                                                <button class="btn btn-sm btn-danger" @onclick="() => EliminarFila(index)" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                        <td class="bg-light text-muted">
+                                            @if (cliente.Id > 0)
+                                            {
+                                                @cliente.Id
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Nuevo</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <select class="form-control form-control-sm" @bind="cliente.TipoCliente">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="Particular">Particular</option>
+                                                <option value="Pyme">Pyme</option>
+                                                <option value="Autonomo">Autónomo</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Nombre" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Nombre"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.DniCif" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "DniCif"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="email" class="form-control form-control-sm" @bind="cliente.Email" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Email"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Telefono" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Telefono"))" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Empresa" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Empresa"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Cif" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Cif"))" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.TipoVia" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "TipoVia"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Direccion" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Direccion"))" maxlength="500" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Numero" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Numero"))" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Escalera" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Escalera"))" maxlength="10" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Piso" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Piso"))" maxlength="10" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Puerta" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Puerta"))" maxlength="10" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Aclarador" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Aclarador"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Poblacion" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Poblacion"))" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Ciudad" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Ciudad"))" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Provincia" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Provincia"))" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.CodigoPostal" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "CodigoPostal"))" maxlength="10" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Pais" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Pais"))" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Iban" 
+                                                   @oninput="@((e) => OnIbanInput(e, cliente))"
+                                                   @onpaste="@((e) => OnPaste(e, index, "Iban"))" maxlength="24" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Representante" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Representante"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Dni" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Dni"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.Cnae" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Cnae"))" maxlength="10" />
+                                        </td>
+                                        <td>
+                                            <select class="form-control form-control-sm" @bind="cliente.Procedencia">
+                                                <option value="">-- Seleccionar --</option>
+                                                <option value="BASE DE DATOS">BASE DE DATOS</option>
+                                                <option value="RRSS">RRSS</option>
+                                                <option value="REFERIDOS">REFERIDOS</option>
+                                                <option value="RENOVACIÓN">RENOVACIÓN</option>
+                                                <option value="RETENCION">RETENCION</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="cliente.IdUsuario" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "IdUsuario"))" min="1" />
+                                        </td>
+                                        <td>
+                                            <textarea class="form-control form-control-sm" @bind="cliente.Observaciones" 
+                                                      @onpaste="@((e) => OnPaste(e, index, "Observaciones"))" rows="1"></textarea>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="cliente.CopiaReciboBancario" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "CopiaReciboBancario"))" maxlength="500" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Total de registros: <strong>@clientes.Count</strong> 
+                            (@clientes.Count(c => c.Id == 0) nuevos, @clientes.Count(c => c.Id > 0) existentes)
+                        </span>
+                        <div>
+                            <span class="text-muted me-3">* Campos obligatorios</span>
+                            <button class="btn btn-sm btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                                <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-success mb-3">
+                <h6><i class="bi bi-check-circle me-2"></i>Cómo usar copiar/pegar:</h6>
+                <ol class="mb-0">
+                    <li><strong>Copiar filas:</strong> Marca los checkboxes → Clic en "Copiar" (incluye el ID)</li>
+                    <li><strong>Pegar para editar:</strong> Las filas con ID se actualizarán en lugar de duplicarse</li>
+                    <li><strong>Pegar sin ID:</strong> Crea nuevos registros (borra el ID en Excel para duplicar)</li>
+                    <li><strong>Filas editadas/nuevas:</strong> Aparecen al inicio de la lista para fácil localización</li>
+                </ol>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <h6><i class="bi bi-lightbulb me-2"></i>Consejos de uso:</h6>
+                <ul class="mb-0">
+                    <li><strong>Pegar en celdas:</strong> Copia desde Excel y pega directamente en campos individuales</li>
+                    <li><strong>Pegar filas completas:</strong> Usa <kbd>Ctrl</kbd>+<kbd>V</kbd> o el botón "Pegar" para añadir filas nuevas</li>
+                    <li>Los campos marcados con * son obligatorios</li>
+                    <li>El campo ID no es editable para registros existentes</li>
+                    <li>Añade nuevas filas vacías con el botón "Añadir Fila"</li>
+                    <li>Guarda todos los cambios cuando termines de editar</li>
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Cliente> clientes = new();
+    private bool cargando = false;
+    private bool guardando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private List<string> erroresValidacion = new();
+    private DotNetObjectReference<ClientesEdicionMasiva>? dotnetReference;
+    
+    // Variables para copiar/pegar
+    private HashSet<int> filasSeleccionadas = new();
+    private List<Cliente> filasCopia = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientes();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotnetReference = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotnetReference);
+        }
+    }
+    
+    public void Dispose()
+    {
+        dotnetReference?.Dispose();
+    }
+    
+    [JSInvokable]
+    public async Task PasteRowsFromJS(List<List<string>> rowsData)
+    {
+        try
+        {
+            if (rowsData == null || rowsData.Count == 0) return;
+            
+            // El orden de campos en la tabla (ahora con ID como primera columna):
+            // ID, TipoCliente, Nombre, DniCif, Email, Telefono, Empresa, Cif, TipoVia, Direccion,
+            // Numero, Escalera, Piso, Puerta, Aclarador, Poblacion, Ciudad, Provincia, CodigoPostal, Pais,
+            // Iban, Representante, Dni, Cnae, Procedencia, IdUsuario, Observaciones, CopiaReciboBancario
+            
+            int filasCreadas = 0;
+            int filasActualizadas = 0;
+            var clientesNuevos = new List<Cliente>();
+            var clientesActualizados = new List<(Cliente cliente, int indiceOriginal)>();
+            
+            foreach (var rowData in rowsData)
+            {
+                // Leer el ID de la primera columna
+                int idCliente = 0;
+                if (rowData.Count > 0 && int.TryParse(rowData[0], out int parsedId))
+                {
+                    idCliente = parsedId;
+                }
+
+                var cliente = new Cliente
+                {
+                    Id = idCliente,
+                    Pais = "España",
+                    FechaAlta = DateTime.Now,
+                    IdUsuario = AuthService.UsuarioActual?.Id
+                };
+                
+                // Mapear datos según el índice (todos desplazados +1 por el ID)
+                if (rowData.Count > 1 && !string.IsNullOrWhiteSpace(rowData[1])) cliente.TipoCliente = rowData[1];
+                if (rowData.Count > 2 && !string.IsNullOrWhiteSpace(rowData[2])) cliente.Nombre = rowData[2];
+                if (rowData.Count > 3 && !string.IsNullOrWhiteSpace(rowData[3])) cliente.DniCif = rowData[3];
+                if (rowData.Count > 4 && !string.IsNullOrWhiteSpace(rowData[4])) cliente.Email = rowData[4];
+                if (rowData.Count > 5 && !string.IsNullOrWhiteSpace(rowData[5])) cliente.Telefono = rowData[5];
+                if (rowData.Count > 6 && !string.IsNullOrWhiteSpace(rowData[6])) cliente.Empresa = rowData[6];
+                if (rowData.Count > 7 && !string.IsNullOrWhiteSpace(rowData[7])) cliente.Cif = rowData[7];
+                if (rowData.Count > 8 && !string.IsNullOrWhiteSpace(rowData[8])) cliente.TipoVia = rowData[8];
+                if (rowData.Count > 9 && !string.IsNullOrWhiteSpace(rowData[9])) cliente.Direccion = rowData[9];
+                if (rowData.Count > 10 && !string.IsNullOrWhiteSpace(rowData[10])) cliente.Numero = rowData[10];
+                if (rowData.Count > 11 && !string.IsNullOrWhiteSpace(rowData[11])) cliente.Escalera = rowData[11];
+                if (rowData.Count > 12 && !string.IsNullOrWhiteSpace(rowData[12])) cliente.Piso = rowData[12];
+                if (rowData.Count > 13 && !string.IsNullOrWhiteSpace(rowData[13])) cliente.Puerta = rowData[13];
+                if (rowData.Count > 14 && !string.IsNullOrWhiteSpace(rowData[14])) cliente.Aclarador = rowData[14];
+                if (rowData.Count > 15 && !string.IsNullOrWhiteSpace(rowData[15])) cliente.Poblacion = rowData[15];
+                if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16])) cliente.Ciudad = rowData[16];
+                if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17])) cliente.Provincia = rowData[17];
+                if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18])) cliente.CodigoPostal = rowData[18];
+                if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) cliente.Pais = rowData[19];
+                if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20])) cliente.Iban = rowData[20];
+                if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) cliente.Representante = rowData[21];
+                if (rowData.Count > 22 && !string.IsNullOrWhiteSpace(rowData[22])) cliente.Dni = rowData[22];
+                if (rowData.Count > 23 && !string.IsNullOrWhiteSpace(rowData[23])) cliente.Cnae = rowData[23];
+                if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24])) cliente.Procedencia = rowData[24];
+                if (rowData.Count > 25 && !string.IsNullOrWhiteSpace(rowData[25]))
+                {
+                    if (int.TryParse(rowData[25], out int idUsuario))
+                        cliente.IdUsuario = idUsuario;
+                }
+                if (rowData.Count > 26 && !string.IsNullOrWhiteSpace(rowData[26])) cliente.Observaciones = rowData[26];
+                if (rowData.Count > 27 && !string.IsNullOrWhiteSpace(rowData[27])) cliente.CopiaReciboBancario = rowData[27];
+                
+                // Si tiene ID válido, buscar y actualizar el existente
+                if (idCliente > 0)
+                {
+                    var indiceExistente = clientes.FindIndex(c => c.Id == idCliente);
+                    if (indiceExistente >= 0)
+                    {
+                        // Actualizar el cliente existente
+                        var clienteExistente = clientes[indiceExistente];
+                        clienteExistente.TipoCliente = cliente.TipoCliente;
+                        clienteExistente.Nombre = cliente.Nombre;
+                        clienteExistente.DniCif = cliente.DniCif;
+                        clienteExistente.Email = cliente.Email;
+                        clienteExistente.Telefono = cliente.Telefono;
+                        clienteExistente.Empresa = cliente.Empresa;
+                        clienteExistente.Cif = cliente.Cif;
+                        clienteExistente.TipoVia = cliente.TipoVia;
+                        clienteExistente.Direccion = cliente.Direccion;
+                        clienteExistente.Numero = cliente.Numero;
+                        clienteExistente.Escalera = cliente.Escalera;
+                        clienteExistente.Piso = cliente.Piso;
+                        clienteExistente.Puerta = cliente.Puerta;
+                        clienteExistente.Aclarador = cliente.Aclarador;
+                        clienteExistente.Poblacion = cliente.Poblacion;
+                        clienteExistente.Ciudad = cliente.Ciudad;
+                        clienteExistente.Provincia = cliente.Provincia;
+                        clienteExistente.CodigoPostal = cliente.CodigoPostal;
+                        clienteExistente.Pais = cliente.Pais;
+                        clienteExistente.Iban = cliente.Iban;
+                        clienteExistente.Representante = cliente.Representante;
+                        clienteExistente.Dni = cliente.Dni;
+                        clienteExistente.Cnae = cliente.Cnae;
+                        clienteExistente.Procedencia = cliente.Procedencia;
+                        clienteExistente.IdUsuario = cliente.IdUsuario;
+                        clienteExistente.Observaciones = cliente.Observaciones;
+                        clienteExistente.CopiaReciboBancario = cliente.CopiaReciboBancario;
+                        
+                        clientesActualizados.Add((clienteExistente, indiceExistente));
+                        filasActualizadas++;
+                    }
+                    else
+                    {
+                        // ID no encontrado, agregar como nuevo
+                        clientesNuevos.Add(cliente);
+                        filasCreadas++;
+                    }
+                }
+                else
+                {
+                    // Sin ID, agregar como nuevo
+                    cliente.Id = 0;
+                    clientesNuevos.Add(cliente);
+                    filasCreadas++;
+                }
+            }
+            
+            // Mover clientes actualizados al inicio
+            if (clientesActualizados.Any())
+            {
+                foreach (var (cliente, indice) in clientesActualizados.OrderByDescending(x => x.indiceOriginal))
+                {
+                    clientes.RemoveAt(indice);
+                }
+                clientesActualizados.Reverse();
+                foreach (var (cliente, _) in clientesActualizados)
+                {
+                    clientes.Insert(0, cliente);
+                }
+            }
+            
+            // Insertar todas las filas nuevas al inicio
+            if (clientesNuevos.Any())
+            {
+                clientesNuevos.Reverse();
+                foreach (var cliente in clientesNuevos)
+                {
+                    clientes.Insert(0, cliente);
+                }
+            }
+            
+            if (filasCreadas > 0 || filasActualizadas > 0)
+            {
+                var mensajes = new List<string>();
+                if (filasCreadas > 0) mensajes.Add($"{filasCreadas} nueva(s)");
+                if (filasActualizadas > 0) mensajes.Add($"{filasActualizadas} actualizada(s)");
+                
+                mensajeExito = $"✓ {string.Join(" y ", mensajes)} fila(s) al inicio. No olvides guardar.";
+            }
+            
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al pegar filas: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task CargarClientes()
+    {
+        try
+        {
+            cargando = true;
+            mensajeExito = string.Empty;
+            mensajeError = string.Empty;
+            erroresValidacion.Clear();
+
+            var todosLosClientes = await ClienteService.ObtenerTodosAsync();
+            clientes = todosLosClientes.OrderByDescending(c => c.Id).ToList();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar clientes: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AgregarNuevaFila()
+    {
+        var nuevoCliente = new Cliente
+        {
+            Id = 0,
+            TipoCliente = "Particular",
+            Pais = "España",
+            FechaAlta = DateTime.Now,
+            IdUsuario = AuthService.UsuarioActual?.Id
+        };
+        clientes.Insert(0, nuevoCliente);
+    }
+
+    private void EliminarFila(int index)
+    {
+        if (index >= 0 && index < clientes.Count)
+        {
+            clientes.RemoveAt(index);
+        }
+    }
+
+    private void ToggleSeleccionFila(int index)
+    {
+        if (filasSeleccionadas.Contains(index))
+        {
+            filasSeleccionadas.Remove(index);
+        }
+        else
+        {
+            filasSeleccionadas.Add(index);
+        }
+    }
+
+    private void ToggleSeleccionarTodas(ChangeEventArgs e)
+    {
+        if ((bool?)e.Value == true)
+        {
+            filasSeleccionadas = Enumerable.Range(0, clientes.Count).ToHashSet();
+        }
+        else
+        {
+            filasSeleccionadas.Clear();
+        }
+    }
+
+    private async Task CopiarFilasSeleccionadas()
+    {
+        filasCopia.Clear();
+        var datosParaPortapapeles = new List<string>();
+        
+        foreach (var index in filasSeleccionadas.OrderBy(x => x))
+        {
+            if (index >= 0 && index < clientes.Count)
+            {
+                var clienteOriginal = clientes[index];
+                
+                // Crear una copia del cliente
+                var copia = new Cliente
+                {
+                    Id = clienteOriginal.Id, // Incluir el ID para permitir edición al pegar
+                    TipoCliente = clienteOriginal.TipoCliente,
+                    Nombre = clienteOriginal.Nombre,
+                    DniCif = clienteOriginal.DniCif,
+                    Email = clienteOriginal.Email,
+                    Telefono = clienteOriginal.Telefono,
+                    Empresa = clienteOriginal.Empresa,
+                    Cif = clienteOriginal.Cif,
+                    TipoVia = clienteOriginal.TipoVia,
+                    Direccion = clienteOriginal.Direccion,
+                    Numero = clienteOriginal.Numero,
+                    Escalera = clienteOriginal.Escalera,
+                    Piso = clienteOriginal.Piso,
+                    Puerta = clienteOriginal.Puerta,
+                    Aclarador = clienteOriginal.Aclarador,
+                    Poblacion = clienteOriginal.Poblacion,
+                    Ciudad = clienteOriginal.Ciudad,
+                    Provincia = clienteOriginal.Provincia,
+                    CodigoPostal = clienteOriginal.CodigoPostal,
+                    Pais = clienteOriginal.Pais,
+                    Iban = clienteOriginal.Iban,
+                    Representante = clienteOriginal.Representante,
+                    Dni = clienteOriginal.Dni,
+                    Cnae = clienteOriginal.Cnae,
+                    Procedencia = clienteOriginal.Procedencia,
+                    IdUsuario = clienteOriginal.IdUsuario,
+                    Observaciones = clienteOriginal.Observaciones,
+                    CopiaReciboBancario = clienteOriginal.CopiaReciboBancario
+                };
+                filasCopia.Add(copia);
+                
+                // Construir fila en formato TSV para portapapeles (compatible con Excel)
+                // IMPORTANTE: Incluir ID como primera columna para permitir edición al pegar
+                var fila = string.Join("\t",
+                    clienteOriginal.Id.ToString(), // ID como primera columna
+                    clienteOriginal.TipoCliente ?? "",
+                    clienteOriginal.Nombre ?? "",
+                    clienteOriginal.DniCif ?? "",
+                    clienteOriginal.Email ?? "",
+                    clienteOriginal.Telefono ?? "",
+                    clienteOriginal.Empresa ?? "",
+                    clienteOriginal.Cif ?? "",
+                    clienteOriginal.TipoVia ?? "",
+                    clienteOriginal.Direccion ?? "",
+                    clienteOriginal.Numero ?? "",
+                    clienteOriginal.Escalera ?? "",
+                    clienteOriginal.Piso ?? "",
+                    clienteOriginal.Puerta ?? "",
+                    clienteOriginal.Aclarador ?? "",
+                    clienteOriginal.Poblacion ?? "",
+                    clienteOriginal.Ciudad ?? "",
+                    clienteOriginal.Provincia ?? "",
+                    clienteOriginal.CodigoPostal ?? "",
+                    clienteOriginal.Pais ?? "",
+                    clienteOriginal.Iban ?? "",
+                    clienteOriginal.Representante ?? "",
+                    clienteOriginal.Dni ?? "",
+                    clienteOriginal.Cnae ?? "",
+                    clienteOriginal.Procedencia ?? "",
+                    clienteOriginal.IdUsuario?.ToString() ?? "",
+                    clienteOriginal.Observaciones ?? "",
+                    clienteOriginal.CopiaReciboBancario ?? ""
+                );
+                datosParaPortapapeles.Add(fila);
+            }
+        }
+        
+        // Copiar al portapapeles del sistema en formato TSV con cabeceras
+        if (datosParaPortapapeles.Any())
+        {
+            // Agregar línea de cabeceras (ID como primera columna)
+            var cabeceras = string.Join("\t",
+                "ID", "TipoCliente", "Nombre", "DniCif", "Email", "Telefono",
+                "Empresa", "Cif", "TipoVia", "Direccion", "Numero", "Escalera",
+                "Piso", "Puerta", "Aclarador", "Poblacion", "Ciudad", "Provincia",
+                "CodigoPostal", "Pais", "Iban", "Representante", "Dni", "Cnae",
+                "Procedencia", "IdUsuario", "Observaciones", "CopiaReciboBancario"
+            );
+            
+            var textoConCabeceras = cabeceras + "\n" + string.Join("\n", datosParaPortapapeles);
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", textoConCabeceras);
+            mensajeExito = $"✓ {filasCopia.Count} fila(s) copiada(s) con ID. Al pegar, los registros con ID se actualizarán, sin ID se crearán como nuevos.";
+        }
+        else
+        {
+            mensajeExito = "No hay filas seleccionadas para copiar.";
+        }
+        
+        StateHasChanged(); // Forzar actualización de UI
+    }
+
+    private async Task PegarFilas()
+    {
+        try
+        {
+            // Leer el contenido del portapapeles
+            var textoPortapapeles = await JSRuntime.InvokeAsync<string>("navigator.clipboard.readText");
+            
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                mensajeError = "El portapapeles está vacío.";
+                return;
+            }
+
+            // Procesar el texto del portapapeles (formato TSV)
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al leer del portapapeles: {ex.Message}";
+        }
+    }
+
+    [JSInvokable]
+    public async Task PegarDesdePortapapeles(string textoPortapapeles)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                return;
+            }
+
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al pegar: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcesarYAgregarFilas(string textoPortapapeles)
+    {
+        var lineas = textoPortapapeles.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        int filasCreadas = 0;
+        int filasActualizadas = 0;
+        var clientesNuevos = new List<Cliente>();
+        var clientesActualizados = new List<(Cliente cliente, int indiceOriginal)>();
+        
+        foreach (var linea in lineas)
+        {
+            var columnas = linea.Split('\t');
+            
+            // Omitir línea de cabeceras si existe (detecta si la primera columna dice "ID")
+            if (columnas.Length > 0 && (columnas[0].Trim().Equals("ID", StringComparison.OrdinalIgnoreCase) || 
+                                        columnas[0].Trim().Equals("TipoCliente", StringComparison.OrdinalIgnoreCase)))
+                continue;
+            
+            // Verificar que tengamos al menos las columnas mínimas
+            if (columnas.Length < 2)
+                continue;
+
+            // Leer el ID de la primera columna
+            int idCliente = 0;
+            if (columnas.Length > 0 && int.TryParse(columnas[0].Trim(), out int parsedId))
+            {
+                idCliente = parsedId;
+            }
+
+            // Crear objeto cliente con los datos
+            var cliente = new Cliente
+            {
+                Id = idCliente,
+                TipoCliente = columnas.Length > 1 ? columnas[1].Trim() : "",
+                Nombre = columnas.Length > 2 ? columnas[2].Trim() : "",
+                DniCif = columnas.Length > 3 ? columnas[3].Trim() : "",
+                Email = columnas.Length > 4 ? columnas[4].Trim() : "",
+                Telefono = columnas.Length > 5 ? columnas[5].Trim() : "",
+                Empresa = columnas.Length > 6 ? columnas[6].Trim() : "",
+                Cif = columnas.Length > 7 ? columnas[7].Trim() : "",
+                TipoVia = columnas.Length > 8 ? columnas[8].Trim() : "",
+                Direccion = columnas.Length > 9 ? columnas[9].Trim() : "",
+                Numero = columnas.Length > 10 ? columnas[10].Trim() : "",
+                Escalera = columnas.Length > 11 ? columnas[11].Trim() : "",
+                Piso = columnas.Length > 12 ? columnas[12].Trim() : "",
+                Puerta = columnas.Length > 13 ? columnas[13].Trim() : "",
+                Aclarador = columnas.Length > 14 ? columnas[14].Trim() : "",
+                Poblacion = columnas.Length > 15 ? columnas[15].Trim() : "",
+                Ciudad = columnas.Length > 16 ? columnas[16].Trim() : "",
+                Provincia = columnas.Length > 17 ? columnas[17].Trim() : "",
+                CodigoPostal = columnas.Length > 18 ? columnas[18].Trim() : "",
+                Pais = columnas.Length > 19 ? columnas[19].Trim() : "España",
+                Iban = columnas.Length > 20 ? columnas[20].Trim() : "",
+                Representante = columnas.Length > 21 ? columnas[21].Trim() : "",
+                Dni = columnas.Length > 22 ? columnas[22].Trim() : "",
+                Cnae = columnas.Length > 23 ? columnas[23].Trim() : "",
+                Procedencia = columnas.Length > 24 ? columnas[24].Trim() : "",
+                IdUsuario = columnas.Length > 25 && int.TryParse(columnas[25].Trim(), out int idUsuario) ? idUsuario : null,
+                Observaciones = columnas.Length > 26 ? columnas[26].Trim() : "",
+                CopiaReciboBancario = columnas.Length > 27 ? columnas[27].Trim() : ""
+            };
+
+            // Si tiene ID válido, buscar y actualizar el existente
+            if (idCliente > 0)
+            {
+                var indiceExistente = clientes.FindIndex(c => c.Id == idCliente);
+                if (indiceExistente >= 0)
+                {
+                    // Actualizar el cliente existente con los nuevos datos
+                    var clienteExistente = clientes[indiceExistente];
+                    clienteExistente.TipoCliente = cliente.TipoCliente;
+                    clienteExistente.Nombre = cliente.Nombre;
+                    clienteExistente.DniCif = cliente.DniCif;
+                    clienteExistente.Email = cliente.Email;
+                    clienteExistente.Telefono = cliente.Telefono;
+                    clienteExistente.Empresa = cliente.Empresa;
+                    clienteExistente.Cif = cliente.Cif;
+                    clienteExistente.TipoVia = cliente.TipoVia;
+                    clienteExistente.Direccion = cliente.Direccion;
+                    clienteExistente.Numero = cliente.Numero;
+                    clienteExistente.Escalera = cliente.Escalera;
+                    clienteExistente.Piso = cliente.Piso;
+                    clienteExistente.Puerta = cliente.Puerta;
+                    clienteExistente.Aclarador = cliente.Aclarador;
+                    clienteExistente.Poblacion = cliente.Poblacion;
+                    clienteExistente.Ciudad = cliente.Ciudad;
+                    clienteExistente.Provincia = cliente.Provincia;
+                    clienteExistente.CodigoPostal = cliente.CodigoPostal;
+                    clienteExistente.Pais = cliente.Pais;
+                    clienteExistente.Iban = cliente.Iban;
+                    clienteExistente.Representante = cliente.Representante;
+                    clienteExistente.Dni = cliente.Dni;
+                    clienteExistente.Cnae = cliente.Cnae;
+                    clienteExistente.Procedencia = cliente.Procedencia;
+                    clienteExistente.IdUsuario = cliente.IdUsuario;
+                    clienteExistente.Observaciones = cliente.Observaciones;
+                    clienteExistente.CopiaReciboBancario = cliente.CopiaReciboBancario;
+                    
+                    clientesActualizados.Add((clienteExistente, indiceExistente));
+                    filasActualizadas++;
+                }
+                else
+                {
+                    // ID no encontrado, agregar como nuevo
+                    clientesNuevos.Add(cliente);
+                    filasCreadas++;
+                }
+            }
+            else
+            {
+                // Sin ID, agregar como nuevo
+                cliente.Id = 0;
+                clientesNuevos.Add(cliente);
+                filasCreadas++;
+            }
+        }
+        
+        // Mover clientes actualizados al inicio
+        if (clientesActualizados.Any())
+        {
+            // Ordenar por índice descendente para eliminarlos correctamente
+            foreach (var (cliente, indice) in clientesActualizados.OrderByDescending(x => x.indiceOriginal))
+            {
+                clientes.RemoveAt(indice);
+            }
+            // Insertar todos los actualizados al inicio
+            clientesActualizados.Reverse();
+            foreach (var (cliente, _) in clientesActualizados)
+            {
+                clientes.Insert(0, cliente);
+            }
+        }
+        
+        // Insertar todas las filas nuevas al inicio de la lista
+        if (clientesNuevos.Any())
+        {
+            clientesNuevos.Reverse(); // Revertir para que mantengan el orden al insertar
+            foreach (var cliente in clientesNuevos)
+            {
+                clientes.Insert(0, cliente);
+            }
+        }
+        
+        if (filasCreadas > 0 || filasActualizadas > 0)
+        {
+            var mensajes = new List<string>();
+            if (filasCreadas > 0) mensajes.Add($"{filasCreadas} nueva(s)");
+            if (filasActualizadas > 0) mensajes.Add($"{filasActualizadas} actualizada(s)");
+            
+            mensajeExito = $"✓ {string.Join(" y ", mensajes)} fila(s) al inicio de la lista. No olvides guardar.";
+            filasSeleccionadas.Clear();
+        }
+        else
+        {
+            mensajeError = "No se pudieron procesar las filas del portapapeles.";
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task GuardarCambios()
+    {
+        try
+        {
+            guardando = true;
+            erroresValidacion.Clear();
+            mensajeExito = string.Empty;
+            mensajeError = string.Empty;
+
+            // Validar todos los clientes
+            if (!await ValidarClientesAsync())
+            {
+                mensajeError = "Por favor, corrige los errores de validación antes de guardar.";
+                return;
+            }
+
+            int creados = 0;
+            int actualizados = 0;
+            int errores = 0;
+
+            foreach (var cliente in clientes)
+            {
+                try
+                {
+                    // Limpiar IBAN antes de guardar
+                    if (!string.IsNullOrEmpty(cliente.Iban))
+                    {
+                        cliente.Iban = cliente.Iban.Replace(" ", "");
+                        if (cliente.Iban.Length > 24)
+                        {
+                            cliente.Iban = cliente.Iban.Substring(0, 24);
+                        }
+                    }
+
+                    // Asignar usuario actual si no tiene
+                    if (cliente.IdUsuario == null || cliente.IdUsuario == 0)
+                    {
+                        cliente.IdUsuario = AuthService.UsuarioActual?.Id;
+                    }
+
+                    // Asignar fecha de alta si es nuevo
+                    if (cliente.Id == 0 && cliente.FechaAlta == null)
+                    {
+                        cliente.FechaAlta = DateTime.Now;
+                    }
+
+                    if (cliente.Id == 0)
+                    {
+                        var (exito, mensaje) = await ClienteService.CrearAsync(cliente);
+                        if (exito)
+                        {
+                            creados++;
+                        }
+                        else
+                        {
+                            errores++;
+                            erroresValidacion.Add($"Error en cliente nuevo: {mensaje}");
+                        }
+                    }
+                    else
+                    {
+                        var (exito, mensaje) = await ClienteService.ActualizarAsync(cliente);
+                        if (exito)
+                        {
+                            actualizados++;
+                        }
+                        else
+                        {
+                            errores++;
+                            erroresValidacion.Add($"Error en cliente {cliente.Id}: {mensaje}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errores++;
+                    erroresValidacion.Add($"Error en cliente {(cliente.Id > 0 ? cliente.Id.ToString() : "nuevo")}: {ex.Message}");
+                }
+            }
+
+            if (errores == 0)
+            {
+                mensajeExito = $"✓ Cambios guardados correctamente. Creados: {creados}, Actualizados: {actualizados}";
+                await CargarClientes(); // Recargar para obtener los IDs de los nuevos
+            }
+            else
+            {
+                mensajeError = $"Se guardaron algunos cambios pero hubo {errores} error(es). Creados: {creados}, Actualizados: {actualizados}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar cambios: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task<bool> ValidarClientesAsync()
+    {
+        bool esValido = true;
+        erroresValidacion.Clear();
+
+        // Verificar duplicados de DNI/CIF dentro de la lista
+        var dnisDuplicados = clientes
+            .Where(c => !string.IsNullOrWhiteSpace(c.DniCif))
+            .GroupBy(c => c.DniCif)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (dnisDuplicados.Any())
+        {
+            erroresValidacion.Add($"DNI/CIF duplicados en la lista: {string.Join(", ", dnisDuplicados)}");
+            esValido = false;
+        }
+
+        // Obtener todos los IDs de usuarios válidos
+        await using var context = DbContextProvider.CreateDbContext();
+        var usuariosValidos = await context.Usuarios.Select(u => u.Id).ToListAsync();
+
+        for (int i = 0; i < clientes.Count; i++)
+        {
+            var cliente = clientes[i];
+            var prefijo = $"Fila {i + 1}";
+
+            // Validación 1: Tipo de cliente obligatorio
+            if (string.IsNullOrWhiteSpace(cliente.TipoCliente))
+            {
+                erroresValidacion.Add($"{prefijo}: Tipo de cliente es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 2: Nombre obligatorio
+            if (string.IsNullOrWhiteSpace(cliente.Nombre))
+            {
+                erroresValidacion.Add($"{prefijo}: Nombre es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 3: ID Usuario debe existir si tiene valor
+            if (cliente.IdUsuario.HasValue && cliente.IdUsuario.Value > 0)
+            {
+                if (!usuariosValidos.Contains(cliente.IdUsuario.Value))
+                {
+                    erroresValidacion.Add($"{prefijo}: El ID Usuario {cliente.IdUsuario.Value} no existe");
+                    esValido = false;
+                }
+            }
+        }
+
+        return esValido;
+    }
+
+    private async Task OnPaste(ClipboardEventArgs e, int rowIndex, string fieldName)
+    {
+        // Esta función será mejorada con JavaScript para manejar pegado múltiple
+        // Por ahora solo maneja pegado simple
+    }
+
+    private void OnIbanInput(ChangeEventArgs e, Cliente cliente)
+    {
+        var value = e.Value?.ToString() ?? "";
+        // Eliminar espacios
+        value = value.Replace(" ", "");
+        // Limitar a 24 caracteres
+        if (value.Length > 24)
+        {
+            value = value.Substring(0, 24);
+        }
+        cliente.Iban = value;
+    }
+}
+
+<style>
+    .table-responsive {
+        border: 1px solid #dee2e6;
+    }
+
+    #clientesTable {
+        font-size: 0.875rem;
+    }
+
+    #clientesTable thead th {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 2px solid #dee2e6;
+        white-space: nowrap;
+    }
+
+    #clientesTable tbody tr {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    #clientesTable tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    #clientesTable tbody tr.row-selected {
+        background-color: #0d6efd !important;
+        color: white;
+    }
+
+    #clientesTable tbody tr.row-selected input,
+    #clientesTable tbody tr.row-selected select,
+    #clientesTable tbody tr.row-selected textarea {
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+
+    #clientesTable input,
+    #clientesTable select,
+    #clientesTable textarea {
+        min-width: 100%;
+        border: 1px solid #dee2e6;
+    }
+
+    #clientesTable input:focus,
+    #clientesTable select:focus,
+    #clientesTable textarea:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .form-control-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>

@@ -54,9 +54,24 @@ namespace EnerfoneCRM.Models
         [MaxLength(500)]
         public string? Direccion { get; set; }
 
+        [Column("codigo_postal")]
+        [MaxLength(10)]
+        public string? CodigoPostal { get; set; }
+
+        [Column("telefono")]
+        [MaxLength(20)]
+        public string? Telefono { get; set; }
+
         [Column("iban")]
         [MaxLength(100)]
         public string? Iban { get; set; }
+
+        [Column("horario_contratacion")]
+        [MaxLength(50)]
+        public string? HorarioContratacion { get; set; }
+
+        [Column("observaciones")]
+        public string? Observaciones { get; set; }
 
         [Column("comision")]
         public decimal? Comision { get; set; }
@@ -87,11 +102,11 @@ namespace EnerfoneCRM.Models
         public int? EnTarifaId { get; set; }
 
         [Column("en_CUPS")]
-        [MaxLength(255)]
+        [MaxLength(20)]
         public string? EnCups { get; set; }
 
         [Column("en_CUPSGas")]
-        [MaxLength(255)]
+        [MaxLength(20)]
         public string? EnCupsGas { get; set; }
 
         [Column("en_Servicios")]
@@ -576,6 +591,58 @@ namespace EnerfoneCRM.Models
         // Indicador de que el contrato ya está cargado en la plataforma de la comercializadora
         [Column("cargado_en_plataforma")]
         public bool CargadoEnPlataforma { get; set; } = false;
+
+        // Indicadores de ALTA NUEVA para líneas telefónicas (sin número previo)
+        [Column("alta_nueva_linea_principal")]
+        public bool AltaNuevaLineaPrincipal { get; set; } = false;
+
+        [Column("alta_nueva_linea_principal_2")]
+        public bool AltaNuevaLineaPrincipal2 { get; set; } = false;
+
+        [Column("alta_nueva_linea1_tel")]
+        public bool AltaNuevaLinea1Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea2_tel")]
+        public bool AltaNuevaLinea2Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea3_tel")]
+        public bool AltaNuevaLinea3Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea4_tel")]
+        public bool AltaNuevaLinea4Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea5_tel")]
+        public bool AltaNuevaLinea5Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea6_tel")]
+        public bool AltaNuevaLinea6Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea7_tel")]
+        public bool AltaNuevaLinea7Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea8_tel")]
+        public bool AltaNuevaLinea8Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea9_tel")]
+        public bool AltaNuevaLinea9Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea10_tel")]
+        public bool AltaNuevaLinea10Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea11_tel")]
+        public bool AltaNuevaLinea11Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea12_tel")]
+        public bool AltaNuevaLinea12Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea13_tel")]
+        public bool AltaNuevaLinea13Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea14_tel")]
+        public bool AltaNuevaLinea14Tel { get; set; } = false;
+
+        [Column("alta_nueva_linea15_tel")]
+        public bool AltaNuevaLinea15Tel { get; set; } = false;
 
         // PDF del contrato
         [Column("pdf_contrato_url")]

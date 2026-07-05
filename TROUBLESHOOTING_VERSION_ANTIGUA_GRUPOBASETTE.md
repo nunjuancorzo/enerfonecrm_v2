@@ -15,7 +15,7 @@ Ambas publicaciones locales son **IDÉNTICAS**:
 | `publicado` | `88c7e558711d24faa380a0fd14cb04c3` | 2026-06-03 16:37 | 3.0M |
 | `publicadogrupobasette` | `88c7e558711d24faa380a0fd14cb04c3` | 2026-06-03 17:05 | 3.0M |
 
-**Conclusión**: El problema NO es la compilación. Ambos DLLs contienen la versión 20260615 correctamente.
+**Conclusión**: El problema NO es la compilación. Ambos DLLs contienen la versión 20260705 correctamente.
 
 ---
 
@@ -193,7 +193,7 @@ Start-IISSite -Name "grupobasettecrm"
 2. Accede a https://crm.grupobasette.eu
 3. Verifica el footer
 
-¿Aparece "Versión 20260615"?
+¿Aparece "Versión 20260705"?
 
 - ✅ **SÍ** → El problema era caché. Ya está resuelto.
 - ❌ **NO** → Continúa al Paso 5.
@@ -252,7 +252,7 @@ icacls C:\grupobasettecrm /grant "IIS AppPool\grupobasettecrm:(OI)(CI)F" /T
 Después de aplicar la solución, verifica:
 
 1. **URL**: https://crm.grupobasette.eu
-2. **Footer**: Debe mostrar "**Versión 20260615**"
+2. **Footer**: Debe mostrar "**Versión 20260705**"
 3. **ID de usuario**: Debe aparecer en el modal de editar usuario
 4. **Logs**: La carpeta `C:\grupobasettecrm\logs` NO debe crecer
 

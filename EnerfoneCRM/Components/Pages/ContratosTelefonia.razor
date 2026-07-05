@@ -801,11 +801,11 @@ else
                                                     <label class="form-label fw-bold">Comercial</label>
                                                     @if (AuthService.UsuarioActual?.Rol == "Administrador")
                                                     {
-                                                        <select @bind="contratoSeleccionado.Comercial" class="form-select">
+                                                        <select @onchange="OnUsuarioComercialChanged" class="form-select">
                                                             <option value="">Seleccionar comercial...</option>
                                                             @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                                             {
-                                                                <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                                <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
                                                             }
                                                         </select>
                                                     }
@@ -969,7 +969,13 @@ else
                                                         <div class="card-body">
                                                             <div class="mb-3">
                                                                 <label class="form-label fw-bold">Línea Móvil Principal <span class="text-danger">*</span></label>
-                                                                <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal" class="form-control mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                                <div class="input-group mb-2">
+                                                                    <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal" class="form-control" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                                    <div class="input-group-text">
+                                                                        <InputCheckbox @bind-Value="contratoSeleccionado.AltaNuevaLineaPrincipal" disabled="@(!PuedeEditar())" class="form-check-input mt-0 me-2" />
+                                                                        <label class="form-check-label small mb-0" style="white-space: nowrap;">ALTA NUEVA</label>
+                                                                    </div>
+                                                                </div>
                                                                 
                                                                 <div class="row">
                                                                     <div class="col-md-6">
@@ -1015,7 +1021,13 @@ else
                                                                 <label class="form-label fw-bold">
                                                                     Segunda Línea Móvil Principal <small class="text-muted">(Opcional)</small>
                                                                 </label>
-                                                                <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal2" class="form-control mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                                <div class="input-group mb-2">
+                                                                    <InputText @bind-Value="contratoSeleccionado.LineaMovilPrincipal2" class="form-control" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                                    <div class="input-group-text">
+                                                                        <InputCheckbox @bind-Value="contratoSeleccionado.AltaNuevaLineaPrincipal2" disabled="@(!PuedeEditar())" class="form-check-input mt-0 me-2" />
+                                                                        <label class="form-check-label small mb-0" style="white-space: nowrap;">ALTA NUEVA</label>
+                                                                    </div>
+                                                                </div>
                                                                 
                                                                 @if (!string.IsNullOrWhiteSpace(contratoSeleccionado.LineaMovilPrincipal2))
                                                                 {
@@ -1106,6 +1118,7 @@ else
                                             var tarifa = ObtenerTarifaLinea(lineaIndex);
                                             var tipoLinea = ObtenerTipoLinea(lineaIndex);
                                             var codigoIcc = ObtenerCodigoIcc(lineaIndex);
+                                            var altaNueva = ObtenerAltaNuevaLinea(lineaIndex);
                                             
                                             @if (!string.IsNullOrEmpty(telefono) || (PuedeEditar() && lineaIndex <= numeroLineasActivas))
                                             {
@@ -1121,7 +1134,14 @@ else
                                                                     </button>
                                                                 }
                                                             </div>
-                                                            <InputText @bind-Value="@telefono" @bind-Value:after="() => ActualizarTelefonoLinea(lineaIndex, telefono)" class="form-control form-control-sm mb-2" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                            
+                                                            <div class="input-group mb-2">
+                                                                <input type="text" class="form-control form-control-sm" value="@telefono" @oninput="@((e) => ActualizarTelefonoLinea(lineaIndex, e.Value?.ToString()))" disabled="@(!PuedeEditar())" placeholder="Número de teléfono" />
+                                                                <div class="input-group-text">
+                                                                    <input type="checkbox" class="form-check-input mt-0 me-2" checked="@altaNueva" @onchange="@((ChangeEventArgs e) => ActualizarAltaNuevaLinea(lineaIndex, Convert.ToBoolean(e.Value)))" disabled="@(!PuedeEditar())" />
+                                                                    <label class="form-check-label small mb-0" style="white-space: nowrap;">ALTA NUEVA</label>
+                                                                </div>
+                                                            </div>
                                                             
                                                             @* Selector de tarifa móvil para líneas adicionales *@
                                                             @if (tarifasMovilSolo.Any())
@@ -1137,7 +1157,7 @@ else
                                                             }
                                                             else
                                                             {
-                                                                <InputText @bind-Value="@tarifa" @bind-Value:after="() => ActualizarTarifaLinea(lineaIndex, tarifa)" class="form-control form-control-sm mb-2" disabled="@(!PuedeEditar())" placeholder="Tarifa" />
+                                                                <input type="text" class="form-control form-control-sm mb-2" value="@tarifa" @oninput="@((e) => ActualizarTarifaLinea(lineaIndex, e.Value?.ToString()))" disabled="@(!PuedeEditar())" placeholder="Tarifa" />
                                                             }
                                                             
                                                             @* Tipo de línea y código ICC *@
@@ -1161,12 +1181,7 @@ else
                                                                                 <small class="text-info ms-1">(Requerido por @operadoraSeleccionada.Nombre)</small>
                                                                             }
                                                                         </label>
-                                                                        <InputText @bind-Value="@codigoIcc" 
-                                                                                  @bind-Value:after="() => ActualizarCodigoIcc(lineaIndex, codigoIcc)" 
-                                                                                  class="form-control form-control-sm" 
-                                                                                  disabled="@(!PuedeEditar())" 
-                                                                                  placeholder="89 34 XX..." 
-                                                                                  maxlength="19" />
+                                                                        <input type="text" class="form-control form-control-sm" value="@codigoIcc" @oninput="@((e) => ActualizarCodigoIcc(lineaIndex, e.Value?.ToString()))" disabled="@(!PuedeEditar())" placeholder="89 34 XX..." maxlength="19" />
                                                                         @if (!string.IsNullOrEmpty(codigoIcc) && codigoIcc.Length != 19)
                                                                         {
                                                                             <small class="text-danger d-block">Debe tener 19 dígitos</small>
@@ -1303,14 +1318,14 @@ else
                                                         <input type="text" class="form-control" list="codigosPostalesTelefonia" 
                                                                value="@contratoSeleccionado.CodigoPostalInstalacion"
                                                                @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
-                                                               placeholder="CP" maxlength="5" autocomplete="off" disabled="@(!PuedeEditar())" />
+                                                               placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" disabled="@(!PuedeEditar())" />
                                                         <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales" disabled="@(!PuedeEditar())">
                                                             <i class="bi bi-plus-circle"></i>
                                                         </button>
                                                         <datalist id="codigosPostalesTelefonia">
                                                             @foreach (var cp in codigosPostalesDisponibles)
                                                             {
-                                                                <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                                <option value="@cp.CodigoPostalValor">@cp.CodigoPostalValor - @cp.Ciudad (@cp.Provincia)</option>
                                                             }
                                                         </datalist>
                                                     </div>
@@ -2545,6 +2560,24 @@ else
             TarifaLinea15Tel = contrato.TarifaLinea15Tel,
             TipoLinea15Tel = contrato.TipoLinea15Tel,
             CodigoIccLinea15Tel = contrato.CodigoIccLinea15Tel,
+            // ALTA NUEVA - Indicadores de líneas sin número previo
+            AltaNuevaLineaPrincipal = contrato.AltaNuevaLineaPrincipal,
+            AltaNuevaLineaPrincipal2 = contrato.AltaNuevaLineaPrincipal2,
+            AltaNuevaLinea1Tel = contrato.AltaNuevaLinea1Tel,
+            AltaNuevaLinea2Tel = contrato.AltaNuevaLinea2Tel,
+            AltaNuevaLinea3Tel = contrato.AltaNuevaLinea3Tel,
+            AltaNuevaLinea4Tel = contrato.AltaNuevaLinea4Tel,
+            AltaNuevaLinea5Tel = contrato.AltaNuevaLinea5Tel,
+            AltaNuevaLinea6Tel = contrato.AltaNuevaLinea6Tel,
+            AltaNuevaLinea7Tel = contrato.AltaNuevaLinea7Tel,
+            AltaNuevaLinea8Tel = contrato.AltaNuevaLinea8Tel,
+            AltaNuevaLinea9Tel = contrato.AltaNuevaLinea9Tel,
+            AltaNuevaLinea10Tel = contrato.AltaNuevaLinea10Tel,
+            AltaNuevaLinea11Tel = contrato.AltaNuevaLinea11Tel,
+            AltaNuevaLinea12Tel = contrato.AltaNuevaLinea12Tel,
+            AltaNuevaLinea13Tel = contrato.AltaNuevaLinea13Tel,
+            AltaNuevaLinea14Tel = contrato.AltaNuevaLinea14Tel,
+            AltaNuevaLinea15Tel = contrato.AltaNuevaLinea15Tel,
             TipoViaInstalacion = contrato.TipoViaInstalacion,
             DireccionInstalacionAlarma = contrato.DireccionInstalacionAlarma,
             NumeroInstalacion = contrato.NumeroInstalacion,
@@ -2592,6 +2625,26 @@ else
         clienteSeleccionadoInfo = null;
         tieneFibraSegundaResidencia = false;
         tarifasFibraSegundaResidenciaDisponibles.Clear();
+    }
+
+    private void OnUsuarioComercialChanged(ChangeEventArgs e)
+    {
+        if (contratoSeleccionado == null || e.Value == null) return;
+        
+        if (int.TryParse(e.Value.ToString(), out int usuarioId) && usuarioId > 0)
+        {
+            var usuario = usuarios.FirstOrDefault(u => u.Id == usuarioId);
+            if (usuario != null)
+            {
+                contratoSeleccionado.UsuarioComercializadoraId = usuario.Id;
+                contratoSeleccionado.Comercial = usuario.NombreUsuario;
+            }
+        }
+        else
+        {
+            contratoSeleccionado.UsuarioComercializadoraId = null;
+            contratoSeleccionado.Comercial = string.Empty;
+        }
     }
 
     private async Task GuardarContrato()
@@ -3065,16 +3118,44 @@ else
             return;
         }
 
-        // Obtener el porcentaje de comisión del usuario asignado
-        var usuario = await UsuarioService.ObtenerPorIdAsync(contratoSeleccionado.UsuarioComercializadoraId.Value);
-        if (usuario != null && usuario.Comision > 0)
+        // Si no hay operadora seleccionada, no se puede calcular
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.OperadoraTel))
         {
-            // Calcular: comisionFinal = comisionTarifa * (porcentajeUsuario / 100)
-            contratoSeleccionado.Comision = comisionTarifa * (usuario.Comision / 100);
+            contratoSeleccionado.Comision = comisionTarifa;
+            return;
         }
-        else
+
+        try
         {
-            // Si el usuario no tiene porcentaje configurado, usar la comisión completa
+            // Obtener el ID de la operadora
+            var operadora = await OperadoraService.ObtenerPorNombreAsync(contratoSeleccionado.OperadoraTel);
+            if (operadora == null)
+            {
+                contratoSeleccionado.Comision = comisionTarifa;
+                return;
+            }
+
+            // Obtener el porcentaje de comisión del usuario para esta operadora
+            var comisionesUsuario = await UsuarioService.ObtenerComisionesProveedorAsync(
+                contratoSeleccionado.UsuarioComercializadoraId.Value,
+                "operadora"
+            );
+
+            if (!comisionesUsuario.TryGetValue(operadora.Id, out var porcentajeComision))
+            {
+                // Si no hay porcentaje específico configurado, usar comisión completa
+                contratoSeleccionado.Comision = comisionTarifa;
+                return;
+            }
+
+            // Calcular comisión final: comisionTarifa * (porcentajeComision / 100)
+            contratoSeleccionado.Comision = Math.Round(comisionTarifa * (porcentajeComision / 100), 2);
+            
+            Console.WriteLine($"[ContratosTelefonia] Comisión calculada: {comisionTarifa}€ × {porcentajeComision}% = {contratoSeleccionado.Comision}€");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ContratosTelefonia] Error calculando comisión: {ex.Message}");
             contratoSeleccionado.Comision = comisionTarifa;
         }
     }
@@ -3413,6 +3494,55 @@ else
             case 13: contratoSeleccionado.CodigoIccLinea13Tel = valor; break;
             case 14: contratoSeleccionado.CodigoIccLinea14Tel = valor; break;
             case 15: contratoSeleccionado.CodigoIccLinea15Tel = valor; break;
+        }
+    }
+
+    private bool ObtenerAltaNuevaLinea(int lineaIndex)
+    {
+        if (contratoSeleccionado == null) return false;
+        
+        return lineaIndex switch
+        {
+            1 => contratoSeleccionado.AltaNuevaLinea1Tel,
+            2 => contratoSeleccionado.AltaNuevaLinea2Tel,
+            3 => contratoSeleccionado.AltaNuevaLinea3Tel,
+            4 => contratoSeleccionado.AltaNuevaLinea4Tel,
+            5 => contratoSeleccionado.AltaNuevaLinea5Tel,
+            6 => contratoSeleccionado.AltaNuevaLinea6Tel,
+            7 => contratoSeleccionado.AltaNuevaLinea7Tel,
+            8 => contratoSeleccionado.AltaNuevaLinea8Tel,
+            9 => contratoSeleccionado.AltaNuevaLinea9Tel,
+            10 => contratoSeleccionado.AltaNuevaLinea10Tel,
+            11 => contratoSeleccionado.AltaNuevaLinea11Tel,
+            12 => contratoSeleccionado.AltaNuevaLinea12Tel,
+            13 => contratoSeleccionado.AltaNuevaLinea13Tel,
+            14 => contratoSeleccionado.AltaNuevaLinea14Tel,
+            15 => contratoSeleccionado.AltaNuevaLinea15Tel,
+            _ => false
+        };
+    }
+
+    private void ActualizarAltaNuevaLinea(int lineaIndex, bool valor)
+    {
+        if (contratoSeleccionado == null) return;
+        
+        switch (lineaIndex)
+        {
+            case 1: contratoSeleccionado.AltaNuevaLinea1Tel = valor; break;
+            case 2: contratoSeleccionado.AltaNuevaLinea2Tel = valor; break;
+            case 3: contratoSeleccionado.AltaNuevaLinea3Tel = valor; break;
+            case 4: contratoSeleccionado.AltaNuevaLinea4Tel = valor; break;
+            case 5: contratoSeleccionado.AltaNuevaLinea5Tel = valor; break;
+            case 6: contratoSeleccionado.AltaNuevaLinea6Tel = valor; break;
+            case 7: contratoSeleccionado.AltaNuevaLinea7Tel = valor; break;
+            case 8: contratoSeleccionado.AltaNuevaLinea8Tel = valor; break;
+            case 9: contratoSeleccionado.AltaNuevaLinea9Tel = valor; break;
+            case 10: contratoSeleccionado.AltaNuevaLinea10Tel = valor; break;
+            case 11: contratoSeleccionado.AltaNuevaLinea11Tel = valor; break;
+            case 12: contratoSeleccionado.AltaNuevaLinea12Tel = valor; break;
+            case 13: contratoSeleccionado.AltaNuevaLinea13Tel = valor; break;
+            case 14: contratoSeleccionado.AltaNuevaLinea14Tel = valor; break;
+            case 15: contratoSeleccionado.AltaNuevaLinea15Tel = valor; break;
         }
     }
 
@@ -3935,9 +4065,9 @@ else
         }
     }
 
-    private void AbrirMaestroCodigosPostales()
+    private async Task AbrirMaestroCodigosPostales()
     {
-        Navigation.NavigateTo("/administracion/codigos-postales");
+        await JS.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
     }
 }
 

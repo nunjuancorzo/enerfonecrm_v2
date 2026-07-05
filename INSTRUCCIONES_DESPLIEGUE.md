@@ -103,7 +103,7 @@ Start-IISSite -Name "enerfonecrm"
 #### **Verificar:**
 
 - Accede a https://enerfonecrm.com
-- Comprueba el footer: debe mostrar "Versión 20260615"
+- Comprueba el footer: debe mostrar "Versión 20260705"
 - Prueba login
 - Verifica que las funcionalidades básicas funcionen
 
@@ -159,7 +159,7 @@ Start-IISSite -Name "grupobasettecrm"
 #### **Verificar:**
 
 - Accede a https://crm.grupobasette.eu
-- Comprueba el footer: debe mostrar "Versión 20260615"
+- Comprueba el footer: debe mostrar "Versión 20260705"
 - Prueba login
 - Verifica que las funcionalidades básicas funcionen
 
@@ -203,7 +203,7 @@ New-Item -Path "C:\grupobasettecrm\logs" -ItemType Directory -Force
 
 - Abre cada aplicación en el navegador
 - Scroll al footer
-- **Debe mostrar**: "Versión 20260615"
+- **Debe mostrar**: "Versión 20260705"
 
 ### **2. Verificar que los logs NO crezcan:**
 

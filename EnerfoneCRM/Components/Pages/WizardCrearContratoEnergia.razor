@@ -513,7 +513,10 @@
                                                 <div class="card-body">
                                                     <div class="mb-3">
                                                         <label class="form-label fw-bold">CUPS Luz</label>
-                                                        <InputText @bind-Value="nuevoContrato.EnCups" class="form-control" placeholder="ES..." disabled="@(tipoContratacion == "Gas")" />
+                                                        <input type="text" @bind="nuevoContrato.EnCups" 
+                                                               @oninput="@((e) => OnCupsInputWizard(e, nameof(nuevoContrato.EnCups)))"
+                                                               class="form-control" placeholder="ES..." maxlength="20"
+                                                               disabled="@(tipoContratacion == "Gas")" />
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label fw-bold">Peaje Luz</label>
@@ -580,7 +583,10 @@
                                                 <div class="card-body">
                                                     <div class="mb-3">
                                                         <label class="form-label fw-bold">CUPS Gas</label>
-                                                        <InputText @bind-Value="nuevoContrato.EnCupsGas" class="form-control" placeholder="ES..." disabled="@(tipoContratacion == "Luz")" />
+                                                        <input type="text" @bind="nuevoContrato.EnCupsGas" 
+                                                               @oninput="@((e) => OnCupsInputWizard(e, nameof(nuevoContrato.EnCupsGas)))"
+                                                               class="form-control" placeholder="ES..." maxlength="20"
+                                                               disabled="@(tipoContratacion == "Luz")" />
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label fw-bold">Peaje Gas</label>
@@ -614,8 +620,18 @@
                                             </select>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label fw-bold">Comercial asociado</label>
-                                            <InputText @bind-Value="nuevoContrato.Comercial" class="form-control" placeholder="Nombre del comercial" />
+                                            <label class="form-label fw-bold">Comercial asociado <span class="text-danger">*</span></label>
+                                            <select class="form-select" @onchange="OnUsuarioComercialChanged">
+                                                <option value="">Seleccionar usuario...</option>
+                                                @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
+                                                {
+                                                    <option value="@usuario.Id" selected="@(nuevoContrato.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
+                                                }
+                                            </select>
+                                            @if (nuevoContrato != null && nuevoContrato.UsuarioComercializadoraId.HasValue)
+                                            {
+                                                <small class="text-muted">Seleccionado: @nuevoContrato.Comercial</small>
+                                            }
                                         </div>
                                     </div>
                                 </div>
@@ -711,14 +727,14 @@
                                                 <input type="text" class="form-control" list="codigosPostalesWizard" 
                                                        value="@nuevoContrato.CodigoPostalInstalacion"
                                                        @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
-                                                       placeholder="CP" maxlength="5" autocomplete="off" />
+                                                       placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                                 <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
                                                     <i class="bi bi-plus-circle"></i>
                                                 </button>
                                                 <datalist id="codigosPostalesWizard">
                                                     @foreach (var cp in codigosPostalesDisponibles)
                                                     {
-                                                        <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                        <option value="@cp.CodigoPostalValor">@cp.CodigoPostalValor - @cp.Ciudad (@cp.Provincia)</option>
                                                     }
                                                 </datalist>
                                             </div>
@@ -845,6 +861,7 @@
     private List<TarifaEnergia> tarifasBase = new();
     private List<TarifaEnergia> todasLasTarifas = new();
     private List<Servicio> serviciosDisponibles = new();
+    private List<Usuario> todosLosUsuarios = new();
     private string peajeLuzSeleccionado = string.Empty;
     private string peajeGasSeleccionado = string.Empty;
     private string tipoContratacion = "Luz";
@@ -878,6 +895,7 @@
         await CargarTarifas();
         await CargarServicios();
         await CargarCodigosPostales();
+        await CargarUsuarios();
         
         InicializarNuevoCliente();
         
@@ -960,6 +978,48 @@
         catch (Exception ex)
         {
             mensajeError = $"Error al cargar servicios: {ex.Message}";
+        }
+    }
+
+    private async Task CargarUsuarios()
+    {
+        try
+        {
+            todosLosUsuarios = await UsuarioService.ObtenerTodosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar usuarios: {ex.Message}";
+        }
+    }
+
+    private async Task OnUsuarioComercialChanged(ChangeEventArgs e)
+    {
+        if (nuevoContrato == null || e.Value == null) return;
+        
+        if (int.TryParse(e.Value.ToString(), out int usuarioId) && usuarioId > 0)
+        {
+            var usuario = todosLosUsuarios.FirstOrDefault(u => u.Id == usuarioId);
+            if (usuario != null)
+            {
+                nuevoContrato.UsuarioComercializadoraId = usuario.Id;
+                nuevoContrato.Comercial = usuario.NombreUsuario;
+                
+                // Recalcular comisión si hay tarifa seleccionada
+                if (!string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
+                {
+                    var tarifa = tarifasEnergia.FirstOrDefault(t => t.Nombre == nuevoContrato.EnTarifa);
+                    if (tarifa != null)
+                    {
+                        await CalcularComisionConPorcentajeUsuario(tarifa.Comision, "comercializadora");
+                    }
+                }
+            }
+        }
+        else
+        {
+            nuevoContrato.UsuarioComercializadoraId = null;
+            nuevoContrato.Comercial = string.Empty;
         }
     }
 
@@ -1114,6 +1174,7 @@
             FechaModificacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
+            UsuarioComercializadoraId = AuthService.UsuarioActual?.Id, // Pre-seleccionar usuario actual por defecto
             TitularIbanDiferente = false,
             TitularIbanDni = "",
             TitularIbanNombre = "",
@@ -1376,7 +1437,13 @@
 
     private async Task CalcularComisionConPorcentajeUsuario(decimal comisionBase, string tipoProveedor)
     {
-        if (nuevoContrato == null || AuthService.UsuarioActual == null) 
+        if (nuevoContrato == null) 
+        {
+            return;
+        }
+
+        // Si no tiene usuario asignado, usar la comisión completa de la tarifa
+        if (!nuevoContrato.UsuarioComercializadoraId.HasValue)
         {
             nuevoContrato.Comision = comisionBase;
             return;
@@ -1396,57 +1463,29 @@
             return;
         }
 
-        // Buscar configuración de comisión para este usuario y proveedor
-        var configuracion = await ComisionService.ObtenerConfiguracionAsync(
-            AuthService.UsuarioActual.Id,
-            tipoProveedor,
-            proveedorId.Value
-        );
-
-        if (configuracion != null)
+        try
         {
-            // Calcular porcentaje según el rol del usuario que crea el contrato
-            decimal porcentajeTotal = 0;
-            var rolUsuario = AuthService.UsuarioActual.Rol;
+            // Obtener el porcentaje de comisión del usuario asignado al contrato
+            var comisionesUsuario = await UsuarioService.ObtenerComisionesProveedorAsync(
+                nuevoContrato.UsuarioComercializadoraId.Value,
+                tipoProveedor
+            );
 
-            if (rolUsuario == "Administrador")
+            if (!comisionesUsuario.TryGetValue(proveedorId.Value, out var porcentajeComision))
             {
-                // Administrador recibe 100%
-                porcentajeTotal = 100m;
-            }
-            else if (rolUsuario == "Director Comercial")
-            {
-                // Director recibe: colaborador + gestor + jefe + director
-                porcentajeTotal = configuracion.PorcentajeColaborador +
-                                (configuracion.PorcentajeGestor ?? 0) +
-                                (configuracion.PorcentajeJefeVentas ?? 0) +
-                                (configuracion.PorcentajeDirectorComercial ?? 0);
-            }
-            else if (rolUsuario == "Jefe Comercial")
-            {
-                // Jefe recibe: colaborador + gestor + jefe
-                porcentajeTotal = configuracion.PorcentajeColaborador +
-                                (configuracion.PorcentajeGestor ?? 0) +
-                                (configuracion.PorcentajeJefeVentas ?? 0);
-            }
-            else if (rolUsuario == "Gestor")
-            {
-                // Gestor recibe: colaborador + gestor
-                porcentajeTotal = configuracion.PorcentajeColaborador +
-                                (configuracion.PorcentajeGestor ?? 0);
-            }
-            else
-            {
-                // Colaborador recibe solo su porcentaje
-                porcentajeTotal = configuracion.PorcentajeColaborador;
+                // Si no hay porcentaje específico configurado, usar comisión completa
+                nuevoContrato.Comision = comisionBase;
+                return;
             }
 
-            // Aplicar porcentaje: comisionFinal = comisionBase * (porcentaje / 100)
-            nuevoContrato.Comision = Math.Round(comisionBase * (porcentajeTotal / 100), 2);
+            // Calcular comisión final: comisionBase * (porcentajeComision / 100)
+            nuevoContrato.Comision = Math.Round(comisionBase * (porcentajeComision / 100), 2);
+            
+            Console.WriteLine($"[WizardCrearContratoEnergia] Comisión calculada: {comisionBase}€ × {porcentajeComision}% = {nuevoContrato.Comision}€");
         }
-        else
+        catch (Exception ex)
         {
-            // Si no hay configuración, usar comisión completa
+            Console.WriteLine($"[WizardCrearContratoEnergia] Error calculando comisión: {ex.Message}");
             nuevoContrato.Comision = comisionBase;
         }
     }
@@ -1622,8 +1661,30 @@
         }
     }
 
-    private void AbrirMaestroCodigosPostales()
+    private async Task AbrirMaestroCodigosPostales()
     {
-        Navigation.NavigateTo("/administracion/codigos-postales");
+        await JS.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
+    }
+
+    private void OnCupsInputWizard(ChangeEventArgs e, string propertyName)
+    {
+        var value = e.Value?.ToString() ?? "";
+        // Eliminar espacios
+        value = value.Replace(" ", "");
+        // Limitar a 20 caracteres
+        if (value.Length > 20)
+        {
+            value = value.Substring(0, 20);
+        }
+        
+        // Actualizar la propiedad correspondiente
+        if (propertyName == nameof(nuevoContrato.EnCups))
+        {
+            nuevoContrato.EnCups = value;
+        }
+        else if (propertyName == nameof(nuevoContrato.EnCupsGas))
+        {
+            nuevoContrato.EnCupsGas = value;
+        }
     }
 }

@@ -169,6 +169,23 @@ namespace EnerfoneCRM.Services
                     COALESCE(tarifa_linea15_tel, '') as tarifa_linea15_tel,
                     COALESCE(tipo_linea15_tel, '') as tipo_linea15_tel,
                     COALESCE(codigo_icc_linea15_tel, '') as codigo_icc_linea15_tel,
+                    COALESCE(alta_nueva_linea_principal, 0) as alta_nueva_linea_principal,
+                    COALESCE(alta_nueva_linea_principal_2, 0) as alta_nueva_linea_principal_2,
+                    COALESCE(alta_nueva_linea1_tel, 0) as alta_nueva_linea1_tel,
+                    COALESCE(alta_nueva_linea2_tel, 0) as alta_nueva_linea2_tel,
+                    COALESCE(alta_nueva_linea3_tel, 0) as alta_nueva_linea3_tel,
+                    COALESCE(alta_nueva_linea4_tel, 0) as alta_nueva_linea4_tel,
+                    COALESCE(alta_nueva_linea5_tel, 0) as alta_nueva_linea5_tel,
+                    COALESCE(alta_nueva_linea6_tel, 0) as alta_nueva_linea6_tel,
+                    COALESCE(alta_nueva_linea7_tel, 0) as alta_nueva_linea7_tel,
+                    COALESCE(alta_nueva_linea8_tel, 0) as alta_nueva_linea8_tel,
+                    COALESCE(alta_nueva_linea9_tel, 0) as alta_nueva_linea9_tel,
+                    COALESCE(alta_nueva_linea10_tel, 0) as alta_nueva_linea10_tel,
+                    COALESCE(alta_nueva_linea11_tel, 0) as alta_nueva_linea11_tel,
+                    COALESCE(alta_nueva_linea12_tel, 0) as alta_nueva_linea12_tel,
+                    COALESCE(alta_nueva_linea13_tel, 0) as alta_nueva_linea13_tel,
+                    COALESCE(alta_nueva_linea14_tel, 0) as alta_nueva_linea14_tel,
+                    COALESCE(alta_nueva_linea15_tel, 0) as alta_nueva_linea15_tel,
                     COALESCE(direccion, '') as direccion,
                     COALESCE(observaciones, '') as observaciones,
                     COALESCE(en_Tarifa, '') as en_Tarifa,
@@ -456,6 +473,13 @@ namespace EnerfoneCRM.Services
             Console.WriteLine($"[DEBUG] ConsumoAnual (Luz): {contrato.ConsumoAnual}");
             Console.WriteLine($"[DEBUG] ConsumoAnualGas: {contrato.ConsumoAnualGas}");
             
+            // DEBUG ALTA NUEVA - Verificar valores leídos de la BD
+            Console.WriteLine($"[LECTURA BD] AltaNuevaLineaPrincipal: {contrato.AltaNuevaLineaPrincipal}");
+            Console.WriteLine($"[LECTURA BD] AltaNuevaLineaPrincipal2: {contrato.AltaNuevaLineaPrincipal2}");
+            Console.WriteLine($"[LECTURA BD] AltaNuevaLinea1Tel: {contrato.AltaNuevaLinea1Tel}");
+            Console.WriteLine($"[LECTURA BD] AltaNuevaLinea2Tel: {contrato.AltaNuevaLinea2Tel}");
+            Console.WriteLine($"[LECTURA BD] AltaNuevaLinea3Tel: {contrato.AltaNuevaLinea3Tel}");
+            
             // Normalizar todos los campos string NULL a cadena vacía
             contrato.IdContratoExterno ??= string.Empty;
             contrato.Tipo ??= string.Empty;
@@ -559,9 +583,18 @@ namespace EnerfoneCRM.Services
                 Console.WriteLine($"FechaPermanenciaAnterior: {contrato.FechaPermanenciaAnterior}");
                 Console.WriteLine($"ConsumoAnual (Luz): {contrato.ConsumoAnual}");
                 Console.WriteLine($"ConsumoAnualGas: {contrato.ConsumoAnualGas}");
+                Console.WriteLine($"[ALTA NUEVA] LineaPrincipal: {contrato.AltaNuevaLineaPrincipal}");
+                Console.WriteLine($"[ALTA NUEVA] LineaPrincipal2: {contrato.AltaNuevaLineaPrincipal2}");
+                Console.WriteLine($"[ALTA NUEVA] Linea1Tel: {contrato.AltaNuevaLinea1Tel}");
+                Console.WriteLine($"[ALTA NUEVA] Linea2Tel: {contrato.AltaNuevaLinea2Tel}");
+                Console.WriteLine($"[ALTA NUEVA] Linea3Tel: {contrato.AltaNuevaLinea3Tel}");
 
                 // Actualizar todas las propiedades
                 context.Entry(contratoExistente).CurrentValues.SetValues(contrato);
+                
+                Console.WriteLine($"[VERIFICACIÓN POST-SetValues] AltaNuevaLineaPrincipal: {contratoExistente.AltaNuevaLineaPrincipal}");
+                Console.WriteLine($"[VERIFICACIÓN POST-SetValues] AltaNuevaLineaPrincipal2: {contratoExistente.AltaNuevaLineaPrincipal2}");
+                Console.WriteLine($"[VERIFICACIÓN POST-SetValues] AltaNuevaLinea1Tel: {contratoExistente.AltaNuevaLinea1Tel}");
                 
                 await context.SaveChangesAsync();
                 
@@ -598,6 +631,11 @@ namespace EnerfoneCRM.Services
                 Console.WriteLine($"FechaPermanenciaAnterior: {contrato.FechaPermanenciaAnterior}");
                 Console.WriteLine($"ConsumoAnual (Luz): {contrato.ConsumoAnual}");
                 Console.WriteLine($"ConsumoAnualGas: {contrato.ConsumoAnualGas}");
+                Console.WriteLine($"[ALTA NUEVA] LineaPrincipal: {contrato.AltaNuevaLineaPrincipal}");
+                Console.WriteLine($"[ALTA NUEVA] LineaPrincipal2: {contrato.AltaNuevaLineaPrincipal2}");
+                Console.WriteLine($"[ALTA NUEVA] Linea1Tel: {contrato.AltaNuevaLinea1Tel}");
+                Console.WriteLine($"[ALTA NUEVA] Linea2Tel: {contrato.AltaNuevaLinea2Tel}");
+                Console.WriteLine($"[ALTA NUEVA] Linea3Tel: {contrato.AltaNuevaLinea3Tel}");
                 
                 await context.Contratos.AddAsync(contrato);
                 await context.SaveChangesAsync();

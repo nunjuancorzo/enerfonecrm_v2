@@ -875,7 +875,10 @@ else
                                                     <div class="card-body">
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">CUPS Luz</label>
-                                                            <InputText @bind-Value="contratoSeleccionado.EnCups" class="form-control" placeholder="ES..." disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
+                                                            <input type="text" @bind="contratoSeleccionado.EnCups" 
+                                                                   @oninput="@((e) => OnCupsInputModal(e, nameof(contratoSeleccionado.EnCups)))"
+                                                                   class="form-control" placeholder="ES..." maxlength="20"
+                                                                   disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")" />
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">Peaje Luz</label>
@@ -942,7 +945,10 @@ else
                                                     <div class="card-body">
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">CUPS Gas</label>
-                                                            <InputText @bind-Value="contratoSeleccionado.EnCupsGas" class="form-control" placeholder="ES..." disabled="@(!PuedeEditarCampo() || tipoContratacion == "Luz")" />
+                                                            <input type="text" @bind="contratoSeleccionado.EnCupsGas" 
+                                                                   @oninput="@((e) => OnCupsInputModal(e, nameof(contratoSeleccionado.EnCupsGas)))"
+                                                                   class="form-control" placeholder="ES..." maxlength="20"
+                                                                   disabled="@(!PuedeEditarCampo() || tipoContratacion == "Luz")" />
                                                         </div>
                                                         <div class="mb-3">
                                                             <label class="form-label fw-bold">Peaje Gas</label>
@@ -1045,13 +1051,13 @@ else
                                                 <div class="row mb-0">
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-bold">Usuario Comercializadora</label>
-                                                        <select @bind="contratoSeleccionado.UsuarioComercializadoraId" 
+                                                        <select @onchange="OnUsuarioComercializadoraChanged" 
                                                                 class="form-select"
                                                                 disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
                                                             <option value="">Sin asignar</option>
                                                             @foreach (var usuario in usuariosComercializadoraFiltrados)
                                                             {
-                                                                <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                                                <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
                                                             }
                                                         </select>
                                                     </div>
@@ -1059,11 +1065,11 @@ else
                                                         <label class="form-label fw-bold">Comercial asociado</label>
                                                         <div class="d-flex align-items-center gap-2">
                                                             <div class="flex-grow-1">
-                                                                <select @bind="contratoSeleccionado.Comercial" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                                <select @onchange="OnUsuarioComercialChanged" class="form-select" disabled="@(!PuedeEditarCampo())">
                                                                     <option value="">Seleccionar comercial...</option>
                                                                     @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
                                                                     {
-                                                                        <option value="@usuario.NombreUsuario">@usuario.NombreUsuario</option>
+                                                                        <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
                                                                     }
                                                                 </select>
                                                             </div>
@@ -1174,14 +1180,14 @@ else
                                                     <input type="text" class="form-control" list="codigosPostalesContrato" 
                                                            value="@contratoSeleccionado.CodigoPostalInstalacion"
                                                            @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
-                                                           placeholder="CP" maxlength="5" autocomplete="off" disabled="@(!PuedeEditarCampo())" />
+                                                           placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" disabled="@(!PuedeEditarCampo())" />
                                                     <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales" disabled="@(!PuedeEditarCampo())">
                                                         <i class="bi bi-plus-circle"></i>
                                                     </button>
                                                     <datalist id="codigosPostalesContrato">
                                                         @foreach (var cp in codigosPostalesDisponibles)
                                                         {
-                                                            <option value="@cp.CodigoPostalValor">@cp.Ciudad (@cp.Provincia)</option>
+                                                            <option value="@cp.CodigoPostalValor">@cp.CodigoPostalValor - @cp.Ciudad (@cp.Provincia)</option>
                                                         }
                                                     </datalist>
                                                 </div>
@@ -2248,16 +2254,44 @@ else
             return;
         }
 
-        // Obtener el porcentaje de comisión del usuario asignado
-        var usuario = await UsuarioService.ObtenerPorIdAsync(contratoSeleccionado.UsuarioComercializadoraId.Value);
-        if (usuario != null && usuario.Comision > 0)
+        // Si no hay comercializadora seleccionada, no se puede calcular
+        if (string.IsNullOrWhiteSpace(contratoSeleccionado.EnComercializadora))
         {
-            // Calcular: comisionFinal = comisionTarifa * (porcentajeUsuario / 100)
-            contratoSeleccionado.Comision = comisionTarifa * (usuario.Comision / 100);
+            contratoSeleccionado.Comision = comisionTarifa;
+            return;
         }
-        else
+
+        try
         {
-            // Si el usuario no tiene porcentaje configurado, usar la comisión completa
+            // Obtener el ID de la comercializadora
+            var comercializadora = await ComercializadoraService.ObtenerPorNombreAsync(contratoSeleccionado.EnComercializadora);
+            if (comercializadora == null)
+            {
+                contratoSeleccionado.Comision = comisionTarifa;
+                return;
+            }
+
+            // Obtener el porcentaje de comisión del usuario para esta comercializadora
+            var comisionesUsuario = await UsuarioService.ObtenerComisionesProveedorAsync(
+                contratoSeleccionado.UsuarioComercializadoraId.Value,
+                "comercializadora"
+            );
+
+            if (!comisionesUsuario.TryGetValue(comercializadora.Id, out var porcentajeComision))
+            {
+                // Si no hay porcentaje específico configurado, usar comisión completa
+                contratoSeleccionado.Comision = comisionTarifa;
+                return;
+            }
+
+            // Calcular comisión final: comisionTarifa * (porcentajeComision / 100)
+            contratoSeleccionado.Comision = Math.Round(comisionTarifa * (porcentajeComision / 100), 2);
+            
+            Console.WriteLine($"[ContratosEnergia] Comisión calculada: {comisionTarifa}€ × {porcentajeComision}% = {contratoSeleccionado.Comision}€");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ContratosEnergia] Error calculando comisión: {ex.Message}");
             contratoSeleccionado.Comision = comisionTarifa;
         }
     }
@@ -3024,6 +3058,17 @@ else
         if (!string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))
         {
             await OnComercializadoraChanged();
+            
+            // Recalcular comisión con los datos actuales de la tarifa
+            // (importante para reflejar cambios en el precio de la tarifa)
+            if (!string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa))
+            {
+                var tarifa = tarifasDisponibles.FirstOrDefault(t => t.Nombre == contratoSeleccionado.EnTarifa);
+                if (tarifa != null)
+                {
+                    await CalcularComisionConPorcentajeUsuario(tarifa.Comision);
+                }
+            }
         }
         
         // Cargar servicios según tipo de cliente
@@ -3208,6 +3253,66 @@ else
         else if (contratoSeleccionado.Estado == "Activo" && estadoAnterior == "Activo")
         {
             mostrarCampoFechaActivo = true;
+        }
+    }
+
+    private async Task OnUsuarioComercializadoraChanged(ChangeEventArgs e)
+    {
+        if (contratoSeleccionado == null || e.Value == null) return;
+        
+        if (int.TryParse(e.Value.ToString(), out int usuarioId) && usuarioId > 0)
+        {
+            var usuario = usuariosComercializadoraFiltrados.FirstOrDefault(u => u.Id == usuarioId);
+            if (usuario != null)
+            {
+                contratoSeleccionado.UsuarioComercializadoraId = usuario.Id;
+                contratoSeleccionado.Comercial = usuario.NombreUsuario;
+                
+                // Recalcular comisión si hay tarifa seleccionada
+                if (!string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa))
+                {
+                    var tarifa = tarifasDisponibles.FirstOrDefault(t => t.Nombre == contratoSeleccionado.EnTarifa);
+                    if (tarifa != null)
+                    {
+                        await CalcularComisionConPorcentajeUsuario(tarifa.Comision);
+                    }
+                }
+            }
+        }
+        else
+        {
+            contratoSeleccionado.UsuarioComercializadoraId = null;
+            contratoSeleccionado.Comercial = string.Empty;
+        }
+    }
+
+    private async Task OnUsuarioComercialChanged(ChangeEventArgs e)
+    {
+        if (contratoSeleccionado == null || e.Value == null) return;
+        
+        if (int.TryParse(e.Value.ToString(), out int usuarioId) && usuarioId > 0)
+        {
+            var usuario = todosLosUsuarios.FirstOrDefault(u => u.Id == usuarioId);
+            if (usuario != null)
+            {
+                contratoSeleccionado.UsuarioComercializadoraId = usuario.Id;
+                contratoSeleccionado.Comercial = usuario.NombreUsuario;
+                
+                // Recalcular comisión si hay tarifa seleccionada
+                if (!string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa))
+                {
+                    var tarifa = tarifasDisponibles.FirstOrDefault(t => t.Nombre == contratoSeleccionado.EnTarifa);
+                    if (tarifa != null)
+                    {
+                        await CalcularComisionConPorcentajeUsuario(tarifa.Comision);
+                    }
+                }
+            }
+        }
+        else
+        {
+            contratoSeleccionado.UsuarioComercializadoraId = null;
+            contratoSeleccionado.Comercial = string.Empty;
         }
     }
 
@@ -4419,8 +4524,30 @@ else
         }
     }
 
-    private void AbrirMaestroCodigosPostales()
+    private async Task AbrirMaestroCodigosPostales()
     {
-        Navigation.NavigateTo("/administracion/codigos-postales");
+        await JS.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
+    }
+
+    private void OnCupsInputModal(ChangeEventArgs e, string propertyName)
+    {
+        var value = e.Value?.ToString() ?? "";
+        // Eliminar espacios
+        value = value.Replace(" ", "");
+        // Limitar a 20 caracteres
+        if (value.Length > 20)
+        {
+            value = value.Substring(0, 20);
+        }
+        
+        // Actualizar la propiedad correspondiente
+        if (propertyName == nameof(contratoSeleccionado.EnCups))
+        {
+            contratoSeleccionado.EnCups = value;
+        }
+        else if (propertyName == nameof(contratoSeleccionado.EnCupsGas))
+        {
+            contratoSeleccionado.EnCupsGas = value;
+        }
     }
 }

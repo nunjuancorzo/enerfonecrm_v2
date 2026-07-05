@@ -1,6 +1,7 @@
 using EnerfoneCRM.Data;
 using EnerfoneCRM.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -9,10 +10,12 @@ namespace EnerfoneCRM.Services;
 public class UsuarioService
 {
     private readonly DbContextProvider _dbContextProvider;
+    private readonly ILogger<UsuarioService> _logger;
 
-    public UsuarioService(DbContextProvider dbContextProvider)
+    public UsuarioService(DbContextProvider dbContextProvider, ILogger<UsuarioService> logger)
     {
         _dbContextProvider = dbContextProvider;
+        _logger = logger;
     }
 
     public async Task<List<Usuario>> ObtenerTodosAsync()
@@ -318,6 +321,16 @@ public class UsuarioService
 
     public async Task ActualizarComisionesProveedorAsync(int usuarioId, string tipoProveedor, List<int> proveedoresIds, Dictionary<int, decimal> comisiones)
     {
+        Console.WriteLine("[UsuarioService] ===== INICIO ActualizarComisionesProveedorAsync =====");
+        Console.WriteLine($"[UsuarioService] Usuario: {usuarioId}, TipoProveedor: {tipoProveedor}");
+        Console.WriteLine($"[UsuarioService] Proveedores: {string.Join(", ", proveedoresIds)}");
+        Console.WriteLine($"[UsuarioService] Comisiones: {string.Join(", ", comisiones.Select(c => $"{c.Key}={c.Value}%"))}");
+        
+        _logger.LogInformation("[ActualizarComisionesProveedorAsync] ===== INICIO =====");
+        _logger.LogInformation("[ActualizarComisionesProveedorAsync] Usuario: {UsuarioId}, TipoProveedor: {TipoProveedor}", usuarioId, tipoProveedor);
+        _logger.LogInformation("[ActualizarComisionesProveedorAsync] Proveedores: {Proveedores}", string.Join(", ", proveedoresIds));
+        _logger.LogInformation("[ActualizarComisionesProveedorAsync] Comisiones: {Comisiones}", string.Join(", ", comisiones.Select(c => $"{c.Key}={c.Value}%")));
+        
         await using var context = _dbContextProvider.CreateDbContext();
 
         var existentes = await context.UsuarioComisionesProveedores
@@ -343,6 +356,11 @@ public class UsuarioService
         }
 
         await context.SaveChangesAsync();
+        Console.WriteLine($"[UsuarioService] Comisiones guardadas. Ahora actualizando contratos...");
+
+        // Actualizar comisiones de contratos existentes
+        await ActualizarComisionesContratosUsuarioAsync(usuarioId, tipoProveedor, proveedoresIds, comisiones, context);
+        Console.WriteLine($"[UsuarioService] ===== FIN ActualizarComisionesProveedorAsync =====");
     }
 
     public async Task<(bool exito, string mensaje)> CambiarPasswordAsync(int usuarioId, string passwordActual, string passwordNuevo)
@@ -722,5 +740,194 @@ public class UsuarioService
             .Select(g => g.First())
             .OrderBy(u => u.NombreUsuario)
             .ToList();
+    }
+
+    /// <summary>
+    /// Actualiza las comisiones de los contratos existentes del usuario cuando se modifican sus porcentajes por proveedor
+    /// </summary>
+    private async Task ActualizarComisionesContratosUsuarioAsync(
+        int usuarioId, 
+        string tipoProveedor, 
+        List<int> proveedoresIds, 
+        Dictionary<int, decimal> comisiones,
+        ApplicationDbContext context)
+    {
+        _logger.LogInformation("[ActualizarComisionesContratos] ===== ACTUALIZANDO COMISIONES DE CONTRATOS =====");
+        _logger.LogInformation("[ActualizarComisionesContratos] Usuario ID: {UsuarioId}, Tipo Proveedor: {TipoProveedor}", usuarioId, tipoProveedor);
+
+        // Estados en los que se deben actualizar las comisiones
+        var estadosActualizables = new List<string>
+        {
+            "Pte Carga",
+            "Solicitado",
+            "Pte Firma",
+            "En incidencia",
+            "Pte Documentación",
+            "Pte Validación",
+            "En Curso",
+            "En Activación",
+            "En tramitación",
+            "Activo"
+        };
+
+        // Buscar contratos del usuario en estados actualizables
+        // IMPORTANTE: Buscar por UsuarioComercializadoraId (FK), NO por nombre del comercial
+        var contratos = await context.Contratos
+            .Where(c => c.UsuarioComercializadoraId == usuarioId && c.Estado != null && estadosActualizables.Contains(c.Estado))
+            .ToListAsync();
+
+        _logger.LogInformation("[ActualizarComisionesContratos] Contratos encontrados: {ContratosCount}", contratos.Count);
+        _logger.LogInformation("[ActualizarComisionesContratos] Proveedores a actualizar: {Proveedores}", string.Join(", ", proveedoresIds));
+
+        int contratosActualizados = 0;
+
+        foreach (var contrato in contratos)
+        {
+            _logger.LogInformation("[ActualizarComisionesContratos] Procesando contrato {ContratoId} - Tipo: {Tipo}, Estado: {Estado}", contrato.Id, contrato.Tipo, contrato.Estado);
+            
+            // Determinar el proveedor según el tipo de contrato
+            string? nombreProveedor = null;
+            int? proveedorId = null;
+
+            if (tipoProveedor == "comercializadora" && contrato.Tipo == "energia")
+            {
+                nombreProveedor = contrato.EnComercializadora;
+                _logger.LogInformation("[ActualizarComisionesContratos] Contrato {ContratoId} - Es Energía, Comercializadora: {Comercializadora}", contrato.Id, nombreProveedor);
+                if (!string.IsNullOrWhiteSpace(nombreProveedor))
+                {
+                    var comercializadora = await context.Comercializadoras
+                        .Where(c => c.Nombre == nombreProveedor)
+                        .FirstOrDefaultAsync();
+                    proveedorId = comercializadora?.Id;
+                    _logger.LogInformation("[ActualizarComisionesContratos] Contrato {ContratoId} - ID Comercializadora: {ComercializadoraId}", contrato.Id, proveedorId);
+                }
+            }
+            else if (tipoProveedor == "operadora" && contrato.Tipo == "telefonia")
+            {
+                nombreProveedor = contrato.OperadoraTel;
+                if (!string.IsNullOrWhiteSpace(nombreProveedor))
+                {
+                    var operadora = await context.Operadoras
+                        .Where(o => o.Nombre == nombreProveedor)
+                        .FirstOrDefaultAsync();
+                    proveedorId = operadora?.Id;
+                }
+            }
+            else if (tipoProveedor == "empresa_alarma" && contrato.Tipo == "alarma")
+            {
+                nombreProveedor = contrato.EmpresaAlarma;
+                if (!string.IsNullOrWhiteSpace(nombreProveedor))
+                {
+                    var empresaAlarma = await context.EmpresasAlarmas
+                        .Where(e => e.Nombre == nombreProveedor)
+                        .FirstOrDefaultAsync();
+                    proveedorId = empresaAlarma?.Id;
+                }
+            }
+            else
+            {
+                _logger.LogDebug("[ActualizarComisionesContratos] Contrato {ContratoId} - Tipo no coincide. TipoProveedor esperado: {TipoProveedorEsperado}, Tipo contrato: {TipoContrato}", contrato.Id, tipoProveedor, contrato.Tipo);
+            }
+
+            // Si no coincide el tipo de proveedor o no se pudo determinar el ID, saltar
+            if (!proveedorId.HasValue)
+            {
+                _logger.LogDebug("[ActualizarComisionesContratos] Contrato {ContratoId} - No se pudo determinar ID del proveedor, saltando", contrato.Id);
+                continue;
+            }
+            
+            if (!proveedoresIds.Contains(proveedorId.Value))
+            {
+                _logger.LogDebug("[ActualizarComisionesContratos] Contrato {ContratoId} - Proveedor {ProveedorId} no está en la lista de proveedores a actualizar, saltando", contrato.Id, proveedorId.Value);
+                continue;
+            }
+
+            // Obtener el nuevo porcentaje de comisión para este proveedor
+            if (!comisiones.TryGetValue(proveedorId.Value, out var nuevoPorcentaje))
+            {
+                continue;
+            }
+
+            // Obtener la comisión base de la tarifa
+            decimal comisionBase = 0;
+
+            if (contrato.Tipo == "energia")
+            {
+                // Intentar obtener por ID primero
+                if (contrato.EnTarifaId.HasValue)
+                {
+                    var tarifa = await context.TarifasEnergia.FindAsync(contrato.EnTarifaId.Value);
+                    comisionBase = tarifa?.Comision ?? 0;
+                }
+                // Si no tiene ID pero tiene nombre de tarifa, buscar por nombre
+                else if (!string.IsNullOrWhiteSpace(contrato.EnTarifa) && !string.IsNullOrWhiteSpace(contrato.EnComercializadora))
+                {
+                    var tarifa = await context.TarifasEnergia
+                        .Where(t => t.Nombre == contrato.EnTarifa && t.Empresa == contrato.EnComercializadora)
+                        .FirstOrDefaultAsync();
+                    comisionBase = tarifa?.Comision ?? 0;
+                    
+                    _logger.LogDebug("[ActualizarComisionesContratos] Contrato {ContratoId} - Tarifa buscada por nombre: {TarifaNombre}, Comisión base: {ComisionBase}", 
+                        contrato.Id, contrato.EnTarifa, comisionBase);
+                }
+            }
+            else if (contrato.Tipo == "telefonia")
+            {
+                // Intentar obtener por ID primero
+                if (contrato.TarifaTelId.HasValue)
+                {
+                    var tarifaTel = await context.TarifasTelefonia.FindAsync(contrato.TarifaTelId.Value);
+                    comisionBase = tarifaTel?.ComisionNew ?? 0;
+                }
+                // Si no tiene ID pero tiene nombre de tarifa, buscar por nombre
+                // Nota: TarifaTel contiene descripción combinada (Tarifa + Fibra + GbMovil + Movil2)
+                // Por ahora mantener comisión actual si no hay ID
+            }
+            else if (contrato.Tipo == "alarma")
+            {
+                // Intentar obtener por ID primero
+                if (contrato.KitAlarmaId.HasValue)
+                {
+                    var tarifaAlarma = await context.TarifasAlarmas.FindAsync(contrato.KitAlarmaId.Value);
+                    comisionBase = tarifaAlarma?.Comision ?? 0;
+                }
+                // Si no tiene ID pero tiene nombre de kit, buscar por nombre
+                else if (!string.IsNullOrWhiteSpace(contrato.KitAlarma) && !string.IsNullOrWhiteSpace(contrato.EmpresaAlarma))
+                {
+                    var tarifaAlarma = await context.TarifasAlarmas
+                        .Where(t => t.NombreTarifa == contrato.KitAlarma && t.Empresa == contrato.EmpresaAlarma)
+                        .FirstOrDefaultAsync();
+                    comisionBase = tarifaAlarma?.Comision ?? 0;
+                }
+            }
+
+            if (comisionBase == 0)
+            {
+                _logger.LogWarning("[ActualizarComisionesContratos] Contrato {ContratoId} - Sin comisión base, manteniendo comisión actual", contrato.Id);
+                continue;
+            }
+
+            // Calcular nueva comisión: comisionBase * (porcentaje / 100)
+            decimal nuevaComision = Math.Round(comisionBase * (nuevoPorcentaje / 100), 2);
+
+            _logger.LogInformation("[ActualizarComisionesContratos] Contrato {ContratoId} ({Tipo}) - Proveedor: {Proveedor} (ID:{ProveedorId}) - Comisión: {ComisionAnterior:F2}€ → {ComisionNueva:F2}€ (Base: {ComisionBase:F2}€, %: {Porcentaje:F2})", 
+                contrato.Id, contrato.Tipo, nombreProveedor, proveedorId, contrato.Comision, nuevaComision, comisionBase, nuevoPorcentaje);
+
+            // Actualizar la comisión del contrato
+            contrato.Comision = nuevaComision;
+            contrato.FechaModificacion = DateTime.Now;
+            context.Contratos.Update(contrato);
+            contratosActualizados++;
+        }
+
+        if (contratosActualizados > 0)
+        {
+            await context.SaveChangesAsync();
+            _logger.LogInformation("[ActualizarComisionesContratos] ✓ {ContratosActualizados} contratos actualizados correctamente", contratosActualizados);
+        }
+        else
+        {
+            _logger.LogInformation("[ActualizarComisionesContratos] No se actualizaron contratos");
+        }
     }
 }

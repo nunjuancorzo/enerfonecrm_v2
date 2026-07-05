@@ -86,7 +86,8 @@ def procesar_geonames(txt_file):
                 
                 codigo_postal = campos[1].strip()
                 ciudad = campos[2].strip()
-                provincia = campos[3].strip()
+                # Usar admin name2 (campo 5) que contiene la PROVINCIA, no admin name1 (campo 3) que es la COMUNIDAD AUTÓNOMA
+                provincia = campos[5].strip() if len(campos) > 5 else campos[3].strip()
                 
                 # Validaciones
                 if not codigo_postal or len(codigo_postal) != 5:

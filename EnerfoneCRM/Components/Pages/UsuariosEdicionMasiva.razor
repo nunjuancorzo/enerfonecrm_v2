@@ -1,0 +1,963 @@
+@page "/usuarios/edicion-masiva"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@rendermode InteractiveServer
+@inject UsuarioService UsuarioService
+@inject AuthService AuthService
+@inject DbContextProvider DbContextProvider
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Edición Masiva de Usuarios - CorCRM</PageTitle>
+
+@if (AuthService.UsuarioActual?.Rol != "Administrador")
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes permisos para acceder a esta sección.
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid p-4">
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2><i class="bi bi-people me-2"></i>Edición Masiva de Usuarios</h2>
+                    <p class="text-muted mb-0">Edita múltiples usuarios de forma simultánea. Puedes copiar y pegar desde Excel.</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-secondary" @onclick="CargarUsuarios" disabled="@guardando">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Recargar
+                </button>
+                <button class="btn btn-info" @onclick="CopiarFilasSeleccionadas" disabled="@(filasSeleccionadas.Count == 0)">
+                    <i class="bi bi-copy me-2"></i>Copiar (@filasSeleccionadas.Count)
+                </button>
+                <button class="btn btn-warning" @onclick="PegarFilas">
+                    <i class="bi bi-clipboard-plus me-2"></i>Pegar
+                </button>
+                <button class="btn btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                    <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                </button>
+                <button class="btn btn-primary" @onclick="GuardarCambios" disabled="@guardando">
+                    @if (guardando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    <i class="bi bi-save me-2"></i>Guardar Cambios
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (erroresValidacion.Any())
+        {
+            <div class="alert alert-warning alert-dismissible fade show">
+                <strong>Errores de validación:</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach (var error in erroresValidacion.Take(10))
+                    {
+                        <li><small>@error</small></li>
+                    }
+                    @if (erroresValidacion.Count > 10)
+                    {
+                        <li><small><em>... y @(erroresValidacion.Count - 10) errores más</em></small></li>
+                    }
+                </ul>
+                <button type="button" class="btn-close" @onclick="() => erroresValidacion.Clear()"></button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-3 text-muted">Cargando usuarios...</p>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="usuariosTable" style="table-layout: fixed; width: 100%; min-width: 7000px;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 60px;">
+                                        <input type="checkbox" @onchange="ToggleSeleccionarTodas" />
+                                    </th>
+                                    <th style="width: 100px;">Acciones</th>
+                                    <th style="width: 120px;">ID</th>
+                                    <th style="width: 200px;">Username*</th>
+                                    <th style="width: 200px;">Nombre</th>
+                                    <th style="width: 200px;">Apellidos</th>
+                                    <th style="width: 250px;">Email*</th>
+                                    <th style="width: 180px;">Teléfono</th>
+                                    <th style="width: 300px;">Dirección</th>
+                                    <th style="width: 150px;">Código Postal</th>
+                                    <th style="width: 200px;">Localidad</th>
+                                    <th style="width: 200px;">Password</th>
+                                    <th style="width: 200px;">Rol*</th>
+                                    <th style="width: 150px;">Gestor ID</th>
+                                    <th style="width: 150px;">Jefe Ventas ID</th>
+                                    <th style="width: 180px;">Director Comercial ID</th>
+                                    <th style="width: 250px;">Comercializadora</th>
+                                    <th style="width: 150px;">Comisión</th>
+                                    <th style="width: 120px;">Activo</th>
+                                    <th style="width: 180px;">Excluir Log Acceso</th>
+                                    <th style="width: 180px;">Recibir Notificaciones</th>
+                                    <th style="width: 180px;">Puede Ver Clientes</th>
+                                    <th style="width: 180px;">Puede Ver Contratos</th>
+                                    <th style="width: 180px;">Puede Ver Tarifas</th>
+                                    <th style="width: 180px;">Puede Ver Liquidaciones</th>
+                                    <th style="width: 180px;">Puede Ver SIPS</th>
+                                    <th style="width: 180px;">Puede Ver Incidencias</th>
+                                    <th style="width: 180px;">Puede Ver Ofertas</th>
+                                    <th style="width: 180px;">Puede Ver Usuarios</th>
+                                    <th style="width: 300px;">Número Cuenta</th>
+                                    <th style="width: 200px;">Tipo Entidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (usuario, index) in usuarios.Select((u, i) => (u, i)))
+                                {
+                                    <tr data-row-index="@index" class="@(filasSeleccionadas.Contains(index) ? "row-selected" : "")">
+                                        <td class="text-center">
+                                            <input type="checkbox" checked="@filasSeleccionadas.Contains(index)" @onchange="() => ToggleSeleccionFila(index)" />
+                                        </td>
+                                        <td class="text-center">
+                                            @if (usuario.Id == 0)
+                                            {
+                                                <button class="btn btn-sm btn-danger" @onclick="() => EliminarFila(index)" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                        <td class="bg-light text-muted">
+                                            @if (usuario.Id > 0)
+                                            {
+                                                @usuario.Id
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Nuevo</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.NombreUsuario" maxlength="45" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.Nombre" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.Apellidos" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="email" class="form-control form-control-sm" @bind="usuario.Email" maxlength="45" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.Telefono" maxlength="20" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.Direccion" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.CodigoPostal" maxlength="10" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.Localidad" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="password" class="form-control form-control-sm" @bind="usuario.PasswordHash" maxlength="50" 
+                                                   placeholder="@(usuario.Id > 0 ? "Dejar vacío para no cambiar" : "Obligatorio")" />
+                                        </td>
+                                        <td>
+                                            <select class="form-control form-control-sm" @bind="usuario.Rol">
+                                                <option value="">Seleccionar...</option>
+                                                <option value="Administrador">Administrador</option>
+                                                <option value="Colaborador">Colaborador</option>
+                                                <option value="Jefe de Ventas">Jefe de Ventas</option>
+                                                <option value="Director Comercial">Director Comercial</option>
+                                                <option value="Backoffice">Backoffice</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="usuario.GestorId" min="1" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="usuario.JefeVentasId" min="1" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="usuario.DirectorComercialId" min="1" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.Comercializadora" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="usuario.Comision" step="0.01" min="0" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.Activo" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.ExcluirLogAcceso" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.RecibirNotificaciones" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerClientes" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerContratos" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerTarifas" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerLiquidaciones" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerSips" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerIncidencias" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerOfertas" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="usuario.PuedeVerUsuarios" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="usuario.NumeroCuenta" maxlength="34" />
+                                        </td>
+                                        <td>
+                                            <select class="form-control form-control-sm" @bind="usuario.TipoEntidad">
+                                                <option value="N/A">N/A</option>
+                                                <option value="Autónomo">Autónomo</option>
+                                                <option value="PYME">PYME</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Total de registros: <strong>@usuarios.Count</strong> 
+                            (@usuarios.Count(u => u.Id == 0) nuevos, @usuarios.Count(u => u.Id > 0) existentes)
+                        </span>
+                        <div>
+                            <span class="text-muted me-3">* Campos obligatorios</span>
+                            <button class="btn btn-sm btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                                <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-success mb-3">
+                <h6><i class="bi bi-check-circle me-2"></i>Cómo usar copiar/pegar:</h6>
+                <ol class="mb-0">
+                    <li><strong>Copiar filas:</strong> Marca los checkboxes → Clic en "Copiar" (incluye el ID)</li>
+                    <li><strong>Pegar para editar:</strong> Las filas con ID se actualizarán en lugar de duplicarse</li>
+                    <li><strong>Pegar sin ID:</strong> Crea nuevos registros (borra el ID en Excel para duplicar)</li>
+                    <li><strong>Filas editadas/nuevas:</strong> Aparecen al inicio de la lista para fácil localización</li>
+                </ol>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <h6><i class="bi bi-lightbulb me-2"></i>Consejos de uso:</h6>
+                <ul class="mb-0">
+                    <li>Los campos <strong>Username</strong>, <strong>Email</strong> y <strong>Rol</strong> son obligatorios</li>
+                    <li>El campo <strong>Password</strong> es obligatorio para usuarios nuevos, opcional al editar (dejar vacío para no cambiar)</li>
+                    <li>Los checkboxes de permisos por defecto están marcados</li>
+                    <li>El campo ID no es editable para registros existentes</li>
+                    <li>Guarda todos los cambios cuando termines de editar</li>
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Usuario> usuarios = new();
+    private bool cargando = false;
+    private bool guardando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private List<string> erroresValidacion = new();
+    private DotNetObjectReference<UsuariosEdicionMasiva>? dotnetReference;
+    
+    // Variables para copiar/pegar
+    private HashSet<int> filasSeleccionadas = new();
+    private List<Usuario> filasCopia = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUsuarios();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotnetReference = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotnetReference);
+        }
+    }
+    
+    public void Dispose()
+    {
+        dotnetReference?.Dispose();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        try
+        {
+            cargando = true;
+            mensajeExito = string.Empty;
+            mensajeError = string.Empty;
+            erroresValidacion.Clear();
+
+            await using var context = DbContextProvider.CreateDbContext();
+            usuarios = await context.Usuarios.OrderByDescending(u => u.Id).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar usuarios: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AgregarNuevaFila()
+    {
+        var nuevoUsuario = new Usuario
+        {
+            Id = 0,
+            NombreUsuario = "",
+            Email = "",
+            Rol = "Colaborador",
+            Activo = true,
+            PuedeVerClientes = true,
+            PuedeVerContratos = true,
+            PuedeVerTarifas = true,
+            PuedeVerLiquidaciones = true,
+            PuedeVerSips = true,
+            PuedeVerIncidencias = true,
+            PuedeVerOfertas = true,
+            PuedeVerUsuarios = true,
+            TipoEntidad = "N/A",
+            Comision = 0.00m,
+            FechaCreacion = DateTime.Now
+        };
+        usuarios.Insert(0, nuevoUsuario);
+    }
+
+    private void EliminarFila(int index)
+    {
+        if (index >= 0 && index < usuarios.Count)
+        {
+            usuarios.RemoveAt(index);
+        }
+    }
+
+    private void ToggleSeleccionFila(int index)
+    {
+        if (filasSeleccionadas.Contains(index))
+        {
+            filasSeleccionadas.Remove(index);
+        }
+        else
+        {
+            filasSeleccionadas.Add(index);
+        }
+    }
+
+    private void ToggleSeleccionarTodas(ChangeEventArgs e)
+    {
+        if ((bool?)e.Value == true)
+        {
+            filasSeleccionadas = Enumerable.Range(0, usuarios.Count).ToHashSet();
+        }
+        else
+        {
+            filasSeleccionadas.Clear();
+        }
+    }
+
+    private async Task CopiarFilasSeleccionadas()
+    {
+        filasCopia.Clear();
+        var datosParaPortapapeles = new List<string>();
+        
+        foreach (var index in filasSeleccionadas.OrderBy(x => x))
+        {
+            if (index >= 0 && index < usuarios.Count)
+            {
+                var usuarioOriginal = usuarios[index];
+                
+                // Construir fila en formato TSV para portapapeles (compatible con Excel)
+                // IMPORTANTE: Incluir ID como primera columna para permitir edición al pegar
+                var fila = string.Join("\t",
+                    usuarioOriginal.Id.ToString(), // ID como primera columna
+                    usuarioOriginal.NombreUsuario ?? "",
+                    usuarioOriginal.Nombre ?? "",
+                    usuarioOriginal.Apellidos ?? "",
+                    usuarioOriginal.Email ?? "",
+                    usuarioOriginal.Telefono ?? "",
+                    usuarioOriginal.Direccion ?? "",
+                    usuarioOriginal.CodigoPostal ?? "",
+                    usuarioOriginal.Localidad ?? "",
+                    "", // Password - no copiar por seguridad
+                    usuarioOriginal.Rol ?? "",
+                    usuarioOriginal.GestorId?.ToString() ?? "",
+                    usuarioOriginal.JefeVentasId?.ToString() ?? "",
+                    usuarioOriginal.DirectorComercialId?.ToString() ?? "",
+                    usuarioOriginal.Comercializadora ?? "",
+                    usuarioOriginal.Comision.ToString(),
+                    usuarioOriginal.Activo ? "1" : "0",
+                    usuarioOriginal.ExcluirLogAcceso ? "1" : "0",
+                    usuarioOriginal.RecibirNotificaciones ? "1" : "0",
+                    usuarioOriginal.PuedeVerClientes ? "1" : "0",
+                    usuarioOriginal.PuedeVerContratos ? "1" : "0",
+                    usuarioOriginal.PuedeVerTarifas ? "1" : "0",
+                    usuarioOriginal.PuedeVerLiquidaciones ? "1" : "0",
+                    usuarioOriginal.PuedeVerSips ? "1" : "0",
+                    usuarioOriginal.PuedeVerIncidencias ? "1" : "0",
+                    usuarioOriginal.PuedeVerOfertas ? "1" : "0",
+                    usuarioOriginal.PuedeVerUsuarios ? "1" : "0",
+                    usuarioOriginal.NumeroCuenta ?? "",
+                    usuarioOriginal.TipoEntidad ?? "N/A"
+                );
+                datosParaPortapapeles.Add(fila);
+            }
+        }
+        
+        // Copiar al portapapeles del sistema en formato TSV con cabeceras
+        if (datosParaPortapapeles.Any())
+        {
+            // Agregar línea de cabeceras (ID como primera columna)
+            var cabeceras = string.Join("\t",
+                "ID", "Username", "Nombre", "Apellidos", "Email", "Telefono", "Direccion",
+                "CodigoPostal", "Localidad", "Password", "Rol", "GestorId", "JefeVentasId",
+                "DirectorComercialId", "Comercializadora", "Comision", "Activo",
+                "ExcluirLogAcceso", "RecibirNotificaciones", "PuedeVerClientes",
+                "PuedeVerContratos", "PuedeVerTarifas", "PuedeVerLiquidaciones",
+                "PuedeVerSips", "PuedeVerIncidencias", "PuedeVerOfertas",
+                "PuedeVerUsuarios", "NumeroCuenta", "TipoEntidad"
+            );
+            
+            var textoConCabeceras = cabeceras + "\n" + string.Join("\n", datosParaPortapapeles);
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", textoConCabeceras);
+            mensajeExito = $"✓ {datosParaPortapapeles.Count} fila(s) copiada(s) con ID. Al pegar, los registros con ID se actualizarán, sin ID se crearán como nuevos.";
+        }
+        else
+        {
+            mensajeExito = "No hay filas seleccionadas para copiar.";
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task PegarFilas()
+    {
+        try
+        {
+            // Leer el contenido del portapapeles
+            var textoPortapapeles = await JSRuntime.InvokeAsync<string>("navigator.clipboard.readText");
+            
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                mensajeError = "El portapapeles está vacío.";
+                return;
+            }
+
+            // Procesar el texto del portapapeles (formato TSV)
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al leer del portapapeles: {ex.Message}";
+        }
+    }
+
+    [JSInvokable]
+    public async Task PegarDesdePortapapeles(string textoPortapapeles)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                return;
+            }
+
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al pegar: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcesarYAgregarFilas(string textoPortapapeles)
+    {
+        var lineas = textoPortapapeles.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        int filasCreadas = 0;
+        int filasActualizadas = 0;
+        var usuariosNuevos = new List<Usuario>();
+        var usuariosActualizados = new List<(Usuario usuario, int indiceOriginal)>();
+        
+        foreach (var linea in lineas)
+        {
+            var columnas = linea.Split('\t');
+            
+            // Omitir línea de cabeceras si existe (detecta si la primera columna dice "ID")
+            if (columnas.Length > 0 && (columnas[0].Trim().Equals("ID", StringComparison.OrdinalIgnoreCase) ||
+                                        columnas[0].Trim().Equals("Username", StringComparison.OrdinalIgnoreCase)))
+                continue;
+            
+            // Verificar que tengamos al menos las columnas mínimas
+            if (columnas.Length < 2)
+                continue;
+
+            // Leer el ID de la primera columna
+            int idUsuario = 0;
+            if (columnas.Length > 0 && int.TryParse(columnas[0].Trim(), out int parsedId))
+            {
+                idUsuario = parsedId;
+            }
+
+            var usuario = new Usuario
+            {
+                Id = idUsuario,
+                NombreUsuario = columnas.Length > 1 ? columnas[1].Trim() : "",
+                Nombre = columnas.Length > 2 ? columnas[2].Trim() : "",
+                Apellidos = columnas.Length > 3 ? columnas[3].Trim() : "",
+                Email = columnas.Length > 4 ? columnas[4].Trim() : "",
+                Telefono = columnas.Length > 5 ? columnas[5].Trim() : "",
+                Direccion = columnas.Length > 6 ? columnas[6].Trim() : "",
+                CodigoPostal = columnas.Length > 7 ? columnas[7].Trim() : "",
+                Localidad = columnas.Length > 8 ? columnas[8].Trim() : "",
+                PasswordHash = columnas.Length > 9 ? columnas[9].Trim() : "",
+                Rol = columnas.Length > 10 ? columnas[10].Trim() : "Colaborador",
+                GestorId = columnas.Length > 11 && int.TryParse(columnas[11].Trim(), out int gestorId) ? gestorId : null,
+                JefeVentasId = columnas.Length > 12 && int.TryParse(columnas[12].Trim(), out int jefeId) ? jefeId : null,
+                DirectorComercialId = columnas.Length > 13 && int.TryParse(columnas[13].Trim(), out int directorId) ? directorId : null,
+                Comercializadora = columnas.Length > 14 ? columnas[14].Trim() : "",
+                Comision = columnas.Length > 15 && decimal.TryParse(columnas[15].Trim(), out decimal comision) ? comision : 0.00m,
+                Activo = columnas.Length > 16 && (columnas[16].Trim() == "1" || columnas[16].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)),
+                ExcluirLogAcceso = columnas.Length > 17 && (columnas[17].Trim() == "1" || columnas[17].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)),
+                RecibirNotificaciones = columnas.Length > 18 && (columnas[18].Trim() == "1" || columnas[18].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)),
+                PuedeVerClientes = columnas.Length > 19 ? (columnas[19].Trim() == "1" || columnas[19].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                PuedeVerContratos = columnas.Length > 20 ? (columnas[20].Trim() == "1" || columnas[20].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                PuedeVerTarifas = columnas.Length > 21 ? (columnas[21].Trim() == "1" || columnas[21].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                PuedeVerLiquidaciones = columnas.Length > 22 ? (columnas[22].Trim() == "1" || columnas[22].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                PuedeVerSips = columnas.Length > 23 ? (columnas[23].Trim() == "1" || columnas[23].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                PuedeVerIncidencias = columnas.Length > 24 ? (columnas[24].Trim() == "1" || columnas[24].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                PuedeVerOfertas = columnas.Length > 25 ? (columnas[25].Trim() == "1" || columnas[25].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                PuedeVerUsuarios = columnas.Length > 26 ? (columnas[26].Trim() == "1" || columnas[26].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)) : true,
+                NumeroCuenta = columnas.Length > 27 ? columnas[27].Trim() : "",
+                TipoEntidad = columnas.Length > 28 ? columnas[28].Trim() : "N/A",
+                FechaCreacion = DateTime.Now
+            };
+
+            // Si tiene ID válido, buscar y actualizar el existente
+            if (idUsuario > 0)
+            {
+                var indiceExistente = usuarios.FindIndex(u => u.Id == idUsuario);
+                if (indiceExistente >= 0)
+                {
+                    // Actualizar el usuario existente con los nuevos datos
+                    var usuarioExistente = usuarios[indiceExistente];
+                    usuarioExistente.NombreUsuario = usuario.NombreUsuario;
+                    usuarioExistente.Nombre = usuario.Nombre;
+                    usuarioExistente.Apellidos = usuario.Apellidos;
+                    usuarioExistente.Email = usuario.Email;
+                    usuarioExistente.Telefono = usuario.Telefono;
+                    usuarioExistente.Direccion = usuario.Direccion;
+                    usuarioExistente.CodigoPostal = usuario.CodigoPostal;
+                    usuarioExistente.Localidad = usuario.Localidad;
+                    // Solo actualizar password si se proporcionó
+                    if (!string.IsNullOrWhiteSpace(usuario.PasswordHash))
+                        usuarioExistente.PasswordHash = usuario.PasswordHash;
+                    usuarioExistente.Rol = usuario.Rol;
+                    usuarioExistente.GestorId = usuario.GestorId;
+                    usuarioExistente.JefeVentasId = usuario.JefeVentasId;
+                    usuarioExistente.DirectorComercialId = usuario.DirectorComercialId;
+                    usuarioExistente.Comercializadora = usuario.Comercializadora;
+                    usuarioExistente.Comision = usuario.Comision;
+                    usuarioExistente.Activo = usuario.Activo;
+                    usuarioExistente.ExcluirLogAcceso = usuario.ExcluirLogAcceso;
+                    usuarioExistente.RecibirNotificaciones = usuario.RecibirNotificaciones;
+                    usuarioExistente.PuedeVerClientes = usuario.PuedeVerClientes;
+                    usuarioExistente.PuedeVerContratos = usuario.PuedeVerContratos;
+                    usuarioExistente.PuedeVerTarifas = usuario.PuedeVerTarifas;
+                    usuarioExistente.PuedeVerLiquidaciones = usuario.PuedeVerLiquidaciones;
+                    usuarioExistente.PuedeVerSips = usuario.PuedeVerSips;
+                    usuarioExistente.PuedeVerIncidencias = usuario.PuedeVerIncidencias;
+                    usuarioExistente.PuedeVerOfertas = usuario.PuedeVerOfertas;
+                    usuarioExistente.PuedeVerUsuarios = usuario.PuedeVerUsuarios;
+                    usuarioExistente.NumeroCuenta = usuario.NumeroCuenta;
+                    usuarioExistente.TipoEntidad = usuario.TipoEntidad;
+                    
+                    usuariosActualizados.Add((usuarioExistente, indiceExistente));
+                    filasActualizadas++;
+                }
+                else
+                {
+                    // ID no encontrado, agregar como nuevo
+                    usuariosNuevos.Add(usuario);
+                    filasCreadas++;
+                }
+            }
+            else
+            {
+                // Sin ID, agregar como nuevo
+                usuario.Id = 0;
+                usuariosNuevos.Add(usuario);
+                filasCreadas++;
+            }
+        }
+        
+        // Mover usuarios actualizados al inicio
+        if (usuariosActualizados.Any())
+        {
+            // Ordenar por índice descendente para eliminarlos correctamente
+            foreach (var (usuario, indice) in usuariosActualizados.OrderByDescending(x => x.indiceOriginal))
+            {
+                usuarios.RemoveAt(indice);
+            }
+            // Insertar todos los actualizados al inicio
+            usuariosActualizados.Reverse();
+            foreach (var (usuario, _) in usuariosActualizados)
+            {
+                usuarios.Insert(0, usuario);
+            }
+        }
+        
+        // Insertar todas las filas nuevas al inicio de la lista
+        if (usuariosNuevos.Any())
+        {
+            usuariosNuevos.Reverse(); // Revertir para que mantengan el orden al insertar
+            foreach (var usuario in usuariosNuevos)
+            {
+                usuarios.Insert(0, usuario);
+            }
+        }
+        
+        if (filasCreadas > 0 || filasActualizadas > 0)
+        {
+            var mensajes = new List<string>();
+            if (filasCreadas > 0) mensajes.Add($"{filasCreadas} nueva(s)");
+            if (filasActualizadas > 0) mensajes.Add($"{filasActualizadas} actualizada(s)");
+            
+            mensajeExito = $"✓ {string.Join(" y ", mensajes)} fila(s) al inicio de la lista. No olvides guardar.";
+            filasSeleccionadas.Clear();
+        }
+        else
+        {
+            mensajeError = "No se pudieron procesar las filas del portapapeles.";
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task GuardarCambios()
+    {
+        try
+        {
+            guardando = true;
+            erroresValidacion.Clear();
+            mensajeExito = string.Empty;
+            mensajeError = string.Empty;
+
+            // Validar todos los usuarios
+            if (!await ValidarUsuariosAsync())
+            {
+                mensajeError = "Por favor, corrige los errores de validación antes de guardar.";
+                return;
+            }
+
+            int creados = 0;
+            int actualizados = 0;
+            int errores = 0;
+
+            await using var context = DbContextProvider.CreateDbContext();
+
+            foreach (var usuario in usuarios)
+            {
+                try
+                {
+                    if (usuario.Id == 0)
+                    {
+                        // Crear nuevo usuario
+                        if (string.IsNullOrWhiteSpace(usuario.PasswordHash))
+                        {
+                            erroresValidacion.Add($"Usuario {usuario.NombreUsuario}: Password es obligatorio para usuarios nuevos");
+                            errores++;
+                            continue;
+                        }
+
+                        context.Usuarios.Add(usuario);
+                        await context.SaveChangesAsync();
+                        creados++;
+                    }
+                    else
+                    {
+                        // Actualizar usuario existente
+                        var usuarioExistente = await context.Usuarios.FindAsync(usuario.Id);
+                        if (usuarioExistente != null)
+                        {
+                            usuarioExistente.NombreUsuario = usuario.NombreUsuario;
+                            usuarioExistente.Nombre = usuario.Nombre;
+                            usuarioExistente.Apellidos = usuario.Apellidos;
+                            usuarioExistente.Email = usuario.Email;
+                            usuarioExistente.Telefono = usuario.Telefono;
+                            usuarioExistente.Direccion = usuario.Direccion;
+                            usuarioExistente.CodigoPostal = usuario.CodigoPostal;
+                            usuarioExistente.Localidad = usuario.Localidad;
+                            
+                            // Solo actualizar password si se proporcionó uno nuevo
+                            if (!string.IsNullOrWhiteSpace(usuario.PasswordHash))
+                            {
+                                usuarioExistente.PasswordHash = usuario.PasswordHash;
+                            }
+                            
+                            usuarioExistente.Rol = usuario.Rol;
+                            usuarioExistente.GestorId = usuario.GestorId;
+                            usuarioExistente.JefeVentasId = usuario.JefeVentasId;
+                            usuarioExistente.DirectorComercialId = usuario.DirectorComercialId;
+                            usuarioExistente.Comercializadora = usuario.Comercializadora;
+                            usuarioExistente.Comision = usuario.Comision;
+                            usuarioExistente.Activo = usuario.Activo;
+                            usuarioExistente.ExcluirLogAcceso = usuario.ExcluirLogAcceso;
+                            usuarioExistente.RecibirNotificaciones = usuario.RecibirNotificaciones;
+                            usuarioExistente.PuedeVerClientes = usuario.PuedeVerClientes;
+                            usuarioExistente.PuedeVerContratos = usuario.PuedeVerContratos;
+                            usuarioExistente.PuedeVerTarifas = usuario.PuedeVerTarifas;
+                            usuarioExistente.PuedeVerLiquidaciones = usuario.PuedeVerLiquidaciones;
+                            usuarioExistente.PuedeVerSips = usuario.PuedeVerSips;
+                            usuarioExistente.PuedeVerIncidencias = usuario.PuedeVerIncidencias;
+                            usuarioExistente.PuedeVerOfertas = usuario.PuedeVerOfertas;
+                            usuarioExistente.PuedeVerUsuarios = usuario.PuedeVerUsuarios;
+                            usuarioExistente.NumeroCuenta = usuario.NumeroCuenta;
+                            usuarioExistente.TipoEntidad = usuario.TipoEntidad;
+
+                            await context.SaveChangesAsync();
+                            actualizados++;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errores++;
+                    erroresValidacion.Add($"Error en usuario {(usuario.Id > 0 ? usuario.Id.ToString() : usuario.NombreUsuario)}: {ex.Message}");
+                }
+            }
+
+            if (errores == 0)
+            {
+                mensajeExito = $"✓ Cambios guardados correctamente. Creados: {creados}, Actualizados: {actualizados}";
+                await CargarUsuarios(); // Recargar para obtener los IDs de los nuevos
+            }
+            else
+            {
+                mensajeError = $"Se guardaron algunos cambios pero hubo {errores} error(es). Creados: {creados}, Actualizados: {actualizados}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar cambios: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task<bool> ValidarUsuariosAsync()
+    {
+        bool esValido = true;
+        erroresValidacion.Clear();
+
+        // Verificar duplicados de username dentro de la lista
+        var usersDuplicados = usuarios
+            .Where(u => !string.IsNullOrWhiteSpace(u.NombreUsuario))
+            .GroupBy(u => u.NombreUsuario)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (usersDuplicados.Any())
+        {
+            erroresValidacion.Add($"Usernames duplicados en la lista: {string.Join(", ", usersDuplicados)}");
+            esValido = false;
+        }
+
+        // Verificar duplicados de email dentro de la lista
+        var emailsDuplicados = usuarios
+            .Where(u => !string.IsNullOrWhiteSpace(u.Email))
+            .GroupBy(u => u.Email)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (emailsDuplicados.Any())
+        {
+            erroresValidacion.Add($"Emails duplicados en la lista: {string.Join(", ", emailsDuplicados)}");
+            esValido = false;
+        }
+
+        // Obtener todos los IDs de usuarios válidos para validar IDs de gestor/jefe/director
+        await using var context = DbContextProvider.CreateDbContext();
+        var usuariosValidos = await context.Usuarios.Select(u => u.Id).ToListAsync();
+
+        for (int i = 0; i < usuarios.Count; i++)
+        {
+            var usuario = usuarios[i];
+            var prefijo = $"Fila {i + 1}";
+
+            // Validación 1: Username obligatorio
+            if (string.IsNullOrWhiteSpace(usuario.NombreUsuario))
+            {
+                erroresValidacion.Add($"{prefijo}: Username es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 2: Email obligatorio
+            if (string.IsNullOrWhiteSpace(usuario.Email))
+            {
+                erroresValidacion.Add($"{prefijo}: Email es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 3: Rol obligatorio
+            if (string.IsNullOrWhiteSpace(usuario.Rol))
+            {
+                erroresValidacion.Add($"{prefijo}: Rol es obligatorio");
+                esValido = false;
+            }
+
+            // Validación 4: Password obligatorio para nuevos usuarios
+            if (usuario.Id == 0 && string.IsNullOrWhiteSpace(usuario.PasswordHash))
+            {
+                erroresValidacion.Add($"{prefijo}: Password es obligatorio para usuarios nuevos");
+                esValido = false;
+            }
+
+            // Validación 5: Gestor ID debe existir si tiene valor
+            if (usuario.GestorId.HasValue && usuario.GestorId.Value > 0)
+            {
+                if (!usuariosValidos.Contains(usuario.GestorId.Value))
+                {
+                    erroresValidacion.Add($"{prefijo}: El Gestor ID {usuario.GestorId.Value} no existe");
+                    esValido = false;
+                }
+            }
+
+            // Validación 6: Jefe Ventas ID debe existir si tiene valor
+            if (usuario.JefeVentasId.HasValue && usuario.JefeVentasId.Value > 0)
+            {
+                if (!usuariosValidos.Contains(usuario.JefeVentasId.Value))
+                {
+                    erroresValidacion.Add($"{prefijo}: El Jefe Ventas ID {usuario.JefeVentasId.Value} no existe");
+                    esValido = false;
+                }
+            }
+
+            // Validación 7: Director Comercial ID debe existir si tiene valor
+            if (usuario.DirectorComercialId.HasValue && usuario.DirectorComercialId.Value > 0)
+            {
+                if (!usuariosValidos.Contains(usuario.DirectorComercialId.Value))
+                {
+                    erroresValidacion.Add($"{prefijo}: El Director Comercial ID {usuario.DirectorComercialId.Value} no existe");
+                    esValido = false;
+                }
+            }
+        }
+
+        return esValido;
+    }
+}
+
+<style>
+    .table-responsive {
+        border: 1px solid #dee2e6;
+    }
+
+    #usuariosTable {
+        font-size: 0.875rem;
+    }
+
+    #usuariosTable thead th {
+        background-color: #f8f9fa;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 2px solid #dee2e6;
+        white-space: nowrap;
+    }
+
+    #usuariosTable tbody tr {
+        cursor: pointer;
+    }
+
+    #usuariosTable tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    #usuariosTable tbody tr.row-selected {
+        background-color: #cfe2ff;
+    }
+
+    #usuariosTable .form-control-sm {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    #usuariosTable .form-check-input {
+        cursor: pointer;
+        width: 1.2em;
+        height: 1.2em;
+    }
+
+    .bg-light {
+        background-color: #f8f9fa !important;
+    }
+</style>

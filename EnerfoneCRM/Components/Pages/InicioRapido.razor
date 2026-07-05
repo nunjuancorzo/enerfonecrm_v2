@@ -49,133 +49,92 @@ else
                         <h5 class="mb-0"><i class="bi bi-people me-2"></i>Importar Clientes</h5>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted">
-                            Importa clientes de forma masiva desde un archivo Excel. 
-                            Primero descarga la plantilla, complétala con los datos y súbela.
+                        <p class="text-muted mb-3">
+                            Gestiona clientes de forma masiva con una interfaz tipo Excel.
+                            Edita, crea y actualiza múltiples clientes a la vez.
                         </p>
                         
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-success" @onclick="ExportarClientes" disabled="@procesando">
-                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>Exportar Clientes Actuales (con ID)
-                            </button>
-                            
-                            <button class="btn btn-outline-primary" @onclick="DescargarPlantillaClientes">
-                                <i class="bi bi-download me-2"></i>Descargar Plantilla
-                            </button>
-                            
-                            <div class="mt-3">
-                                <label class="form-label fw-bold">Seleccionar archivo Excel</label>
-                                <InputFile OnChange="@(e => CargarArchivoClientes(e))" class="form-control" accept=".xlsx,.xls" />
-                            </div>
-                            
-                            <button class="btn btn-primary mt-2" @onclick="ImportarClientes" disabled="@(archivoClientes == null || procesando)">
-                                @if (procesando && tipoImportacion == "clientes")
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2"></span>
-                                }
-                                <i class="bi bi-upload me-2"></i>Importar Clientes
-                            </button>
+                        <div class="d-grid">
+                            <a href="/clientes/edicion-masiva" class="btn btn-primary btn-lg">
+                                <i class="bi bi-table me-2"></i>Ir a Edición Masiva
+                            </a>
                         </div>
-
-                        @if (resultadoClientes != null)
-                        {
-                            <div class="mt-3">
-                                <div class="alert alert-info">
-                                    <strong>Resultado:</strong><br/>
-                                    ✓ Importados: @resultadoClientes.Importados<br/>
-                                    ✗ Errores: @resultadoClientes.Errores
-                                </div>
-                                
-                                @if (resultadoClientes.Errores > 0 && resultadoClientes.DetalleErrores.Any())
-                                {
-                                    <div class="alert alert-warning">
-                                        <strong>Detalles de errores:</strong>
-                                        <ul class="mb-0 mt-2">
-                                            @foreach (var error in resultadoClientes.DetalleErrores.Take(10))
-                                            {
-                                                <li><small>@error</small></li>
-                                            }
-                                            @if (resultadoClientes.DetalleErrores.Count > 10)
-                                            {
-                                                <li><small><em>... y @(resultadoClientes.DetalleErrores.Count - 10) errores más</em></small></li>
-                                            }
-                                        </ul>
-                                    </div>
-                                }
-                            </div>
-                        }
                     </div>
                 </div>
 
-                <!-- Tarjeta de Contratos -->
-                <div class="card shadow-sm">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Importar Contratos</h5>
+                <!-- Tarjeta de Usuarios -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Gestión Masiva de Usuarios</h5>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted">
-                            Importa contratos de forma masiva desde un archivo Excel.
-                            Primero descarga la plantilla según el tipo, complétala y súbela.
+                        <p class="text-muted mb-3">
+                            Gestiona usuarios de forma masiva con una interfaz tipo Excel.
+                            Edita, crea y actualiza múltiples usuarios a la vez.
                         </p>
                         
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Tipo de Contrato</label>
-                            <select class="form-select" @bind="tipoContratoSeleccionado">
-                                <option value="">-- Seleccionar tipo --</option>
-                                <option value="energia">Energía</option>
-                                <option value="telefonia">Telefonía</option>
-                                <option value="alarmas">Alarmas</option>
-                            </select>
+                        <div class="d-grid">
+                            <a href="/usuarios/edicion-masiva" class="btn btn-info btn-lg">
+                                <i class="bi bi-table me-2"></i>Ir a Edición Masiva de Usuarios
+                            </a>
                         </div>
-                        
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-success" @onclick="DescargarPlantillaContratos" 
-                                    disabled="@string.IsNullOrEmpty(tipoContratoSeleccionado)">
-                                <i class="bi bi-download me-2"></i>Descargar Plantilla
-                            </button>
-                            
-                            <div class="mt-3">
-                                <label class="form-label fw-bold">Seleccionar archivo Excel</label>
-                                <InputFile OnChange="@(e => CargarArchivoContratos(e))" class="form-control" accept=".xlsx,.xls" />
-                            </div>
-                            
-                            <button class="btn btn-success mt-2" @onclick="ImportarContratos" 
-                                    disabled="@(archivoContratos == null || string.IsNullOrEmpty(tipoContratoSeleccionado) || procesando)">
-                                @if (procesando && tipoImportacion == "contratos")
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2"></span>
-                                }
-                                <i class="bi bi-upload me-2"></i>Importar Contratos
-                            </button>
-                        </div>
+                    </div>
+                </div>
 
-                        @if (resultadoContratos != null)
-                        {
-                            <div class="mt-3">
-                                <div class="alert alert-info">
-                                    <strong>Resultado:</strong><br/>
-                                    ✓ Importados: @resultadoContratos.Importados<br/>
-                                    ✗ Errores: @resultadoContratos.Errores
-                                </div>
-                                
-                                @if (resultadoContratos.Errores > 0 && resultadoContratos.DetalleErrores.Any())
-                                {
-                                    <div class="alert alert-warning">
-                                        <strong>Detalles de errores:</strong>
-                                        <ul class="mb-0 mt-2">
-                                            @foreach (var error in resultadoContratos.DetalleErrores.Take(10))
-                                            {
-                                                <li><small>@error</small></li>
-                                            }
-                                            @if (resultadoContratos.DetalleErrores.Count > 10)
-                                            {
-                                                <li><small><em>... y @(resultadoContratos.DetalleErrores.Count - 10) errores más</em></small></li>
-                                            }
-                                        </ul>
-                                    </div>
-                                }
-                            </div>
-                        }
+                <!-- Tarjeta de Contratos Energía -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-lightning-charge-fill me-2"></i>Contratos de Energía</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            Gestiona contratos de energía de forma masiva con una interfaz tipo Excel.
+                            Edita, crea y actualiza múltiples contratos a la vez.
+                        </p>
+                        
+                        <div class="d-grid">
+                            <a href="/contratos-energia-edicion-masiva" class="btn btn-success btn-lg">
+                                <i class="bi bi-table me-2"></i>Ir a Edición Masiva de Energía
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Contratos Telefonía -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-telephone-fill me-2"></i>Contratos de Telefonía</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            Gestiona contratos de telefonía de forma masiva con una interfaz tipo Excel.
+                            Edita, crea y actualiza múltiples contratos a la vez.
+                        </p>
+                        
+                        <div class="d-grid">
+                            <a href="/contratos-telefonia-edicion-masiva" class="btn btn-info btn-lg">
+                                <i class="bi bi-table me-2"></i>Ir a Edición Masiva de Telefonía
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Contratos Alarmas -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="bi bi-shield-fill-exclamation me-2"></i>Contratos de Alarmas</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">
+                            Gestiona contratos de alarmas de forma masiva con una interfaz tipo Excel.
+                            Edita, crea y actualiza múltiples contratos a la vez.
+                        </p>
+                        
+                        <div class="d-grid">
+                            <a href="/contratos-alarmas-edicion-masiva" class="btn btn-danger btn-lg">
+                                <i class="bi bi-table me-2"></i>Ir a Edición Masiva de Alarmas
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -448,14 +407,12 @@ else
     private bool procesando = false;
     private string tipoImportacion = string.Empty;
     
-    private IBrowserFile? archivoClientes;
     private IBrowserFile? archivoContratos;
     private IBrowserFile? archivoTarifasEnergia;
     private IBrowserFile? archivoTarifasTelefonia;
     private IBrowserFile? archivoServicios;
     private string tipoContratoSeleccionado = string.Empty;
     
-    private ResultadoImportacion? resultadoClientes;
     private ResultadoImportacion? resultadoContratos;
     private ResultadoImportacion? resultadoTarifasEnergia;
     private ResultadoImportacion? resultadoTarifasTelefonia;
@@ -494,19 +451,6 @@ else
             {
                 Navigation.NavigateTo("/");
             }
-        }
-    }
-
-    private async Task DescargarPlantillaClientes()
-    {
-        try
-        {
-            await JS.InvokeVoidAsync("descargarPlantillaClientes");
-            mensajeExito = "Plantilla de clientes descargada correctamente.";
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error al descargar plantilla: {ex.Message}";
         }
     }
 
@@ -579,14 +523,6 @@ else
         }
     }
 
-    private void CargarArchivoClientes(InputFileChangeEventArgs e)
-    {
-        archivoClientes = e.File;
-        resultadoClientes = null;
-        mensajeExito = string.Empty;
-        mensajeError = string.Empty;
-    }
-
     private void CargarArchivoContratos(InputFileChangeEventArgs e)
     {
         archivoContratos = e.File;
@@ -617,129 +553,6 @@ else
         resultadoServicios = null;
         mensajeExito = string.Empty;
         mensajeError = string.Empty;
-    }
-
-    private async Task ImportarClientes()
-    {
-        if (archivoClientes == null) return;
-
-        procesando = true;
-        tipoImportacion = "clientes";
-        mensajeExito = string.Empty;
-        mensajeError = string.Empty;
-        resultadoClientes = null;
-
-        try
-        {
-            // Guardar archivo temporalmente
-            var rutaTemporal = Path.Combine(Path.GetTempPath(), archivoClientes.Name);
-            
-            await using FileStream fs = new(rutaTemporal, FileMode.Create);
-            await archivoClientes.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(fs);
-            fs.Close();
-
-            // Determinar directorio de trabajo (desarrollo vs producción)
-            var directorioActual = Directory.GetCurrentDirectory();
-            var scriptPath = Path.Combine(directorioActual, "importar_clientes.py");
-            var directorioTrabajo = directorioActual;
-            
-            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
-            if (!File.Exists(scriptPath))
-            {
-                directorioTrabajo = Path.Combine(directorioActual, "..");
-                scriptPath = Path.Combine(directorioTrabajo, "importar_clientes.py");
-            }
-
-            // Verificar que el script existe
-            if (!File.Exists(scriptPath))
-            {
-                throw new Exception($"No se encontró el script importar_clientes.py en {directorioActual} ni en {directorioTrabajo}");
-            }
-
-            // Los scripts ahora leen la BD automáticamente desde appsettings.Production.json
-            // Ya no se necesitan parámetros de base de datos
-
-            // Ejecutar script de Python
-            var proceso = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = ObtenerRutaPython(),
-                    Arguments = $"importar_clientes.py \"{rutaTemporal}\"",
-                    WorkingDirectory = directorioTrabajo,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            ConfigurarCodificacionProcesoPython(proceso.StartInfo);
-            proceso.Start();
-            string salida = await proceso.StandardOutput.ReadToEndAsync();
-            string errores = await proceso.StandardError.ReadToEndAsync();
-            await proceso.WaitForExitAsync();
-
-            // Log para debug en consola
-            Console.WriteLine($"[ImportarClientes] ExitCode: {proceso.ExitCode}");
-            Console.WriteLine($"[ImportarClientes] Salida: {salida}");
-            if (!string.IsNullOrWhiteSpace(errores))
-            {
-                Console.WriteLine($"[ImportarClientes] Errores: {errores}");
-            }
-
-            // Verificar código de salida
-            if (proceso.ExitCode != 0)
-            {
-                // El script terminó con error
-                mensajeError = !string.IsNullOrWhiteSpace(errores) 
-                    ? $"ERROR DEL SCRIPT:\n{errores}" 
-                    : "El script terminó con errores. Revisa los logs del servidor.";
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(salida))
-            {
-                mensajeError = "El script no devolvió ninguna salida. Verifica permisos y que Python esté correctamente instalado.";
-                return;
-            }
-
-            // Parsear resultado
-            resultadoClientes = ParsearResultado(salida);
-
-            if (resultadoClientes.Importados > 0)
-            {
-                mensajeExito = $"Importación completada: {resultadoClientes.Importados} clientes importados.";
-            }
-            else if (resultadoClientes.Errores > 0)
-            {
-                mensajeError = $"Errores encontrados. Revisa los detalles.";
-            }
-            else if (salida.Contains("[OK]", StringComparison.OrdinalIgnoreCase))
-            {
-                // Script terminó correctamente pero sin contadores específicos
-                mensajeExito = "Operación completada correctamente.";
-            }
-            else
-            {
-                // No se pudo parsear pero el script terminó sin error
-                Console.WriteLine($"[ImportarClientes] ADVERTENCIA: No se pudo parsear resultado. Salida: {salida}");
-                mensajeExito = "Proceso completado. Revisa los logs para más detalles.";
-            }
-
-            // Limpiar archivo temporal
-            if (File.Exists(rutaTemporal))
-                File.Delete(rutaTemporal);
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error durante la importación: {ex.Message}";
-        }
-        finally
-        {
-            procesando = false;
-            tipoImportacion = string.Empty;
-        }
     }
 
     private async Task ImportarContratos()
@@ -1659,152 +1472,6 @@ else
                     await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
                     
                     mensajeExito = $"Servicios exportados correctamente: {nombreArchivo}";
-                    
-                    // Opcional: eliminar el archivo temporal del servidor
-                    File.Delete(rutaArchivo);
-                }
-                else
-                {
-                    mensajeError = $"Archivo generado pero no encontrado: {rutaArchivo}";
-                }
-            }
-            else
-            {
-                mensajeError = "No se pudo determinar el nombre del archivo exportado";
-            }
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error durante la exportación: {ex.Message}";
-        }
-        finally
-        {
-            procesando = false;
-            tipoImportacion = string.Empty;
-        }
-    }
-
-    private async Task ExportarClientes()
-    {
-        try
-        {
-            procesando = true;
-            tipoImportacion = "exportar-clientes";
-            mensajeError = string.Empty;
-            mensajeExito = string.Empty;
-            StateHasChanged();
-
-            var directorioActual = Directory.GetCurrentDirectory();
-            var scriptPath = Path.Combine(directorioActual, "exportar_clientes.py");
-            var directorioTrabajo = directorioActual;
-            
-            // Si el script no está en el directorio actual, buscar en el directorio padre (desarrollo)
-            if (!File.Exists(scriptPath))
-            {
-                directorioTrabajo = Path.Combine(directorioActual, "..");
-                scriptPath = Path.Combine(directorioTrabajo, "exportar_clientes.py");
-            }
-
-            // Verificar que el script existe
-            if (!File.Exists(scriptPath))
-            {
-                throw new Exception($"No se encontró el script exportar_clientes.py");
-            }
-
-            // Obtener nombre de base de datos según entorno
-            var databaseName = EnvironmentService.GetDatabaseName();
-            var dbUser = EnvironmentService.GetDatabaseUser();
-            var dbPassword = EnvironmentService.GetDatabasePassword();
-
-            // Ejecutar script de Python
-            var proceso = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = ObtenerRutaPython(),
-                    Arguments = $"exportar_clientes.py \"{databaseName}\" \"{dbUser}\" \"{dbPassword}\"",
-                    WorkingDirectory = directorioTrabajo,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            proceso.Start();
-            string salida = await proceso.StandardOutput.ReadToEndAsync();
-            string errores = await proceso.StandardError.ReadToEndAsync();
-            await proceso.WaitForExitAsync();
-
-            // Debug: Mostrar toda la salida
-            Console.WriteLine($"[EXPORTAR CLIENTES] Salida completa del script: {salida}");
-            Console.WriteLine($"[EXPORTAR CLIENTES] Errores: {errores}");
-            Console.WriteLine($"[EXPORTAR CLIENTES] Código de salida: {proceso.ExitCode}");
-
-            if (!string.IsNullOrWhiteSpace(errores))
-            {
-                mensajeError = $"Error al exportar: {errores}";
-                return;
-            }
-
-            // Verificar si hay errores en la salida del script
-            if (salida.Contains("[ERROR]"))
-            {
-                var lineasError = salida.Split('\n')
-                    .Where(l => l.Contains("[ERROR]"))
-                    .Select(l => l.Replace("[ERROR]", "").Trim())
-                    .ToList();
-                mensajeError = $"Error al exportar: {string.Join("\n", lineasError)}";
-                return;
-            }
-
-            // Buscar el nombre del archivo generado en la salida
-            var lineas = salida.Split('\n');
-            string? nombreArchivo = null;
-            foreach (var linea in lineas)
-            {
-                Console.WriteLine($"[EXPORTAR CLIENTES] Procesando línea: '{linea}'");
-                if (linea.Contains("clientes_exportados_") && linea.Contains(".xlsx"))
-                {
-                    var inicio = linea.IndexOf("clientes_exportados_");
-                    var fin = linea.IndexOf(".xlsx", inicio);
-                    Console.WriteLine($"[EXPORTAR CLIENTES] Encontrado en línea - inicio: {inicio}, fin: {fin}");
-                    if (inicio >= 0 && fin > inicio)
-                    {
-                        nombreArchivo = linea.Substring(inicio, fin - inicio + 5);
-                        Console.WriteLine($"[EXPORTAR CLIENTES] Nombre extraído: {nombreArchivo}");
-                        break;
-                    }
-                }
-            }
-
-            // Si no se encontró, intentar buscar en todo el directorio
-            if (nombreArchivo == null)
-            {
-                Console.WriteLine($"[EXPORTAR CLIENTES] Buscando archivos en: {directorioTrabajo}");
-                var archivos = Directory.GetFiles(directorioTrabajo, "clientes_exportados_*.xlsx")
-                    .OrderByDescending(f => File.GetCreationTime(f))
-                    .ToList();
-                Console.WriteLine($"[EXPORTAR CLIENTES] Archivos encontrados: {archivos.Count}");
-                if (archivos.Any())
-                {
-                    nombreArchivo = Path.GetFileName(archivos.First());
-                    Console.WriteLine($"[EXPORTAR CLIENTES] Usando archivo: {nombreArchivo}");
-                }
-            }
-
-            if (nombreArchivo != null)
-            {
-                // El archivo se genera en el directorio de trabajo
-                var rutaArchivo = Path.Combine(directorioTrabajo, nombreArchivo);
-                
-                if (File.Exists(rutaArchivo))
-                {
-                    // Descargar archivo
-                    var bytes = await File.ReadAllBytesAsync(rutaArchivo);
-                    await JS.InvokeVoidAsync("descargarArchivo", nombreArchivo, Convert.ToBase64String(bytes), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                    
-                    mensajeExito = $"Clientes exportados correctamente: {nombreArchivo}";
                     
                     // Opcional: eliminar el archivo temporal del servidor
                     File.Delete(rutaArchivo);
