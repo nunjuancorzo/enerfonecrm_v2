@@ -1,0 +1,970 @@
+@page "/tarifas-energia/edicion-masiva"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Data
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@rendermode InteractiveServer
+@inject TarifaEnergiaService TarifaEnergiaService
+@inject AuthService AuthService
+@inject DbContextProvider DbContextProvider
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Edición Masiva de Tarifas Energía - CorCRM</PageTitle>
+
+@if (AuthService.UsuarioActual?.Rol != "Administrador")
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            No tienes permisos para acceder a esta sección.
+        </div>
+    </div>
+}
+else
+{
+    <div class="container-fluid p-4">
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2><i class="bi bi-lightning-charge-fill me-2"></i>Edición Masiva de Tarifas Energía</h2>
+                    <p class="text-muted mb-0">Edita múltiples tarifas de energía de forma simultánea. Puedes copiar y pegar desde Excel.</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-secondary" @onclick="CargarTarifas" disabled="@guardando">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Recargar
+                </button>
+                <button class="btn btn-info" @onclick="CopiarFilasSeleccionadas" disabled="@(filasSeleccionadas.Count == 0)">
+                    <i class="bi bi-copy me-2"></i>Copiar (@filasSeleccionadas.Count)
+                </button>
+                <button class="btn btn-warning" @onclick="PegarFilas">
+                    <i class="bi bi-clipboard-plus me-2"></i>Pegar
+                </button>
+                <button class="btn btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                    <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                </button>
+                <button class="btn btn-primary" @onclick="GuardarCambios" disabled="@guardando">
+                    @if (guardando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    <i class="bi bi-save me-2"></i>Guardar Cambios
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+            </div>
+        }
+
+        @if (erroresValidacion.Any())
+        {
+            <div class="alert alert-warning alert-dismissible fade show">
+                <strong>Errores de validación:</strong>
+                <ul class="mb-0 mt-2">
+                    @foreach (var error in erroresValidacion.Take(10))
+                    {
+                        <li><small>@error</small></li>
+                    }
+                    @if (erroresValidacion.Count > 10)
+                    {
+                        <li><small><em>... y @(erroresValidacion.Count - 10) errores más</em></small></li>
+                    }
+                </ul>
+                <button type="button" class="btn-close" @onclick="() => erroresValidacion.Clear()"></button>
+            </div>
+        }
+
+        @if (cargando)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-3 text-muted">Cargando tarifas...</p>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="tarifasEnergiaTable" style="table-layout: fixed; width: 100%; min-width: 8000px;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 60px;">
+                                        <input type="checkbox" @onchange="ToggleSeleccionarTodas" />
+                                    </th>
+                                    <th style="width: 100px;">Acciones</th>
+                                    <th style="width: 100px;">ID</th>
+                                    <th style="width: 200px;">Empresa*</th>
+                                    <th style="width: 150px;">Tipo*</th>
+                                    <th style="width: 300px;">Nombre*</th>
+                                    <th style="width: 150px;">Tipo Cliente</th>
+                                    <th style="width: 150px;">Peaje</th>
+                                    <th style="width: 150px;">Peaje Gas</th>
+                                    <th style="width: 150px;">Comisión</th>
+                                    <th style="width: 150px;">Precio New</th>
+                                    <th style="width: 180px;">Término Fijo Diario</th>
+                                    <th style="width: 180px;">Precio Potencia P1</th>
+                                    <th style="width: 180px;">Precio Potencia P2</th>
+                                    <th style="width: 180px;">Precio Potencia P3</th>
+                                    <th style="width: 180px;">Precio Energía P1</th>
+                                    <th style="width: 180px;">Precio Energía P2</th>
+                                    <th style="width: 180px;">Precio Energía P3</th>
+                                    <th style="width: 150px;">Potencia 1</th>
+                                    <th style="width: 150px;">Potencia 2</th>
+                                    <th style="width: 150px;">Potencia 3</th>
+                                    <th style="width: 150px;">Potencia 4</th>
+                                    <th style="width: 150px;">Potencia 5</th>
+                                    <th style="width: 150px;">Potencia 6</th>
+                                    <th style="width: 150px;">Energía 1</th>
+                                    <th style="width: 150px;">Energía 2</th>
+                                    <th style="width: 150px;">Energía 3</th>
+                                    <th style="width: 150px;">Energía 4</th>
+                                    <th style="width: 150px;">Energía 5</th>
+                                    <th style="width: 150px;">Energía 6</th>
+                                    <th style="width: 150px;">Precio</th>
+                                    <th style="width: 180px;">Término Fijo Gas</th>
+                                    <th style="width: 150px;">PVD SVA</th>
+                                    <th style="width: 180px;">Término Variable Gas</th>
+                                    <th style="width: 150px;">Descuento</th>
+                                    <th style="width: 300px;">Obs. Descuentos</th>
+                                    <th style="width: 150px;">Permanencia</th>
+                                    <th style="width: 150px;">Excedentes</th>
+                                    <th style="width: 150px;">Batería Virtual</th>
+                                    <th style="width: 120px;">Días Penalización</th>
+                                    <th style="width: 150px;">Tipo Penalización</th>
+                                    <th style="width: 100px;">Activa</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (tarifa, index) in tarifas.Select((t, i) => (t, i)))
+                                {
+                                    <tr data-row-index="@index" class="@(filasSeleccionadas.Contains(index) ? "row-selected" : "")">
+                                        <td class="text-center">
+                                            <input type="checkbox" checked="@filasSeleccionadas.Contains(index)" @onchange="() => ToggleSeleccionFila(index)" />
+                                        </td>
+                                        <td class="text-center">
+                                            @if (tarifa.Id == 0)
+                                            {
+                                                <button class="btn btn-sm btn-danger" @onclick="() => EliminarFila(index)" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            }
+                                        </td>
+                                        <td class="bg-light text-muted">
+                                            @if (tarifa.Id > 0)
+                                            {
+                                                @tarifa.Id
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-success">Nuevo</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Empresa" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Empresa"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Tipo" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Tipo"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Nombre" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Nombre"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.TipoCliente" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "TipoCliente"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Peaje" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Peaje"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.PeajeGas" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PeajeGas"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" @bind="tarifa.Comision" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Comision"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" @bind="tarifa.PrecioNew" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioNew"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.TerminoFijoDiario" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "TerminoFijoDiario"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioPotenciaP1" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioPotenciaP1"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioPotenciaP2" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioPotenciaP2"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioPotenciaP3" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioPotenciaP3"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioEnergiaP1" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioEnergiaP1"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioEnergiaP2" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioEnergiaP2"))" />
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioEnergiaP3" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioEnergiaP3"))" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Potencia1" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Potencia1"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Potencia2" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Potencia2"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Potencia3" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Potencia3"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Potencia4" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Potencia4"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Potencia5" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Potencia5"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Potencia6" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Potencia6"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Energia1" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Energia1"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Energia2" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Energia2"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Energia3" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Energia3"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Energia4" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Energia4"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Energia5" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Energia5"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Energia6" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Energia6"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Precio" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Precio"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.TerminoFijoGas" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "TerminoFijoGas"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.PvdSva" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "PvdSva"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.TerminoVariableGas" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "TerminoVariableGas"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Descuento" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Descuento"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <textarea class="form-control form-control-sm" @bind="tarifa.ObservacionesDescuentos" 
+                                                      @onpaste="@((e) => OnPaste(e, index, "ObservacionesDescuentos"))" rows="1" maxlength="500"></textarea>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Permanencia" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Permanencia"))" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.Excedentes" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "Excedentes"))" maxlength="100" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.BateriaVirtual" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "BateriaVirtual"))" maxlength="50" />
+                                        </td>
+                                        <td>
+                                            <input type="number" class="form-control form-control-sm" @bind="tarifa.DiasPenalizacion" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "DiasPenalizacion"))" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="tarifa.TipoPenalizacion" 
+                                                   @onpaste="@((e) => OnPaste(e, index, "TipoPenalizacion"))" maxlength="20" />
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" @bind="tarifa.Activa" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Total de registros: <strong>@tarifas.Count</strong> 
+                            (@tarifas.Count(t => t.Id == 0) nuevos, @tarifas.Count(t => t.Id > 0) existentes)
+                        </span>
+                        <div>
+                            <span class="text-muted me-3">* Campos obligatorios</span>
+                            <button class="btn btn-sm btn-success" @onclick="AgregarNuevaFila" disabled="@guardando">
+                                <i class="bi bi-plus-circle me-2"></i>Añadir Fila
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-success mb-3">
+                <h6><i class="bi bi-check-circle me-2"></i>Cómo usar copiar/pegar:</h6>
+                <ol class="mb-0">
+                    <li><strong>Copiar filas:</strong> Marca los checkboxes → Clic en "Copiar" (incluye el ID)</li>
+                    <li><strong>Pegar para editar:</strong> Las filas con ID se actualizarán en lugar de duplicarse</li>
+                    <li><strong>Pegar sin ID:</strong> Crea nuevos registros (borra el ID en Excel para duplicar)</li>
+                    <li><strong>Filas editadas/nuevas:</strong> Aparecen al inicio de la lista para fácil localización</li>
+                </ol>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <h6><i class="bi bi-lightbulb me-2"></i>Consejos de uso:</h6>
+                <ul class="mb-0">
+                    <li><strong>Pegar en celdas:</strong> Copia desde Excel y pega directamente en campos individuales</li>
+                    <li><strong>Pegar filas completas:</strong> Usa <kbd>Ctrl</kbd>+<kbd>V</kbd> o el botón "Pegar" para añadir filas nuevas</li>
+                    <li>Los campos marcados con * son obligatorios</li>
+                    <li>El campo ID no es editable para registros existentes</li>
+                    <li>Añade nuevas filas vacías con el botón "Añadir Fila"</li>
+                    <li>Guarda todos los cambios cuando termines de editar</li>
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<TarifaEnergia> tarifas = new();
+    private bool cargando = false;
+    private bool guardando = false;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+    private List<string> erroresValidacion = new();
+    private DotNetObjectReference<TarifasEnergiaEdicionMasiva>? dotnetReference;
+    
+    // Variables para copiar/pegar
+    private HashSet<int> filasSeleccionadas = new();
+    private List<TarifaEnergia> filasCopia = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarTarifas();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotnetReference = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotnetReference);
+        }
+    }
+    
+    public void Dispose()
+    {
+        dotnetReference?.Dispose();
+    }
+
+    private async Task CargarTarifas()
+    {
+        try
+        {
+            cargando = true;
+            tarifas = await TarifaEnergiaService.ObtenerTodasAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar tarifas: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AgregarNuevaFila()
+    {
+        var nuevaTarifa = new TarifaEnergia
+        {
+            Id = 0,
+            Empresa = "",
+            Tipo = "",
+            Nombre = "",
+            Comision = 0,
+            PrecioNew = 0,
+            TerminoFijoDiario = 0,
+            PrecioPotenciaP1 = 0,
+            PrecioPotenciaP2 = 0,
+            PrecioPotenciaP3 = 0,
+            PrecioEnergiaP1 = 0,
+            PrecioEnergiaP2 = 0,
+            PrecioEnergiaP3 = 0,
+            Activa = true,
+            FechaCarga = DateTime.Now
+        };
+        
+        tarifas.Insert(0, nuevaTarifa);
+        StateHasChanged();
+    }
+
+    private void EliminarFila(int index)
+    {
+        if (index >= 0 && index < tarifas.Count)
+        {
+            tarifas.RemoveAt(index);
+            filasSeleccionadas.Remove(index);
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleSeleccionarTodas(ChangeEventArgs e)
+    {
+        if ((bool)(e.Value ?? false))
+        {
+            filasSeleccionadas = Enumerable.Range(0, tarifas.Count).ToHashSet();
+        }
+        else
+        {
+            filasSeleccionadas.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleSeleccionFila(int index)
+    {
+        if (filasSeleccionadas.Contains(index))
+        {
+            filasSeleccionadas.Remove(index);
+        }
+        else
+        {
+            filasSeleccionadas.Add(index);
+        }
+        StateHasChanged();
+    }
+
+    private async Task CopiarFilasSeleccionadas()
+    {
+        filasCopia.Clear();
+        var datosParaPortapapeles = new List<string>();
+        
+        foreach (var index in filasSeleccionadas.OrderBy(x => x))
+        {
+            if (index >= 0 && index < tarifas.Count)
+            {
+                var tarifaOriginal = tarifas[index];
+                
+                // Crear una copia de la tarifa
+                var copia = new TarifaEnergia
+                {
+                    Id = tarifaOriginal.Id,
+                    Empresa = tarifaOriginal.Empresa,
+                    Tipo = tarifaOriginal.Tipo,
+                    Nombre = tarifaOriginal.Nombre,
+                    TipoCliente = tarifaOriginal.TipoCliente,
+                    Peaje = tarifaOriginal.Peaje,
+                    PeajeGas = tarifaOriginal.PeajeGas,
+                    Comision = tarifaOriginal.Comision,
+                    PrecioNew = tarifaOriginal.PrecioNew,
+                    TerminoFijoDiario = tarifaOriginal.TerminoFijoDiario,
+                    PrecioPotenciaP1 = tarifaOriginal.PrecioPotenciaP1,
+                    PrecioPotenciaP2 = tarifaOriginal.PrecioPotenciaP2,
+                    PrecioPotenciaP3 = tarifaOriginal.PrecioPotenciaP3,
+                    PrecioEnergiaP1 = tarifaOriginal.PrecioEnergiaP1,
+                    PrecioEnergiaP2 = tarifaOriginal.PrecioEnergiaP2,
+                    PrecioEnergiaP3 = tarifaOriginal.PrecioEnergiaP3,
+                    Potencia1 = tarifaOriginal.Potencia1,
+                    Potencia2 = tarifaOriginal.Potencia2,
+                    Potencia3 = tarifaOriginal.Potencia3,
+                    Potencia4 = tarifaOriginal.Potencia4,
+                    Potencia5 = tarifaOriginal.Potencia5,
+                    Potencia6 = tarifaOriginal.Potencia6,
+                    Energia1 = tarifaOriginal.Energia1,
+                    Energia2 = tarifaOriginal.Energia2,
+                    Energia3 = tarifaOriginal.Energia3,
+                    Energia4 = tarifaOriginal.Energia4,
+                    Energia5 = tarifaOriginal.Energia5,
+                    Energia6 = tarifaOriginal.Energia6,
+                    Precio = tarifaOriginal.Precio,
+                    TerminoFijoGas = tarifaOriginal.TerminoFijoGas,
+                    PvdSva = tarifaOriginal.PvdSva,
+                    TerminoVariableGas = tarifaOriginal.TerminoVariableGas,
+                    Descuento = tarifaOriginal.Descuento,
+                    ObservacionesDescuentos = tarifaOriginal.ObservacionesDescuentos,
+                    Permanencia = tarifaOriginal.Permanencia,
+                    Excedentes = tarifaOriginal.Excedentes,
+                    BateriaVirtual = tarifaOriginal.BateriaVirtual,
+                    DiasPenalizacion = tarifaOriginal.DiasPenalizacion,
+                    TipoPenalizacion = tarifaOriginal.TipoPenalizacion,
+                    Activa = tarifaOriginal.Activa,
+                    FechaCarga = tarifaOriginal.FechaCarga
+                };
+                filasCopia.Add(copia);
+                
+                // Construir fila en formato TSV para portapapeles (compatible con Excel)
+                var fila = string.Join("\t",
+                    tarifaOriginal.Id.ToString(),
+                    tarifaOriginal.Empresa ?? "",
+                    tarifaOriginal.Tipo ?? "",
+                    tarifaOriginal.Nombre ?? "",
+                    tarifaOriginal.TipoCliente ?? "",
+                    tarifaOriginal.Peaje ?? "",
+                    tarifaOriginal.PeajeGas ?? "",
+                    tarifaOriginal.Comision.ToString(),
+                    tarifaOriginal.PrecioNew.ToString(),
+                    tarifaOriginal.TerminoFijoDiario?.ToString() ?? "",
+                    tarifaOriginal.PrecioPotenciaP1?.ToString() ?? "",
+                    tarifaOriginal.PrecioPotenciaP2?.ToString() ?? "",
+                    tarifaOriginal.PrecioPotenciaP3?.ToString() ?? "",
+                    tarifaOriginal.PrecioEnergiaP1?.ToString() ?? "",
+                    tarifaOriginal.PrecioEnergiaP2?.ToString() ?? "",
+                    tarifaOriginal.PrecioEnergiaP3?.ToString() ?? "",
+                    tarifaOriginal.Potencia1 ?? "",
+                    tarifaOriginal.Potencia2 ?? "",
+                    tarifaOriginal.Potencia3 ?? "",
+                    tarifaOriginal.Potencia4 ?? "",
+                    tarifaOriginal.Potencia5 ?? "",
+                    tarifaOriginal.Potencia6 ?? "",
+                    tarifaOriginal.Energia1 ?? "",
+                    tarifaOriginal.Energia2 ?? "",
+                    tarifaOriginal.Energia3 ?? "",
+                    tarifaOriginal.Energia4 ?? "",
+                    tarifaOriginal.Energia5 ?? "",
+                    tarifaOriginal.Energia6 ?? "",
+                    tarifaOriginal.Precio ?? "",
+                    tarifaOriginal.TerminoFijoGas ?? "",
+                    tarifaOriginal.PvdSva ?? "",
+                    tarifaOriginal.TerminoVariableGas ?? "",
+                    tarifaOriginal.Descuento ?? "",
+                    tarifaOriginal.ObservacionesDescuentos ?? "",
+                    tarifaOriginal.Permanencia ?? "",
+                    tarifaOriginal.Excedentes ?? "",
+                    tarifaOriginal.BateriaVirtual ?? "",
+                    tarifaOriginal.DiasPenalizacion?.ToString() ?? "",
+                    tarifaOriginal.TipoPenalizacion ?? "",
+                    tarifaOriginal.Activa ? "1" : "0"
+                );
+                datosParaPortapapeles.Add(fila);
+            }
+        }
+        
+        // Copiar al portapapeles del sistema en formato TSV con cabeceras
+        if (datosParaPortapapeles.Any())
+        {
+            // Agregar línea de cabeceras
+            var cabeceras = string.Join("\t",
+                "ID", "Empresa", "Tipo", "Nombre", "TipoCliente", "Peaje", "PeajeGas",
+                "Comision", "PrecioNew", "TerminoFijoDiario",
+                "PrecioPotenciaP1", "PrecioPotenciaP2", "PrecioPotenciaP3",
+                "PrecioEnergiaP1", "PrecioEnergiaP2", "PrecioEnergiaP3",
+                "Potencia1", "Potencia2", "Potencia3", "Potencia4", "Potencia5", "Potencia6",
+                "Energia1", "Energia2", "Energia3", "Energia4", "Energia5", "Energia6",
+                "Precio", "TerminoFijoGas", "PvdSva", "TerminoVariableGas",
+                "Descuento", "ObservacionesDescuentos", "Permanencia", "Excedentes",
+                "BateriaVirtual", "DiasPenalizacion", "TipoPenalizacion", "Activa"
+            );
+            
+            var textoConCabeceras = cabeceras + "\n" + string.Join("\n", datosParaPortapapeles);
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", textoConCabeceras);
+            mensajeExito = $"✓ {filasCopia.Count} fila(s) copiada(s) con ID. Al pegar, los registros con ID se actualizarán, sin ID se crearán como nuevos.";
+        }
+        else
+        {
+            mensajeExito = "No hay filas seleccionadas para copiar.";
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task PegarFilas()
+    {
+        try
+        {
+            // Leer el contenido del portapapeles
+            var textoPortapapeles = await JSRuntime.InvokeAsync<string>("navigator.clipboard.readText");
+            
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                mensajeError = "El portapapeles está vacío.";
+                return;
+            }
+
+            // Procesar el texto del portapapeles (formato TSV)
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al leer del portapapeles: {ex.Message}";
+        }
+    }
+
+    [JSInvokable]
+    public async Task PasteRowsFromJS(List<List<string>> rowsData)
+    {
+        try
+        {
+            if (rowsData == null || rowsData.Count == 0) return;
+            
+            int filasCreadas = 0;
+            int filasActualizadas = 0;
+            var tarifasNuevos = new List<TarifaEnergia>();
+            var tarifasActualizados = new List<(TarifaEnergia tarifa, int indiceOriginal)>();
+            
+            foreach (var rowData in rowsData)
+            {
+                // Leer el ID de la primera columna
+                int idTarifa = 0;
+                if (rowData.Count > 0 && int.TryParse(rowData[0], out int parsedId))
+                {
+                    idTarifa = parsedId;
+                }
+
+                var tarifa = new TarifaEnergia
+                {
+                    Id = idTarifa,
+                    Comision = 0,
+                    PrecioNew = 0,
+                    Activa = true,
+                    FechaCarga = DateTime.Now
+                };
+                
+                // Mapear datos según el índice
+                if (rowData.Count > 1 && !string.IsNullOrWhiteSpace(rowData[1])) tarifa.Empresa = rowData[1];
+                if (rowData.Count > 2 && !string.IsNullOrWhiteSpace(rowData[2])) tarifa.Tipo = rowData[2];
+                if (rowData.Count > 3 && !string.IsNullOrWhiteSpace(rowData[3])) tarifa.Nombre = rowData[3];
+                if (rowData.Count > 4 && !string.IsNullOrWhiteSpace(rowData[4])) tarifa.TipoCliente = rowData[4];
+                if (rowData.Count > 5 && !string.IsNullOrWhiteSpace(rowData[5])) tarifa.Peaje = rowData[5];
+                if (rowData.Count > 6 && !string.IsNullOrWhiteSpace(rowData[6])) tarifa.PeajeGas = rowData[6];
+                if (rowData.Count > 7 && decimal.TryParse(rowData[7], out var comision)) tarifa.Comision = comision;
+                if (rowData.Count > 8 && decimal.TryParse(rowData[8], out var precioNew)) tarifa.PrecioNew = precioNew;
+                if (rowData.Count > 9 && decimal.TryParse(rowData[9], out var termFijo)) tarifa.TerminoFijoDiario = termFijo;
+                if (rowData.Count > 10 && decimal.TryParse(rowData[10], out var precPotP1)) tarifa.PrecioPotenciaP1 = precPotP1;
+                if (rowData.Count > 11 && decimal.TryParse(rowData[11], out var precPotP2)) tarifa.PrecioPotenciaP2 = precPotP2;
+                if (rowData.Count > 12 && decimal.TryParse(rowData[12], out var precPotP3)) tarifa.PrecioPotenciaP3 = precPotP3;
+                if (rowData.Count > 13 && decimal.TryParse(rowData[13], out var precEnP1)) tarifa.PrecioEnergiaP1 = precEnP1;
+                if (rowData.Count > 14 && decimal.TryParse(rowData[14], out var precEnP2)) tarifa.PrecioEnergiaP2 = precEnP2;
+                if (rowData.Count > 15 && decimal.TryParse(rowData[15], out var precEnP3)) tarifa.PrecioEnergiaP3 = precEnP3;
+                if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16])) tarifa.Potencia1 = rowData[16];
+                if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17])) tarifa.Potencia2 = rowData[17];
+                if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18])) tarifa.Potencia3 = rowData[18];
+                if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) tarifa.Potencia4 = rowData[19];
+                if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20])) tarifa.Potencia5 = rowData[20];
+                if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) tarifa.Potencia6 = rowData[21];
+                if (rowData.Count > 22 && !string.IsNullOrWhiteSpace(rowData[22])) tarifa.Energia1 = rowData[22];
+                if (rowData.Count > 23 && !string.IsNullOrWhiteSpace(rowData[23])) tarifa.Energia2 = rowData[23];
+                if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24])) tarifa.Energia3 = rowData[24];
+                if (rowData.Count > 25 && !string.IsNullOrWhiteSpace(rowData[25])) tarifa.Energia4 = rowData[25];
+                if (rowData.Count > 26 && !string.IsNullOrWhiteSpace(rowData[26])) tarifa.Energia5 = rowData[26];
+                if (rowData.Count > 27 && !string.IsNullOrWhiteSpace(rowData[27])) tarifa.Energia6 = rowData[27];
+                if (rowData.Count > 28 && !string.IsNullOrWhiteSpace(rowData[28])) tarifa.Precio = rowData[28];
+                if (rowData.Count > 29 && !string.IsNullOrWhiteSpace(rowData[29])) tarifa.TerminoFijoGas = rowData[29];
+                if (rowData.Count > 30 && !string.IsNullOrWhiteSpace(rowData[30])) tarifa.PvdSva = rowData[30];
+                if (rowData.Count > 31 && !string.IsNullOrWhiteSpace(rowData[31])) tarifa.TerminoVariableGas = rowData[31];
+                if (rowData.Count > 32 && !string.IsNullOrWhiteSpace(rowData[32])) tarifa.Descuento = rowData[32];
+                if (rowData.Count > 33 && !string.IsNullOrWhiteSpace(rowData[33])) tarifa.ObservacionesDescuentos = rowData[33];
+                if (rowData.Count > 34 && !string.IsNullOrWhiteSpace(rowData[34])) tarifa.Permanencia = rowData[34];
+                if (rowData.Count > 35 && !string.IsNullOrWhiteSpace(rowData[35])) tarifa.Excedentes = rowData[35];
+                if (rowData.Count > 36 && !string.IsNullOrWhiteSpace(rowData[36])) tarifa.BateriaVirtual = rowData[36];
+                if (rowData.Count > 37 && int.TryParse(rowData[37], out var diasPenal)) tarifa.DiasPenalizacion = diasPenal;
+                if (rowData.Count > 38 && !string.IsNullOrWhiteSpace(rowData[38])) tarifa.TipoPenalizacion = rowData[38];
+                if (rowData.Count > 39) tarifa.Activa = rowData[39] == "1" || rowData[39].ToLower() == "true";
+                
+                // Si tiene ID válido, buscar y actualizar el existente
+                if (idTarifa > 0)
+                {
+                    var indiceExistente = tarifas.FindIndex(t => t.Id == idTarifa);
+                    if (indiceExistente >= 0)
+                    {
+                        // Actualizar la tarifa existente
+                        ActualizarTarifa(tarifas[indiceExistente], tarifa);
+                        tarifasActualizados.Add((tarifas[indiceExistente], indiceExistente));
+                        filasActualizadas++;
+                    }
+                    else
+                    {
+                        // ID no encontrado, agregar como nuevo
+                        tarifasNuevos.Add(tarifa);
+                        filasCreadas++;
+                    }
+                }
+                else
+                {
+                    // Sin ID, agregar como nuevo
+                    tarifa.Id = 0;
+                    tarifasNuevos.Add(tarifa);
+                    filasCreadas++;
+                }
+            }
+            
+            // Mover tarifas actualizadas al inicio
+            if (tarifasActualizados.Any())
+            {
+                foreach (var (tarifa, indice) in tarifasActualizados.OrderByDescending(x => x.indiceOriginal))
+                {
+                    tarifas.RemoveAt(indice);
+                }
+                tarifasActualizados.Reverse();
+                foreach (var (tarifa, _) in tarifasActualizados)
+                {
+                    tarifas.Insert(0, tarifa);
+                }
+            }
+            
+            // Insertar todas las filas nuevas al inicio
+            if (tarifasNuevos.Any())
+            {
+                tarifasNuevos.Reverse();
+                foreach (var tarifa in tarifasNuevos)
+                {
+                    tarifas.Insert(0, tarifa);
+                }
+            }
+            
+            if (filasCreadas > 0 || filasActualizadas > 0)
+            {
+                var mensajes = new List<string>();
+                if (filasCreadas > 0) mensajes.Add($"{filasCreadas} nueva(s)");
+                if (filasActualizadas > 0) mensajes.Add($"{filasActualizadas} actualizada(s)");
+                
+                mensajeExito = $"✓ {string.Join(" y ", mensajes)} fila(s) al inicio. No olvides guardar.";
+            }
+            
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al pegar filas: {ex.Message}";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    [JSInvokable]
+    public async Task PegarDesdePortapapeles(string textoPortapapeles)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(textoPortapapeles))
+            {
+                return;
+            }
+
+            await ProcesarYAgregarFilas(textoPortapapeles);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al pegar: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcesarYAgregarFilas(string textoPortapapeles)
+    {
+        var lineas = textoPortapapeles.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        if (lineas.Length == 0)
+        {
+            mensajeError = "No hay datos para pegar.";
+            return;
+        }
+
+        // Detectar si la primera línea es de cabeceras (contiene "ID" como primer campo)
+        var primeraLinea = lineas[0].Split('\t');
+        var esLineaCabecera = primeraLinea.Length > 0 && 
+                              (primeraLinea[0].Trim().Equals("ID", StringComparison.OrdinalIgnoreCase) ||
+                               primeraLinea[0].Trim().Equals("id", StringComparison.OrdinalIgnoreCase));
+        
+        var indiceInicio = esLineaCabecera ? 1 : 0;
+        
+        // Convertir líneas TSV a listas
+        var rowsData = new List<List<string>>();
+        for (int i = indiceInicio; i < lineas.Length; i++)
+        {
+            var columnas = lineas[i].Split('\t');
+            rowsData.Add(columnas.ToList());
+        }
+
+        // Procesar las filas
+        await PasteRowsFromJS(rowsData);
+    }
+
+    private void ActualizarTarifa(TarifaEnergia destino, TarifaEnergia origen)
+    {
+        destino.Empresa = origen.Empresa;
+        destino.Tipo = origen.Tipo;
+        destino.Nombre = origen.Nombre;
+        destino.TipoCliente = origen.TipoCliente;
+        destino.Peaje = origen.Peaje;
+        destino.PeajeGas = origen.PeajeGas;
+        destino.Comision = origen.Comision;
+        destino.PrecioNew = origen.PrecioNew;
+        destino.TerminoFijoDiario = origen.TerminoFijoDiario;
+        destino.PrecioPotenciaP1 = origen.PrecioPotenciaP1;
+        destino.PrecioPotenciaP2 = origen.PrecioPotenciaP2;
+        destino.PrecioPotenciaP3 = origen.PrecioPotenciaP3;
+        destino.PrecioEnergiaP1 = origen.PrecioEnergiaP1;
+        destino.PrecioEnergiaP2 = origen.PrecioEnergiaP2;
+        destino.PrecioEnergiaP3 = origen.PrecioEnergiaP3;
+        destino.Potencia1 = origen.Potencia1;
+        destino.Potencia2 = origen.Potencia2;
+        destino.Potencia3 = origen.Potencia3;
+        destino.Potencia4 = origen.Potencia4;
+        destino.Potencia5 = origen.Potencia5;
+        destino.Potencia6 = origen.Potencia6;
+        destino.Energia1 = origen.Energia1;
+        destino.Energia2 = origen.Energia2;
+        destino.Energia3 = origen.Energia3;
+        destino.Energia4 = origen.Energia4;
+        destino.Energia5 = origen.Energia5;
+        destino.Energia6 = origen.Energia6;
+        destino.Precio = origen.Precio;
+        destino.TerminoFijoGas = origen.TerminoFijoGas;
+        destino.PvdSva = origen.PvdSva;
+        destino.TerminoVariableGas = origen.TerminoVariableGas;
+        destino.Descuento = origen.Descuento;
+        destino.ObservacionesDescuentos = origen.ObservacionesDescuentos;
+        destino.Permanencia = origen.Permanencia;
+        destino.Excedentes = origen.Excedentes;
+        destino.BateriaVirtual = origen.BateriaVirtual;
+        destino.DiasPenalizacion = origen.DiasPenalizacion;
+        destino.TipoPenalizacion = origen.TipoPenalizacion;
+        destino.Activa = origen.Activa;
+    }
+
+    private async Task GuardarCambios()
+    {
+        try
+        {
+            guardando = true;
+            erroresValidacion.Clear();
+            
+            // Validar datos
+            if (!ValidarTarifas())
+            {
+                mensajeError = "Hay errores de validación. Por favor corrígelos antes de guardar.";
+                return;
+            }
+
+            using var context = DbContextProvider.CreateDbContext();
+            
+            int creados = 0;
+            int actualizados = 0;
+
+            foreach (var tarifa in tarifas)
+            {
+                if (tarifa.Id == 0)
+                {
+                    // Crear nueva
+                    context.TarifasEnergia.Add(tarifa);
+                    creados++;
+                }
+                else
+                {
+                    // Actualizar existente
+                    context.TarifasEnergia.Update(tarifa);
+                    actualizados++;
+                }
+            }
+
+            await context.SaveChangesAsync();
+            
+            mensajeExito = $"Cambios guardados correctamente. {creados} creadas, {actualizados} actualizadas.";
+            
+            // Recargar datos
+            await CargarTarifas();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar cambios: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private bool ValidarTarifas()
+    {
+        bool esValido = true;
+
+        for (int i = 0; i < tarifas.Count; i++)
+        {
+            var tarifa = tarifas[i];
+            
+            if (string.IsNullOrWhiteSpace(tarifa.Empresa))
+            {
+                erroresValidacion.Add($"Fila {i + 1}: La empresa es obligatoria");
+                esValido = false;
+            }
+
+            if (string.IsNullOrWhiteSpace(tarifa.Tipo))
+            {
+                erroresValidacion.Add($"Fila {i + 1}: El tipo es obligatorio");
+                esValido = false;
+            }
+
+            if (string.IsNullOrWhiteSpace(tarifa.Nombre))
+            {
+                erroresValidacion.Add($"Fila {i + 1}: El nombre es obligatorio");
+                esValido = false;
+            }
+        }
+
+        return esValido;
+    }
+
+    [JSInvokable]
+    public Task OnPaste(object eventArgs, int rowIndex, string fieldName)
+    {
+        // Método para compatibilidad con el sistema de pegado
+        return Task.CompletedTask;
+    }
+}
