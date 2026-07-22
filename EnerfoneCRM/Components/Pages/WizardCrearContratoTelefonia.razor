@@ -643,15 +643,10 @@
                                                     @for (int i = 1; i <= 5; i++)
                                                     {
                                                         var lineaIndex = i;
-                                                        var telefono = ObtenerTelefonoLinea(lineaIndex);
-                                                        var tarifa = ObtenerTarifaLinea(lineaIndex);
-                                                        var tipoLinea = ObtenerTipoLinea(lineaIndex);
-                                                        var codigoIcc = ObtenerCodigoIcc(lineaIndex);
-                                                        var altaNueva = ObtenerAltaNuevaLinea(lineaIndex);
                                                         
-                                                        @if (!string.IsNullOrEmpty(telefono) || lineaIndex <= numeroLineasActivas)
+                                                        @if (!string.IsNullOrEmpty(ObtenerTelefonoLinea(lineaIndex)) || lineaIndex <= numeroLineasActivas)
                                                         {
-                                                            <div class="col-md-6 mb-3">
+                                                            <div class="col-md-6 mb-3" @key="lineaIndex">
                                                                 <div class="card">
                                                                     <div class="card-body p-3">
                                                                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -662,9 +657,13 @@
                                                                         </div>
                                                                         
                                                                         <div class="input-group mb-2">
-                                                                            <InputText @bind-Value="@telefono" @bind-Value:after="() => ActualizarTelefonoLinea(lineaIndex, telefono)" class="form-control form-control-sm" placeholder="Número de teléfono" />
+                                                                            <input type="text" class="form-control form-control-sm" placeholder="Número de teléfono" 
+                                                                                   value="@ObtenerTelefonoLinea(lineaIndex)" 
+                                                                                   @onchange="@(e => ActualizarTelefonoLinea(lineaIndex, e.Value?.ToString() ?? string.Empty))" />
                                                                             <div class="input-group-text">
-                                                                                <InputCheckbox Value="@altaNueva" ValueChanged="(value) => ActualizarAltaNuevaLinea(lineaIndex, value)" class="form-check-input mt-0 me-2" />
+                                                                                <input type="checkbox" class="form-check-input mt-0 me-2" 
+                                                                                       checked="@ObtenerAltaNuevaLinea(lineaIndex)" 
+                                                                                       @onchange="@(e => ActualizarAltaNuevaLinea(lineaIndex, (bool)(e.Value ?? false)))" />
                                                                                 <label class="form-check-label small mb-0" style="white-space: nowrap;">ALTA NUEVA</label>
                                                                             </div>
                                                                         </div>
@@ -672,7 +671,7 @@
                                                                         @* Selector de tarifa móvil para líneas adicionales *@
                                                                         @if (tarifasMovilSolo.Any())
                                                                         {
-                                                                            <select class="form-select form-select-sm mb-2" value="@tarifa" @onchange="(e) => ActualizarTarifaLinea(lineaIndex, e.Value?.ToString())">
+                                                                            <select class="form-select form-select-sm mb-2" value="@ObtenerTarifaLinea(lineaIndex)" @onchange="(e) => ActualizarTarifaLinea(lineaIndex, e.Value?.ToString() ?? string.Empty)">
                                                                                 <option value="">-- Seleccionar tarifa móvil --</option>
                                                                                 @foreach (var tarifaMovil in tarifasMovilSolo)
                                                                                 {
@@ -683,36 +682,36 @@
                                                                         }
                                                                         else
                                                                         {
-                                                                            <InputText @bind-Value="@tarifa" @bind-Value:after="() => ActualizarTarifaLinea(lineaIndex, tarifa)" class="form-control form-control-sm mb-2" placeholder="Tarifa" />
+                                                                            <input type="text" class="form-control form-control-sm mb-2" placeholder="Tarifa" 
+                                                                                   value="@ObtenerTarifaLinea(lineaIndex)" 
+                                                                                   @onchange="@(e => ActualizarTarifaLinea(lineaIndex, e.Value?.ToString() ?? string.Empty))" />
                                                                         }
                                                                         
                                                                         @* Tipo de línea y código ICC *@
                                                                         <div class="row g-2">
                                                                             <div class="col-6">
                                                                                 <label class="form-label small fw-bold mb-1">Tipo</label>
-                                                                                <select class="form-select form-select-sm" value="@tipoLinea" @onchange="(e) => ActualizarTipoLinea(lineaIndex, e.Value?.ToString())">
+                                                                                <select class="form-select form-select-sm" value="@ObtenerTipoLinea(lineaIndex)" @onchange="(e) => ActualizarTipoLinea(lineaIndex, e.Value?.ToString() ?? string.Empty)">
                                                                                     <option value="">-- Tipo --</option>
                                                                                     <option value="Contrato">Contrato</option>
                                                                                     <option value="Prepago">Prepago</option>
                                                                                 </select>
                                                                             </div>
                                                                             
-                                                                            @if (tipoLinea == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
+                                                                            @if (ObtenerTipoLinea(lineaIndex) == "Prepago" || operadoraSeleccionada?.RequiereICC == true)
                                                                             {
                                                                                 <div class="col-12">
                                                                                     <label class="form-label small fw-bold mb-1">
                                                                                         ICC (19 dígitos) <span class="text-danger">*</span>
-                                                                                        @if (operadoraSeleccionada?.RequiereICC == true && tipoLinea != "Prepago")
+                                                                                        @if (operadoraSeleccionada?.RequiereICC == true && ObtenerTipoLinea(lineaIndex) != "Prepago")
                                                                                         {
                                                                                             <small class="text-info">(Requerido por @operadoraSeleccionada.Nombre)</small>
                                                                                         }
                                                                                     </label>
-                                                                                    <InputText @bind-Value="@codigoIcc" 
-                                                                                              @bind-Value:after="() => ActualizarCodigoIcc(lineaIndex, codigoIcc)" 
-                                                                                              class="form-control form-control-sm" 
-                                                                                              placeholder="89 34 XX..." 
-                                                                                              maxlength="19" />
-                                                                                    @if (!string.IsNullOrEmpty(codigoIcc) && codigoIcc.Length != 19)
+                                                                                    <input type="text" class="form-control form-control-sm" placeholder="89 34 XX..." maxlength="19"
+                                                                                           value="@ObtenerCodigoIcc(lineaIndex)" 
+                                                                                           @onchange="@(e => ActualizarCodigoIcc(lineaIndex, e.Value?.ToString() ?? string.Empty))" />
+                                                                                    @if (!string.IsNullOrEmpty(ObtenerCodigoIcc(lineaIndex)) && ObtenerCodigoIcc(lineaIndex).Length != 19)
                                                                                     {
                                                                                         <small class="text-danger d-block">Debe tener 19 dígitos</small>
                                                                                     }
@@ -1442,9 +1441,18 @@
     // Métodos para gestión de líneas adicionales
     private void AgregarLineaAdicional()
     {
-        if (numeroLineasActivas < 5)
+        try
         {
-            numeroLineasActivas++;
+            if (numeroLineasActivas < 5)
+            {
+                numeroLineasActivas++;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error en AgregarLineaAdicional: {ex.Message}");
+            Console.WriteLine($"StackTrace: {ex.StackTrace}");
         }
     }
 
@@ -1463,6 +1471,8 @@
             {
                 numeroLineasActivas--;
             }
+            
+            StateHasChanged();
         }
     }
 

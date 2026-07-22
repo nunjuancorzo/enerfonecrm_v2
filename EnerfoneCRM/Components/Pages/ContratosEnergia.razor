@@ -271,9 +271,6 @@ else
                 <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                     <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Contratos</h5>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-primary" @onclick="AbrirWizardNuevoContrato">
-                            <i class="bi bi-plus-circle me-2"></i>Nuevo Contrato
-                        </button>
                         @if (contratosSeleccionados.Any())
                         {
                             <button class="btn btn-warning" @onclick="MostrarModalCambioEstadoMasivo">
@@ -1806,6 +1803,9 @@ else
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "crear")]
+    public bool AbrirCrearContrato { get; set; }
+    
     private List<Contrato> contratos = new();
     private List<Contrato> contratosFiltrados = new();
     private List<Contrato> contratosParaPaginar = new();
@@ -1946,6 +1946,36 @@ else
             // Guardar el ID para abrirlo después de cargar los datos
             await Task.Delay(100); // Pequeño delay para asegurar que el componente está listo
             _ = AbrirContratoDesdeUrl(contratoId);
+        }
+        
+        // Si se pasó el parámetro crear=true, abrir el wizard después de cargar
+        if (AbrirCrearContrato)
+        {
+            await Task.Delay(100);
+            _ = AbrirWizardDesdeFlujoNuevo();
+        }
+    }
+    
+    private async Task AbrirWizardDesdeFlujoNuevo()
+    {
+        try
+        {
+            // Esperar a que el wizard esté listo
+            int intentos = 0;
+            while (wizardNuevoContrato == null && intentos < 30)
+            {
+                await Task.Delay(100);
+                intentos++;
+            }
+            
+            if (wizardNuevoContrato != null)
+            {
+                await wizardNuevoContrato.Abrir();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al abrir wizard: {ex.Message}");
         }
     }
 

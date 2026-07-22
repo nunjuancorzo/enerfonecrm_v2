@@ -1,0 +1,137 @@
+@page "/nuevo-contrato"
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Nuevo Contrato - CorCRM</PageTitle>
+
+<div class="container-fluid px-4 py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="home">Inicio</a></li>
+                    <li class="breadcrumb-item active">Nuevo Contrato</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-file-earmark-plus me-2"></i>Nuevo Contrato
+                    </h4>
+                </div>
+                <div class="card-body p-5">
+                    <div class="row justify-content-center">
+                        <div class="col-12 text-center mb-4">
+                            <h5 class="text-muted">Selecciona el tipo de contrato que deseas crear</h5>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 justify-content-center">
+                        <!-- Energía -->
+                        <div class="col-md-4">
+                            <div class="card h-100 shadow-sm border-warning hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="CrearContratoEnergia">
+                                <div class="card-body text-center p-4">
+                                    <div class="mb-3">
+                                        <i class="bi bi-lightning-charge-fill" style="font-size: 5rem; color: #FFC107;"></i>
+                                    </div>
+                                    <h4 class="card-title mb-3">Energía</h4>
+                                    <p class="card-text text-muted">Crear contrato de suministro eléctrico o gas</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Telefonía -->
+                        @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                        {
+                            <div class="col-md-4">
+                                <div class="card h-100 shadow-sm border-primary hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="CrearContratoTelefonia">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
+                                            <i class="bi bi-telephone-fill" style="font-size: 5rem; color: #2196F3;"></i>
+                                        </div>
+                                        <h4 class="card-title mb-3">Telefonía</h4>
+                                        <p class="card-text text-muted">Crear contrato de fibra, móvil o convergente</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Alarmas -->
+                            <div class="col-md-4">
+                                <div class="card h-100 shadow-sm border-danger hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="CrearContratoAlarmas">
+                                    <div class="card-body text-center p-4">
+                                        <div class="mb-3">
+                                            <i class="bi bi-shield-check" style="font-size: 5rem; color: #F44336;"></i>
+                                        </div>
+                                        <h4 class="card-title mb-3">Alarmas</h4>
+                                        <p class="card-text text-muted">Crear contrato de sistema de alarmas</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12 text-center">
+                            <button type="button" class="btn btn-secondary" @onclick="Volver">
+                                <i class="bi bi-arrow-left me-2"></i>Volver
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2) !important;
+    }
+
+    .hover-card {
+        transition: all 0.3s ease;
+    }
+
+    .hover-card:hover .bi {
+        animation: pulse 0.5s ease-in-out;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.1);
+        }
+    }
+</style>
+
+@code {
+    private void CrearContratoEnergia()
+    {
+        Navigation.NavigateTo("/contratos/energia?crear=true");
+    }
+
+    private void CrearContratoTelefonia()
+    {
+        Navigation.NavigateTo("/contratos/telefonia?crear=true");
+    }
+
+    private void CrearContratoAlarmas()
+    {
+        Navigation.NavigateTo("/contratos/alarmas?crear=true");
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/home");
+    }
+}
