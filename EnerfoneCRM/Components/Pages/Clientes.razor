@@ -3591,7 +3591,7 @@ else
             var usuario = usuarios.FirstOrDefault(u => u.Id == usuarioId);
             if (usuario != null)
             {
-                nuevoContrato.UsuarioComercializadoraId = usuario.Id;
+                nuevoContrato.UsuarioComercialId = usuario.Id;
                 nuevoContrato.Comercial = usuario.NombreUsuario;
                 
                 // Recalcular comisión según el tipo de contrato y la tarifa seleccionada
@@ -3671,7 +3671,7 @@ else
             Direccion = clienteParaContrato.Direccion ?? "",
             Iban = clienteParaContrato.Iban ?? "",
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
-            UsuarioComercializadoraId = AuthService.UsuarioActual?.Id,
+            UsuarioComercialId = AuthService.UsuarioActual?.Id,
             FechaCreacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
@@ -3773,7 +3773,7 @@ else
             Direccion = clienteParaContrato.Direccion,
             Iban = clienteParaContrato.Iban,
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
-            UsuarioComercializadoraId = AuthService.UsuarioActual?.Id,
+            UsuarioComercialId = AuthService.UsuarioActual?.Id,
             FechaCreacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Estado = "Pte Carga",
@@ -3814,7 +3814,7 @@ else
             Direccion = clienteParaContrato.Direccion,
             Iban = clienteParaContrato.Iban,
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
-            UsuarioComercializadoraId = AuthService.UsuarioActual?.Id,
+            UsuarioComercialId = AuthService.UsuarioActual?.Id,
             FechaCreacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Estado = "Pte Carga",

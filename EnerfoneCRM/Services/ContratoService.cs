@@ -72,6 +72,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(compania_anterior, '') as compania_anterior,
                     fecha_permanencia_anterior,
                     usuario_comercializadora_id,
+                    usuario_comercial_id,
                     servicio_id,
                     historico_liquidacion_id,
                     potencia_contratada_p1,

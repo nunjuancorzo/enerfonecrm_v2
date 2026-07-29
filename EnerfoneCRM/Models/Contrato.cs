@@ -79,6 +79,9 @@ namespace EnerfoneCRM.Models
         [Column("usuario_comercializadora_id")]
         public int? UsuarioComercializadoraId { get; set; }
 
+        [Column("usuario_comercial_id")]
+        public int? UsuarioComercialId { get; set; }
+
         [Column("servicio_id")]
         public int? ServicioId { get; set; }
 

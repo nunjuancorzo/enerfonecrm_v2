@@ -1066,7 +1066,7 @@ else
                                                                     <option value="">Seleccionar comercial...</option>
                                                                     @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
                                                                     {
-                                                                        <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
+                                                                        <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercialId == usuario.Id)">@usuario.NombreUsuario</option>
                                                                     }
                                                                 </select>
                                                             </div>
@@ -3044,6 +3044,7 @@ else
             TitularIbanNombre = contrato.TitularIbanNombre,
             TitularIbanNumero = contrato.TitularIbanNumero,
             UsuarioComercializadoraId = contrato.UsuarioComercializadoraId,
+            UsuarioComercialId = contrato.UsuarioComercialId,
             ServicioId = contrato.ServicioId,
             EnComercializadora = contrato.EnComercializadora ?? "",
             EnTarifa = contrato.EnTarifa,
@@ -3325,7 +3326,7 @@ else
             var usuario = todosLosUsuarios.FirstOrDefault(u => u.Id == usuarioId);
             if (usuario != null)
             {
-                contratoSeleccionado.UsuarioComercializadoraId = usuario.Id;
+                contratoSeleccionado.UsuarioComercialId = usuario.Id;
                 contratoSeleccionado.Comercial = usuario.NombreUsuario;
                 
                 // Recalcular comisión si hay tarifa seleccionada
@@ -3341,7 +3342,7 @@ else
         }
         else
         {
-            contratoSeleccionado.UsuarioComercializadoraId = null;
+            contratoSeleccionado.UsuarioComercialId = null;
             contratoSeleccionado.Comercial = string.Empty;
         }
     }
@@ -3650,14 +3651,26 @@ else
 
     private Usuario? ObtenerUsuarioComercial()
     {
-        if (contratoSeleccionado == null || string.IsNullOrEmpty(contratoSeleccionado.Comercial))
+        if (contratoSeleccionado == null)
         {
             return null;
         }
         
-        return todosLosUsuarios.FirstOrDefault(u => 
-            u.NombreUsuario.Equals(contratoSeleccionado.Comercial, StringComparison.OrdinalIgnoreCase)
-        );
+        // Buscar primero por ID si está disponible
+        if (contratoSeleccionado.UsuarioComercialId.HasValue)
+        {
+            return todosLosUsuarios.FirstOrDefault(u => u.Id == contratoSeleccionado.UsuarioComercialId.Value);
+        }
+        
+        // Fallback: buscar por nombre si no hay ID (contratos antiguos)
+        if (!string.IsNullOrEmpty(contratoSeleccionado.Comercial))
+        {
+            return todosLosUsuarios.FirstOrDefault(u => 
+                u.NombreUsuario.Equals(contratoSeleccionado.Comercial, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+        
+        return null;
     }
 
     private async Task MostrarEmail(string email)
