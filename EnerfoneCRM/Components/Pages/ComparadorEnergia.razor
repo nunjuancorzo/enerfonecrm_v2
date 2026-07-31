@@ -67,18 +67,9 @@ else
                     <div class="card-body p-5">
                                 @if (pasoActual == 1)
                         {
-                            <!-- Botón de avance superior -->
-                            <div class="d-flex justify-content-center mb-4">
-                                <button class="btn btn-warning px-4" 
-                                        @onclick="AvanzarPaso1" 
-                                        disabled="@(string.IsNullOrWhiteSpace(cups))">
-                                    <i class="bi bi-arrow-right me-2"></i>Continuar
-                                </button>
-                            </div>
-
                             <!-- Título CUPS -->
                             <div class="text-center mb-4">
-                                <h4 class="text-muted">Paso 1/4 - CUPS y Datos Básicos</h4>
+                                <h4 class="text-muted">Paso 1/3 - Compañía y Tarifa Actual</h4>
                             </div>
 
                             <!-- Campo CUPS -->
@@ -86,7 +77,7 @@ else
                                 <input type="text" 
                                        class="form-control form-control-lg text-center" 
                                        @bind="cups" 
-                                       placeholder="Introduce el CUPS"
+                                       placeholder="Introduce el CUPS (opcional)"
                                        style="border: 2px solid #e0e0e0; border-radius: 10px;" />
                             </div>
 
@@ -147,7 +138,7 @@ else
                             </div>
 
                             <!-- Toggle Particular/Empresa -->
-                            <div class="d-flex justify-content-center">
+                            <div class="d-flex justify-content-center mb-5">
                                 <div class="btn-group" role="group">
                                     <button type="button" 
                                             class="btn btn-lg px-5 @(tipoCliente == "Particular" ? "btn-warning" : "btn-outline-warning")"
@@ -161,25 +152,21 @@ else
                                     </button>
                                 </div>
                             </div>
-                        }
-                        else if (pasoActual == 2)
-                        {
-                            <!-- Botones de navegación superiores -->
-                            <div class="d-flex justify-content-center gap-3 mb-4">
-                                <button class="btn btn-outline-warning px-4" 
-                                        @onclick="RetrocederPaso">
-                                    <i class="bi bi-arrow-left me-2"></i>Atrás
-                                </button>
+
+                            <!-- Botón de avance -->
+                            <div class="d-flex justify-content-center mt-4">
                                 <button class="btn btn-warning px-4" 
-                                        @onclick="AvanzarPaso2"
-                                        disabled="@(!ValidarPaso2())">
+                                        @onclick="AvanzarPaso1" 
+                                        disabled="@(string.IsNullOrWhiteSpace(companiaActual) || string.IsNullOrWhiteSpace(tarifaActual))">
                                     <i class="bi bi-arrow-right me-2"></i>Continuar
                                 </button>
                             </div>
-
+                        }
+                        else if (pasoActual == 2)
+                        {
                             <!-- Título -->
                             <div class="text-center mb-4">
-                                <h4 class="fw-bold">Paso 2/4 - Datos del cliente</h4>
+                                <h4 class="fw-bold">Paso 2/3 - Datos del cliente</h4>
                             </div>
 
                             <!-- Nombre y Email -->
@@ -210,7 +197,7 @@ else
                             </div>
 
                             <!-- Switch: Misma dirección de correspondencia -->
-                            <div class="d-flex align-items-center mb-4">
+                            <div class="d-flex align-items-center mb-5">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" 
                                            type="checkbox" 
@@ -224,115 +211,36 @@ else
                                 </div>
                             </div>
 
-                            <!-- Switch: Datos del consultor -->
-                            <div class="d-flex align-items-center justify-content-center">
-                                <label class="fs-5 fw-bold me-3">Datos del consultor</label>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" 
-                                           type="checkbox" 
-                                           role="switch" 
-                                           id="switchConsultor"
-                                           @bind="mostrarDatosConsultor"
-                                           style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                                </div>
-                            </div>
-
-                            <!-- Campos del consultor (mostrar solo si el switch está activo) -->
-                            @if (mostrarDatosConsultor)
-                            {
-                                <div class="mt-4">
-                                    <div class="row g-4">
-                                        <div class="col-md-4">
-                                            <input type="text" 
-                                                   class="form-control form-control-lg" 
-                                                   @bind="nombreConsultor" 
-                                                   placeholder="Nombre del consultor"
-                                                   style="border: 2px solid #e0e0e0; border-radius: 10px;" />
-                                        </div>
-                                        <div class="col-md-4">
-                                            <input type="tel" 
-                                                   class="form-control form-control-lg" 
-                                                   @bind="telefonoConsultor" 
-                                                   placeholder="Teléfono"
-                                                   style="border: 2px solid #e0e0e0; border-radius: 10px;" />
-                                        </div>
-                                        <div class="col-md-4">
-                                            <input type="email" 
-                                                   class="form-control form-control-lg" 
-                                                   @bind="emailConsultor" 
-                                                   placeholder="Email del consultor"
-                                                   style="border: 2px solid #e0e0e0; border-radius: 10px;" />
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-                        }
-                        else if (pasoActual == 3)
-                        {
-                            <!-- Botones de navegación superiores -->
-                            <div class="d-flex justify-content-center gap-3 mb-4">
+                            <!-- Botones de navegación -->
+                            <div class="d-flex justify-content-center gap-3 mt-5">
                                 <button class="btn btn-outline-warning px-4" 
                                         @onclick="RetrocederPaso">
                                     <i class="bi bi-arrow-left me-2"></i>Atrás
                                 </button>
                                 <button class="btn btn-warning px-4" 
-                                        @onclick="AvanzarPaso3"
-                                        disabled="@(!ValidarPaso3Nuevo())">
+                                        @onclick="AvanzarPaso2">
                                     <i class="bi bi-arrow-right me-2"></i>Continuar
                                 </button>
                             </div>
-
+                        }
+                        else if (pasoActual == 3)
+                        {
                             <!-- Título -->
                             <div class="text-center mb-4">
-                                <h4 class="fw-bold">Paso 3/4 - Datos de Facturación</h4>
-                                <p class="text-muted">Revisa los datos antes de calcular las ofertas</p>
-                            </div>
-
-                            <!-- Consumo anual -->
-                            <div class="mb-5">
-                                <label class="form-label text-muted fw-normal mb-3">Consumo anual (kWh)</label>
-                                <input type="number" 
-                                       class="form-control form-control-lg" 
-                                       @bind="consumoAnual"
-                                       step="0.01"
-                                       min="0"
-                                       placeholder="Ej: 3500"
-                                       style="border: 2px solid #e0e0e0; border-radius: 10px;" />
-                            </div>
-
-                            <!-- Tipo de facturación de potencia (tabs) -->
-                            <div class="mb-5">
-                                <label class="form-label text-muted fw-normal mb-3">Facturación de potencia</label>
-                                <div class="btn-group w-100" role="group">
-                                    <button type="button" 
-                                            class="btn btn-lg @(tipoFacturacionPotencia == "Diaria" ? "btn-warning" : "btn-outline-warning")"
-                                            @onclick='() => tipoFacturacionPotencia = "Diaria"'>
-                                        Diaria
-                                    </button>
-                                    <button type="button" 
-                                            class="btn btn-lg @(tipoFacturacionPotencia == "Mensual" ? "btn-warning" : "btn-outline-warning")"
-                                            @onclick='() => tipoFacturacionPotencia = "Mensual"'>
-                                        Mensual
-                                    </button>
-                                    <button type="button" 
-                                            class="btn btn-lg @(tipoFacturacionPotencia == "Anual" ? "btn-warning" : "btn-outline-warning")"
-                                            @onclick='() => tipoFacturacionPotencia = "Anual"'>
-                                        Anual
-                                    </button>
-                                </div>
+                                <h4 class="fw-bold">Paso 3/3 - Datos de facturación y consumo</h4>
                             </div>
 
                             <!-- Fechas de facturación -->
                             <div class="row g-4 mb-4">
                                 <div class="col-md-6">
-                                    <label class="form-label text-muted fw-normal">Inicio facturación</label>
+                                    <label class="form-label fw-bold">Inicio facturación</label>
                                     <input type="date" 
                                            class="form-control form-control-lg" 
                                            @bind="fechaInicioFacturacion"
                                            style="border: 2px solid #e0e0e0; border-radius: 10px;" />
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label text-muted fw-normal">Fin facturación</label>
+                                    <label class="form-label fw-bold">Fin facturación</label>
                                     <input type="date" 
                                            class="form-control form-control-lg" 
                                            @bind="fechaFinFacturacion"
@@ -340,252 +248,313 @@ else
                                 </div>
                             </div>
 
-                            <!-- Importe Factura Actual (OBLIGATORIO) -->
-                            <div class="border border-primary rounded p-4 mb-4" style="background-color: #f0f8ff;">
-                                <div class="text-center mb-3">
-                                    <label class="form-label fw-bold text-primary fs-5">
-                                        Importe factura actual 
-                                        <span class="text-danger">*</span>
+                            <!-- Importe pagado (opcional) -->
+                            <div class="row justify-content-center mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Importe pagado (opcional)</label>
+                                    <div class="input-group input-group-lg">
+                                        <input type="number"
+                                               class="form-control"
+                                               @bind="totalFacturaActual"
+                                               step="0.01"
+                                               min="0"
+                                               placeholder="Ej: 59,5"
+                                               style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px; text-align: right;" />
+                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">€</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mostrar solo ofertas con ahorro -->
+                            <div class="d-flex align-items-center justify-content-center mb-5">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           role="switch" 
+                                           id="switchAhorro"
+                                           @bind="mostrarSoloOfertasConAhorro"
+                                           style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                                    <label class="form-check-label ms-2 fs-5 fw-bold" for="switchAhorro" style="cursor: pointer;">
+                                        Mostrar solo ofertas con ahorro
                                     </label>
-                                    <p class="text-muted small mb-3">
-                                        Obligatorio: necesario para calcular el ahorro del cliente.
-                                    </p>
                                 </div>
-                                <div class="row justify-content-center">
-                                    <div class="col-md-6">
-                                        <div class="input-group input-group-lg">
-                                            <input type="number"
-                                                   class="form-control"
-                                                   @bind="totalFacturaActual"
-                                                   step="0.01"
-                                                   min="0"
-                                                   placeholder="Ej: 85.50"
-                                                   style="border: 2px solid #0d6efd; border-radius: 10px 0 0 10px; text-align: right; font-weight: bold;" />
-                                            <span class="input-group-text" style="border: 2px solid #0d6efd; border-left: none; border-radius: 0 10px 10px 0; background-color: #cfe2ff; font-weight: bold;">€</span>
-                                        </div>
+                            </div>
+
+                            <!-- Consumo anual -->
+                            <div class="row justify-content-end mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold text-end d-block">Consumo anual</label>
+                                    <div class="input-group input-group-lg">
+                                        <input type="number" 
+                                               class="form-control text-end" 
+                                               @bind="consumoAnual"
+                                               step="1"
+                                               min="0"
+                                               placeholder="2110"
+                                               style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kWh</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Conceptos adicionales de la factura -->
-                            <div class="card mb-4">
-                                <div class="card-header bg-secondary text-white">
-                                    <h5 class="mb-0">Conceptos adicionales de la factura</h5>
-                                    <small>Importes que se sumarán por igual a todas las ofertas simuladas</small>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label">Excesos de potencia</label>
-                                            <div class="input-group">
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       @bind="excesoPotencia"
-                                                       step="0.01"
-                                                       min="0"
-                                                       placeholder="0.00"
-                                                       style="text-align: right;" />
-                                                <span class="input-group-text">€</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Excedentes</label>
-                                            <div class="input-group">
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       @bind="excedentes"
-                                                       step="0.01"
-                                                       min="0"
-                                                       placeholder="0.00"
-                                                       style="text-align: right;" />
-                                                <span class="input-group-text">€</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Energía reactiva</label>
-                                            <div class="input-group">
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       @bind="energiaReactiva"
-                                                       step="0.01"
-                                                       min="0"
-                                                       placeholder="0.00"
-                                                       style="text-align: right;" />
-                                                <span class="input-group-text">€</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Servicios de ajuste</label>
-                                            <div class="input-group">
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       @bind="serviciosAjuste"
-                                                       step="0.01"
-                                                       min="0"
-                                                       placeholder="0.00"
-                                                       style="text-align: right;" />
-                                                <span class="input-group-text">€</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Fondo Nacional Eficiencia Energética (FNEE)</label>
-                                            <div class="input-group">
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       @bind="fnee"
-                                                       step="0.01"
-                                                       min="0"
-                                                       placeholder="0.00"
-                                                       style="text-align: right;" />
-                                                <span class="input-group-text">€</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label">Alquiler de contador</label>
-                                            <div class="input-group">
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       @bind="alquilerContador"
-                                                       step="0.01"
-                                                       min="0"
-                                                       placeholder="0.00"
-                                                       style="text-align: right;" />
-                                                <span class="input-group-text">€</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-12">
-                                            <label class="form-label">Otros conceptos</label>
-                                            <div class="input-group">
-                                                <input type="number" 
-                                                       class="form-control" 
-                                                       @bind="otrosConceptos"
-                                                       step="0.01"
-                                                       min="0"
-                                                       placeholder="0.00"
-                                                       style="text-align: right;" />
-                                                <span class="input-group-text">€</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Zona e Impuestos -->
+                            <!-- Consumos por periodo -->
                             <div class="row g-4 mb-4">
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Zona</label>
-                                    <select class="form-select form-select-lg" 
-                                            @bind="zona"
-                                            style="border: 2px solid #e0e0e0; border-radius: 10px;">
-                                        <option value="Península">Península</option>
-                                        <option value="Baleares">Baleares</option>
-                                        <option value="Canarias">Canarias</option>
-                                        <option value="Ceuta">Ceuta</option>
-                                        <option value="Melilla">Melilla</option>
-                                    </select>
+                                    <label class="form-label fw-bold">Consumo Punta</label>
+                                    <input type="number" 
+                                           class="form-control form-control-lg text-end" 
+                                           @bind="consumoPunta"
+                                           step="1"
+                                           min="0"
+                                           placeholder="79"
+                                           style="border: 2px solid #e0e0e0; border-radius: 10px;" />
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">IVA</label>
-                                    <div class="btn-group w-100" role="group">
-                                        <button type="button" 
-                                                class="btn @(porcentajeIVA == 10 ? "btn-warning" : "btn-outline-warning")"
-                                                @onclick='() => porcentajeIVA = 10'>
-                                            10%
-                                        </button>
-                                        <button type="button" 
-                                                class="btn @(porcentajeIVA == 21 ? "btn-warning" : "btn-outline-warning")"
-                                                @onclick='() => porcentajeIVA = 21'>
-                                            21%
-                                        </button>
-                                    </div>
-                                    <small class="text-muted">Automático según normativa</small>
+                                    <label class="form-label fw-bold">Consumo Llano</label>
+                                    <input type="number" 
+                                           class="form-control form-control-lg text-end" 
+                                           @bind="consumoLlano"
+                                           step="1"
+                                           min="0"
+                                           placeholder="94"
+                                           style="border: 2px solid #e0e0e0; border-radius: 10px;" />
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fw-bold">Impuesto Eléctrico (IE)</label>
-                                    <div class="btn-group w-100" role="group">
-                                        <button type="button" 
-                                                class="btn @(porcentajeImpuestoElectricidad == 0.5m ? "btn-warning" : "btn-outline-warning")"
-                                                @onclick='() => porcentajeImpuestoElectricidad = 0.5m'>
-                                            0,5%
-                                        </button>
-                                        <button type="button" 
-                                                class="btn @(porcentajeImpuestoElectricidad == 5.11m ? "btn-warning" : "btn-outline-warning")"
-                                                @onclick='() => porcentajeImpuestoElectricidad = 5.11m'>
-                                            5,11%
-                                        </button>
-                                    </div>
-                                    <small class="text-muted">5,11% estructural (por defecto)</small>
+                                    <label class="form-label fw-bold">Consumo Valle</label>
+                                    <input type="number" 
+                                           class="form-control form-control-lg text-end" 
+                                           @bind="consumoValle"
+                                           step="1"
+                                           min="0"
+                                           placeholder="153"
+                                           style="border: 2px solid #e0e0e0; border-radius: 10px;" />
                                 </div>
                             </div>
 
-                            <!-- Nota informativa -->
-                            <div class="alert alert-info mt-4">
-                                <small>
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Es importante indicar cómo está facturada la potencia y las fechas de facturación para que el cálculo sea real.
-                                </small>
+                            <!-- Potencias (dinámicas según tipo de tarifa) -->
+                            @if (tarifaActual == "2.0TD")
+                            {
+                                <!-- Potencias para 2.0TD -->
+                                <div class="row g-4 mb-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Potencia Punta</label>
+                                        <div class="input-group input-group-lg">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaPunta"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="7,89"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Potencia Valle</label>
+                                        <div class="input-group input-group-lg">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaValle"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="7,89"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else if (tarifaActual == "3.0TD" || tarifaActual == "6.1TD")
+                            {
+                                <!-- Potencias para 3.0TD y 6.1TD (P1-P6) -->
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Potencia P1</label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaP1"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="0"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Potencia P2</label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaP2"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="0"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Potencia P3</label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaP3"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="0"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Potencia P4</label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaP4"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="0"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Potencia P5</label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaP5"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="0"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Potencia P6</label>
+                                        <div class="input-group">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaP6"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="0"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <!-- Potencias por defecto (2 periodos) -->
+                                <div class="row g-4 mb-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Potencia Punta</label>
+                                        <div class="input-group input-group-lg">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaPunta"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="7,89"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Potencia Valle</label>
+                                        <div class="input-group input-group-lg">
+                                            <input type="number" 
+                                                   class="form-control text-end" 
+                                                   @bind="potenciaValle"
+                                                   step="0.01"
+                                                   min="0"
+                                                   placeholder="7,89"
+                                                   style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px;" />
+                                            <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Impuesto electricidad / IVA -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">I.V.A.</label>
+                                    <div class="input-group">
+                                        <select class="form-select" @bind="porcentajeIVA">
+                                            <option value="10">10</option>
+                                            <option value="21">21</option>
+                                        </select>
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Impuesto electricidad</label>
+                                    <div class="input-group">
+                                        <input type="number" 
+                                               class="form-control text-end" 
+                                               @bind="porcentajeImpuestoElectricidad"
+                                               step="0.001"
+                                               placeholder="5,113"
+                                               style="text-align: right;" />
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
                             </div>
-                        }
-                        else if (pasoActual == 4)
-                        {
-                            <!-- Botones de navegación superiores -->
-                            <div class="d-flex justify-content-center gap-3 mb-4">
+
+                            <!-- CO consumo / CO potencia -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">CO consumo</label>
+                                    <div class="input-group">
+                                        <input type="number" 
+                                               class="form-control text-end" 
+                                               @bind="coConsumo"
+                                               step="0.01"
+                                               placeholder="10"
+                                               style="text-align: right;" />
+                                        <span class="input-group-text">€/MWh</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">CO potencia</label>
+                                    <div class="input-group">
+                                        <input type="number" 
+                                               class="form-control text-end" 
+                                               @bind="coPotencia"
+                                               step="0.01"
+                                               placeholder=""
+                                               style="text-align: right;" />
+                                        <span class="input-group-text">€/kW/año</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Productos con servicio de ajuste -->
+                            <div class="mb-4">
+                                <label class="form-label">Productos con servicio de ajuste</label>
+                                <select class="form-select" @bind="productoServicioAjuste">
+                                    <option value="">Seleccione...</option>
+                                    <option value="Si">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+
+                            <!-- Botones de navegación -->
+                            <div class="d-flex justify-content-center gap-3 mt-4">
                                 <button class="btn btn-outline-warning px-4" 
                                         @onclick="RetrocederPaso">
                                     <i class="bi bi-arrow-left me-2"></i>Atrás
                                 </button>
                                 <button class="btn btn-warning px-4" 
-                                        @onclick="VerOfertasDirecto"
-                                        disabled="@(!ValidarPaso4Nuevo())">
-                                    <i class="bi bi-calculator me-2"></i>Comparar ofertas
+                                        @onclick="CalcularComparativa">
+                                    <i class="bi bi-calculator me-2"></i>Calcular ofertas
                                 </button>
-                            </div>
-
-                            <!-- Título -->
-                            <div class="text-center mb-5">
-                                <h4 class="fw-bold">Paso 4/4 - Potencias</h4>
-                            </div>
-
-                            <!-- Potencia Punta -->
-                            <div class="row g-3 mb-4 align-items-center justify-content-center">
-                                <div class="col-md-6">
-                                    <label class="form-label text-muted fw-normal">Potencia P1 (Punta)</label>
-                                    <div class="input-group input-group-lg">
-                                        <input type="number" 
-                                               class="form-control" 
-                                               @bind="potenciaPunta"
-                                               step="0.01"
-                                               min="0"
-                                               placeholder="Ej: 3.5"
-                                               style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px; text-align: right;" />
-                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Potencia Valle -->
-                            <div class="row g-3 mb-5 align-items-center justify-content-center">
-                                <div class="col-md-6">
-                                    <label class="form-label text-muted fw-normal">Potencia P2 (Valle)</label>
-                                    <div class="input-group input-group-lg">
-                                        <input type="number" 
-                                               class="form-control" 
-                                               @bind="potenciaValle"
-                                               step="0.01"
-                                               min="0"
-                                               placeholder="Ej: 3.5"
-                                               style="border: 2px solid #e0e0e0; border-radius: 10px 0 0 10px; text-align: right;" />
-                                        <span class="input-group-text" style="border: 2px solid #e0e0e0; border-left: none; border-radius: 0 10px 10px 0; background-color: #f8f9fa;">kW</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Nota informativa -->
-                            <div class="alert alert-info mt-4">
-                                <small>
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Las potencias se utilizarán para calcular los costes de las diferentes tarifas disponibles.
-                                </small>
                             </div>
                         }
                     </div>
@@ -1108,8 +1077,15 @@ else
     private decimal? ahorroMinimo = null;
     private bool mostrarAhorroEuros = true;
     private bool mostrarAhorroPorcentaje = true;
+    private bool mostrarSoloOfertasConAhorro = false;
     private decimal? coConsumo = null;
     private decimal? coPotencia = null;
+    
+    // Opciones avanzadas
+    private string companiaFiltro = string.Empty;
+    private string tipoProductoFiltro = string.Empty;
+    private string productoServicioAjuste = string.Empty;
+    private decimal? financiacionBonoSocial = null;
 
     // Lista de conceptos disponibles
     private List<string> conceptosDisponibles = new()
@@ -1154,9 +1130,15 @@ else
     private decimal? potenciaP1 = null;
     private decimal? potenciaP2 = null;
     private decimal? potenciaP3 = null;
+    private decimal? potenciaP4 = null;
+    private decimal? potenciaP5 = null;
+    private decimal? potenciaP6 = null;
     private decimal? consumoP1 = null;
     private decimal? consumoP2 = null;
     private decimal? consumoP3 = null;
+    private decimal? consumoP4 = null;
+    private decimal? consumoP5 = null;
+    private decimal? consumoP6 = null;
     private decimal? facturaActual = null;
 
     // Resultados
@@ -1183,8 +1165,7 @@ else
     {
         "2.0TD",
         "3.0TD", 
-        "6.1TD",
-        "No lo sé"
+        "6.1TD"
     };
 
     private void OnTipoTarifaChanged()
@@ -1193,9 +1174,15 @@ else
         potenciaP1 = null;
         potenciaP2 = null;
         potenciaP3 = null;
+        potenciaP4 = null;
+        potenciaP5 = null;
+        potenciaP6 = null;
         consumoP1 = null;
         consumoP2 = null;
         consumoP3 = null;
+        consumoP4 = null;
+        consumoP5 = null;
+        consumoP6 = null;
         resultadosCalculados = false;
         comercializadoras.Clear();
     }
@@ -1267,15 +1254,15 @@ else
                 else if (listadoTarifas.Contains(codigoTarifa))
                     tarifaActual = codigoTarifa;
                 else
-                    tarifaActual = "No lo sé"; // Si no se puede mapear, usar "No lo sé"
+                    tarifaActual = "2.0TD"; // Si no se puede mapear, usar tarifa más común
                 
                 // Forzar actualización de UI
                 StateHasChanged();
             }
             else
             {
-                // Si SIPS no devuelve código de tarifa, poner "No lo sé"
-                tarifaActual = "No lo sé";
+                // Si SIPS no devuelve código de tarifa, usar tarifa más común
+                tarifaActual = "2.0TD";
             }
 
             // ===== PASO 3: Datos del cliente =====
@@ -1417,7 +1404,7 @@ else
 
     private void AvanzarPaso1()
     {
-        if (string.IsNullOrWhiteSpace(cups))
+        if (string.IsNullOrWhiteSpace(companiaActual) || string.IsNullOrWhiteSpace(tarifaActual))
         {
             return;
         }
@@ -1427,10 +1414,7 @@ else
 
     private void AvanzarPaso2()
     {
-        if (ValidarPaso2())
-        {
-            pasoActual = 3;
-        }
+        pasoActual = 3;
     }
 
     private void AvanzarPaso3()
@@ -1595,10 +1579,16 @@ else
 
             if (!consumoAnual.HasValue || consumoAnual.Value <= 0)
             {
-                mensajeError = "El consumo anual es obligatorio para calcular las ofertas";
-                calculando = false;
-                StateHasChanged();
-                return;
+                // Si no hay consumo anual, verificar que al menos haya consumos por periodo
+                if ((!consumoPunta.HasValue || consumoPunta.Value <= 0) && 
+                    (!consumoLlano.HasValue || consumoLlano.Value <= 0) && 
+                    (!consumoValle.HasValue || consumoValle.Value <= 0))
+                {
+                    mensajeError = "Debes ingresar el consumo anual o los consumos por periodo (Punta/Llano/Valle)";
+                    calculando = false;
+                    StateHasChanged();
+                    return;
+                }
             }
 
             // Si no hay consumos por periodo pero sí consumo anual, distribuir proporcionalmente
@@ -1616,9 +1606,14 @@ else
             // Obtener todas las tarifas de energía
             var todasLasTarifas = await TarifaEnergiaService.ObtenerTodasAsync();
             
+            Console.WriteLine($"[DEBUG Comparador] Total tarifas en BD: {todasLasTarifas.Count}");
+            Console.WriteLine($"[DEBUG Comparador] Tarifa seleccionada: {tarifaActual}");
+            Console.WriteLine($"[DEBUG Comparador] Tipo cliente: {tipoCliente}");
+            Console.WriteLine($"[DEBUG Comparador] Mostrar solo con ahorro: {mostrarSoloOfertasConAhorro}");
+            
             comercializadoras.Clear();
             var factorPotenciaMensual = ObtenerFactorFacturacionPotenciaAMensual();
-            var diasEquivalentesMensual = ObtenerDiasFacturacionEquivalentesMensual();
+            var diasFacturacion = ObtenerDiasFacturacion();
 
             // Calcular el coste actual del cliente para comparación
             decimal costeActualMensual = 0;
@@ -1647,31 +1642,80 @@ else
                 costeActualMensual = baseImponible * (1 + porcentajeIVA / 100);
             }
 
+            Console.WriteLine($"[DEBUG Comparador] Coste actual mensual calculado: {costeActualMensual:C}");
+            
+            int tarifasActivas = 0;
+            int tarifasDescartadasTipoCliente = 0;
+            int tarifasDescartadasTipoTarifa = 0;
+
             foreach (var tarifa in todasLasTarifas)
             {
                 // Solo incluir tarifas activas
                 if (!tarifa.Activa)
                     continue;
+                    
+                tarifasActivas++;
 
                 // Filtrar por tipo de cliente (Particular/Empresa) para evitar mezclar Residencial/Pyme.
                 if (!TarifaCompatibleConTipoCliente(tarifa))
+                {
+                    tarifasDescartadasTipoCliente++;
                     continue;
+                }
 
-                // Calcular costes mensuales estimados
-                decimal terminoFijo = (tarifa.TerminoFijoDiario ?? 0) * diasEquivalentesMensual;
-                
+                // Filtrar por peaje seleccionado (2.0, 3.0, 6.1)
+                // El campo tarifa.Peaje contiene "2.0", "3.0", "6.1" (sin TD)
+                // El usuario selecciona "2.0TD", "3.0TD", "6.1TD" en tarifaActual
+                if (!string.IsNullOrWhiteSpace(tarifaActual))
+                {
+                    string peajeBuscado = tarifaActual.Replace("TD", "").Trim();
+                    string peajeTarifa = (tarifa.Peaje ?? "").Trim();
+                    
+                    if (!string.Equals(peajeTarifa, peajeBuscado, StringComparison.OrdinalIgnoreCase))
+                    {
+                        tarifasDescartadasTipoTarifa++;
+                        continue;
+                    }
+                }
+
+                // CÁLCULO SEGÚN FÓRMULA CORRECTA:
+                // 1. Potencia contratada × días de facturación × precio por potencia por cada periodo
                 decimal costePotencia = ((tarifa.PrecioPotenciaP1 ?? 0) * potenciaPunta.Value + 
-                                        (tarifa.PrecioPotenciaP2 ?? 0) * potenciaValle.Value) * diasEquivalentesMensual;
+                                        (tarifa.PrecioPotenciaP2 ?? 0) * potenciaValle.Value) * diasFacturacion;
                 
+                // Añadir CO potencia si está configurado (€/kW/año convertido a mensual)
+                if (coPotencia.HasValue && coPotencia.Value > 0)
+                {
+                    costePotencia += (potenciaPunta.Value + potenciaValle.Value) * (coPotencia.Value / 12);
+                }
+                
+                // 2. Energía consumida en cada periodo × precio de la energía por periodo
                 decimal costeEnergia = (tarifa.PrecioEnergiaP1 ?? 0) * (consumoPunta ?? 0) + 
                                       (tarifa.PrecioEnergiaP2 ?? 0) * (consumoLlano ?? 0) + 
                                       (tarifa.PrecioEnergiaP3 ?? 0) * (consumoValle ?? 0);
                 
-                decimal costeTotal = terminoFijo + costePotencia + costeEnergia;
+                // Añadir CO consumo si está configurado (€/MWh, consumos están en kWh)
+                if (coConsumo.HasValue && coConsumo.Value > 0)
+                {
+                    decimal consumoTotalKWh = (consumoPunta ?? 0) + (consumoLlano ?? 0) + (consumoValle ?? 0);
+                    decimal consumoTotalMWh = consumoTotalKWh / 1000;
+                    costeEnergia += coConsumo.Value * consumoTotalMWh;
+                }
                 
-                // Aplicar impuestos
-                costeTotal *= (1 + porcentajeImpuestoElectricidad / 100);
-                costeTotal *= (1 + porcentajeIVA / 100);
+                // Término fijo diario
+                decimal terminoFijo = (tarifa.TerminoFijoDiario ?? 0) * diasFacturacion;
+                
+                // 3. Base imponible = Potencia + Energía + Término fijo (sin otros conceptos de la factura actual)
+                decimal baseImponible = costePotencia + costeEnergia + terminoFijo;
+                
+                // 4. Impuesto de electricidad (se calcula sobre energía + potencia según normativa)
+                decimal impuestoElectricidad = (costePotencia + costeEnergia) * (porcentajeImpuestoElectricidad / 100);
+                
+                // 5. Total antes de IVA
+                decimal totalAntesIVA = baseImponible + impuestoElectricidad;
+                
+                // 6. IVA
+                decimal costeTotal = totalAntesIVA * (1 + porcentajeIVA / 100);
 
                 decimal ahorroMensual = costeActualMensual - costeTotal;
                 decimal ahorroAnual = ahorroMensual * 12;
@@ -1700,6 +1744,11 @@ else
                 });
             }
 
+            Console.WriteLine($"[DEBUG Comparador] Tarifas activas: {tarifasActivas}");
+            Console.WriteLine($"[DEBUG Comparador] Tarifas después de filtros: {comercializadoras.Count}");
+            Console.WriteLine($"[DEBUG Comparador] Descartadas por tipo cliente: {tarifasDescartadasTipoCliente}");
+            Console.WriteLine($"[DEBUG Comparador] Descartadas por tipo tarifa: {tarifasDescartadasTipoTarifa}");
+
             // Filtrar por ahorro mínimo solo si hay un coste actual válido
             if (costeActualMensual > 0 && ahorroMinimo > 0)
             {
@@ -1711,6 +1760,14 @@ else
                 // Si no hay ninguna con ahorro suficiente, mostrar todas igual
             }
 
+            // Filtrar para mostrar solo ofertas con ahorro (si está activado)
+            int tarifasAntesAhorro = comercializadoras.Count;
+            if (mostrarSoloOfertasConAhorro && costeActualMensual > 0)
+            {
+                comercializadoras = comercializadoras.Where(c => c.AhorroMensual > 0).ToList();
+                Console.WriteLine($"[DEBUG Comparador] Tarifas con ahorro positivo: {comercializadoras.Count} (descartadas: {tarifasAntesAhorro - comercializadoras.Count})");
+            }
+
             // Ordenar por mejor ahorro (mayor ahorro primero) o por menor coste si no hay coste actual
             comercializadoras = costeActualMensual > 0 
                 ? comercializadoras.OrderByDescending(c => c.AhorroMensual).ToList()
@@ -1720,7 +1777,45 @@ else
             
             if (comercializadoras.Count == 0)
             {
-                mensajeError = "No se encontraron tarifas activas configuradas en el sistema.";
+                // Mensaje de error más detallado
+                if (todasLasTarifas.Count == 0)
+                {
+                    mensajeError = "No hay tarifas configuradas en el sistema. Contacta al administrador.";
+                }
+                else if (tarifasActivas == 0)
+                {
+                    mensajeError = $"No hay tarifas activas en el sistema. Total de tarifas: {todasLasTarifas.Count} (todas inactivas).";
+                }
+                else if (tarifasDescartadasTipoCliente > 0 && tarifasDescartadasTipoTarifa > 0)
+                {
+                    mensajeError = $"No se encontraron tarifas que coincidan con tus criterios. " +
+                                  $"Tarifas activas: {tarifasActivas}. " +
+                                  $"Descartadas por tipo de cliente ({tipoCliente}): {tarifasDescartadasTipoCliente}. " +
+                                  $"Descartadas por tipo de tarifa ({tarifaActual}): {tarifasDescartadasTipoTarifa}. " +
+                                  $"Verifica que la tarifa seleccionada sea correcta.";
+                }
+                else if (tarifasDescartadasTipoTarifa > 0)
+                {
+                    mensajeError = $"No se encontraron tarifas del tipo '{tarifaActual}' en el sistema. " +
+                                  $"Tarifas activas: {tarifasActivas}. " +
+                                  $"Descartadas por no coincidir con '{tarifaActual}': {tarifasDescartadasTipoTarifa}. " +
+                                  $"Intenta con otro tipo de tarifa o verifica la configuración.";
+                }
+                else if (tarifasDescartadasTipoCliente > 0)
+                {
+                    mensajeError = $"No se encontraron tarifas para tipo de cliente '{tipoCliente}'. " +
+                                  $"Tarifas activas: {tarifasActivas}. " +
+                                  $"Descartadas por tipo de cliente: {tarifasDescartadasTipoCliente}.";
+                }
+                else if (mostrarSoloOfertasConAhorro && tarifasAntesAhorro > 0)
+                {
+                    mensajeError = $"Se encontraron {tarifasAntesAhorro} ofertas, pero ninguna genera ahorro respecto a tu factura actual de {costeActualMensual:C}/mes. " +
+                                  $"Desactiva el filtro 'Mostrar solo ofertas con ahorro' para ver todas las opciones.";
+                }
+                else
+                {
+                    mensajeError = "No se encontraron tarifas que cumplan con los criterios de búsqueda.";
+                }
             }
             else
             {
@@ -1742,61 +1837,23 @@ else
 
     private bool ValidarPaso2()
     {
-        if (string.IsNullOrWhiteSpace(nombreCliente))
-            return false;
-
-        if (string.IsNullOrWhiteSpace(emailCliente))
-            return false;
-
-        // Validar formato de email básico
-        if (!emailCliente.Contains("@") || !emailCliente.Contains("."))
-            return false;
-
-        if (string.IsNullOrWhiteSpace(direccionCliente))
-            return false;
-
-        // Si el switch de consultor está activo, validar esos datos también
-        if (mostrarDatosConsultor)
-        {
-            if (string.IsNullOrWhiteSpace(nombreConsultor))
-                return false;
-
-            if (string.IsNullOrWhiteSpace(telefonoConsultor))
-                return false;
-
-            // Validar que el teléfono tenga al menos 9 dígitos
-            var digitosTelefono = new string(telefonoConsultor.Where(char.IsDigit).ToArray());
-            if (digitosTelefono.Length < 9)
-                return false;
-
-            if (string.IsNullOrWhiteSpace(emailConsultor))
-                return false;
-
-            // Validar formato de email del consultor
-            if (!emailConsultor.Contains("@") || !emailConsultor.Contains("."))
-                return false;
-        }
-
+        // Los datos personales (nombre, email, dirección) ya no son obligatorios
+        // El usuario puede avanzar sin completar estos campos
         return true;
     }
 
     private bool ValidarPaso3Nuevo()
     {
-        // Validar que el consumo anual sea mayor que 0
-        if (!consumoAnual.HasValue || consumoAnual.Value <= 0)
+        // Validar que las potencias sean mayores que 0
+        if (!potenciaPunta.HasValue || potenciaPunta.Value <= 0 || !potenciaValle.HasValue || potenciaValle.Value <= 0)
             return false;
 
-        // El importe de factura actual es OBLIGATORIO
-        if (!totalFacturaActual.HasValue || totalFacturaActual.Value <= 0)
-            return false;
-
-        // En facturación diaria, las fechas son obligatorias.
-        if (tipoFacturacionPotencia == "Diaria" && (!fechaInicioFacturacion.HasValue || !fechaFinFacturacion.HasValue))
-            return false;
-
-        // Si ambas fechas existen, validar coherencia.
-        if (fechaInicioFacturacion.HasValue && fechaFinFacturacion.HasValue &&
-            fechaFinFacturacion.Value <= fechaInicioFacturacion.Value)
+        // El consumo anual ya no es obligatorio, se puede calcular desde los consumos parciales
+        // pero al menos debe haber algún consumo
+        if ((!consumoAnual.HasValue || consumoAnual.Value <= 0) &&
+            (!consumoPunta.HasValue || consumoPunta.Value <= 0) &&
+            (!consumoLlano.HasValue || consumoLlano.Value <= 0) &&
+            (!consumoValle.HasValue || consumoValle.Value <= 0))
             return false;
 
         return true;
@@ -1894,51 +1951,48 @@ else
         {
             "Mensual" => 1m,
             "Anual" => 1m / 12m,
-            _ => ObtenerDiasFacturacionEquivalentesMensual()
+            _ => ObtenerDiasFacturacion()
         };
     }
 
-    private decimal ObtenerDiasFacturacionEquivalentesMensual()
+    private decimal ObtenerDiasFacturacion()
     {
         if (fechaInicioFacturacion.HasValue && fechaFinFacturacion.HasValue)
         {
             var dias = (decimal)(fechaFinFacturacion.Value.DayNumber - fechaInicioFacturacion.Value.DayNumber + 1);
             if (dias > 0)
             {
-                var mesesEquivalentes = dias / 30m;
-                if (mesesEquivalentes > 0)
-                    return dias / mesesEquivalentes;
+                // Devolver los días REALES de facturación
+                // Fórmula correcta según comparador PHP/JS: potencia × precio × días
+                return dias;
             }
         }
 
-        // Promedio mensual estándar.
-        return 30.42m;
+        // Si no hay fechas, usar 30 días como defecto
+        return 30m;
     }
 
     private bool TarifaCompatibleConTipoCliente(TarifaEnergia tarifa)
     {
+        // Mapeo correcto: Particular → Residencial, Empresa → Pyme
+        // En la BD: tipo_cliente = "Residencial" o "Pyme"
         var tipoClienteNormalizado = NormalizarTexto(tipoCliente);
-        var tipoTarifa = NormalizarTexto(tarifa.Tipo);
         var tipoClienteTarifa = NormalizarTexto(tarifa.TipoCliente);
 
-        var tipoCompuesto = $"{tipoTarifa} {tipoClienteTarifa}";
-
-        bool esPyme = ContieneAlguno(tipoCompuesto, "pyme", "pymes", "empresa", "empresas", "business");
-        bool esResidencial = ContieneAlguno(tipoCompuesto, "residencial", "particular", "hogar", "domestico");
-
-        // Si no hay clasificación explícita en la tarifa, no se descarta.
-        if (!esPyme && !esResidencial)
+        // Si la tarifa no tiene tipo_cliente definido, no se descarta
+        if (string.IsNullOrWhiteSpace(tipoClienteTarifa))
             return true;
 
+        // Mapeo: "particular" del formulario → "residencial" de la BD
+        if (tipoClienteNormalizado == "particular")
+            return tipoClienteTarifa == "residencial";
+
+        // Mapeo: "empresa" del formulario → "pyme" de la BD
         if (tipoClienteNormalizado == "empresa")
-            return esPyme;
+            return tipoClienteTarifa == "pyme";
 
-        return esResidencial;
-    }
-
-    private static bool ContieneAlguno(string origen, params string[] valores)
-    {
-        return valores.Any(v => origen.Contains(v, StringComparison.OrdinalIgnoreCase));
+        // Si no coincide con ninguno, permitir por defecto
+        return true;
     }
 
     private static string NormalizarTexto(string? valor)

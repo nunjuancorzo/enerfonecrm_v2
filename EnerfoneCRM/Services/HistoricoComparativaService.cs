@@ -107,7 +107,7 @@ public class HistoricoComparativaService
                 Origen = origen,
                 EmailCliente = emailCliente,
                 TipoEnergia = tipoEnergia,
-                Cups = cups,
+                Cups = NormalizarCups(cups),
                 ComercializadoraActual = comercializadoraActual,
                 TarifaActual = tarifaActual,
                 TotalFacturaActual = totalFacturaActual,
@@ -209,5 +209,17 @@ public class HistoricoComparativaService
         };
 
         return stats;
+    }
+
+    /// <summary>
+    /// Normaliza el CUPS eliminando espacios y convirtiéndolo a mayúsculas
+    /// </summary>
+    private static string? NormalizarCups(string? cups)
+    {
+        if (string.IsNullOrWhiteSpace(cups))
+            return null;
+
+        // Eliminar todos los espacios y convertir a mayúsculas
+        return cups.Replace(" ", "").Trim().ToUpperInvariant();
     }
 }
