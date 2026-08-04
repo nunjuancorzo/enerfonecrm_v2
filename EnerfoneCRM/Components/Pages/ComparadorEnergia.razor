@@ -8,6 +8,7 @@
 @inject SipsService SipsService
 @inject AuthService AuthService
 @inject PdfComparadorService PdfComparadorService
+@inject ComparadorCalculoService ComparadorCalculoService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -1567,41 +1568,132 @@ else
 
         try
         {
-            // Validar que los campos obligatorios tengan valor
-            if (!potenciaPunta.HasValue || potenciaPunta.Value <= 0 ||
-                !potenciaValle.HasValue || potenciaValle.Value <= 0)
+            // Validar que las fechas de facturación estén definidas
+            if (!fechaInicioFacturacion.HasValue || !fechaFinFacturacion.HasValue)
             {
-                mensajeError = "Las potencias Punta (P1) y Valle (P2) son obligatorias para calcular las ofertas";
+                mensajeError = "Las fechas de inicio y fin de facturación son obligatorias";
                 calculando = false;
                 StateHasChanged();
                 return;
             }
 
-            if (!consumoAnual.HasValue || consumoAnual.Value <= 0)
+            // Validar que el total de factura esté informado
+            if (!totalFacturaActual.HasValue || totalFacturaActual.Value <= 0)
             {
-                // Si no hay consumo anual, verificar que al menos haya consumos por periodo
-                if ((!consumoPunta.HasValue || consumoPunta.Value <= 0) && 
-                    (!consumoLlano.HasValue || consumoLlano.Value <= 0) && 
-                    (!consumoValle.HasValue || consumoValle.Value <= 0))
+                mensajeError = "El importe pagado de la factura es obligatorio para el cálculo";
+                calculando = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Validar potencias según peaje
+            bool potenciasValidas = false;
+            List<decimal> potencias = new();
+            List<decimal> preciosPotenciaActual = new();
+            
+            if (tarifaActual == "2.0TD")
+            {
+                potenciasValidas = potenciaPunta.HasValue && potenciaPunta.Value > 0 && 
+                                  potenciaValle.HasValue && potenciaValle.Value > 0;
+                if (potenciasValidas)
                 {
-                    mensajeError = "Debes ingresar el consumo anual o los consumos por periodo (Punta/Llano/Valle)";
-                    calculando = false;
-                    StateHasChanged();
-                    return;
+                    potencias = new List<decimal> { potenciaPunta!.Value, potenciaValle!.Value };
+                    preciosPotenciaActual = new List<decimal> { precioPotenciaPunta ?? 0, precioPotenciaValle ?? 0 };
+                }
+            }
+            else if (tarifaActual == "3.0TD" || tarifaActual == "6.1TD")
+            {
+                potenciasValidas = potenciaP1.HasValue && potenciaP2.HasValue && potenciaP3.HasValue &&
+                                  potenciaP4.HasValue && potenciaP5.HasValue && potenciaP6.HasValue;
+                if (potenciasValidas)
+                {
+                    potencias = new List<decimal> 
+                    {
+                        potenciaP1!.Value, potenciaP2!.Value, potenciaP3!.Value,
+                        potenciaP4!.Value, potenciaP5!.Value, potenciaP6!.Value
+                    };
+                    // Precios de potencia actual (si no están, usar 0)
+                    preciosPotenciaActual = new List<decimal> { 0, 0, 0, 0, 0, 0 };
                 }
             }
 
-            // Si no hay consumos por periodo pero sí consumo anual, distribuir proporcionalmente
-            if ((!consumoPunta.HasValue || consumoPunta.Value <= 0) && 
-                (!consumoLlano.HasValue || consumoLlano.Value <= 0) && 
-                (!consumoValle.HasValue || consumoValle.Value <= 0) && 
-                consumoAnual.HasValue && consumoAnual.Value > 0)
+            if (!potenciasValidas)
             {
-                // Distribución típica para tarifa 2.0TD: 40% Punta, 60% Valle
-                consumoPunta = consumoAnual.Value * 0.4m / 12; // Mensual
-                consumoValle = consumoAnual.Value * 0.6m / 12; // Mensual
-                consumoLlano = 0;
+                mensajeError = $"Debes ingresar todas las potencias requeridas para el peaje {tarifaActual}";
+                calculando = false;
+                StateHasChanged();
+                return;
             }
+
+            // Validar consumos
+            List<decimal> consumos = new();
+            List<decimal> preciosEnergiaActual = new();
+
+            if (tarifaActual == "2.0TD")
+            {
+                // 3 periodos de energía para 2.0TD
+                consumos = new List<decimal> 
+                {
+                    consumoPunta ?? 0,
+                    consumoLlano ?? 0,
+                    consumoValle ?? 0
+                };
+                preciosEnergiaActual = new List<decimal>
+                {
+                    precioConsumoPunta ?? 0,
+                    precioConsumoLlano ?? 0,
+                    precioConsumoValle ?? 0
+                };
+            }
+            else
+            {
+                // 6 periodos para 3.0TD y 6.1TD
+                consumos = new List<decimal>
+                {
+                    consumoP1 ?? 0, consumoP2 ?? 0, consumoP3 ?? 0,
+                    consumoP4 ?? 0, consumoP5 ?? 0, consumoP6 ?? 0
+                };
+                preciosEnergiaActual = new List<decimal> { 0, 0, 0, 0, 0, 0 };
+            }
+
+            // Preparar datos de la factura actual
+            var facturaActualDatos = new DatosFacturaActual
+            {
+                FechaInicio = fechaInicioFacturacion.Value,
+                FechaFin = fechaFinFacturacion.Value,
+                TotalReportado = totalFacturaActual.Value,
+                PotenciasContratadas = potencias,
+                PreciosPotencia = preciosPotenciaActual,
+                Consumos = consumos,
+                PreciosEnergia = preciosEnergiaActual,
+                ExcedentesKwh = excedentes ?? 0,
+                Conceptos = new ConceptosAdicionales
+                {
+                    ExcesoPotencia = excesoPotencia ?? 0,
+                    EnergiaReactiva = energiaReactiva ?? 0,
+                    DerechosExtension = 0,
+                    DerechosAcceso = 0,
+                    BonoSocial = financiacionBonoSocial ?? 0,
+                    Descuentos = 0,
+                    AlquilerEquipos = alquilerContador ?? 0,
+                    PrecioExcedente = 0.05m // Precio por defecto
+                }
+            };
+
+            // Preparar reglas de comparativa
+            var reglas = new ReglasComparativa
+            {
+                PorcentajeImpuestoElectrico = porcentajeImpuestoElectricidad,
+                PorcentajeIVA = porcentajeIVA,
+                PrecioExcedentesNaturgy = 0.06m,
+                NaturgyExcessPower = "copy",
+                NaturgyReactive = "zero",
+                NaturgyExtensionRights = "zero",
+                NaturgyAccessRights = "zero",
+                NaturgySocialBonus = "copy",
+                NaturgyDiscounts = "zero",
+                NaturgyMeterRental = "copy"
+            };
 
             // Obtener todas las tarifas de energía
             var todasLasTarifas = await TarifaEnergiaService.ObtenerTodasAsync();
@@ -1609,41 +1701,8 @@ else
             Console.WriteLine($"[DEBUG Comparador] Total tarifas en BD: {todasLasTarifas.Count}");
             Console.WriteLine($"[DEBUG Comparador] Tarifa seleccionada: {tarifaActual}");
             Console.WriteLine($"[DEBUG Comparador] Tipo cliente: {tipoCliente}");
-            Console.WriteLine($"[DEBUG Comparador] Mostrar solo con ahorro: {mostrarSoloOfertasConAhorro}");
             
             comercializadoras.Clear();
-            var factorPotenciaMensual = ObtenerFactorFacturacionPotenciaAMensual();
-            var diasFacturacion = ObtenerDiasFacturacion();
-
-            // Calcular el coste actual del cliente para comparación
-            decimal costeActualMensual = 0;
-            
-            // Si el usuario ingresó el total de factura directamente, usar ese valor
-            if (totalFacturaActual.HasValue && totalFacturaActual.Value > 0)
-            {
-                costeActualMensual = totalFacturaActual.Value;
-            }
-            else
-            {
-                // Calcular desde los componentes individuales
-                decimal costePotenciaMensual = (potenciaPunta.Value * (precioPotenciaPunta ?? 0) + potenciaValle.Value * (precioPotenciaValle ?? 0)) * 
-                                               factorPotenciaMensual;
-                decimal costeConsumoMensual = ((consumoPunta ?? 0) * (precioConsumoPunta ?? 0) + (consumoLlano ?? 0) * (precioConsumoLlano ?? 0) + (consumoValle ?? 0) * (precioConsumoValle ?? 0));
-                
-                // Aplicar descuentos
-                if (descuentoPotencia.HasValue && descuentoPotencia.Value > 0)
-                    costePotenciaMensual *= (1 - descuentoPotencia.Value / 100);
-                if (descuentoConsumo.HasValue && descuentoConsumo.Value > 0)
-                    costeConsumoMensual *= (1 - descuentoConsumo.Value / 100);
-                
-                // Aplicar impuestos
-                decimal baseImponible = costePotenciaMensual + costeConsumoMensual + (alquilerContador ?? 0);
-                baseImponible *= (1 + porcentajeImpuestoElectricidad / 100);
-                costeActualMensual = baseImponible * (1 + porcentajeIVA / 100);
-            }
-
-            Console.WriteLine($"[DEBUG Comparador] Coste actual mensual calculado: {costeActualMensual:C}");
-            
             int tarifasActivas = 0;
             int tarifasDescartadasTipoCliente = 0;
             int tarifasDescartadasTipoTarifa = 0;
@@ -1656,16 +1715,14 @@ else
                     
                 tarifasActivas++;
 
-                // Filtrar por tipo de cliente (Particular/Empresa) para evitar mezclar Residencial/Pyme.
+                // Filtrar por tipo de cliente
                 if (!TarifaCompatibleConTipoCliente(tarifa))
                 {
                     tarifasDescartadasTipoCliente++;
                     continue;
                 }
 
-                // Filtrar por peaje seleccionado (2.0, 3.0, 6.1)
-                // El campo tarifa.Peaje contiene "2.0", "3.0", "6.1" (sin TD)
-                // El usuario selecciona "2.0TD", "3.0TD", "6.1TD" en tarifaActual
+                // Filtrar por peaje seleccionado
                 if (!string.IsNullOrWhiteSpace(tarifaActual))
                 {
                     string peajeBuscado = tarifaActual.Replace("TD", "").Trim();
@@ -1678,138 +1735,101 @@ else
                     }
                 }
 
-                // CÁLCULO SEGÚN FÓRMULA CORRECTA:
-                // 1. Potencia contratada × días de facturación × precio por potencia por cada periodo
-                decimal costePotencia = ((tarifa.PrecioPotenciaP1 ?? 0) * potenciaPunta.Value + 
-                                        (tarifa.PrecioPotenciaP2 ?? 0) * potenciaValle.Value) * diasFacturacion;
-                
-                // Añadir CO potencia si está configurado (€/kW/año convertido a mensual)
-                if (coPotencia.HasValue && coPotencia.Value > 0)
+                // Preparar datos de la tarifa Naturgy
+                var tarifaNaturgyDatos = new DatosTarifaNaturgy
                 {
-                    costePotencia += (potenciaPunta.Value + potenciaValle.Value) * (coPotencia.Value / 12);
-                }
-                
-                // 2. Energía consumida en cada periodo × precio de la energía por periodo
-                decimal costeEnergia = (tarifa.PrecioEnergiaP1 ?? 0) * (consumoPunta ?? 0) + 
-                                      (tarifa.PrecioEnergiaP2 ?? 0) * (consumoLlano ?? 0) + 
-                                      (tarifa.PrecioEnergiaP3 ?? 0) * (consumoValle ?? 0);
-                
-                // Añadir CO consumo si está configurado (€/MWh, consumos están en kWh)
-                if (coConsumo.HasValue && coConsumo.Value > 0)
+                    Familia = "Plan Fijo Luz",
+                    Variante = "ONE",
+                    Peaje = tarifaActual,
+                    IdTarifa = tarifa.Id,
+                    NombreTarifa = tarifa.Nombre,
+                    Empresa = tarifa.Empresa,
+                    Status = "valid"
+                };
+
+                // Configurar precios de potencia según peaje
+                if (tarifaActual == "2.0TD")
                 {
-                    decimal consumoTotalKWh = (consumoPunta ?? 0) + (consumoLlano ?? 0) + (consumoValle ?? 0);
-                    decimal consumoTotalMWh = consumoTotalKWh / 1000;
-                    costeEnergia += coConsumo.Value * consumoTotalMWh;
+                    tarifaNaturgyDatos.PreciosPotencia = new List<decimal>
+                    {
+                        tarifa.PrecioPotenciaP1 ?? 0,
+                        tarifa.PrecioPotenciaP2 ?? 0
+                    };
+                    tarifaNaturgyDatos.PreciosEnergia = new List<decimal>
+                    {
+                        tarifa.PrecioEnergiaP1 ?? 0,
+                        tarifa.PrecioEnergiaP2 ?? 0,
+                        tarifa.PrecioEnergiaP3 ?? 0
+                    };
                 }
-                
-                // Término fijo diario
-                decimal terminoFijo = (tarifa.TerminoFijoDiario ?? 0) * diasFacturacion;
-                
-                // 3. Base imponible = Potencia + Energía + Término fijo (sin otros conceptos de la factura actual)
-                decimal baseImponible = costePotencia + costeEnergia + terminoFijo;
-                
-                // 4. Impuesto de electricidad (se calcula sobre energía + potencia según normativa)
-                decimal impuestoElectricidad = (costePotencia + costeEnergia) * (porcentajeImpuestoElectricidad / 100);
-                
-                // 5. Total antes de IVA
-                decimal totalAntesIVA = baseImponible + impuestoElectricidad;
-                
-                // 6. IVA
-                decimal costeTotal = totalAntesIVA * (1 + porcentajeIVA / 100);
+                else
+                {
+                    // Para 3.0TD y 6.1TD: usar los 3 periodos disponibles + 3 ceros
+                    // TODO: Extender modelo TarifaEnergia para soportar P4-P6
+                    tarifaNaturgyDatos.PreciosPotencia = new List<decimal>
+                    {
+                        tarifa.PrecioPotenciaP1 ?? 0, tarifa.PrecioPotenciaP2 ?? 0,
+                        tarifa.PrecioPotenciaP3 ?? 0, 0, 0, 0
+                    };
+                    tarifaNaturgyDatos.PreciosEnergia = new List<decimal>
+                    {
+                        tarifa.PrecioEnergiaP1 ?? 0, tarifa.PrecioEnergiaP2 ?? 0,
+                        tarifa.PrecioEnergiaP3 ?? 0, 0, 0, 0
+                    };
+                }
 
-                decimal ahorroMensual = costeActualMensual - costeTotal;
-                decimal ahorroAnual = ahorroMensual * 12;
-                decimal porcentajeAhorro = costeActualMensual > 0 ? (ahorroMensual / costeActualMensual) * 100 : 0;
+                // Calcular comparativa usando el nuevo servicio
+                var resultado = ComparadorCalculoService.CalcularComparativa(
+                    facturaActualDatos,
+                    tarifaNaturgyDatos,
+                    reglas
+                );
 
+                // Convertir resultado al modelo de vista
                 comercializadoras.Add(new ResultadoComparativa
                 {
                     IdTarifa = tarifa.Id,
                     Empresa = tarifa.Empresa,
                     NombreTarifa = tarifa.Nombre,
-                    CosteTerminoFijo = terminoFijo,
-                    CostePotencia = costePotencia,
-                    CosteEnergia = costeEnergia,
-                    CosteTotal = costeTotal,
-                    CosteMensual = costeTotal,
-                    CosteActual = costeActualMensual,
-                    AhorroMensual = ahorroMensual,
-                    AhorroAnual = ahorroAnual,
-                    PorcentajeAhorro = porcentajeAhorro,
-                    PrecioPotenciaPunta = tarifa.PrecioPotenciaP1 ?? 0,
-                    PrecioPotenciaValle = tarifa.PrecioPotenciaP2 ?? 0,
-                    PrecioEnergiaPunta = tarifa.PrecioEnergiaP1 ?? 0,
-                    PrecioEnergiaLlano = tarifa.PrecioEnergiaP2 ?? 0,
-                    PrecioEnergiaValle = tarifa.PrecioEnergiaP3 ?? 0,
+                    CosteTerminoFijo = 0, // El término fijo está incluido en totales
+                    CostePotencia = resultado.Totals.TotalPowerNaturgy,
+                    CosteEnergia = resultado.Totals.TotalEnergyNaturgy,
+                    CosteTotal = resultado.Totals.TotalNaturgy,
+                    CosteMensual = resultado.Totals.TotalNaturgy,
+                    CosteActual = resultado.Totals.TotalCurrent,
+                    AhorroMensual = resultado.Totals.SavingMonthly,
+                    AhorroAnual = resultado.Totals.SavingAnnual,
+                    PorcentajeAhorro = resultado.Totals.SavingPercentCurrent,
+                    PrecioPotenciaPunta = tarifaNaturgyDatos.PreciosPotencia.ElementAtOrDefault(0),
+                    PrecioPotenciaValle = tarifaNaturgyDatos.PreciosPotencia.ElementAtOrDefault(1),
+                    PrecioEnergiaPunta = tarifaNaturgyDatos.PreciosEnergia.ElementAtOrDefault(0),
+                    PrecioEnergiaLlano = tarifaNaturgyDatos.PreciosEnergia.ElementAtOrDefault(1),
+                    PrecioEnergiaValle = tarifaNaturgyDatos.PreciosEnergia.ElementAtOrDefault(2),
                     TerminoFijoDiario = tarifa.TerminoFijoDiario ?? 0
                 });
             }
 
             Console.WriteLine($"[DEBUG Comparador] Tarifas activas: {tarifasActivas}");
-            Console.WriteLine($"[DEBUG Comparador] Tarifas después de filtros: {comercializadoras.Count}");
-            Console.WriteLine($"[DEBUG Comparador] Descartadas por tipo cliente: {tarifasDescartadasTipoCliente}");
-            Console.WriteLine($"[DEBUG Comparador] Descartadas por tipo tarifa: {tarifasDescartadasTipoTarifa}");
-
-            // Filtrar por ahorro mínimo solo si hay un coste actual válido
-            if (costeActualMensual > 0 && ahorroMinimo > 0)
-            {
-                var conAhorro = comercializadoras.Where(c => c.PorcentajeAhorro >= ahorroMinimo).ToList();
-                if (conAhorro.Any())
-                {
-                    comercializadoras = conAhorro;
-                }
-                // Si no hay ninguna con ahorro suficiente, mostrar todas igual
-            }
+            Console.WriteLine($"[DEBUG Comparador] Tarifas calculadas: {comercializadoras.Count}");
 
             // Filtrar para mostrar solo ofertas con ahorro (si está activado)
             int tarifasAntesAhorro = comercializadoras.Count;
-            if (mostrarSoloOfertasConAhorro && costeActualMensual > 0)
+            if (mostrarSoloOfertasConAhorro)
             {
                 comercializadoras = comercializadoras.Where(c => c.AhorroMensual > 0).ToList();
-                Console.WriteLine($"[DEBUG Comparador] Tarifas con ahorro positivo: {comercializadoras.Count} (descartadas: {tarifasAntesAhorro - comercializadoras.Count})");
+                Console.WriteLine($"[DEBUG Comparador] Tarifas con ahorro: {comercializadoras.Count}");
             }
 
-            // Ordenar por mejor ahorro (mayor ahorro primero) o por menor coste si no hay coste actual
-            comercializadoras = costeActualMensual > 0 
-                ? comercializadoras.OrderByDescending(c => c.AhorroMensual).ToList()
-                : comercializadoras.OrderBy(c => c.CosteMensual).ToList();
+            // Ordenar por mejor ahorro
+            comercializadoras = comercializadoras.OrderByDescending(c => c.AhorroMensual).ToList();
 
             resultadosCalculados = true;
             
             if (comercializadoras.Count == 0)
             {
-                // Mensaje de error más detallado
-                if (todasLasTarifas.Count == 0)
+                if (mostrarSoloOfertasConAhorro && tarifasAntesAhorro > 0)
                 {
-                    mensajeError = "No hay tarifas configuradas en el sistema. Contacta al administrador.";
-                }
-                else if (tarifasActivas == 0)
-                {
-                    mensajeError = $"No hay tarifas activas en el sistema. Total de tarifas: {todasLasTarifas.Count} (todas inactivas).";
-                }
-                else if (tarifasDescartadasTipoCliente > 0 && tarifasDescartadasTipoTarifa > 0)
-                {
-                    mensajeError = $"No se encontraron tarifas que coincidan con tus criterios. " +
-                                  $"Tarifas activas: {tarifasActivas}. " +
-                                  $"Descartadas por tipo de cliente ({tipoCliente}): {tarifasDescartadasTipoCliente}. " +
-                                  $"Descartadas por tipo de tarifa ({tarifaActual}): {tarifasDescartadasTipoTarifa}. " +
-                                  $"Verifica que la tarifa seleccionada sea correcta.";
-                }
-                else if (tarifasDescartadasTipoTarifa > 0)
-                {
-                    mensajeError = $"No se encontraron tarifas del tipo '{tarifaActual}' en el sistema. " +
-                                  $"Tarifas activas: {tarifasActivas}. " +
-                                  $"Descartadas por no coincidir con '{tarifaActual}': {tarifasDescartadasTipoTarifa}. " +
-                                  $"Intenta con otro tipo de tarifa o verifica la configuración.";
-                }
-                else if (tarifasDescartadasTipoCliente > 0)
-                {
-                    mensajeError = $"No se encontraron tarifas para tipo de cliente '{tipoCliente}'. " +
-                                  $"Tarifas activas: {tarifasActivas}. " +
-                                  $"Descartadas por tipo de cliente: {tarifasDescartadasTipoCliente}.";
-                }
-                else if (mostrarSoloOfertasConAhorro && tarifasAntesAhorro > 0)
-                {
-                    mensajeError = $"Se encontraron {tarifasAntesAhorro} ofertas, pero ninguna genera ahorro respecto a tu factura actual de {costeActualMensual:C}/mes. " +
+                    mensajeError = $"Se encontraron {tarifasAntesAhorro} ofertas, pero ninguna genera ahorro. " +
                                   $"Desactiva el filtro 'Mostrar solo ofertas con ahorro' para ver todas las opciones.";
                 }
                 else
@@ -1824,7 +1844,9 @@ else
         }
         catch (Exception ex)
         {
-            mensajeError = $"Error al calcular la comparativa: {ex.Message}";
+            mensajeError = $"Error al calcular la comparativa: {ex.Message}<br/>{ex.StackTrace}";
+            Console.WriteLine($"[ERROR Comparador] {ex.Message}");
+            Console.WriteLine($"[ERROR Comparador] {ex.StackTrace}");
         }
         finally
         {

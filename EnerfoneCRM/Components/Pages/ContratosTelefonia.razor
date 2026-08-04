@@ -1915,8 +1915,20 @@ else
             
             Console.WriteLine($"[DEBUG ContratosTelefonia] Contratos cargados: {contratos.Count}");
             
-            // Cargar todos los clientes para el dropdown
-            todosLosClientes = await ClienteService.ObtenerTodosAsync();
+            // Admin y Backoffice con permisos ven todos los clientes
+            // Otros usuarios solo ven sus propios clientes
+            if (AuthService.PuedeGestionarClientes)
+            {
+                todosLosClientes = await ClienteService.ObtenerTodosAsync();
+            }
+            else if (AuthService.UsuarioActual?.Id != null)
+            {
+                todosLosClientes = await ClienteService.ObtenerPorUsuarioAsync(AuthService.UsuarioActual.Id);
+            }
+            else
+            {
+                todosLosClientes = new List<Cliente>();
+            }
             
             // Cargar usuarios permitidos según el rol del usuario actual
             usuarios = await UsuarioService.ObtenerUsuariosPermitidosAsync(

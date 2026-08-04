@@ -300,13 +300,6 @@ else
                                         }
                                         Guardar
                                     </button>
-                                    @if (!esNuevo)
-                                    {
-                                        <button type="button" class="btn btn-success ms-auto" @onclick="GuardarYCrearContrato" disabled="@guardando">
-                                            <i class="bi bi-file-earmark-plus me-2"></i>
-                                            Crear Contrato
-                                        </button>
-                                    }
                                 </div>
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
@@ -525,7 +518,7 @@ else
                                         }
                                     </div>
                                     
-                                    @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                    @if (AuthService.PuedeGestionarClientes)
                                     {
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Usuario</label>

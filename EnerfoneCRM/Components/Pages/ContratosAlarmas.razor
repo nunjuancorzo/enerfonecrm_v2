@@ -1614,7 +1614,21 @@ else
             
             Console.WriteLine($"[DEBUG ContratosAlarmas] Contratos cargados: {contratos.Count}");
             
-            clientes = await ClienteService.ObtenerTodosAsync();
+            // Admin y Backoffice con permisos ven todos los clientes
+            // Otros usuarios solo ven sus propios clientes
+            if (AuthService.PuedeGestionarClientes)
+            {
+                clientes = await ClienteService.ObtenerTodosAsync();
+            }
+            else if (usuarioId.HasValue)
+            {
+                clientes = await ClienteService.ObtenerPorUsuarioAsync(usuarioId.Value);
+            }
+            else
+            {
+                clientes = new List<Cliente>();
+            }
+            
             usuarios = await UsuarioService.ObtenerUsuariosPermitidosAsync(rol, usuarioId);
             
             // Obtener empresas de alarmas permitidas según el rol del usuario

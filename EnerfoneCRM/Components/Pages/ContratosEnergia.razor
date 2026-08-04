@@ -2035,7 +2035,20 @@ else
     {
         try
         {
-            todosLosClientes = await ClienteService.ObtenerTodosAsync();
+            // Admin y Backoffice con permisos ven todos los clientes
+            // Otros usuarios solo ven sus propios clientes
+            if (AuthService.PuedeGestionarClientes)
+            {
+                todosLosClientes = await ClienteService.ObtenerTodosAsync();
+            }
+            else if (AuthService.UsuarioActual?.Id != null)
+            {
+                todosLosClientes = await ClienteService.ObtenerPorUsuarioAsync(AuthService.UsuarioActual.Id);
+            }
+            else
+            {
+                todosLosClientes = new();
+            }
         }
         catch (Exception ex)
         {

@@ -15,7 +15,7 @@
 
 <PageTitle>Edición Masiva de Clientes - CorCRM</PageTitle>
 
-@if (AuthService.UsuarioActual?.Rol != "Administrador")
+@if (!AuthService.PuedeGestionarClientes)
 {
     <div class="container mt-5">
         <div class="alert alert-danger">

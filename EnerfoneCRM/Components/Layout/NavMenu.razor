@@ -111,7 +111,7 @@
                         </ul>
                     </li>
 
-                    @if (AuthService.EsAdministrador)
+                    @if (AuthService.EsAdministrador || AuthService.EsBackoffice)
                     {
                         <li class="nav-item">
                             <a class="nav-link px-3 py-2 rounded transition" href="https://factiox.es" target="_blank" style="transition: all 0.3s ease;">

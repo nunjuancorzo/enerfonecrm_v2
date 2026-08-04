@@ -81,6 +81,7 @@ builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddScoped<PdfSipsService>();
 builder.Services.AddScoped<PdfComparadorService>();
+builder.Services.AddScoped<ComparadorCalculoService>();
 builder.Services.AddScoped<OfertaService>();
 builder.Services.AddScoped<OcrService>();
 builder.Services.AddScoped<PlantillaPreCargaService>();

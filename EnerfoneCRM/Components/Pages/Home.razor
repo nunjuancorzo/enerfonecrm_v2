@@ -474,7 +474,7 @@ else if (AuthService.EstaAutenticado)
 
             // Cargar clientes
             List<Cliente> clientes;
-            if (rol == "Administrador")
+            if (AuthService.PuedeGestionarClientes)
             {
                 clientes = await ClienteService.ObtenerTodosAsync();
             }
