@@ -565,7 +565,7 @@ else
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold"><i class="bi bi-calendar-event me-1"></i>Fecha Alta</label>
-                                        @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                        @if (AuthService.EsAdminOBackoffice)
                                         {
                                             <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
                                         }
@@ -716,7 +716,7 @@ else
                                     }
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold">Comercial</label>
-                                        @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                        @if (AuthService.EsAdminOBackoffice)
                                         {
                                             <select @onchange="OnUsuarioComercialChanged" class="form-select">
                                                 <option value="">-- Seleccionar Comercial --</option>

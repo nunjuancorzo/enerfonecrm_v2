@@ -40,6 +40,10 @@ public class AuthService
     public bool EsComercializadora => _usuarioActual?.Rol == "Comercializadora";
     public bool EsUsuario => _usuarioActual?.Rol == "Colaborador";
     public bool EsBackoffice => _usuarioActual?.Rol == "Backoffice";
+    
+    // Propiedad auxiliar: Administrador o Backoffice (para permisos generales)
+    // Backoffice tiene los mismos permisos que Administrador excepto gestión de usuarios
+    public bool EsAdminOBackoffice => EsAdministrador || EsBackoffice;
 
     // Métodos de verificación de permisos de visualización (solo aplican a Backoffice)
     public bool PuedeVerClientes => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerClientes;

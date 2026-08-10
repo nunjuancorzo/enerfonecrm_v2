@@ -54,7 +54,7 @@ else
 <div class="container-fluid" style="max-width: 98%;">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3><i class="bi bi-cash-coin me-2"></i>Liquidaciones</h3>
-        @if (AuthService.EsAdministrador || AuthService.EsSuperAdmin)
+        @if (AuthService.PuedeGestionarLiquidaciones || AuthService.EsSuperAdmin)
         {
             <button class="btn btn-primary"
                     @onclick="AbrirModalGeneracionManual"
@@ -223,7 +223,7 @@ else
                                                         <i class="bi bi-check-circle"></i>
                                                     </button>
                                                 }
-                                                @if (AuthService.EsAdministrador || AuthService.EsSuperAdmin)
+                                                @if (AuthService.PuedeGestionarLiquidaciones || AuthService.EsSuperAdmin)
                                                 {
                                                     <button class="btn btn-sm btn-danger" @onclick="() => RechazarLiquidacionPendiente(liquidacion.Id)" title="Eliminar Liquidación">
                                                         <i class="bi bi-trash"></i>
@@ -327,7 +327,7 @@ else
                                                         <i class="bi bi-check-circle"></i>
                                                     </button>
                                                 }
-                                                @if (AuthService.EsAdministrador || AuthService.EsSuperAdmin)
+                                                @if (AuthService.PuedeGestionarLiquidaciones || AuthService.EsSuperAdmin)
                                                 {
                                                     <button class="btn btn-sm btn-danger" @onclick="() => EliminarLiquidacion(liq.Id)" title="Eliminar Liquidación">
                                                         <i class="bi bi-trash"></i>
@@ -422,7 +422,7 @@ else
                                                         <i class="bi bi-envelope"></i>
                                                     }
                                                 </button>
-                                                @if (AuthService.EsAdministrador || AuthService.EsSuperAdmin)
+                                                @if (AuthService.PuedeGestionarLiquidaciones || AuthService.EsSuperAdmin)
                                                 {
                                                     <button class="btn btn-sm btn-primary me-1" @onclick="() => MarcarComoLiquidada(liq.Id)" title="Marcar como Liquidada">
                                                         <i class="bi bi-cash-stack"></i>
@@ -546,7 +546,7 @@ else
                                                         <i class="bi bi-envelope"></i>
                                                     }
                                                 </button>
-                                                @if (AuthService.EsAdministrador || AuthService.EsSuperAdmin)
+                                                @if (AuthService.PuedeGestionarLiquidaciones || AuthService.EsSuperAdmin)
                                                 {
                                                     <button class="btn btn-sm btn-warning me-1" @onclick="() => VolverAceptada(liq.Id)" title="Volver a Aceptada">
                                                         <i class="bi bi-arrow-counterclockwise"></i>
@@ -1193,6 +1193,13 @@ else
                         <strong>Aprobado por:</strong> @historicoSeleccionado.AprobadoPorNombre
                         <br />
                         <strong>Total de contratos:</strong> @historicoSeleccionado.CantidadContratos
+                        <br />
+                        <strong>Total comisiones:</strong> <span id="totalComisiones">@CalcularTotalComisiones().ToString("N2")</span>€
+                        @if (editandoComisiones && AuthService.EsAdminOBackoffice)
+                        {
+                            <br />
+                            <span class="badge bg-warning text-dark mt-2"><i class="bi bi-pencil me-1"></i>Modo Edición Activo</span>
+                        }
                     </div>
 
                     @{
@@ -1274,8 +1281,23 @@ else
                                                     var comisionMostrar = comisionesPorContrato.ContainsKey(contrato.Id) 
                                                         ? comisionesPorContrato[contrato.Id] 
                                                         : (contrato.Comision ?? 0);
+                                                    
+                                                    // Asegurar que el contrato está en el diccionario
+                                                    if (!comisionesPorContrato.ContainsKey(contrato.Id))
+                                                    {
+                                                        comisionesPorContrato[contrato.Id] = contrato.Comision ?? 0;
+                                                    }
                                                 }
-                                                <strong>@(comisionMostrar.ToString("N2"))€</strong>
+                                                @if (editandoComisiones && AuthService.EsAdminOBackoffice)
+                                                {
+                                                    <input type="number" step="0.01" class="form-control form-control-sm" style="width: 100px;"
+                                                           @bind-value="comisionesPorContrato[contrato.Id]"
+                                                           @bind-value:event="oninput" />
+                                                }
+                                                else
+                                                {
+                                                    <strong>@(comisionMostrar.ToString("N2"))€</strong>
+                                                }
                                             </td>
                                             <td>
                                                 @if (tieneDecomision)
@@ -1334,8 +1356,23 @@ else
                                                     var comisionMostrar = comisionesPorContrato.ContainsKey(contrato.Id) 
                                                         ? comisionesPorContrato[contrato.Id] 
                                                         : (contrato.Comision ?? 0);
+                                                    
+                                                    // Asegurar que el contrato está en el diccionario
+                                                    if (!comisionesPorContrato.ContainsKey(contrato.Id))
+                                                    {
+                                                        comisionesPorContrato[contrato.Id] = contrato.Comision ?? 0;
+                                                    }
                                                 }
-                                                <strong>@(comisionMostrar.ToString("N2"))€</strong>
+                                                @if (editandoComisiones && AuthService.EsAdminOBackoffice)
+                                                {
+                                                    <input type="number" step="0.01" class="form-control form-control-sm" style="width: 100px;"
+                                                           @bind-value="comisionesPorContrato[contrato.Id]"
+                                                           @bind-value:event="oninput" />
+                                                }
+                                                else
+                                                {
+                                                    <strong>@(comisionMostrar.ToString("N2"))€</strong>
+                                                }
                                             </td>
                                             <td>
                                                 @if (tieneDecomision)
@@ -1386,7 +1423,6 @@ else
                                             <td><span class="badge @(contrato.Estado == "Baja" ? "bg-danger" : "bg-secondary")">@contrato.Estado</span></td>
                                             <td>@contrato.EmpresaAlarma</td>
                                             <td>@contrato.KitAlarma</td>
-                                            <td>@contrato.Dni</td>
                                             <td>@contrato.NombreCliente</td>
                                             <td>@contrato.DireccionInstalacionAlarma</td>
                                             <td>
@@ -1394,8 +1430,23 @@ else
                                                     var comisionMostrar = comisionesPorContrato.ContainsKey(contrato.Id) 
                                                         ? comisionesPorContrato[contrato.Id] 
                                                         : (contrato.Comision ?? 0);
+                                                    
+                                                    // Asegurar que el contrato está en el diccionario
+                                                    if (!comisionesPorContrato.ContainsKey(contrato.Id))
+                                                    {
+                                                        comisionesPorContrato[contrato.Id] = contrato.Comision ?? 0;
+                                                    }
                                                 }
-                                                <strong>@(comisionMostrar.ToString("N2"))€</strong>
+                                                @if (editandoComisiones && AuthService.EsAdminOBackoffice)
+                                                {
+                                                    <input type="number" step="0.01" class="form-control form-control-sm" style="width: 100px;"
+                                                           @bind-value="comisionesPorContrato[contrato.Id]"
+                                                           @bind-value:event="oninput" />
+                                                }
+                                                else
+                                                {
+                                                    <strong>@(comisionMostrar.ToString("N2"))€</strong>
+                                                }
                                             </td>
                                             <td>
                                                 @if (tieneDecomision)
@@ -1416,6 +1467,33 @@ else
                     }
                 </div>
                 <div class="modal-footer">
+                    @if (AuthService.EsAdminOBackoffice)
+                    {
+                        @if (!editandoComisiones)
+                        {
+                            <button type="button" class="btn btn-warning me-2" @onclick="ActivarEdicionComisiones">
+                                <i class="bi bi-pencil-square me-1"></i>Editar Comisiones
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-success me-2" @onclick="GuardarComisionesEditadas" disabled="@guardandoComisiones">
+                                @if (guardandoComisiones)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Guardando...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-1"></i>
+                                    <span>Guardar Cambios</span>
+                                }
+                            </button>
+                            <button type="button" class="btn btn-secondary me-2" @onclick="CancelarEdicionComisiones">
+                                <i class="bi bi-x-circle me-1"></i>Cancelar
+                            </button>
+                        }
+                    }
                     <button type="button" class="btn btn-info me-2" @onclick="() => ImprimirLiquidacionHistorico()">
                         <i class="bi bi-printer me-1"></i>Imprimir
                     </button>
@@ -1470,6 +1548,7 @@ else
         </div>
     </div>
 }
+
 }
 
 @code {
@@ -1526,6 +1605,11 @@ else
     private string mensajeConfirmacionEliminar = string.Empty;
     private int usuarioIdEliminar = 0;
     private int contratosADesvincular = 0;
+
+    // Variables para edición simple de comisiones en modal de contratos
+    private bool editandoComisiones = false;
+    private bool guardandoComisiones = false;
+    private Dictionary<int, decimal> comisionesOriginales = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -1745,7 +1829,7 @@ else
 
     private async Task AbrirModalGeneracionManual()
     {
-        if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+        if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
         {
             mensajeError = "No tienes permisos para generar liquidaciones manualmente.";
             return;
@@ -1840,7 +1924,7 @@ else
 
     private async Task GenerarLiquidacionesManualAsync()
     {
-        if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+        if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
         {
             mensajeError = "No tienes permisos para generar liquidaciones manualmente.";
             return;
@@ -2950,8 +3034,8 @@ else
     {
         try
         {
-            // VALIDACIÓN DE SEGURIDAD: Solo administradores y superadmin pueden rechazar
-            if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+            // VALIDACIÓN DE SEGURIDAD: Solo administradores, backoffice con permiso y superadmin pueden rechazar
+            if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
             {
                 mensajeError = "No tienes permisos para rechazar liquidaciones pendientes";
                 Console.WriteLine($"[LIQUIDACIONES] Usuario {AuthService.UsuarioActual?.NombreUsuario} intentó rechazar liquidación sin permisos");
@@ -3292,6 +3376,8 @@ else
         mostrarContratosHistorico = false;
         contratosHistorico.Clear();
         historicoSeleccionado = null;
+        editandoComisiones = false;
+        comisionesOriginales.Clear();
     }
 
     private async Task ImprimirLiquidacionHistorico()
@@ -4238,8 +4324,8 @@ else
     {
         try
         {
-            // VALIDACIÓN DE SEGURIDAD: Solo administradores y superadmin pueden marcar con incidencia
-            if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+            // VALIDACIÓN DE SEGURIDAD: Solo administradores, backoffice con permiso y superadmin pueden marcar con incidencia
+            if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
             {
                 mensajeError = "No tienes permisos para marcar liquidaciones con incidencia";
                 Console.WriteLine($"[LIQUIDACIONES] Usuario {AuthService.UsuarioActual?.NombreUsuario} intentó marcar incidencia sin permisos");
@@ -4443,8 +4529,8 @@ else
     {
         try
         {
-            // VALIDACIÓN DE SEGURIDAD: Solo administradores y superadmin pueden marcar como liquidada
-            if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+            // VALIDACIÓN DE SEGURIDAD: Solo administradores, backoffice con permiso y superadmin pueden marcar como liquidada
+            if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
             {
                 mensajeError = "No tienes permisos para marcar liquidaciones como liquidadas";
                 Console.WriteLine($"[LIQUIDACIONES] Usuario {AuthService.UsuarioActual?.NombreUsuario} intentó marcar como liquidada sin permisos");
@@ -4500,8 +4586,8 @@ else
     {
         try
         {
-            // VALIDACIÓN DE SEGURIDAD: Solo administradores y superadmin pueden volver a estado aceptada
-            if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+            // VALIDACIÓN DE SEGURIDAD: Solo administradores, backoffice con permiso y superadmin pueden volver a estado aceptada
+            if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
             {
                 mensajeError = "No tienes permisos para revertir liquidaciones";
                 Console.WriteLine($"[LIQUIDACIONES] Usuario {AuthService.UsuarioActual?.NombreUsuario} intentó revertir liquidación sin permisos");
@@ -4557,8 +4643,8 @@ else
     {
         try
         {
-            // VALIDACIÓN DE SEGURIDAD: Solo administradores y superadmin pueden eliminar liquidaciones
-            if (!AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+            // VALIDACIÓN DE SEGURIDAD: Solo administradores, backoffice con permiso y superadmin pueden eliminar liquidaciones
+            if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
             {
                 mensajeError = "No tienes permisos para eliminar liquidaciones";
                 Console.WriteLine($"[LIQUIDACIONES] Usuario {AuthService.UsuarioActual?.NombreUsuario} intentó eliminar liquidación sin permisos");
@@ -4860,6 +4946,100 @@ else
         Console.WriteLine($"[LIQUIDACIONES] Total usuarios visibles después del filtro: {usuariosFiltrados.Count}");
         
         return usuariosFiltrados;
+    }
+
+    // Métodos para edición simple de comisiones
+    private void ActivarEdicionComisiones()
+    {
+        editandoComisiones = true;
+        // Guardar copia de seguridad de las comisiones originales
+        comisionesOriginales = new Dictionary<int, decimal>(comisionesPorContrato);
+        StateHasChanged();
+    }
+
+    private void CancelarEdicionComisiones()
+    {
+        // Restaurar comisiones originales
+        comisionesPorContrato = new Dictionary<int, decimal>(comisionesOriginales);
+        editandoComisiones = false;
+        comisionesOriginales.Clear();
+        StateHasChanged();
+    }
+
+    private void ActualizarComisionContrato(int contratoId, string? valor)
+    {
+        if (decimal.TryParse(valor, out var nuevaComision) && nuevaComision >= 0)
+        {
+            comisionesPorContrato[contratoId] = nuevaComision;
+            StateHasChanged();
+        }
+    }
+
+    private decimal CalcularTotalComisiones()
+    {
+        return comisionesPorContrato.Values.Sum();
+    }
+
+    private async Task GuardarComisionesEditadas()
+    {
+        if (historicoSeleccionado == null)
+        {
+            mensajeError = "No hay liquidación seleccionada.";
+            return;
+        }
+
+        guardandoComisiones = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+
+            // Actualizar las comisiones en los contratos
+            foreach (var (contratoId, nuevaComision) in comisionesPorContrato)
+            {
+                var contrato = await context.Contratos.FindAsync(contratoId);
+                if (contrato != null)
+                {
+                    contrato.Comision = nuevaComision;
+                    context.Contratos.Update(contrato);
+                }
+            }
+
+            // Recalcular el total de la liquidación
+            var totalComisiones = comisionesPorContrato.Values.Sum();
+            var liquidacion = await context.HistoricoLiquidaciones.FindAsync(historicoSeleccionado.Id);
+            if (liquidacion != null)
+            {
+                liquidacion.TotalComisiones = totalComisiones;
+                context.HistoricoLiquidaciones.Update(liquidacion);
+            }
+
+            await context.SaveChangesAsync();
+
+            mensajeExito = "Comisiones actualizadas correctamente.";
+            Console.WriteLine($"[LIQUIDACIONES] Comisiones actualizadas para liquidación {historicoSeleccionado.Id}");
+
+            // Actualizar el total en el histórico seleccionado
+            historicoSeleccionado.TotalComisiones = totalComisiones;
+
+            // Recargar las liquidaciones
+            await CargarLiquidacionesPorEstado();
+
+            // Desactivar el modo edición
+            editandoComisiones = false;
+            comisionesOriginales.Clear();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Error al guardar comisiones: {ex.Message}");
+            mensajeError = $"Error al guardar los cambios: {ex.Message}";
+        }
+        finally
+        {
+            guardandoComisiones = false;
+            StateHasChanged();
+        }
     }
 
     private class UsuarioConContratos

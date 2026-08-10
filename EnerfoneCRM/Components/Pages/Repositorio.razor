@@ -48,7 +48,7 @@
                                 Migrar Logos Antiguos
                             </button>
                         }
-                        @if (AuthService.EsAdministrador)
+                        @if (AuthService.EsAdminOBackoffice)
                         {
                             <button class="btn btn-primary" @onclick="MostrarModalNuevaCarpeta">
                                 <i class="bi bi-folder-plus me-2"></i>Nueva Carpeta
@@ -117,7 +117,7 @@
                             <div class="text-center py-5 text-muted">
                                 <i class="bi bi-folder-x" style="font-size: 3rem;"></i>
                                 <p class="mt-3">No hay carpetas ni archivos en este directorio</p>
-                                @if (AuthService.EsAdministrador)
+                                @if (AuthService.EsAdminOBackoffice)
                                 {
                                     <p>Utilice los botones de arriba para crear carpetas o subir archivos</p>
                                 }
@@ -158,7 +158,7 @@
                                                 <td>-</td>
                                                 <td>@carpeta.FechaModificacion.ToString("dd/MM/yyyy HH:mm")</td>
                                                 <td>
-                                                    @if (AuthService.EsAdministrador)
+                                                    @if (AuthService.EsAdminOBackoffice)
                                                     {
                                                         <button class="btn btn-sm btn-danger" @onclick:stopPropagation="true" @onclick="@(() => EliminarCarpeta(carpeta.Nombre))">
                                                             <i class="bi bi-trash"></i>
@@ -199,7 +199,7 @@
                                                     <button class="btn btn-sm btn-primary me-1" @onclick="@(() => DescargarArchivo(archivo.Nombre))" title="Descargar">
                                                         <i class="bi bi-download"></i>
                                                     </button>
-                                                    @if (AuthService.EsAdministrador)
+                                                    @if (AuthService.EsAdminOBackoffice)
                                                     {
                                                         <button class="btn btn-sm btn-secondary me-1" @onclick="@(() => MostrarModalEditarDescripcionArchivo(archivo.Nombre, archivo.Descripcion))" title="Editar descripción">
                                                             <i class="bi bi-pencil"></i>

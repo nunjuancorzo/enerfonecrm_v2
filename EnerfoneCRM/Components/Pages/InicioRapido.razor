@@ -8,7 +8,7 @@
 
 <PageTitle>Inicio Rápido - CorCRM</PageTitle>
 
-@if (AuthService.UsuarioActual?.Rol != "Administrador")
+@if (!AuthService.EsAdminOBackoffice)
 {
     <div class="container mt-5">
         <div class="alert alert-danger">
@@ -299,7 +299,7 @@ else
         if (firstRender && !verificacionRealizada)
         {
             verificacionRealizada = true;
-            if (AuthService.UsuarioActual == null || AuthService.UsuarioActual.Rol != "Administrador")
+            if (AuthService.UsuarioActual == null || !AuthService.EsAdminOBackoffice)
             {
                 Navigation.NavigateTo("/");
             }

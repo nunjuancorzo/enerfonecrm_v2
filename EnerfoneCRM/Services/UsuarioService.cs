@@ -612,9 +612,9 @@ public class UsuarioService
     {
         await using var context = _dbContextProvider.CreateDbContext();
         
-        if (rolUsuario == "Administrador")
+        if (rolUsuario == "Administrador" || rolUsuario == "Backoffice")
         {
-            // Administrador ve todos los usuarios
+            // Administrador y Backoffice ven todos los usuarios
             return await context.Usuarios
                 .Where(u => u.Activo && u.Id != -1 && u.NombreUsuario != "superadmin")
                 .OrderBy(u => u.NombreUsuario)

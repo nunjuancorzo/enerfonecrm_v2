@@ -72,7 +72,7 @@ else
                             <option value="Cerrada">Cerrada</option>
                         </select>
                     </div>
-                    @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                    @if (AuthService.EsAdminOBackoffice)
                     {
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Usuario</label>
@@ -301,7 +301,7 @@ else
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Asignar a *</label>
-                                @if (AuthService.UsuarioActual?.Rol == "Administrador")
+                                @if (AuthService.EsAdminOBackoffice)
                                 {
                                     <select @bind="tareaActual.IdUsuarioAsignado" class="form-select">
                                         <option value="0">Seleccionar usuario...</option>
@@ -435,7 +435,7 @@ else
 
         try
         {
-            if (AuthService.UsuarioActual?.Rol == "Administrador")
+            if (AuthService.EsAdminOBackoffice)
             {
                 usuarios = await UsuarioService.ObtenerTodosAsync();
                 tareas = await TareaService.ObtenerTodasAsync(
