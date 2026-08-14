@@ -3310,7 +3310,7 @@ else
             if (usuario != null)
             {
                 contratoSeleccionado.UsuarioComercializadoraId = usuario.Id;
-                contratoSeleccionado.Comercial = usuario.NombreUsuario;
+                // NO modificar contratoSeleccionado.Comercial aquí - solo se modifica con el comercial asociado
                 
                 // Recalcular comisión si hay tarifa seleccionada
                 if (!string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa))
@@ -3326,7 +3326,7 @@ else
         else
         {
             contratoSeleccionado.UsuarioComercializadoraId = null;
-            contratoSeleccionado.Comercial = string.Empty;
+            // NO modificar contratoSeleccionado.Comercial aquí
         }
     }
 

@@ -464,10 +464,10 @@
                                                                 <option value="">Seleccionar usuario...</option>
                                                                 @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
                                                                 {
-                                                                    <option value="@usuario.Id" selected="@(nuevoContrato.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
+                                                                    <option value="@usuario.Id" selected="@(nuevoContrato.UsuarioComercialId == usuario.Id)">@usuario.NombreUsuario</option>
                                                                 }
                                                             </select>
-                                                            @if (nuevoContrato != null && nuevoContrato.UsuarioComercializadoraId.HasValue)
+                                                            @if (nuevoContrato != null && nuevoContrato.UsuarioComercialId.HasValue)
                                                             {
                                                                 <small class="text-muted">Seleccionado: @nuevoContrato.Comercial</small>
                                                             }
@@ -1084,7 +1084,7 @@
             var usuario = todosLosUsuarios.FirstOrDefault(u => u.Id == usuarioId);
             if (usuario != null)
             {
-                nuevoContrato.UsuarioComercializadoraId = usuario.Id;
+                nuevoContrato.UsuarioComercialId = usuario.Id;
                 nuevoContrato.Comercial = usuario.NombreUsuario;
                 
                 // Recalcular comisión si hay tarifa seleccionada
@@ -1100,7 +1100,7 @@
         }
         else
         {
-            nuevoContrato.UsuarioComercializadoraId = null;
+            nuevoContrato.UsuarioComercialId = null;
             nuevoContrato.Comercial = string.Empty;
         }
     }
@@ -1325,7 +1325,7 @@
             FechaModificacion = DateTime.Now,
             FechaAlta = DateTime.Now,
             Comercial = AuthService.UsuarioActual?.NombreUsuario ?? "",
-            UsuarioComercializadoraId = AuthService.UsuarioActual?.Id,
+            UsuarioComercialId = AuthService.UsuarioActual?.Id,
             Comision = 0,
             TitularIbanDiferente = false,
             TitularIbanDni = "",
@@ -1587,7 +1587,7 @@
         }
 
         // Si no tiene usuario asignado, usar la comisión completa de la tarifa
-        if (!nuevoContrato.UsuarioComercializadoraId.HasValue)
+        if (!nuevoContrato.UsuarioComercialId.HasValue)
         {
             nuevoContrato.Comision = comisionBase;
             return;
@@ -1611,7 +1611,7 @@
         {
             // Obtener el porcentaje de comisión del usuario asignado al contrato
             var comisionesUsuario = await UsuarioService.ObtenerComisionesProveedorAsync(
-                nuevoContrato.UsuarioComercializadoraId.Value,
+                nuevoContrato.UsuarioComercialId.Value,
                 tipoProveedor
             );
 

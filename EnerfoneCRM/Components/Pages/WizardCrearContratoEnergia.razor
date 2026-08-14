@@ -437,13 +437,14 @@
                                 <div class="card-body">
                                     <div class="row g-3">
                                         <div class="col-md-4">
-                                            <label class="form-label fw-bold">Tipo de Operación</label>
-                                            <InputSelect @bind-Value="nuevoContrato.TipoOperacion" class="form-select">
+                                            <label class="form-label fw-bold">Tipo de Operación <span class="text-danger">*</span></label>
+                                            <InputSelect @bind-Value="nuevoContrato.TipoOperacion" class="form-select" required>
                                                 <option value="">Seleccione...</option>
                                                 <option value="Cambio comercializadora">Cambio comercializadora</option>
                                                 <option value="Cambio de Comercializadora con Cambio de titularidad">Cambio de Comercializadora con Cambio de titularidad</option>
                                                 <option value="Alta nueva">Alta nueva</option>
                                             </InputSelect>
+                                            <ValidationMessage For="@(() => nuevoContrato.TipoOperacion)" />
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Fecha Alta</label>
@@ -512,14 +513,14 @@
                                                 </div>
                                                 <div class="card-body">
                                                     <div class="mb-3">
-                                                        <label class="form-label fw-bold">CUPS Luz</label>
+                                                        <label class="form-label fw-bold">CUPS Luz @if(tipoContratacion != "Gas") { <span class="text-danger">*</span> }</label>
                                                         <input type="text" @bind="nuevoContrato.EnCups" 
                                                                @oninput="@((e) => OnCupsInputWizard(e, nameof(nuevoContrato.EnCups)))"
                                                                class="form-control" placeholder="ES..." maxlength="20"
                                                                disabled="@(tipoContratacion == "Gas")" />
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label fw-bold">Peaje Luz</label>
+                                                        <label class="form-label fw-bold">Peaje Luz @if(tipoContratacion != "Gas") { <span class="text-danger">*</span> }</label>
                                                         <select @bind="peajeLuzSeleccionado" @bind:after="OnPeajeWizardChanged" class="form-select" disabled="@(tipoContratacion == "Gas")">
                                                             <option value="">-- Seleccionar --</option>
                                                             <option value="2.0">2.0</option>
@@ -582,14 +583,14 @@
                                                 </div>
                                                 <div class="card-body">
                                                     <div class="mb-3">
-                                                        <label class="form-label fw-bold">CUPS Gas</label>
+                                                        <label class="form-label fw-bold">CUPS Gas @if(tipoContratacion != "Luz") { <span class="text-danger">*</span> }</label>
                                                         <input type="text" @bind="nuevoContrato.EnCupsGas" 
                                                                @oninput="@((e) => OnCupsInputWizard(e, nameof(nuevoContrato.EnCupsGas)))"
                                                                class="form-control" placeholder="ES..." maxlength="20"
                                                                disabled="@(tipoContratacion == "Luz")" />
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label fw-bold">Peaje Gas</label>
+                                                        <label class="form-label fw-bold">Peaje Gas @if(tipoContratacion != "Luz") { <span class="text-danger">*</span> }</label>
                                                         <select @bind="peajeGasSeleccionado" @bind:after="OnPeajeWizardChanged" class="form-select" disabled="@(tipoContratacion == "Luz")">
                                                             <option value="">-- Seleccionar --</option>
                                                             <option value="RL1">RL1</option>
@@ -1318,6 +1319,47 @@
             guardando = true;
             mensajeError = string.Empty;
 
+            // Validar tipo de operación
+            if (string.IsNullOrWhiteSpace(nuevoContrato.TipoOperacion))
+            {
+                mensajeError = "El campo Tipo de Operación es obligatorio.";
+                guardando = false;
+                return;
+            }
+
+            // Validar campos obligatorios según tipo de contratación
+            if (tipoContratacion == "Luz" || tipoContratacion == "Luz y Gas")
+            {
+                if (string.IsNullOrWhiteSpace(nuevoContrato.EnCups))
+                {
+                    mensajeError = "El campo CUPS Luz es obligatorio para contratos de Luz.";
+                    guardando = false;
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(peajeLuzSeleccionado))
+                {
+                    mensajeError = "El campo Peaje Luz es obligatorio para contratos de Luz.";
+                    guardando = false;
+                    return;
+                }
+            }
+
+            if (tipoContratacion == "Gas" || tipoContratacion == "Luz y Gas")
+            {
+                if (string.IsNullOrWhiteSpace(nuevoContrato.EnCupsGas))
+                {
+                    mensajeError = "El campo CUPS Gas es obligatorio para contratos de Gas.";
+                    guardando = false;
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(peajeGasSeleccionado))
+                {
+                    mensajeError = "El campo Peaje Gas es obligatorio para contratos de Gas.";
+                    guardando = false;
+                    return;
+                }
+            }
+
             // Normalizar tarifa seleccionada antes de guardar.
             if (nuevoContrato.EnTarifaId.HasValue)
             {
@@ -1331,6 +1373,7 @@
             if (string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
             {
                 mensajeError = "Debe seleccionar una tarifa antes de guardar el contrato.";
+                guardando = false;
                 return;
             }
 
@@ -1342,6 +1385,7 @@
             if (!exito)
             {
                 mensajeError = "Error al guardar el contrato";
+                guardando = false;
                 return;
             }
 
@@ -1443,7 +1487,7 @@
         }
 
         // Si no tiene usuario asignado, usar la comisión completa de la tarifa
-        if (!nuevoContrato.UsuarioComercializadoraId.HasValue)
+        if (!nuevoContrato.UsuarioComercialId.HasValue)
         {
             nuevoContrato.Comision = comisionBase;
             return;
@@ -1467,7 +1511,7 @@
         {
             // Obtener el porcentaje de comisión del usuario asignado al contrato
             var comisionesUsuario = await UsuarioService.ObtenerComisionesProveedorAsync(
-                nuevoContrato.UsuarioComercializadoraId.Value,
+                nuevoContrato.UsuarioComercialId.Value,
                 tipoProveedor
             );
 

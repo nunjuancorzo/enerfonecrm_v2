@@ -2678,13 +2678,13 @@ else
             var usuario = usuarios.FirstOrDefault(u => u.Id == usuarioId);
             if (usuario != null)
             {
-                contratoSeleccionado.UsuarioComercializadoraId = usuario.Id;
+                contratoSeleccionado.UsuarioComercialId = usuario.Id;
                 contratoSeleccionado.Comercial = usuario.NombreUsuario;
             }
         }
         else
         {
-            contratoSeleccionado.UsuarioComercializadoraId = null;
+            contratoSeleccionado.UsuarioComercialId = null;
             contratoSeleccionado.Comercial = string.Empty;
         }
     }
