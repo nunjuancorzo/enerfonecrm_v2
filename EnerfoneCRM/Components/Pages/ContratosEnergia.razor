@@ -3051,7 +3051,7 @@ else
             Dni = contrato.Dni,
             Direccion = contrato.Direccion,
             Iban = contrato.Iban,
-            Comision = contrato.Comision,
+            Comision = contrato.Comision, // Mostrar valor guardado en BD (ya calculado con porcentaje)
             TitularIbanDiferente = contrato.TitularIbanDiferente,
             TitularIbanDni = contrato.TitularIbanDni,
             TitularIbanNombre = contrato.TitularIbanNombre,
@@ -3061,6 +3061,7 @@ else
             ServicioId = contrato.ServicioId,
             EnComercializadora = contrato.EnComercializadora ?? "",
             EnTarifa = contrato.EnTarifa,
+            EnTarifaId = contrato.EnTarifaId,
             EnCups = contrato.EnCups,
             EnCupsGas = contrato.EnCupsGas,
             EnServicios = contrato.EnServicios,
@@ -3103,16 +3104,10 @@ else
         {
             await OnComercializadoraChanged();
             
-            // Recalcular comisión con los datos actuales de la tarifa
-            // (importante para reflejar cambios en el precio de la tarifa)
-            if (!string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa))
-            {
-                var tarifa = tarifasDisponibles.FirstOrDefault(t => t.Nombre == contratoSeleccionado.EnTarifa);
-                if (tarifa != null)
-                {
-                    await CalcularComisionConPorcentajeUsuario(tarifa.Comision);
-                }
-            }
+            // NO recalcular comisión al abrir el modal - mostrar el valor guardado en BD
+            // El backend ya calcula correctamente en CrearAsync y ActualizarAsync
+            // Si el usuario cambia la tarifa en el modal, se recalculará automáticamente
+            // gracias a los eventos @onchange que llaman a CalcularComisionConPorcentajeUsuario
         }
         
         // Cargar servicios según tipo de cliente

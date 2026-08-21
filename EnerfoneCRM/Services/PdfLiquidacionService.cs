@@ -152,6 +152,61 @@ public class PdfLiquidacionService
                                 });
                             });
 
+                        // Nota aclaratoria con información de la empresa (PARTE SUPERIOR)
+                        if (configuracion != null)
+                        {
+                            column.Item().PaddingTop(15).Border(2).BorderColor(Colors.Blue.Darken2).Padding(10)
+                                .Column(noteColumn =>
+                                {
+                                    noteColumn.Item().Text("Nota aclaratoria: el total a liquidar es la base sin impuestos, debes generar una factura a:")
+                                        .FontSize(9)
+                                        .Bold();
+                                    
+                                    noteColumn.Item().PaddingTop(8).Text(configuracion.NombreEmpresa)
+                                        .FontSize(10)
+                                        .Bold();
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.Cif))
+                                    {
+                                        noteColumn.Item().Text($"CIF: {configuracion.Cif}")
+                                            .FontSize(9);
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.Direccion))
+                                    {
+                                        noteColumn.Item().Text(configuracion.Direccion)
+                                            .FontSize(9);
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.CodigoPostal) || !string.IsNullOrEmpty(configuracion.Ciudad))
+                                    {
+                                        var ubicacion = $"{configuracion.CodigoPostal ?? ""} {configuracion.Ciudad ?? ""}".Trim();
+                                        if (!string.IsNullOrEmpty(ubicacion))
+                                        {
+                                            noteColumn.Item().Text(ubicacion)
+                                                .FontSize(9);
+                                        }
+                                    }
+                                    
+                                    if (!string.IsNullOrEmpty(configuracion.Telefono) || !string.IsNullOrEmpty(configuracion.Email))
+                                    {
+                                        var contacto = "Contacto: ";
+                                        var partes = new List<string>();
+                                        
+                                        if (!string.IsNullOrEmpty(configuracion.Telefono))
+                                            partes.Add(configuracion.Telefono);
+                                        
+                                        if (!string.IsNullOrEmpty(configuracion.Email))
+                                            partes.Add(configuracion.Email);
+                                        
+                                        contacto += string.Join(" / ", partes);
+                                        
+                                        noteColumn.Item().Text(contacto)
+                                            .FontSize(9);
+                                    }
+                                });
+                        }
+
                         column.Item().PaddingTop(15);
 
                         // Contratos de Energía
@@ -328,61 +383,6 @@ public class PdfLiquidacionService
                             .FontSize(14)
                             .Bold()
                             .FontColor(Colors.White);
-
-                        // Nota aclaratoria con información de la empresa
-                        if (configuracion != null)
-                        {
-                            column.Item().PaddingTop(15).Border(2).BorderColor(Colors.Blue.Darken2).Padding(10)
-                                .Column(noteColumn =>
-                                {
-                                    noteColumn.Item().Text("Nota aclaratoria: el total a liquidar es la base sin impuestos, debes generar una factura a:")
-                                        .FontSize(9)
-                                        .Bold();
-                                    
-                                    noteColumn.Item().PaddingTop(8).Text(configuracion.NombreEmpresa)
-                                        .FontSize(10)
-                                        .Bold();
-                                    
-                                    if (!string.IsNullOrEmpty(configuracion.Cif))
-                                    {
-                                        noteColumn.Item().Text($"CIF: {configuracion.Cif}")
-                                            .FontSize(9);
-                                    }
-                                    
-                                    if (!string.IsNullOrEmpty(configuracion.Direccion))
-                                    {
-                                        noteColumn.Item().Text(configuracion.Direccion)
-                                            .FontSize(9);
-                                    }
-                                    
-                                    if (!string.IsNullOrEmpty(configuracion.CodigoPostal) || !string.IsNullOrEmpty(configuracion.Ciudad))
-                                    {
-                                        var ubicacion = $"{configuracion.CodigoPostal ?? ""} {configuracion.Ciudad ?? ""}".Trim();
-                                        if (!string.IsNullOrEmpty(ubicacion))
-                                        {
-                                            noteColumn.Item().Text(ubicacion)
-                                                .FontSize(9);
-                                        }
-                                    }
-                                    
-                                    if (!string.IsNullOrEmpty(configuracion.Telefono) || !string.IsNullOrEmpty(configuracion.Email))
-                                    {
-                                        var contacto = "Contacto: ";
-                                        var partes = new List<string>();
-                                        
-                                        if (!string.IsNullOrEmpty(configuracion.Telefono))
-                                            partes.Add(configuracion.Telefono);
-                                        
-                                        if (!string.IsNullOrEmpty(configuracion.Email))
-                                            partes.Add(configuracion.Email);
-                                        
-                                        contacto += string.Join(" / ", partes);
-                                        
-                                        noteColumn.Item().Text(contacto)
-                                            .FontSize(9);
-                                    }
-                                });
-                        }
 
                         column.Item().PaddingTop(10).Text(txt =>
                         {

@@ -556,7 +556,7 @@ namespace EnerfoneCRM.Services
             return contrato;
         }
 
-        public async Task<bool> ActualizarAsync(Contrato contrato)
+        public async Task<bool> ActualizarAsync(Contrato contrato, bool omitirCalculoComision = false)
         {
             try
             {
@@ -571,6 +571,17 @@ namespace EnerfoneCRM.Services
                 // Actualizar fecha de modificación
                 contrato.FechaModificacion = DateTime.Now;
                 contrato.FechaCreacion = fechaCreacionOriginal;
+
+                // Calcular comisión basada en el porcentaje del usuario
+                // SOLO si no se solicita omitir el cálculo (ej: cuando se edita desde liquidaciones)
+                if (!omitirCalculoComision)
+                {
+                    await CalcularYAsignarComisionAsync(contrato, context);
+                }
+                else
+                {
+                    Console.WriteLine($"[ContratoService] Actualizando contrato {contrato.Id} SIN recalcular comisión (comisión manual: {contrato.Comision}€)");
+                }
 
                 // Log para depuración detallada
                 Console.WriteLine($"=== ACTUALIZANDO CONTRATO {contrato.Id} ===");
@@ -619,6 +630,9 @@ namespace EnerfoneCRM.Services
                 var ahora = DateTime.Now;
                 contrato.FechaCreacion = ahora;
                 contrato.FechaModificacion = ahora;
+
+                // Calcular comisión basada en el porcentaje del usuario
+                await CalcularYAsignarComisionAsync(contrato, context);
                 
                 // Log para depuración detallada
                 Console.WriteLine($"=== CREANDO NUEVO CONTRATO ===");
@@ -655,6 +669,146 @@ namespace EnerfoneCRM.Services
                 }
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Calcula y asigna la comisión del contrato basándose en:
+        /// 1. La comisión base de la tarifa
+        /// 2. El porcentaje del usuario configurado para ese proveedor
+        /// Fórmula: comision = comisionBaseTarifa * (porcentajeUsuario / 100)
+        /// </summary>
+        private async Task CalcularYAsignarComisionAsync(Contrato contrato, ApplicationDbContext context)
+        {
+            // Si no hay usuario asignado, no podemos calcular la comisión
+            if (!contrato.UsuarioComercializadoraId.HasValue)
+            {
+                Console.WriteLine($"[ContratoService] Contrato sin usuario asignado, no se calcula comisión");
+                return;
+            }
+
+            var usuarioId = contrato.UsuarioComercializadoraId.Value;
+            
+            // Obtener comisión base de la tarifa
+            decimal comisionBase = 0;
+            int? proveedorId = null;
+            string? tipoProveedor = null;
+
+            switch (contrato.Tipo?.ToLower())
+            {
+                case "energia":
+                case "energía":
+                    tipoProveedor = "comercializadora";
+                    
+                    // Buscar tarifa por ID
+                    if (contrato.EnTarifaId.HasValue)
+                    {
+                        var tarifa = await context.TarifasEnergia.FindAsync(contrato.EnTarifaId.Value);
+                        comisionBase = tarifa?.Comision ?? 0;
+                    }
+                    // Si no tiene ID, buscar por nombre
+                    else if (!string.IsNullOrWhiteSpace(contrato.EnTarifa) && !string.IsNullOrWhiteSpace(contrato.EnComercializadora))
+                    {
+                        var tarifa = await context.TarifasEnergia
+                            .Where(t => t.Nombre == contrato.EnTarifa && t.Empresa == contrato.EnComercializadora)
+                            .FirstOrDefaultAsync();
+                        comisionBase = tarifa?.Comision ?? 0;
+                    }
+                    
+                    // Obtener ID del proveedor
+                    if (!string.IsNullOrWhiteSpace(contrato.EnComercializadora))
+                    {
+                        var comercializadora = await context.Comercializadoras
+                            .Where(c => c.Nombre == contrato.EnComercializadora)
+                            .FirstOrDefaultAsync();
+                        proveedorId = comercializadora?.Id;
+                    }
+                    break;
+
+                case "telefonia":
+                case "telefonía":
+                    tipoProveedor = "operadora";
+                    
+                    // Buscar tarifa por ID
+                    if (contrato.TarifaTelId.HasValue)
+                    {
+                        var tarifa = await context.TarifasTelefonia.FindAsync(contrato.TarifaTelId.Value);
+                        comisionBase = tarifa?.ComisionNew ?? 0;
+                    }
+                    
+                    // Obtener ID del proveedor
+                    if (!string.IsNullOrWhiteSpace(contrato.OperadoraTel))
+                    {
+                        var operadora = await context.Operadoras
+                            .Where(o => o.Nombre == contrato.OperadoraTel)
+                            .FirstOrDefaultAsync();
+                        proveedorId = operadora?.Id;
+                    }
+                    break;
+
+                case "alarma":
+                case "alarmas":
+                    tipoProveedor = "empresa_alarma";
+                    
+                    // Buscar tarifa por ID
+                    if (contrato.KitAlarmaId.HasValue)
+                    {
+                        var tarifa = await context.TarifasAlarmas.FindAsync(contrato.KitAlarmaId.Value);
+                        comisionBase = tarifa?.Comision ?? 0;
+                    }
+                    // Si no tiene ID, buscar por nombre
+                    else if (!string.IsNullOrWhiteSpace(contrato.KitAlarma) && !string.IsNullOrWhiteSpace(contrato.EmpresaAlarma))
+                    {
+                        var tarifa = await context.TarifasAlarmas
+                            .Where(t => t.NombreTarifa == contrato.KitAlarma && t.Empresa == contrato.EmpresaAlarma)
+                            .FirstOrDefaultAsync();
+                        comisionBase = tarifa?.Comision ?? 0;
+                    }
+                    
+                    // Obtener ID del proveedor
+                    if (!string.IsNullOrWhiteSpace(contrato.EmpresaAlarma))
+                    {
+                        var empresaAlarma = await context.EmpresasAlarmas
+                            .Where(e => e.Nombre == contrato.EmpresaAlarma)
+                            .FirstOrDefaultAsync();
+                        proveedorId = empresaAlarma?.Id;
+                    }
+                    break;
+            }
+
+            if (comisionBase == 0)
+            {
+                Console.WriteLine($"[ContratoService] No se encontró comisión base para el contrato, usando comisión actual: {contrato.Comision}");
+                return;
+            }
+
+            if (!proveedorId.HasValue)
+            {
+                Console.WriteLine($"[ContratoService] No se pudo determinar el proveedor, usando comisión base de la tarifa: {comisionBase}");
+                contrato.Comision = comisionBase;
+                return;
+            }
+
+            // Buscar el porcentaje configurado del usuario para este proveedor
+            var comisionUsuario = await context.UsuarioComisionesProveedores
+                .Where(c => c.UsuarioId == usuarioId 
+                    && c.TipoProveedor == tipoProveedor 
+                    && c.ProveedorId == proveedorId.Value)
+                .FirstOrDefaultAsync();
+
+            decimal porcentajeUsuario = comisionUsuario?.PorcentajeComision ?? 100m; // Si no hay configuración, usar 100%
+
+            // Calcular comisión final
+            decimal comisionCalculada = Math.Round(comisionBase * (porcentajeUsuario / 100), 2);
+
+            Console.WriteLine($"[ContratoService] Cálculo de comisión:");
+            Console.WriteLine($"  - Tipo: {contrato.Tipo}");
+            Console.WriteLine($"  - Proveedor: {tipoProveedor} (ID: {proveedorId})");
+            Console.WriteLine($"  - Comisión base tarifa: {comisionBase}€");
+            Console.WriteLine($"  - Porcentaje usuario: {porcentajeUsuario}%");
+            Console.WriteLine($"  - Comisión calculada: {comisionCalculada}€");
+            Console.WriteLine($"  - Comisión anterior: {contrato.Comision}€");
+
+            contrato.Comision = comisionCalculada;
         }
 
         public async Task<bool> EliminarAsync(int id)

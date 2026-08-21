@@ -506,6 +506,33 @@
 
                     <div class="mb-3">
                         <hr />
+                        <h6 class="mb-3"><i class="bi bi-percent me-2"></i>Aplicar Porcentaje Global de Comisión</h6>
+                        <p class="text-muted small">Utiliza este campo para rellenar automáticamente todos los porcentajes de comisión de proveedores con el mismo valor. Podrás editarlos individualmente después.</p>
+                        
+                        <div class="row align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label">Porcentaje Global (%)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       step="0.01" 
+                                       min="0" 
+                                       max="99.99"
+                                       placeholder="Ej: 60.00"
+                                       @bind="porcentajeGlobal" />
+                            </div>
+                            <div class="col-md-8">
+                                <button type="button" 
+                                        class="btn btn-primary"
+                                        @onclick="AplicarPorcentajeGlobal"
+                                        disabled="@(!porcentajeGlobal.HasValue)">
+                                    <i class="bi bi-arrow-repeat me-2"></i>Aplicar a Todas las Comisiones
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <hr />
                         <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras Permitidas y Comisiones</h6>
                         <p class="text-muted small">Marca las comercializadoras que este usuario podrá visualizar y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
                         
@@ -951,6 +978,9 @@
     private Dictionary<int, decimal> comisionesComercializadoras = new();
     private Dictionary<int, decimal> comisionesOperadoras = new();
     private Dictionary<int, decimal> comisionesEmpresasAlarmas = new();
+    
+    // Porcentaje global para aplicar a todas las comisiones
+    private decimal? porcentajeGlobal;
 
     // Variables para los archivos adjuntos
     private string? archivoDniNombre;
@@ -1419,6 +1449,36 @@
         }
 
         diccionario[proveedorId] = 0m;
+    }
+
+    private void AplicarPorcentajeGlobal()
+    {
+        if (!porcentajeGlobal.HasValue)
+        {
+            return;
+        }
+
+        var porcentaje = decimal.Clamp(porcentajeGlobal.Value, 0m, 99.99m);
+
+        // Aplicar a todas las comercializadoras
+        foreach (var id in comisionesComercializadoras.Keys.ToList())
+        {
+            comisionesComercializadoras[id] = porcentaje;
+        }
+
+        // Aplicar a todas las operadoras
+        foreach (var id in comisionesOperadoras.Keys.ToList())
+        {
+            comisionesOperadoras[id] = porcentaje;
+        }
+
+        // Aplicar a todas las empresas de alarmas
+        foreach (var id in comisionesEmpresasAlarmas.Keys.ToList())
+        {
+            comisionesEmpresasAlarmas[id] = porcentaje;
+        }
+
+        StateHasChanged();
     }
 
     private void OnRolChanged()

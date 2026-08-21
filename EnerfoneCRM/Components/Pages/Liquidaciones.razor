@@ -150,16 +150,8 @@ else
                     else
                     {
                         <div class="alert alert-info mb-3">
-                            @if (AuthService.PuedeGestionarLiquidaciones)
-                            {
-                                <text><i class="bi bi-shield-check me-2"></i>
-                                <strong>Vista de administrador:</strong> Puedes ver y aprobar las liquidaciones pendientes de todos los usuarios.</text>
-                            }
-                            else
-                            {
-                                <text><i class="bi bi-person-check me-2"></i>
-                                <strong>Tu liquidación:</strong> Solo ves tu propia liquidación pendiente. Revisa los contratos y acéptala cuando estés conforme.</text>
-                            }
+                            <div><i class="bi bi-info-circle me-2"></i>Si tu liquidación es correcta, dale al botón de aprobar (✓)</div>
+                            <div><i class="bi bi-info-circle me-2"></i>Si hay algún error, lanza una incidencia de la liquidación (⚠️)</div>
                         </div>
                         
                         <div class="table-responsive">
@@ -171,7 +163,7 @@ else
                                         <th class="text-center">Contratos</th>
                                         <th class="text-center">Total</th>
                                         <th class="text-center">Fecha Aprobación</th>
-                                        <th class="text-center">Aprobado Por</th>
+                                        <th class="text-center">Generado por</th>
                                         <th class="text-center text-nowrap" style="min-width: 280px;">Acciones</th>
                                     </tr>
                                 </thead>
@@ -221,6 +213,9 @@ else
                                                 {
                                                     <button class="btn btn-sm btn-success me-1" @onclick="() => AceptarLiquidacionPendiente(liquidacion.Id)" title="Aceptar Liquidación">
                                                         <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-warning me-1" @onclick="() => MarcarConIncidencia(liquidacion.Id)" title="Marcar con Incidencia">
+                                                        <i class="bi bi-exclamation-triangle"></i>
                                                     </button>
                                                 }
                                                 @if (AuthService.PuedeGestionarLiquidaciones || AuthService.EsSuperAdmin)
@@ -427,11 +422,14 @@ else
                                                     <button class="btn btn-sm btn-primary me-1" @onclick="() => MarcarComoLiquidada(liq.Id)" title="Marcar como Liquidada">
                                                         <i class="bi bi-cash-stack"></i>
                                                     </button>
-                                                    <button class="btn btn-sm btn-danger me-1" @onclick="() => MarcarConIncidencia(liq.Id)" title="Marcar con Incidencia">
-                                                        <i class="bi bi-exclamation-triangle"></i>
-                                                    </button>
                                                     <button class="btn btn-sm btn-danger" @onclick="() => EliminarLiquidacion(liq.Id)" title="Eliminar Liquidación">
                                                         <i class="bi bi-trash"></i>
+                                                    </button>
+                                                }
+                                                @if (AuthService.PuedeGestionarLiquidaciones || AuthService.EsSuperAdmin || liq.UsuarioId == AuthService.UsuarioActual?.Id)
+                                                {
+                                                    <button class="btn btn-sm btn-warning" @onclick="() => MarcarConIncidencia(liq.Id)" title="Marcar con Incidencia">
+                                                        <i class="bi bi-exclamation-triangle"></i>
                                                     </button>
                                                 }
                                             </td>
@@ -681,6 +679,18 @@ else
                     <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalContratos"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Nota aclaratoria de facturación -->
+                    <div class="alert alert-primary border-primary" style="border-width: 2px;">
+                        <p class="mb-2"><strong>Nota aclaratoria:</strong> el total a liquidar es la base sin impuestos, debes generar una factura a:</p>
+                        <div class="ms-3">
+                            <p class="mb-1"><strong>ENERGÍA Y TELEFONÍA MÉRIDA S.L.</strong></p>
+                            <p class="mb-1">CIF: B21638176</p>
+                            <p class="mb-1">CALLE ALMENDRALEJO, 43 LOCAL 5</p>
+                            <p class="mb-1">06800 MÉRIDA</p>
+                            <p class="mb-0">Contacto: 611533854 / central@enerfone.com</p>
+                        </div>
+                    </div>
+                    
                     @if (!contratosFacurables.Any())
                     {
                         <div class="alert alert-warning">
@@ -1186,6 +1196,18 @@ else
                     <button type="button" class="btn-close btn-close-white" @onclick="CerrarContratosHistorico"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Nota aclaratoria de facturación -->
+                    <div class="alert alert-primary border-primary" style="border-width: 2px;">
+                        <p class="mb-2"><strong>Nota aclaratoria:</strong> el total a liquidar es la base sin impuestos, debes generar una factura a:</p>
+                        <div class="ms-3">
+                            <p class="mb-1"><strong>ENERGÍA Y TELEFONÍA MÉRIDA S.L.</strong></p>
+                            <p class="mb-1">CIF: B21638176</p>
+                            <p class="mb-1">CALLE ALMENDRALEJO, 43 LOCAL 5</p>
+                            <p class="mb-1">06800 MÉRIDA</p>
+                            <p class="mb-0">Contacto: 611533854 / central@enerfone.com</p>
+                        </div>
+                    </div>
+                    
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
                         <strong>Liquidación aprobada el:</strong> @historicoSeleccionado.FechaAprobacion.ToString("dd/MM/yyyy HH:mm")
@@ -1757,18 +1779,23 @@ else
                 }
 
                 // Acumular comisión del administrador
+                // NOTA: No se acumulan comisiones para usuarios con rol Administrador o Backoffice en liquidaciones
                 if (detalle.ComisionAdministrador > 0)
                 {
                     var administrador = await context.Usuarios.FindAsync(detalle.AdministradorId);
                     if (administrador != null && administrador.Activo)
                     {
-                        if (!comisionesPorUsuario.ContainsKey(administrador.Id))
+                        // Excluir usuarios con rol Administrador o Backoffice de las liquidaciones
+                        if (administrador.Rol != "Administrador" && administrador.Rol != "Backoffice")
                         {
-                            comisionesPorUsuario[administrador.Id] = (administrador, 0, 0, 0, 0);
+                            if (!comisionesPorUsuario.ContainsKey(administrador.Id))
+                            {
+                                comisionesPorUsuario[administrador.Id] = (administrador, 0, 0, 0, 0);
+                            }
+                            
+                            var actual = comisionesPorUsuario[administrador.Id];
+                            comisionesPorUsuario[administrador.Id] = (actual.usuario, actual.totalComision + detalle.ComisionAdministrador, actual.cantidadContratos + 1, actual.incidenciasPendientes, actual.incidenciasTotal);
                         }
-                        
-                        var actual = comisionesPorUsuario[administrador.Id];
-                        comisionesPorUsuario[administrador.Id] = (actual.usuario, actual.totalComision + detalle.ComisionAdministrador, actual.cantidadContratos + 1, actual.incidenciasPendientes, actual.incidenciasTotal);
                     }
                 }
             }
@@ -1879,7 +1906,10 @@ else
                 .ToListAsync();
 
             usuariosGeneracionManual = usuariosActivos
-                .Where(u => !string.IsNullOrWhiteSpace(u.NombreUsuario) && comerciales.Contains(u.NombreUsuario.Trim()))
+                .Where(u => !string.IsNullOrWhiteSpace(u.NombreUsuario) 
+                    && comerciales.Contains(u.NombreUsuario.Trim())
+                    && u.Rol != "Administrador" 
+                    && u.Rol != "Backoffice") // Excluir Administradores y Backoffice de liquidaciones
                 .Select(u =>
                 {
                     var key = u.NombreUsuario!.Trim();
@@ -2206,13 +2236,21 @@ else
             }
             
             // Obtener los contratos facturables del usuario
+            // AsNoTracking() + ToList() fuerza recarga desde BD con valores actuales
             var contratos = context.Contratos
+                .AsNoTracking()
                 .Where(c => c.Comercial == usuario.NombreUsuario 
                     && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
                 .OrderBy(c => c.Tipo)
                 .ThenByDescending(c => c.FechaCreacion)
                 .ToList();
+            
+            Console.WriteLine($"[PDF] Cargados {contratos.Count} contratos desde BD para {usuario.NombreUsuario}");
+            if (contratos.Any())
+            {
+                Console.WriteLine($"[PDF] Primeras 3 comisiones: {string.Join(", ", contratos.Take(3).Select(c => $"ID={c.Id}:{c.Comision ?? 0}€"))}");
+            }
 
             if (!contratos.Any())
             {
@@ -2316,8 +2354,9 @@ else
                 return;
             }
             
-            // Obtener los contratos facturables del usuario
+            // Obtener los contratos facturables del usuario DESDE BD con valores actuales
             var contratos = context.Contratos
+                .AsNoTracking()
                 .Where(c => c.Comercial == usuarioDb.NombreUsuario 
                     && (c.Tipo == "energia" || c.Tipo == "Energía" || c.Tipo == "telefonia" || c.Tipo == "Telefonía" || c.Tipo == "alarma" || c.Tipo == "Alarma")
                     && c.Estado == "Act/Facturable")
@@ -2329,6 +2368,12 @@ else
             {
                 mensajeError = "No hay contratos para enviar";
                 return;
+            }
+            
+            Console.WriteLine($"[EMAIL] Cargados {contratos.Count} contratos desde BD para {usuarioDb.NombreUsuario}");
+            if (contratos.Any())
+            {
+                Console.WriteLine($"[EMAIL] Primeras 3 comisiones: {string.Join(", ", contratos.Take(3).Select(c => $"ID={c.Id}:{c.Comision ?? 0}€"))}");
             }
 
             // Generar el HTML
@@ -3401,16 +3446,46 @@ else
                 return;
             }
             
-            if (!contratosHistorico.Any())
+            // IMPORTANTE: Recargar contratos desde BD para obtener comisiones actuales
+            // No usar contratosHistorico que puede estar desactualizado en memoria
+            var idsContratos = await context.DetallesComisionLiquidacion
+                .Where(d => d.HistoricoLiquidacionId == historicoSeleccionado.Id)
+                .Select(d => d.ContratoId)
+                .Distinct()
+                .ToListAsync();
+            
+            List<Contrato> contratosActualizados;
+            if (!idsContratos.Any())
+            {
+                contratosActualizados = await context.Contratos
+                    .AsNoTracking()
+                    .Where(c => c.HistoricoLiquidacionId == historicoSeleccionado.Id)
+                    .ToListAsync();
+            }
+            else
+            {
+                contratosActualizados = await context.Contratos
+                    .AsNoTracking()
+                    .Where(c => idsContratos.Contains(c.Id))
+                    .ToListAsync();
+            }
+            
+            if (!contratosActualizados.Any())
             {
                 mensajeError = "No hay contratos para imprimir en esta liquidación";
                 return;
             }
+            
+            Console.WriteLine($"[PDF Histórico] Recargados {contratosActualizados.Count} contratos desde BD");
+            if (contratosActualizados.Any())
+            {
+                Console.WriteLine($"[PDF Histórico] Primeras 3 comisiones: {string.Join(", ", contratosActualizados.Take(3).Select(c => $"ID={c.Id}:{c.Comision ?? 0}€"))}");
+            }
 
             // Agrupar por tipo
-            var contratosEnergia = contratosHistorico.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
-            var contratosTelefonia = contratosHistorico.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
-            var contratosAlarmas = contratosHistorico.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
+            var contratosEnergia = contratosActualizados.Where(c => c.Tipo == "energia" || c.Tipo == "Energía").ToList();
+            var contratosTelefonia = contratosActualizados.Where(c => c.Tipo == "telefonia" || c.Tipo == "Telefonía").ToList();
+            var contratosAlarmas = contratosActualizados.Where(c => c.Tipo == "alarma" || c.Tipo == "Alarma").ToList();
 
             // Obtener configuración de empresa
             var configuracionEmpresa = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
@@ -3456,7 +3531,7 @@ else
                 return;
             }
 
-            // Cargar contratos de esta liquidación
+            // Cargar contratos de esta liquidación DESDE BD con valores actuales
             var idsContratos = await context.DetallesComisionLiquidacion
                 .Where(d => d.HistoricoLiquidacionId == liquidacion.Id)
                 .Select(d => d.ContratoId)
@@ -3467,12 +3542,14 @@ else
             if (!idsContratos.Any())
             {
                 contratos = await context.Contratos
+                    .AsNoTracking()
                     .Where(c => c.HistoricoLiquidacionId == liquidacion.Id)
                     .ToListAsync();
             }
             else
             {
                 contratos = await context.Contratos
+                    .AsNoTracking()
                     .Where(c => idsContratos.Contains(c.Id))
                     .ToListAsync();
             }
@@ -3482,6 +3559,12 @@ else
                 mensajeError = "No hay contratos para imprimir en esta liquidación";
                 await JSRuntime.InvokeVoidAsync("alert", "No hay contratos para imprimir en esta liquidación");
                 return;
+            }
+            
+            Console.WriteLine($"[PDF Desde Tabla] Cargados {contratos.Count} contratos desde BD para liquidación {liquidacion.Id}");
+            if (contratos.Any())
+            {
+                Console.WriteLine($"[PDF Desde Tabla] Primeras 3 comisiones: {string.Join(", ", contratos.Take(3).Select(c => $"ID={c.Id}:{c.Comision ?? 0}€"))}");
             }
 
             // Agrupar por tipo
@@ -4324,16 +4407,19 @@ else
     {
         try
         {
-            // VALIDACIÓN DE SEGURIDAD: Solo administradores, backoffice con permiso y superadmin pueden marcar con incidencia
-            if (!AuthService.PuedeGestionarLiquidaciones && !AuthService.EsSuperAdmin)
+            await using var context = DbContextProvider.CreateDbContext();
+            var liquidacion = await context.HistoricoLiquidaciones.FindAsync(liquidacionId);
+            
+            // VALIDACIÓN DE SEGURIDAD: Solo el propietario, administradores o superadmin pueden marcar con incidencia
+            if (liquidacion != null && 
+                liquidacion.UsuarioId != AuthService.UsuarioActual?.Id &&
+                !AuthService.PuedeGestionarLiquidaciones && 
+                !AuthService.EsSuperAdmin)
             {
-                mensajeError = "No tienes permisos para marcar liquidaciones con incidencia";
+                mensajeError = "No tienes permisos para marcar esta liquidación con incidencia";
                 Console.WriteLine($"[LIQUIDACIONES] Usuario {AuthService.UsuarioActual?.NombreUsuario} intentó marcar incidencia sin permisos");
                 return;
             }
-            
-            await using var context = DbContextProvider.CreateDbContext();
-            var liquidacion = await context.HistoricoLiquidaciones.FindAsync(liquidacionId);
             
             if (liquidacion != null)
             {
@@ -4996,11 +5082,14 @@ else
             await using var context = DbContextProvider.CreateDbContext();
 
             // Actualizar las comisiones en los contratos
+            // IMPORTANTE: Aquí guardamos las comisiones EXACTAS sin recalcular porcentajes
+            Console.WriteLine($"[LIQUIDACIONES] Guardando {comisionesPorContrato.Count} comisiones editadas manualmente");
             foreach (var (contratoId, nuevaComision) in comisionesPorContrato)
             {
                 var contrato = await context.Contratos.FindAsync(contratoId);
                 if (contrato != null)
                 {
+                    Console.WriteLine($"[LIQUIDACIONES] Contrato {contratoId}: Comisión actual={contrato.Comision}€ -> Nueva comisión={nuevaComision}€");
                     contrato.Comision = nuevaComision;
                     context.Contratos.Update(contrato);
                 }
@@ -5022,6 +5111,37 @@ else
 
             // Actualizar el total en el histórico seleccionado
             historicoSeleccionado.TotalComisiones = totalComisiones;
+            
+            // IMPORTANTE: Recargar contratos desde BD para reflejar cambios en el modal
+            var idsContratos = await context.DetallesComisionLiquidacion
+                .Where(d => d.HistoricoLiquidacionId == historicoSeleccionado.Id)
+                .Select(d => d.ContratoId)
+                .Distinct()
+                .ToListAsync();
+            
+            if (idsContratos.Any())
+            {
+                contratosHistorico = await context.Contratos
+                    .AsNoTracking()
+                    .Where(c => idsContratos.Contains(c.Id))
+                    .ToListAsync();
+            }
+            else
+            {
+                contratosHistorico = await context.Contratos
+                    .AsNoTracking()
+                    .Where(c => c.HistoricoLiquidacionId == historicoSeleccionado.Id)
+                    .ToListAsync();
+            }
+            
+            // Actualizar diccionario de comisiones con valores recargados
+            comisionesPorContrato.Clear();
+            foreach (var contrato in contratosHistorico)
+            {
+                comisionesPorContrato[contrato.Id] = contrato.Comision ?? 0;
+            }
+            
+            Console.WriteLine($"[LIQUIDACIONES] Recargados {contratosHistorico.Count} contratos con comisiones actualizadas");
 
             // Recargar las liquidaciones
             await CargarLiquidacionesPorEstado();
