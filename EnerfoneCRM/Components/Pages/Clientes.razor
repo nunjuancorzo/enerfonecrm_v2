@@ -582,6 +582,9 @@ else
                                                                             </div>
                                                                         </div>
                                                                         <div class="btn-group btn-group-sm ms-2">
+                                                                            <button type="button" class="btn btn-outline-primary" @onclick="() => VerArchivo(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Ver">
+                                                                                <i class="bi bi-eye"></i>
+                                                                            </button>
                                                                             <button type="button" class="btn btn-outline-success" @onclick="() => DescargarArchivo(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                                 <i class="bi bi-download"></i>
                                                                             </button>
@@ -4530,6 +4533,40 @@ else
     private async Task CargarReciboBancario(InputFileChangeEventArgs e)
     {
         await SubirArchivo(e, "ReciboBancario");
+    }
+
+    private async Task VerArchivo(int idFichero)
+    {
+        try
+        {
+            var resultado = await FicheroClienteService.DescargarArchivoAsync(idFichero);
+
+            if (resultado.exito && resultado.contenido != null && resultado.nombreArchivo != null)
+            {
+                var mimeType = Path.GetExtension(resultado.nombreArchivo).ToLower() switch
+                {
+                    ".pdf" => "application/pdf",
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".png" => "image/png",
+                    ".gif" => "image/gif",
+                    ".webp" => "image/webp",
+                    _ => "application/octet-stream"
+                };
+
+                await JSRuntime.InvokeVoidAsync("openFileInNewTab",
+                    resultado.nombreArchivo,
+                    Convert.ToBase64String(resultado.contenido),
+                    mimeType);
+            }
+            else
+            {
+                mensajeError = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al abrir el archivo: {ex.Message}";
+        }
     }
 
     private async Task DescargarArchivo(int idFichero)

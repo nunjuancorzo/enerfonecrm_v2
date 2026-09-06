@@ -93,6 +93,10 @@ namespace EnerfoneCRM.Models
         [MaxLength(100)]
         public string? EstadoServicio { get; set; }
 
+        [Column("estadoServicioGas")]
+        [MaxLength(100)]
+        public string? EstadoServicioGas { get; set; }
+
         [Column("en_Comercializadora")]
         [MaxLength(100)]
         public string? EnComercializadora { get; set; }
@@ -103,6 +107,20 @@ namespace EnerfoneCRM.Models
 
         [Column("en_tarifa_id")]
         public int? EnTarifaId { get; set; }
+
+        [Column("en_tarifa_gas")]
+        [MaxLength(255)]
+        public string? EnTarifaGas { get; set; }
+
+        [Column("en_tarifa_gas_id")]
+        public int? EnTarifaGasId { get; set; }
+
+        [Column("servicio_gas_id")]
+        public int? ServicioGasId { get; set; }
+
+        [Column("en_servicios_gas")]
+        [MaxLength(255)]
+        public string? EnServiciosGas { get; set; }
 
         [Column("en_CUPS")]
         [MaxLength(20)]

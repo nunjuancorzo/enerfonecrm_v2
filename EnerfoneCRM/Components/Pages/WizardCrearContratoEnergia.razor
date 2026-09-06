@@ -5,7 +5,10 @@
 @inject ComercializadoraService ComercializadoraService
 @inject ContratoService ContratoService
 @inject TarifaEnergiaService TarifaEnergiaService
+@inject TarifaLuzService TarifaLuzService
+@inject TarifaGasService TarifaGasService
 @inject ServicioService ServicioService
+@inject ServicioGasService ServicioGasService
 @inject FicheroClienteService FicheroClienteService
 @inject FicheroContratoService FicheroContratoService
 @inject AuthService AuthService
@@ -567,9 +570,31 @@
                                                         </div>
                                                     </div>
                                                     
-                                                    <div class="mb-0">
+                                                    <div class="mb-3">
                                                         <label class="form-label fw-bold">Consumo Anual Luz (kWh)</label>
                                                         <InputNumber @bind-Value="nuevoContrato.ConsumoAnual" class="form-control" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Gas")" />
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Tarifa Luz</label>
+                                                        <select value="@nuevoContrato.EnTarifa" @onchange="OnTarifaLuzChanged" class="form-select" disabled="@(tipoContratacion == "Gas")">
+                                                            <option value="">Seleccionar tarifa...</option>
+                                                            @foreach (var tarifa in tarifasLuzDisponibles)
+                                                            {
+                                                                <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="mb-0">
+                                                        <label class="form-label fw-bold">Servicio Luz (opcional)</label>
+                                                        <select @bind="nuevoContrato.ServicioId" class="form-select" disabled="@(tipoContratacion == "Gas")">
+                                                            <option value="">Sin servicio</option>
+                                                            @foreach (var servicio in serviciosDisponibles)
+                                                            {
+                                                                <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio€</option>
+                                                            }
+                                                        </select>
                                                     </div>
                                                 </div>
                                             </div>
@@ -601,27 +626,57 @@
                                                             <option value="RL6">RL6</option>
                                                         </select>
                                                     </div>
-                                                    <div class="mb-0">
+                                                    <div class="mb-3">
                                                         <label class="form-label fw-bold">Consumo Anual Gas (kWh)</label>
                                                         <InputNumber @bind-Value="nuevoContrato.ConsumoAnualGas" class="form-control" step="0.01" placeholder="0.00" disabled="@(tipoContratacion == "Luz")" />
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Tarifa Gas</label>
+                                                        <select value="@nuevoContrato.EnTarifaGas" @onchange="OnTarifaGasChanged" class="form-select" disabled="@(tipoContratacion == "Luz")">
+                                                            <option value="">Seleccionar tarifa...</option>
+                                                            @foreach (var tarifa in tarifasGasDisponibles)
+                                                            {
+                                                                <option value="@tarifa.Nombre">@tarifa.Nombre</option>
+                                                            }
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="mb-0">
+                                                        <label class="form-label fw-bold">Servicio Gas (opcional)</label>
+                                                        <select @bind="nuevoContrato.ServicioGasId" class="form-select" disabled="@(tipoContratacion == "Luz")">
+                                                            <option value="">Sin servicio</option>
+                                                            @foreach (var servicio in serviciosGasDisponibles)
+                                                            {
+                                                                <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio€</option>
+                                                            }
+                                                        </select>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Servicio y Comercial -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TERCERA PARTE: COMERCIALIZADORA Y TARIFA -->
+                            <div class="card shadow-sm mb-3">
+                                <div class="card-header" style="background-color: #d4edda; color: #155724;">
+                                    <h6 class="mb-0"><i class="bi bi-building me-2"></i>3. Comercializadora, Usuario y Comisión</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="form-label fw-bold">Servicio Asociado (opcional)</label>
-                                            <select @bind="nuevoContrato.ServicioId" class="form-select">
-                                                <option value="">Sin servicio</option>
-                                                @foreach (var servicio in serviciosDisponibles)
-                                                {
-                                                    <option value="@servicio.Id">@servicio.NombreServicio - @servicio.Precio€</option>
-                                                }
-                                            </select>
+                                            <label class="form-label fw-bold">Comercializadora</label>
+                                            <input type="text" class="form-control" value="@comercializadoraSeleccionada?.Nombre" readonly />
+                                            <small class="text-muted">Seleccionada en el paso anterior</small>
+
+                                            <label class="form-label fw-bold mt-3">Comisión (€)</label>
+                                            <InputNumber @bind-Value="nuevoContrato.Comision" class="form-control" readonly />
+                                            <small class="text-muted">Se calcula automáticamente desde las tarifas</small>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label fw-bold">Comercial asociado <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">Usuario <span class="text-danger">*</span></label>
                                             <select class="form-select" @onchange="OnUsuarioComercialChanged">
                                                 <option value="">Seleccionar usuario...</option>
                                                 @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
@@ -632,40 +687,6 @@
                                             @if (nuevoContrato != null && nuevoContrato.UsuarioComercialId.HasValue)
                                             {
                                                 <small class="text-muted">Seleccionado: @nuevoContrato.Comercial</small>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- TERCERA PARTE: COMERCIALIZADORA Y TARIFA -->
-                            <div class="card shadow-sm mb-3">
-                                <div class="card-header" style="background-color: #d4edda; color: #155724;">
-                                    <h6 class="mb-0"><i class="bi bi-building me-2"></i>3. Comercializadora y Tarifa</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Comercializadora</label>
-                                            <input type="text" class="form-control" value="@comercializadoraSeleccionada?.Nombre" readonly />
-                                            <small class="text-muted">Seleccionada en el paso anterior</small>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Tarifa</label>
-                                            <select value="@nuevoContrato.EnTarifa" @onchange="OnTarifaEnergiaChanged" class="form-select">
-                                                <option value="">Seleccionar tarifa...</option>
-                                                @if (tarifasEnergia == null || !tarifasEnergia.Any())
-                                                {
-                                                    <option disabled>No hay tarifas disponibles</option>
-                                                }
-                                                @foreach (var tarifa in tarifasEnergia)
-                                                {
-                                                    <option value="@tarifa.Nombre">@tarifa.Nombre</option>
-                                                }
-                                            </select>
-                                            @if (tarifasEnergia != null && tarifasEnergia.Any())
-                                            {
-                                                <small class="text-muted">@tarifasEnergia.Count tarifas disponibles</small>
                                             }
                                         </div>
                                     </div>
@@ -858,10 +879,14 @@
 
     // Paso 3: Datos del contrato
     private Contrato? nuevoContrato = null;
-    private List<TarifaEnergia> tarifasEnergia = new();
-    private List<TarifaEnergia> tarifasBase = new();
-    private List<TarifaEnergia> todasLasTarifas = new();
+    private List<TarifaLuz> tarifasLuzDisponibles = new();
+    private List<TarifaLuz> tarifasLuzBase = new();
+    private List<TarifaLuz> todasLasTarifasLuz = new();
+    private List<TarifaGas> tarifasGasDisponibles = new();
+    private List<TarifaGas> tarifasGasBase = new();
+    private List<TarifaGas> todasLasTarifasGas = new();
     private List<Servicio> serviciosDisponibles = new();
+    private List<ServicioGas> serviciosGasDisponibles = new();
     private List<Usuario> todosLosUsuarios = new();
     private string peajeLuzSeleccionado = string.Empty;
     private string peajeGasSeleccionado = string.Empty;
@@ -960,9 +985,10 @@
     {
         try
         {
-            todasLasTarifas = await TarifaEnergiaService.ObtenerTodasAsync();
-            // Filtrar solo tarifas activas en el wizard
-            tarifasEnergia = todasLasTarifas.Where(t => t.Activa).ToList();
+            todasLasTarifasLuz = (await TarifaLuzService.ObtenerActivasAsync()).ToList();
+            todasLasTarifasGas = (await TarifaGasService.ObtenerActivasAsync()).ToList();
+            tarifasLuzDisponibles = todasLasTarifasLuz;
+            tarifasGasDisponibles = todasLasTarifasGas;
         }
         catch (Exception ex)
         {
@@ -975,6 +1001,7 @@
         try
         {
             serviciosDisponibles = await ServicioService.ObtenerTodosAsync();
+            serviciosGasDisponibles = await ServicioGasService.ObtenerTodosAsync();
         }
         catch (Exception ex)
         {
@@ -1005,16 +1032,8 @@
             {
                 nuevoContrato.UsuarioComercialId = usuario.Id;
                 nuevoContrato.Comercial = usuario.NombreUsuario;
-                
-                // Recalcular comisión si hay tarifa seleccionada
-                if (!string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
-                {
-                    var tarifa = tarifasEnergia.FirstOrDefault(t => t.Nombre == nuevoContrato.EnTarifa);
-                    if (tarifa != null)
-                    {
-                        await CalcularComisionConPorcentajeUsuario(tarifa.Comision, "comercializadora");
-                    }
-                }
+
+                await RecalcularComisionTarifas();
             }
         }
         else
@@ -1170,6 +1189,7 @@
             EnComercializadora = comercializadoraSeleccionada?.Nombre,
             Estado = "Pte Carga",
             EstadoServicio = "No quiere",
+            EstadoServicioGas = "No quiere",
             Comision = 0,
             FechaCreacion = DateTime.Now,
             FechaModificacion = DateTime.Now,
@@ -1187,126 +1207,86 @@
     {
         if (comercializadoraSeleccionada == null)
         {
-            tarifasBase = new();
-            tarifasEnergia = new();
+            tarifasLuzBase = new();
+            tarifasGasBase = new();
+            tarifasLuzDisponibles = new();
+            tarifasGasDisponibles = new();
             StateHasChanged();
             return;
         }
 
-        // Filtrar por comercializadora
-        var tarifasFiltradas = todasLasTarifas
-            .Where(t => t.Empresa != null && 
-                        t.Empresa.Equals(comercializadoraSeleccionada.Nombre, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var luz = todasLasTarifasLuz
+            .Where(t => t.Empresa != null &&
+                        t.Empresa.Equals(comercializadoraSeleccionada.Nombre, StringComparison.OrdinalIgnoreCase));
+        var gas = todasLasTarifasGas
+            .Where(t => t.Empresa != null &&
+                        t.Empresa.Equals(comercializadoraSeleccionada.Nombre, StringComparison.OrdinalIgnoreCase));
 
         // Filtrar por tipo de cliente si hay uno seleccionado
         if (clienteSeleccionado != null && !string.IsNullOrEmpty(clienteSeleccionado.TipoCliente))
         {
             string tipoTarifa = clienteSeleccionado.TipoCliente == "Particular" ? "Residencial" : "Pyme"; // Autónomo también usa tipo Pyme
-            tarifasFiltradas = tarifasFiltradas.Where(t => t.TipoCliente == tipoTarifa).ToList();
+            luz = luz.Where(t => t.TipoCliente == tipoTarifa);
+            gas = gas.Where(t => t.TipoCliente == tipoTarifa);
         }
 
-        // Guardar las tarifas base (sin filtro de peaje)
-        tarifasBase = tarifasFiltradas;
-        
-        // Aplicar filtros de peaje si los hay (esto actualiza tarifasEnergia)
+        tarifasLuzBase = luz.ToList();
+        tarifasGasBase = gas.ToList();
+
+        // Aplicar filtros de peaje
         OnPeajeWizardChanged();
-        
+
         StateHasChanged();
     }
 
     private void OnPeajeWizardChanged()
     {
-        if (tarifasBase == null || !tarifasBase.Any())
+        var luz = tarifasLuzBase.AsEnumerable();
+        if (!string.IsNullOrEmpty(peajeLuzSeleccionado))
         {
-            tarifasEnergia = new();
-            StateHasChanged();
-            return;
+            luz = luz.Where(t => t.Peaje != null &&
+                                 t.Peaje.Equals(peajeLuzSeleccionado, StringComparison.OrdinalIgnoreCase));
         }
+        tarifasLuzDisponibles = luz.ToList();
 
-        var tarifasFiltradas = tarifasBase.AsEnumerable();
-        
-        // Filtrar según el tipo de contratación
-        if (tipoContratacion == "Luz")
+        var gas = tarifasGasBase.AsEnumerable();
+        if (!string.IsNullOrEmpty(peajeGasSeleccionado))
         {
-            // Solo tarifas con peaje de luz Y sin peaje de gas
-            if (!string.IsNullOrEmpty(peajeLuzSeleccionado))
-            {
-                tarifasFiltradas = tarifasFiltradas.Where(t => 
-                    t.Peaje != null && 
-                    t.Peaje.Equals(peajeLuzSeleccionado, StringComparison.OrdinalIgnoreCase) &&
-                    string.IsNullOrEmpty(t.PeajeGas)
-                );
-            }
-            else
-            {
-                // Si no hay peaje seleccionado, mostrar tarifas sin peaje de gas
-                tarifasFiltradas = tarifasFiltradas.Where(t => string.IsNullOrEmpty(t.PeajeGas));
-            }
+            gas = gas.Where(t => t.PeajeGas != null &&
+                                 t.PeajeGas.Equals(peajeGasSeleccionado, StringComparison.OrdinalIgnoreCase));
         }
-        else if (tipoContratacion == "Gas")
-        {
-            // Solo tarifas con peaje de gas Y sin peaje de luz
-            if (!string.IsNullOrEmpty(peajeGasSeleccionado))
-            {
-                tarifasFiltradas = tarifasFiltradas.Where(t => 
-                    t.PeajeGas != null && 
-                    t.PeajeGas.Equals(peajeGasSeleccionado, StringComparison.OrdinalIgnoreCase) &&
-                    string.IsNullOrEmpty(t.Peaje)
-                );
-            }
-            else
-            {
-                // Si no hay peaje seleccionado, mostrar tarifas sin peaje de luz
-                tarifasFiltradas = tarifasFiltradas.Where(t => string.IsNullOrEmpty(t.Peaje));
-            }
-        }
-        else if (tipoContratacion == "Luz y Gas")
-        {
-            // Tarifas que tengan AMBOS peajes
-            if (!string.IsNullOrEmpty(peajeLuzSeleccionado) && !string.IsNullOrEmpty(peajeGasSeleccionado))
-            {
-                tarifasFiltradas = tarifasFiltradas.Where(t => 
-                    t.Peaje != null && t.Peaje.Equals(peajeLuzSeleccionado, StringComparison.OrdinalIgnoreCase) &&
-                    t.PeajeGas != null && t.PeajeGas.Equals(peajeGasSeleccionado, StringComparison.OrdinalIgnoreCase)
-                );
-            }
-            else if (!string.IsNullOrEmpty(peajeLuzSeleccionado))
-            {
-                // Solo peaje luz seleccionado, debe tener ambos peajes
-                tarifasFiltradas = tarifasFiltradas.Where(t => 
-                    t.Peaje != null && t.Peaje.Equals(peajeLuzSeleccionado, StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrEmpty(t.PeajeGas)
-                );
-            }
-            else if (!string.IsNullOrEmpty(peajeGasSeleccionado))
-            {
-                // Solo peaje gas seleccionado, debe tener ambos peajes
-                tarifasFiltradas = tarifasFiltradas.Where(t => 
-                    t.PeajeGas != null && t.PeajeGas.Equals(peajeGasSeleccionado, StringComparison.OrdinalIgnoreCase) &&
-                    !string.IsNullOrEmpty(t.Peaje)
-                );
-            }
-            else
-            {
-                // Sin peajes seleccionados, mostrar tarifas que tengan ambos peajes (no vacíos)
-                tarifasFiltradas = tarifasFiltradas.Where(t => 
-                    !string.IsNullOrEmpty(t.Peaje) && !string.IsNullOrEmpty(t.PeajeGas)
-                );
-            }
-        }
+        tarifasGasDisponibles = gas.ToList();
 
-        tarifasEnergia = tarifasFiltradas.ToList();
-
-        // Limpiar la tarifa si no está en la lista filtrada
-        if (nuevoContrato != null && !string.IsNullOrEmpty(nuevoContrato.EnTarifa))
+        if (nuevoContrato != null)
         {
-            if (!tarifasEnergia.Any(t => t.Nombre == nuevoContrato.EnTarifa))
+            if (!string.IsNullOrEmpty(nuevoContrato.EnTarifa) &&
+                !tarifasLuzDisponibles.Any(t => t.Nombre == nuevoContrato.EnTarifa))
             {
                 nuevoContrato.EnTarifa = string.Empty;
+                nuevoContrato.EnTarifaId = null;
+            }
+
+            if (!string.IsNullOrEmpty(nuevoContrato.EnTarifaGas) &&
+                !tarifasGasDisponibles.Any(t => t.Nombre == nuevoContrato.EnTarifaGas))
+            {
+                nuevoContrato.EnTarifaGas = string.Empty;
+                nuevoContrato.EnTarifaGasId = null;
+            }
+
+            if (tipoContratacion == "Gas")
+            {
+                nuevoContrato.EnTarifa = string.Empty;
+                nuevoContrato.EnTarifaId = null;
+                nuevoContrato.ServicioId = null;
+            }
+            else if (tipoContratacion == "Luz")
+            {
+                nuevoContrato.EnTarifaGas = string.Empty;
+                nuevoContrato.EnTarifaGasId = null;
+                nuevoContrato.ServicioGasId = null;
             }
         }
-        
+
         StateHasChanged();
     }
 
@@ -1360,19 +1340,17 @@
                 }
             }
 
-            // Normalizar tarifa seleccionada antes de guardar.
-            if (nuevoContrato.EnTarifaId.HasValue)
+            // Validar que se haya seleccionado tarifa para cada suministro contratado
+            if (tipoContratacion != "Gas" && string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
             {
-                var tarifaSeleccionadaPorId = tarifasEnergia.FirstOrDefault(t => t.Id == nuevoContrato.EnTarifaId.Value);
-                if (tarifaSeleccionadaPorId != null)
-                {
-                    nuevoContrato.EnTarifa = tarifaSeleccionadaPorId.Nombre;
-                }
+                mensajeError = "Debe seleccionar una tarifa de luz antes de guardar el contrato.";
+                guardando = false;
+                return;
             }
 
-            if (string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
+            if (tipoContratacion != "Luz" && string.IsNullOrWhiteSpace(nuevoContrato.EnTarifaGas))
             {
-                mensajeError = "Debe seleccionar una tarifa antes de guardar el contrato.";
+                mensajeError = "Debe seleccionar una tarifa de gas antes de guardar el contrato.";
                 guardando = false;
                 return;
             }
@@ -1454,29 +1432,52 @@
         }
     }
 
-    private async Task OnTarifaEnergiaChanged(ChangeEventArgs e)
+    private async Task OnTarifaLuzChanged(ChangeEventArgs e)
     {
         if (nuevoContrato == null || e.Value == null) return;
-        
+
         var nombreTarifa = e.Value.ToString();
         nuevoContrato.EnTarifa = nombreTarifa;
-        
-        // Buscar la tarifa seleccionada y asignar ID
-        var tarifaSeleccionada = tarifasEnergia.FirstOrDefault(t => t.Nombre == nombreTarifa);
-        if (tarifaSeleccionada != null)
-        {
-            nuevoContrato.EnTarifaId = tarifaSeleccionada.Id;
-            
-            // Calcular comisión aplicando porcentaje del usuario
-            await CalcularComisionConPorcentajeUsuario(tarifaSeleccionada.Comision, "comercializadora");
-        }
-        else
-        {
-            nuevoContrato.EnTarifaId = null;
-            nuevoContrato.Comision = 0;
-        }
-        
+        nuevoContrato.EnTarifaId = string.IsNullOrWhiteSpace(nombreTarifa)
+            ? null
+            : tarifasLuzDisponibles.FirstOrDefault(t => t.Nombre == nombreTarifa)?.Id;
+
+        await RecalcularComisionTarifas();
         StateHasChanged();
+    }
+
+    private async Task OnTarifaGasChanged(ChangeEventArgs e)
+    {
+        if (nuevoContrato == null || e.Value == null) return;
+
+        var nombreTarifa = e.Value.ToString();
+        nuevoContrato.EnTarifaGas = nombreTarifa;
+        nuevoContrato.EnTarifaGasId = string.IsNullOrWhiteSpace(nombreTarifa)
+            ? null
+            : tarifasGasDisponibles.FirstOrDefault(t => t.Nombre == nombreTarifa)?.Id;
+
+        await RecalcularComisionTarifas();
+        StateHasChanged();
+    }
+
+    // La comisión del contrato es la suma de las comisiones de las tarifas seleccionadas
+    private async Task RecalcularComisionTarifas()
+    {
+        if (nuevoContrato == null) return;
+
+        decimal comisionTotal = 0;
+
+        if (tipoContratacion != "Gas" && !string.IsNullOrWhiteSpace(nuevoContrato.EnTarifa))
+        {
+            comisionTotal += tarifasLuzDisponibles.FirstOrDefault(t => t.Nombre == nuevoContrato.EnTarifa)?.Comision ?? 0;
+        }
+
+        if (tipoContratacion != "Luz" && !string.IsNullOrWhiteSpace(nuevoContrato.EnTarifaGas))
+        {
+            comisionTotal += tarifasGasDisponibles.FirstOrDefault(t => t.Nombre == nuevoContrato.EnTarifaGas)?.Comision ?? 0;
+        }
+
+        await CalcularComisionConPorcentajeUsuario(comisionTotal, "comercializadora");
     }
 
     private async Task CalcularComisionConPorcentajeUsuario(decimal comisionBase, string tipoProveedor)

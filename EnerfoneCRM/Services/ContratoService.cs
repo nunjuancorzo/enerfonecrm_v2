@@ -31,6 +31,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(c.tipo, '') as tipo,
                     COALESCE(c.estado, '') as estado,
                     COALESCE(c.estadoServicio, '') as estadoServicio,
+                    COALESCE(c.estadoServicioGas, '') as estadoServicioGas,
                     COALESCE(u_comercial.username, '') as comercial,
                     COALESCE(c.contratar, '') as contratar,
                     COALESCE(c.fibra_movil, '') as fibra_movil,
@@ -191,6 +192,10 @@ namespace EnerfoneCRM.Services
                     COALESCE(c.observaciones, '') as observaciones,
                     COALESCE(c.en_Tarifa, '') as en_Tarifa,
                     c.en_tarifa_id,
+                    COALESCE(c.en_tarifa_gas, '') as en_tarifa_gas,
+                    c.en_tarifa_gas_id,
+                    c.servicio_gas_id,
+                    COALESCE(c.en_servicios_gas, '') as en_servicios_gas,
                     COALESCE(c.en_CUPS, '') as en_CUPS,
                     COALESCE(c.en_Servicios, '') as en_Servicios,
                     COALESCE(c.en_IBAN, '') as en_IBAN,
@@ -698,20 +703,32 @@ namespace EnerfoneCRM.Services
                 case "energia":
                 case "energía":
                     tipoProveedor = "comercializadora";
-                    
-                    // Buscar tarifa por ID
+
+                    // La comisión es la suma de la tarifa de luz y la de gas
                     if (contrato.EnTarifaId.HasValue)
                     {
-                        var tarifa = await context.TarifasEnergia.FindAsync(contrato.EnTarifaId.Value);
-                        comisionBase = tarifa?.Comision ?? 0;
+                        var tarifaLuz = await context.TarifasLuz.FindAsync(contrato.EnTarifaId.Value);
+                        comisionBase += tarifaLuz?.Comision ?? 0;
                     }
-                    // Si no tiene ID, buscar por nombre
                     else if (!string.IsNullOrWhiteSpace(contrato.EnTarifa) && !string.IsNullOrWhiteSpace(contrato.EnComercializadora))
                     {
-                        var tarifa = await context.TarifasEnergia
+                        var tarifaLuz = await context.TarifasLuz
                             .Where(t => t.Nombre == contrato.EnTarifa && t.Empresa == contrato.EnComercializadora)
                             .FirstOrDefaultAsync();
-                        comisionBase = tarifa?.Comision ?? 0;
+                        comisionBase += tarifaLuz?.Comision ?? 0;
+                    }
+
+                    if (contrato.EnTarifaGasId.HasValue)
+                    {
+                        var tarifaGas = await context.TarifasGas.FindAsync(contrato.EnTarifaGasId.Value);
+                        comisionBase += tarifaGas?.Comision ?? 0;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(contrato.EnTarifaGas) && !string.IsNullOrWhiteSpace(contrato.EnComercializadora))
+                    {
+                        var tarifaGas = await context.TarifasGas
+                            .Where(t => t.Nombre == contrato.EnTarifaGas && t.Empresa == contrato.EnComercializadora)
+                            .FirstOrDefaultAsync();
+                        comisionBase += tarifaGas?.Comision ?? 0;
                     }
                     
                     // Obtener ID del proveedor

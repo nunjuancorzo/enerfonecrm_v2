@@ -10,6 +10,30 @@ window.downloadFile = function (fileName, dataUrl) {
     document.body.removeChild(link);
 };
 
+// Abre el archivo en una pestaña nueva a partir de su contenido en base64
+window.openFileInNewTab = function (fileName, base64Data, mimeType) {
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: mimeType || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const ventana = window.open(url, '_blank');
+
+    if (!ventana) {
+        // Si el navegador bloquea la ventana emergente, se descarga como alternativa
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+};
+
 // Función para descargar archivos desde base64 (alias para compatibilidad)
 window.descargarArchivo = function (fileName, base64Data, mimeType = 'application/pdf') {
     // Auto-detectar tipo MIME si no se proporciona
