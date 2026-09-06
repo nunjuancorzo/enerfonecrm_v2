@@ -11,6 +11,7 @@
 @inject FicheroClienteService FicheroClienteService
 @inject FicheroContratoService FicheroContratoService
 @inject ObservacionContratoService ObservacionContratoService
+@inject HistoricoCambioContratoService HistoricoCambioContratoService
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
@@ -1028,9 +1029,14 @@ else
                                                                 <small class="text-truncate me-2" title="@fichero.NombreArchivo">
                                                                     <i class="bi bi-file-earmark me-1"></i>@fichero.NombreArchivo
                                                                 </small>
-                                                                <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => DescargarArchivoCliente(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
-                                                                    <i class="bi bi-download"></i>
-                                                                </button>
+                                                                <div class="d-flex gap-1">
+                                                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => VerArchivoCliente(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Ver">
+                                                                        <i class="bi bi-eye"></i>
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-sm btn-outline-success" @onclick="() => DescargarArchivoCliente(fichero.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
+                                                                        <i class="bi bi-download"></i>
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         }
                                                     </div>
@@ -1059,6 +1065,9 @@ else
                                                                 <span>@factura.NombreFichero</span>
                                                             </div>
                                                             <div>
+                                                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="async () => await VerFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Ver">
+                                                                    <i class="bi bi-eye"></i>
+                                                                </button>
                                                                 <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                     <i class="bi bi-download"></i>
                                                                 </button>
@@ -1092,17 +1101,17 @@ else
                                 <hr />
 
                                 <!-- Histórico de Observaciones -->
-                                <h6 class="mb-3">
-                                    <i class="bi bi-clock-history me-2"></i>Histórico de Observaciones
-                                    @if (PuedeEditar())
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="MostrarModalNuevaObservacion">
-                                            <i class="bi bi-plus-circle me-1"></i>Agregar Observación
-                                        </button>
-                                    }
-                                </h6>
                                 <div class="row mb-3">
-                                    <div class="col-12">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-clock-history me-2"></i>Histórico de Observaciones
+                                            @if (PuedeEditar())
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="MostrarModalNuevaObservacion">
+                                                    <i class="bi bi-plus-circle me-1"></i>Agregar Observación
+                                                </button>
+                                            }
+                                        </h6>
                                         @if (observacionesHistoricas.Any())
                                         {
                                             <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
@@ -1143,6 +1152,37 @@ else
                                         else
                                         {
                                             <p class="text-muted fst-italic">No hay observaciones registradas</p>
+                                        }
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-list-columns-reverse me-2"></i>Histórico de Cambios
+                                        </h6>
+                                        @if (cambiosHistoricos.Any())
+                                        {
+                                            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                                                @foreach (var cambio in cambiosHistoricos)
+                                                {
+                                                    <div class="card mb-2">
+                                                        <div class="card-body p-2">
+                                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                                <strong style="font-size: 0.85rem;">@cambio.Campo</strong>
+                                                                <small class="text-muted">
+                                                                    <i class="bi bi-clock me-1"></i>@cambio.FechaCambio.ToString("dd/MM/yyyy HH:mm")
+                                                                </small>
+                                                            </div>
+                                                            <div style="font-size: 0.85rem; white-space: pre-wrap;">@cambio.Dato</div>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-person-circle me-1"></i>@cambio.Usuario
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted fst-italic">No hay cambios registrados</p>
                                         }
                                     </div>
                                 </div>
@@ -1452,6 +1492,7 @@ else
     private string nuevaObservacionTexto = string.Empty;
     private bool guardandoObservacion = false;
     private List<ObservacionContrato> observacionesHistoricas = new();
+    private List<HistoricoCambioContrato> cambiosHistoricos = new();
     private List<ObservacionContrato> observacionesHistoricasModal = new();
     
     // Modal de observación obligatoria para colaboradores
@@ -2273,6 +2314,9 @@ else
         
         // Cargar observaciones históricas
         await CargarObservacionesHistoricas();
+
+        // Cargar histórico de cambios
+        await CargarCambiosHistoricos();
         
         mostrarModal = true;
     }
@@ -2421,12 +2465,25 @@ else
                 contratoSeleccionado.FechaActivo = fechaActivacion.Value;
             }
 
+            // Versión previa del contrato para registrar los cambios en el histórico
+            var contratoOriginal = contratoSeleccionado.Id > 0
+                ? contratos.FirstOrDefault(c => c.Id == contratoSeleccionado.Id)
+                : null;
+
             bool exito = contratoSeleccionado.Id > 0
                 ? await ContratoService.ActualizarAsync(contratoSeleccionado)
                 : await ContratoService.CrearAsync(contratoSeleccionado);
 
             if (exito)
             {
+                if (contratoOriginal != null)
+                {
+                    await HistoricoCambioContratoService.RegistrarCambiosAsync(
+                        contratoOriginal,
+                        contratoSeleccionado,
+                        AuthService.UsuarioActual?.NombreUsuario);
+                }
+
                 mensajeExito = contratoSeleccionado.Id > 0 ? "Contrato actualizado exitosamente" : "Contrato creado exitosamente";
                 
                 // La liquidación pendiente se genera manualmente desde el módulo de liquidaciones.
@@ -2623,6 +2680,53 @@ else
         }
     }
 
+    private async Task VerFactura(int facturaId)
+    {
+        try
+        {
+            var factura = await FicheroContratoService.DescargarFacturaAsync(facturaId);
+            if (factura?.Fichero != null)
+            {
+                await JS.InvokeVoidAsync("openFileInNewTab",
+                    factura.NombreFichero ?? "archivo",
+                    Convert.ToBase64String(factura.Fichero),
+                    ObtenerMimeType(factura.NombreFichero ?? "archivo"));
+            }
+            else
+            {
+                mensajeError = "No se pudo abrir el archivo";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al abrir el archivo: {ex.Message}";
+        }
+    }
+
+    private async Task VerArchivoCliente(int idFichero)
+    {
+        try
+        {
+            var resultado = await FicheroClienteService.DescargarArchivoAsync(idFichero);
+
+            if (resultado.exito && resultado.contenido != null && resultado.nombreArchivo != null)
+            {
+                await JS.InvokeVoidAsync("openFileInNewTab",
+                    resultado.nombreArchivo,
+                    Convert.ToBase64String(resultado.contenido),
+                    ObtenerMimeType(resultado.nombreArchivo));
+            }
+            else
+            {
+                mensajeError = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al abrir el archivo: {ex.Message}";
+        }
+    }
+
     private async Task EliminarFactura(int facturaId)
     {
         if (!await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar esta factura?"))
@@ -2723,6 +2827,26 @@ else
         catch (Exception ex)
         {
             mensajeError = $"Error al cargar observaciones: {ex.Message}";
+        }
+    }
+
+    private async Task CargarCambiosHistoricos()
+    {
+        if (contratoSeleccionado == null || contratoSeleccionado.Id <= 0)
+        {
+            cambiosHistoricos = new();
+            return;
+        }
+
+        try
+        {
+            cambiosHistoricos = await HistoricoCambioContratoService.ObtenerPorContratoAsync(contratoSeleccionado.Id);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar histórico de cambios: {ex.Message}");
+            cambiosHistoricos = new();
         }
     }
 

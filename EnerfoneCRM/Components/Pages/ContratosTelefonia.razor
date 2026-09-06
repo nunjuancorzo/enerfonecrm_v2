@@ -10,6 +10,7 @@
 @inject TarifaTelefoniaService TarifaTelefoniaService
 @inject OperadoraService OperadoraService
 @inject ObservacionContratoService ObservacionContratoService
+@inject HistoricoCambioContratoService HistoricoCambioContratoService
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
@@ -19,6 +20,27 @@
 @inject IJSRuntime JS
 
 <PageTitle>Enerfone CRM</PageTitle>
+
+<style>
+    .info-fila-contrato {
+        position: fixed;
+        z-index: 1080;
+        max-width: 340px;
+        padding: 0.65rem 0.85rem;
+        background-color: #1f2937;
+        color: #fff;
+        border-radius: 0.5rem;
+        font-size: 0.8rem;
+        line-height: 1.4;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+    }
+
+    .info-fila-contrato .etiqueta {
+        opacity: 0.7;
+        margin-right: 0.25rem;
+    }
+</style>
 
 @if (cargandoSesion)
 {
@@ -293,13 +315,6 @@ else
                             <table class="table table-hover mb-0">
                                 <thead class="table-light">
                                     <tr style="font-size: 0.875rem;">
-                                        <th style="cursor: pointer; width: 50px;" @onclick='() => OrdenarPor("Id")'>
-                                            ID
-                                            @if (columnaOrden == "Id")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
                                         <th style="cursor: pointer; width: 75px;" @onclick='() => OrdenarPor("FechaCreacion")'>
                                             F. Creación
                                             @if (columnaOrden == "FechaCreacion")
@@ -335,24 +350,10 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 90px;" @onclick='() => OrdenarPor("TipoTarifaTel")'>
-                                            Tipo Tarifa
-                                            @if (columnaOrden == "TipoTarifaTel")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
-                                        <th style="width: 90px;">Línea Móvil</th>
+                                        <th style="width: 70px; text-align: center;"></th>
                                         <th style="cursor: pointer; width: 180px;" @onclick='() => OrdenarPor("NombreCliente")'>
                                             Cliente
                                             @if (columnaOrden == "NombreCliente")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
-                                        <th style="cursor: pointer; width: 95px;" @onclick='() => OrdenarPor("Dni")'>
-                                            DNI/CIF
-                                            @if (columnaOrden == "Dni")
                                             {
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
@@ -383,8 +384,9 @@ else
                                         {
                                             var tieneArchivo = contratosConFicheros.Contains(contrato.Id);
                                             var textoClass = tieneArchivo ? "text-primary" : "";
-                                            <tr style="font-size: 0.875rem;">
-                                                <td><small class="@textoClass">@contrato.Id</small></td>
+                                            <tr style="font-size: 0.875rem;"
+                                                @onmouseenter="(e) => MostrarInfoFila(e, contrato)"
+                                                @onmouseleave="OcultarInfoFila">
                                                 <td><small class="@textoClass">@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
                                                 <td><small class="@textoClass">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
                                                 <td>
@@ -417,10 +419,12 @@ else
                                                         }
                                                     }
                                                 </td>
-                                                <td><span class="badge @ObtenerColorTipo(contrato.TipoTarifaTel)" style="font-size: 0.75rem;">@contrato.TipoTarifaTel</span></td>
-                                                <td><small class="@textoClass">@contrato.LineaMovilPrincipal</small></td>
+                                                <td style="text-align: center; white-space: nowrap;">
+                                                    <i class="bi bi-wifi @(TieneFibra(contrato) ? "text-primary" : "text-secondary opacity-25")" title="Fibra"></i>
+                                                    <i class="bi bi-phone ms-1 @(TieneMovil(contrato) ? "text-success" : "text-secondary opacity-25")" title="Móvil"></i>
+                                                    <i class="bi bi-tv ms-1 @(TieneTv(contrato) ? "text-info" : "text-secondary opacity-25")" title="TV"></i>
+                                                </td>
                                                 <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass">@contrato.NombreCliente</small></td>
-                                                <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass">@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
                                                 @if (PuedeMostrarComision(contrato.Estado))
                                                 {
                                                     <td><span class="badge bg-primary" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
@@ -501,6 +505,17 @@ else
                 </div>
             </div>
         </div>
+
+        @if (contratoInfoFila != null)
+        {
+            <div class="info-fila-contrato" style="left:@(infoFilaX)px; top:@(infoFilaY)px;">
+                <div class="mb-1"><i class="bi bi-hash me-2 opacity-75"></i><span class="etiqueta">ID:</span><strong>@contratoInfoFila.Id</strong></div>
+                <div class="mb-1"><i class="bi bi-person me-2 opacity-75"></i><span class="etiqueta">Cliente:</span><strong>@contratoInfoFila.NombreCliente</strong></div>
+                <div class="mb-1"><i class="bi bi-card-text me-2 opacity-75"></i><span class="etiqueta">DNI/CIF:</span><strong>@(contratoInfoFila.Dni ?? contratoInfoFila.Cliente?.DniCif ?? "-")</strong></div>
+                <div class="mb-1"><i class="bi bi-receipt me-2 opacity-75"></i><span class="etiqueta">Tipo Tarifa:</span><strong>@(string.IsNullOrWhiteSpace(contratoInfoFila.TipoTarifaTel) ? "-" : contratoInfoFila.TipoTarifaTel)</strong></div>
+                <div class="mb-0"><i class="bi bi-phone me-2 opacity-75"></i><span class="etiqueta">Línea Móvil:</span><strong>@(string.IsNullOrWhiteSpace(contratoInfoFila.LineaMovilPrincipal) ? "-" : contratoInfoFila.LineaMovilPrincipal)</strong></div>
+            </div>
+        }
 
         <!-- Modal Editar -->
         @if (mostrarModal && contratoSeleccionado != null)
@@ -1217,6 +1232,9 @@ else
                                                                 <span>@factura.NombreFichero</span>
                                                             </div>
                                                             <div>
+                                                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="async () => await VerFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Ver">
+                                                                    <i class="bi bi-eye"></i>
+                                                                </button>
                                                                 <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                     <i class="bi bi-download"></i>
                                                                 </button>
@@ -1355,17 +1373,17 @@ else
                                 <hr class="my-3" />
 
                                 <!-- Histórico de Observaciones -->
-                                <h6 class="mb-3">
-                                    <i class="bi bi-clock-history me-2"></i>Histórico de Observaciones
-                                    @if (PuedeEditar())
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="MostrarModalNuevaObservacion">
-                                            <i class="bi bi-plus-circle me-1"></i>Agregar Observación
-                                        </button>
-                                    }
-                                </h6>
                                 <div class="row mb-3">
-                                    <div class="col-12">
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-clock-history me-2"></i>Histórico de Observaciones
+                                            @if (PuedeEditar())
+                                            {
+                                                <button type="button" class="btn btn-sm btn-outline-primary ms-2" @onclick="MostrarModalNuevaObservacion">
+                                                    <i class="bi bi-plus-circle me-1"></i>Agregar Observación
+                                                </button>
+                                            }
+                                        </h6>
                                         @if (observacionesHistoricas.Any())
                                         {
                                             <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
@@ -1406,6 +1424,37 @@ else
                                         else
                                         {
                                             <p class="text-muted fst-italic">No hay observaciones registradas</p>
+                                        }
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="mb-3">
+                                            <i class="bi bi-list-columns-reverse me-2"></i>Histórico de Cambios
+                                        </h6>
+                                        @if (cambiosHistoricos.Any())
+                                        {
+                                            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px;">
+                                                @foreach (var cambio in cambiosHistoricos)
+                                                {
+                                                    <div class="card mb-2">
+                                                        <div class="card-body p-2">
+                                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                                <strong style="font-size: 0.85rem;">@cambio.Campo</strong>
+                                                                <small class="text-muted">
+                                                                    <i class="bi bi-clock me-1"></i>@cambio.FechaCambio.ToString("dd/MM/yyyy HH:mm")
+                                                                </small>
+                                                            </div>
+                                                            <div style="font-size: 0.85rem; white-space: pre-wrap;">@cambio.Dato</div>
+                                                            <small class="text-muted">
+                                                                <i class="bi bi-person-circle me-1"></i>@cambio.Usuario
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted fst-italic">No hay cambios registrados</p>
                                         }
                                     </div>
                                 </div>
@@ -1708,6 +1757,10 @@ else
     private bool mostrarModalObservaciones = false;
     private bool mostrarModalNuevaObservacion = false;
     private bool guardando = false;
+    private Contrato? contratoInfoFila;
+    private CancellationTokenSource? ctsInfoFila;
+    private double infoFilaX;
+    private double infoFilaY;
     private bool eliminando = false;
     private bool guardandoObservacion = false;
     private string mensajeExito = string.Empty;
@@ -1717,6 +1770,7 @@ else
 
     // Observaciones históricas
     private List<ObservacionContrato> observacionesHistoricas = new();
+    private List<HistoricoCambioContrato> cambiosHistoricos = new();
     
     // Modal de observación obligatoria para colaboradores
     private bool mostrarModalObservacionColaborador = false;
@@ -2653,6 +2707,9 @@ else
         
         // Cargar observaciones históricas
         await CargarObservacionesHistoricas();
+
+        // Cargar histórico de cambios
+        await CargarCambiosHistoricos();
         
         // Cargar información del cliente
         await CargarInfoCliente();
@@ -2880,9 +2937,20 @@ else
                 contratoSeleccionado.FechaActivo = fechaActivacion.Value;
             }
 
+            // Versión previa del contrato para registrar los cambios en el histórico
+            var contratoOriginal = contratos.FirstOrDefault(c => c.Id == contratoSeleccionado.Id);
+
             var resultado = await ContratoService.ActualizarAsync(contratoSeleccionado);
             if (resultado)
             {
+                if (contratoOriginal != null)
+                {
+                    await HistoricoCambioContratoService.RegistrarCambiosAsync(
+                        contratoOriginal,
+                        contratoSeleccionado,
+                        AuthService.UsuarioActual?.NombreUsuario);
+                }
+
                 mensajeExito = "Contrato actualizado correctamente";
                 
                 // La liquidación pendiente se genera manualmente desde el módulo de liquidaciones.
@@ -3659,6 +3727,75 @@ else
         }
     }
 
+    // Panel flotante con el resumen del contrato al pasar el ratón por la fila
+    private async Task MostrarInfoFila(MouseEventArgs e, Contrato contrato)
+    {
+        ctsInfoFila?.Cancel();
+        ctsInfoFila = new CancellationTokenSource();
+        var token = ctsInfoFila.Token;
+
+        var x = e.ClientX + 20;
+        var y = e.ClientY + 15;
+
+        try
+        {
+            // Solo se muestra si el ratón permanece sobre la fila
+            await Task.Delay(1000, token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        if (token.IsCancellationRequested) return;
+
+        contratoInfoFila = contrato;
+        infoFilaX = x;
+        infoFilaY = y;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OcultarInfoFila()
+    {
+        ctsInfoFila?.Cancel();
+        contratoInfoFila = null;
+    }
+
+    private static bool TieneFibra(Contrato c) =>
+        c.TipoTarifaTel?.Contains("fibra", StringComparison.OrdinalIgnoreCase) ?? false;
+
+    private static bool TieneMovil(Contrato c) =>
+        !string.IsNullOrWhiteSpace(c.LineaMovilPrincipal) ||
+        (c.TipoTarifaTel?.Contains("movil", StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private static bool TieneTv(Contrato c) =>
+        (!string.IsNullOrWhiteSpace(c.Tv) && !c.Tv.Equals("No", StringComparison.OrdinalIgnoreCase)) ||
+        (c.TipoTarifaTel?.Contains("tv", StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private async Task VerFactura(int facturaId)
+    {
+        try
+        {
+            var factura = await FicheroContratoService.DescargarFacturaAsync(facturaId);
+            if (factura?.Fichero != null)
+            {
+                await JS.InvokeVoidAsync("openFileInNewTab",
+                    factura.NombreFichero ?? "archivo",
+                    Convert.ToBase64String(factura.Fichero),
+                    ObtenerMimeType(factura.NombreFichero ?? "archivo"));
+            }
+            else
+            {
+                mensajeError = "No se pudo abrir el archivo";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al abrir el archivo: {ex.Message}";
+        }
+    }
+
     private async Task DescargarFactura(int facturaId)
     {
         try
@@ -3775,6 +3912,25 @@ else
         {
             Console.WriteLine($"Error al cargar observaciones: {ex.Message}");
             observacionesHistoricas = new();
+        }
+    }
+
+    private async Task CargarCambiosHistoricos()
+    {
+        if (contratoSeleccionado == null || contratoSeleccionado.Id <= 0)
+        {
+            cambiosHistoricos = new();
+            return;
+        }
+
+        try
+        {
+            cambiosHistoricos = await HistoricoCambioContratoService.ObtenerPorContratoAsync(contratoSeleccionado.Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar histórico de cambios: {ex.Message}");
+            cambiosHistoricos = new();
         }
     }
 

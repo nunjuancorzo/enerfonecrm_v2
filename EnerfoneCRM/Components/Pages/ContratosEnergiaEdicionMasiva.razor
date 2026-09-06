@@ -126,7 +126,8 @@ else
                                     <th style="width: 200px;">DNI*</th>
                                     <th style="width: 180px;">Teléfono</th>
                                     <th style="width: 250px;">Comercializadora*</th>
-                                    <th style="width: 250px;">Tarifa*</th>
+                                    <th style="width: 250px;">Tarifa Luz</th>
+                                    <th style="width: 250px;">Tarifa Gas</th>
                                     <th style="width: 300px;">CUPS</th>
                                     <th style="width: 300px;">CUPS Gas</th>
                                     <th style="width: 250px;">Tipo Operación</th>
@@ -196,6 +197,10 @@ else
                                         <td>
                                             <input type="text" class="form-control form-control-sm" @bind="contrato.EnTarifa" 
                                                    @onpaste="@((e) => OnPaste(e, index, "EnTarifa"))" maxlength="255" />
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" @bind="contrato.EnTarifaGas"
+                                                   @onpaste="@((e) => OnPaste(e, index, "EnTarifaGas"))" maxlength="255" />
                                         </td>
                                         <td>
                                             <input type="text" class="form-control form-control-sm" @bind="contrato.EnCups" 
@@ -406,7 +411,7 @@ else
             if (rowsData == null || rowsData.Count == 0) return;
             
             // El orden de campos en la tabla (con ID como primera columna):
-            // ID, UsuarioComercializadoraId, NombreCliente, Dni, Telefono, EnComercializadora, EnTarifa, EnCups, EnCupsGas,
+            // ID, UsuarioComercializadoraId, NombreCliente, Dni, Telefono, EnComercializadora, EnTarifa, EnTarifaGas, EnCups, EnCupsGas,
             // TipoOperacion, PotenciaContratadaP1, P2, P3, P4, P5, P6, ConsumoAnual, ConsumoAnualGas, PeajeLuz, PeajeGas,
             // Direccion, CodigoPostal, Iban, Estado, Comision, Observaciones
             
@@ -442,61 +447,62 @@ else
                 if (rowData.Count > 4 && !string.IsNullOrWhiteSpace(rowData[4])) contrato.Telefono = rowData[4];
                 if (rowData.Count > 5 && !string.IsNullOrWhiteSpace(rowData[5])) contrato.EnComercializadora = rowData[5];
                 if (rowData.Count > 6 && !string.IsNullOrWhiteSpace(rowData[6])) contrato.EnTarifa = rowData[6];
-                if (rowData.Count > 7 && !string.IsNullOrWhiteSpace(rowData[7])) contrato.EnCups = rowData[7];
-                if (rowData.Count > 8 && !string.IsNullOrWhiteSpace(rowData[8])) contrato.EnCupsGas = rowData[8];
-                if (rowData.Count > 9 && !string.IsNullOrWhiteSpace(rowData[9])) contrato.TipoOperacion = rowData[9];
-                if (rowData.Count > 10 && !string.IsNullOrWhiteSpace(rowData[10]))
-                {
-                    if (decimal.TryParse(rowData[10], out decimal p1))
-                        contrato.PotenciaContratadaP1 = p1;
-                }
+                if (rowData.Count > 7 && !string.IsNullOrWhiteSpace(rowData[7])) contrato.EnTarifaGas = rowData[7];
+                if (rowData.Count > 8 && !string.IsNullOrWhiteSpace(rowData[8])) contrato.EnCups = rowData[8];
+                if (rowData.Count > 9 && !string.IsNullOrWhiteSpace(rowData[9])) contrato.EnCupsGas = rowData[9];
+                if (rowData.Count > 10 && !string.IsNullOrWhiteSpace(rowData[10])) contrato.TipoOperacion = rowData[10];
                 if (rowData.Count > 11 && !string.IsNullOrWhiteSpace(rowData[11]))
                 {
-                    if (decimal.TryParse(rowData[11], out decimal p2))
-                        contrato.PotenciaContratadaP2 = p2;
+                    if (decimal.TryParse(rowData[11], out decimal p1))
+                        contrato.PotenciaContratadaP1 = p1;
                 }
                 if (rowData.Count > 12 && !string.IsNullOrWhiteSpace(rowData[12]))
                 {
-                    if (decimal.TryParse(rowData[12], out decimal p3))
-                        contrato.PotenciaContratadaP3 = p3;
+                    if (decimal.TryParse(rowData[12], out decimal p2))
+                        contrato.PotenciaContratadaP2 = p2;
                 }
                 if (rowData.Count > 13 && !string.IsNullOrWhiteSpace(rowData[13]))
                 {
-                    if (decimal.TryParse(rowData[13], out decimal p4))
-                        contrato.PotenciaContratadaP4 = p4;
+                    if (decimal.TryParse(rowData[13], out decimal p3))
+                        contrato.PotenciaContratadaP3 = p3;
                 }
                 if (rowData.Count > 14 && !string.IsNullOrWhiteSpace(rowData[14]))
                 {
-                    if (decimal.TryParse(rowData[14], out decimal p5))
-                        contrato.PotenciaContratadaP5 = p5;
+                    if (decimal.TryParse(rowData[14], out decimal p4))
+                        contrato.PotenciaContratadaP4 = p4;
                 }
                 if (rowData.Count > 15 && !string.IsNullOrWhiteSpace(rowData[15]))
                 {
-                    if (decimal.TryParse(rowData[15], out decimal p6))
-                        contrato.PotenciaContratadaP6 = p6;
+                    if (decimal.TryParse(rowData[15], out decimal p5))
+                        contrato.PotenciaContratadaP5 = p5;
                 }
                 if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16]))
                 {
-                    if (decimal.TryParse(rowData[16], out decimal consumoAnual))
-                        contrato.ConsumoAnual = consumoAnual;
+                    if (decimal.TryParse(rowData[16], out decimal p6))
+                        contrato.PotenciaContratadaP6 = p6;
                 }
                 if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17]))
                 {
-                    if (decimal.TryParse(rowData[17], out decimal consumoGas))
+                    if (decimal.TryParse(rowData[17], out decimal consumoAnual))
+                        contrato.ConsumoAnual = consumoAnual;
+                }
+                if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18]))
+                {
+                    if (decimal.TryParse(rowData[18], out decimal consumoGas))
                         contrato.ConsumoAnualGas = consumoGas;
                 }
-                if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18])) contrato.PeajeLuz = rowData[18];
-                if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) contrato.PeajeGas = rowData[19];
-                if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20])) contrato.Direccion = rowData[20];
-                if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) contrato.CodigoPostal = rowData[21];
-                if (rowData.Count > 22 && !string.IsNullOrWhiteSpace(rowData[22])) contrato.Iban = rowData[22];
-                if (rowData.Count > 23 && !string.IsNullOrWhiteSpace(rowData[23])) contrato.Estado = rowData[23];
-                if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24]))
+                if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) contrato.PeajeLuz = rowData[19];
+                if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20])) contrato.PeajeGas = rowData[20];
+                if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) contrato.Direccion = rowData[21];
+                if (rowData.Count > 22 && !string.IsNullOrWhiteSpace(rowData[22])) contrato.CodigoPostal = rowData[22];
+                if (rowData.Count > 23 && !string.IsNullOrWhiteSpace(rowData[23])) contrato.Iban = rowData[23];
+                if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24])) contrato.Estado = rowData[24];
+                if (rowData.Count > 25 && !string.IsNullOrWhiteSpace(rowData[25]))
                 {
-                    if (decimal.TryParse(rowData[24], out decimal comision))
+                    if (decimal.TryParse(rowData[25], out decimal comision))
                         contrato.Comision = comision;
                 }
-                if (rowData.Count > 25 && !string.IsNullOrWhiteSpace(rowData[25])) contrato.Observaciones = rowData[25];
+                if (rowData.Count > 26 && !string.IsNullOrWhiteSpace(rowData[26])) contrato.Observaciones = rowData[26];
                 
                 // Si tiene ID válido, buscar y actualizar el existente
                 if (idContrato > 0)
@@ -512,6 +518,7 @@ else
                         contratoExistente.Telefono = contrato.Telefono;
                         contratoExistente.EnComercializadora = contrato.EnComercializadora;
                         contratoExistente.EnTarifa = contrato.EnTarifa;
+                        contratoExistente.EnTarifaGas = contrato.EnTarifaGas;
                         contratoExistente.EnCups = contrato.EnCups;
                         contratoExistente.EnCupsGas = contrato.EnCupsGas;
                         contratoExistente.TipoOperacion = contrato.TipoOperacion;
@@ -695,6 +702,7 @@ else
                     Telefono = contratoOriginal.Telefono,
                     EnComercializadora = contratoOriginal.EnComercializadora,
                     EnTarifa = contratoOriginal.EnTarifa,
+                    EnTarifaGas = contratoOriginal.EnTarifaGas,
                     EnCups = contratoOriginal.EnCups,
                     EnCupsGas = contratoOriginal.EnCupsGas,
                     TipoOperacion = contratoOriginal.TipoOperacion,
@@ -726,6 +734,7 @@ else
                     contratoOriginal.Telefono ?? "",
                     contratoOriginal.EnComercializadora ?? "",
                     contratoOriginal.EnTarifa ?? "",
+                    contratoOriginal.EnTarifaGas ?? "",
                     contratoOriginal.EnCups ?? "",
                     contratoOriginal.EnCupsGas ?? "",
                     contratoOriginal.TipoOperacion ?? "",
@@ -755,7 +764,7 @@ else
         {
             var cabeceras = string.Join("\t",
                 "ID", "UsuarioID", "NombreCliente", "DNI", "Telefono", "Comercializadora",
-                "Tarifa", "CUPS", "CUPSGas", "TipoOperacion", "PotenciaP1", "PotenciaP2",
+                "TarifaLuz", "TarifaGas", "CUPS", "CUPSGas", "TipoOperacion", "PotenciaP1", "PotenciaP2",
                 "PotenciaP3", "PotenciaP4", "PotenciaP5", "PotenciaP6", "ConsumoAnual",
                 "ConsumoGas", "PeajeLuz", "PeajeGas", "Direccion", "CP", "IBAN", "Estado",
                 "Comision", "Observaciones"
@@ -850,25 +859,26 @@ else
                 Telefono = columnas.Length > 4 ? columnas[4].Trim() : "",
                 EnComercializadora = columnas.Length > 5 ? columnas[5].Trim() : "",
                 EnTarifa = columnas.Length > 6 ? columnas[6].Trim() : "",
-                EnCups = columnas.Length > 7 ? columnas[7].Trim() : "",
-                EnCupsGas = columnas.Length > 8 ? columnas[8].Trim() : "",
-                TipoOperacion = columnas.Length > 9 ? columnas[9].Trim() : "",
-                PotenciaContratadaP1 = columnas.Length > 10 && decimal.TryParse(columnas[10].Trim(), out decimal p1) ? p1 : null,
-                PotenciaContratadaP2 = columnas.Length > 11 && decimal.TryParse(columnas[11].Trim(), out decimal p2) ? p2 : null,
-                PotenciaContratadaP3 = columnas.Length > 12 && decimal.TryParse(columnas[12].Trim(), out decimal p3) ? p3 : null,
-                PotenciaContratadaP4 = columnas.Length > 13 && decimal.TryParse(columnas[13].Trim(), out decimal p4) ? p4 : null,
-                PotenciaContratadaP5 = columnas.Length > 14 && decimal.TryParse(columnas[14].Trim(), out decimal p5) ? p5 : null,
-                PotenciaContratadaP6 = columnas.Length > 15 && decimal.TryParse(columnas[15].Trim(), out decimal p6) ? p6 : null,
-                ConsumoAnual = columnas.Length > 16 && decimal.TryParse(columnas[16].Trim(), out decimal consumoAnual) ? consumoAnual : null,
-                ConsumoAnualGas = columnas.Length > 17 && decimal.TryParse(columnas[17].Trim(), out decimal consumoGas) ? consumoGas : null,
-                PeajeLuz = columnas.Length > 18 ? columnas[18].Trim() : "",
-                PeajeGas = columnas.Length > 19 ? columnas[19].Trim() : "",
-                Direccion = columnas.Length > 20 ? columnas[20].Trim() : "",
-                CodigoPostal = columnas.Length > 21 ? columnas[21].Trim() : "",
-                Iban = columnas.Length > 22 ? columnas[22].Trim() : "",
-                Estado = columnas.Length > 23 ? columnas[23].Trim() : "",
-                Comision = columnas.Length > 24 && decimal.TryParse(columnas[24].Trim(), out decimal comision) ? comision : null,
-                Observaciones = columnas.Length > 25 ? columnas[25].Trim() : ""
+                EnTarifaGas = columnas.Length > 7 ? columnas[7].Trim() : "",
+                EnCups = columnas.Length > 8 ? columnas[8].Trim() : "",
+                EnCupsGas = columnas.Length > 9 ? columnas[9].Trim() : "",
+                TipoOperacion = columnas.Length > 10 ? columnas[10].Trim() : "",
+                PotenciaContratadaP1 = columnas.Length > 11 && decimal.TryParse(columnas[11].Trim(), out decimal p1) ? p1 : null,
+                PotenciaContratadaP2 = columnas.Length > 12 && decimal.TryParse(columnas[12].Trim(), out decimal p2) ? p2 : null,
+                PotenciaContratadaP3 = columnas.Length > 13 && decimal.TryParse(columnas[13].Trim(), out decimal p3) ? p3 : null,
+                PotenciaContratadaP4 = columnas.Length > 14 && decimal.TryParse(columnas[14].Trim(), out decimal p4) ? p4 : null,
+                PotenciaContratadaP5 = columnas.Length > 15 && decimal.TryParse(columnas[15].Trim(), out decimal p5) ? p5 : null,
+                PotenciaContratadaP6 = columnas.Length > 16 && decimal.TryParse(columnas[16].Trim(), out decimal p6) ? p6 : null,
+                ConsumoAnual = columnas.Length > 17 && decimal.TryParse(columnas[17].Trim(), out decimal consumoAnual) ? consumoAnual : null,
+                ConsumoAnualGas = columnas.Length > 18 && decimal.TryParse(columnas[18].Trim(), out decimal consumoGas) ? consumoGas : null,
+                PeajeLuz = columnas.Length > 19 ? columnas[19].Trim() : "",
+                PeajeGas = columnas.Length > 20 ? columnas[20].Trim() : "",
+                Direccion = columnas.Length > 21 ? columnas[21].Trim() : "",
+                CodigoPostal = columnas.Length > 22 ? columnas[22].Trim() : "",
+                Iban = columnas.Length > 23 ? columnas[23].Trim() : "",
+                Estado = columnas.Length > 24 ? columnas[24].Trim() : "",
+                Comision = columnas.Length > 25 && decimal.TryParse(columnas[25].Trim(), out decimal comision) ? comision : null,
+                Observaciones = columnas.Length > 26 ? columnas[26].Trim() : ""
             };
 
             // Si tiene ID válido, buscar y actualizar el existente
@@ -884,6 +894,7 @@ else
                     contratoExistente.Telefono = contrato.Telefono;
                     contratoExistente.EnComercializadora = contrato.EnComercializadora;
                     contratoExistente.EnTarifa = contrato.EnTarifa;
+                    contratoExistente.EnTarifaGas = contrato.EnTarifaGas;
                     contratoExistente.EnCups = contrato.EnCups;
                     contratoExistente.EnCupsGas = contrato.EnCupsGas;
                     contratoExistente.TipoOperacion = contrato.TipoOperacion;
@@ -1074,10 +1085,10 @@ else
                 esValido = false;
             }
 
-            // Validación 4: Tarifa obligatorio
-            if (string.IsNullOrWhiteSpace(contrato.EnTarifa))
+            // Validación 4: al menos una tarifa (luz o gas)
+            if (string.IsNullOrWhiteSpace(contrato.EnTarifa) && string.IsNullOrWhiteSpace(contrato.EnTarifaGas))
             {
-                erroresValidacion.Add($"{prefijo}: Tarifa es obligatorio");
+                erroresValidacion.Add($"{prefijo}: Debe indicar Tarifa Luz o Tarifa Gas");
                 esValido = false;
             }
 

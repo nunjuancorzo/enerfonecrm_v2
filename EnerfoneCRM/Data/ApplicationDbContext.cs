@@ -13,9 +13,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<Usuario> Usuarios { get; set; }
     public DbSet<ConfiguracionEmpresa> ConfiguracionesEmpresa { get; set; }
     public DbSet<TarifaEnergia> TarifasEnergia { get; set; }
+    public DbSet<TarifaLuz> TarifasLuz { get; set; }
+    public DbSet<TarifaGas> TarifasGas { get; set; }
     public DbSet<TarifaTelefonia> TarifasTelefonia { get; set; }
     public DbSet<TarifaAlarma> TarifasAlarmas { get; set; }
     public DbSet<Servicio> Servicios { get; set; }
+    public DbSet<ServicioGas> ServiciosGas { get; set; }
     public DbSet<Comercializadora> Comercializadoras { get; set; }
     public DbSet<Operadora> Operadoras { get; set; }
     public DbSet<EmpresaAlarma> EmpresasAlarmas { get; set; }
@@ -25,6 +28,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<FicheroCliente> FicherosClientes { get; set; }
     public DbSet<FicheroContrato> FicherosContratos { get; set; }
     public DbSet<ObservacionContrato> ObservacionesContratos { get; set; }
+    public DbSet<HistoricoCambioContrato> HistoricoCambiosContratos { get; set; }
     public DbSet<LogAcceso> LogAccesos { get; set; }
     public DbSet<UsuarioComercializadora> UsuarioComercializadoras { get; set; }
     public DbSet<UsuarioOperadora> UsuarioOperadoras { get; set; }
