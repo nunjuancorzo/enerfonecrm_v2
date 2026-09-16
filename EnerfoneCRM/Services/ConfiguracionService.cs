@@ -54,6 +54,7 @@ public class ConfiguracionService
                 // Control de módulos
                 existente.ModuloLiquidacionesActivo = configuracion.ModuloLiquidacionesActivo;
                 existente.ModuloSipsActivo = configuracion.ModuloSipsActivo;
+                existente.EnvioDocumentosFirmaAutomatico = configuracion.EnvioDocumentosFirmaAutomatico;
                 
                 context.ConfiguracionesEmpresa.Update(existente);
             }

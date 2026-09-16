@@ -7,6 +7,8 @@
 @inject EnerfoneCRM.Services.EmpresaAlarmaService EmpresaAlarmaService
 @inject EnerfoneCRM.Services.AuthService AuthService
 @inject EnerfoneCRM.Services.EmailService EmailService
+@inject EnerfoneCRM.Services.FirmaService FirmaService
+@inject IJSRuntime JS
 
 <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-height: 90vh;">
@@ -50,6 +52,36 @@
                 </div>
                 <DataAnnotationsValidator />
                 <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                    <div class="card shadow-sm mb-3 border-primary">
+                        <div class="card-header bg-primary text-white"><h6 class="mb-0"><i class="bi bi-pen me-2"></i>Firma de contrato de colaboracion</h6></div>
+                        <div class="card-body">
+                            @if (solicitudFirmaColaborador == null)
+                            {
+                                <p class="text-muted">No se ha enviado el contrato a firma.</p>
+                                <button type="button" class="btn btn-primary" @onclick="EnviarContratoColaborador" disabled="@enviandoFirma"><i class="bi bi-send me-1"></i>@(enviandoFirma ? "Enviando..." : "Enviar contrato a firmar")</button>
+                            }
+                            else
+                            {
+                                <div class="row g-2 small mb-3">
+                                    <div class="col-md-3"><strong>Estado:</strong> <span class="badge @ColorFirma(solicitudFirmaColaborador.Estado)">@solicitudFirmaColaborador.Estado</span></div>
+                                    <div class="col-md-3"><strong>Enviado:</strong> @solicitudFirmaColaborador.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                                    <div class="col-md-3"><strong>Caducidad:</strong> @solicitudFirmaColaborador.FechaCaducidadUtc.ToLocalTime().ToString("dd/MM/yyyy")</div>
+                                    <div class="col-md-3"><strong>Firma:</strong> @(solicitudFirmaColaborador.FechaFirmaUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-primary" @onclick="EnviarContratoColaborador" disabled="@enviandoFirma"><i class="bi bi-arrow-repeat me-1"></i>Reenviar</button>
+                                    @if (solicitudFirmaColaborador.DocumentoFirmado != null)
+                                    {
+                                        <button type="button" class="btn btn-outline-success" @onclick="VerContratoFirmado"><i class="bi bi-file-earmark-pdf me-1"></i>Ver documento firmado</button>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(mensajeFirma))
+                    {
+                        <div class="alert alert-info">@mensajeFirma</div>
+                    }
                     @if (!string.IsNullOrEmpty(mensajeError))
                     {
                         <div class="alert alert-danger">@mensajeError</div>
@@ -958,6 +990,9 @@
     private string rolOriginal = string.Empty;  // Para validar cambios de rol a Administrador
     private string nuevaPassword = string.Empty;
     private bool enviandoEmail = false;
+    private bool enviandoFirma = false;
+    private string mensajeFirma = string.Empty;
+    private SolicitudFirmaColaborador? solicitudFirmaColaborador;
     private List<string> comercializadoras = new();
     private List<Comercializadora> todasComercializadoras = new();
     private List<Operadora> todasOperadoras = new();
@@ -1135,6 +1170,7 @@
             
             if (Usuario != null)
             {
+                solicitudFirmaColaborador = await FirmaService.ObtenerUltimaSolicitudColaboradorAsync(Usuario.Id);
                 usuariosJerarquiaCache = null;
 
                 // Guardar rol original para validación
@@ -1501,6 +1537,25 @@
             && !string.Equals(rol, "Comercializadora", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(rol, "Administrador", StringComparison.OrdinalIgnoreCase);
     }
+
+    private async Task EnviarContratoColaborador()
+    {
+        enviandoFirma = true;
+        mensajeError = string.Empty;
+        var resultado = await FirmaService.CrearSolicitudColaboradorAsync(usuario.Id);
+        mensajeFirma = resultado.Mensaje;
+        solicitudFirmaColaborador = await FirmaService.ObtenerUltimaSolicitudColaboradorAsync(usuario.Id);
+        enviandoFirma = false;
+    }
+
+    private async Task VerContratoFirmado()
+    {
+        var documento = await FirmaService.ObtenerDocumentoColaboradorPrivadoAsync(usuario.Id, true);
+        if (documento.Contenido == null) return;
+        await JS.InvokeVoidAsync("openFileInNewTab", documento.Nombre ?? "contrato-colaborador-firmado.pdf", Convert.ToBase64String(documento.Contenido), "application/pdf");
+    }
+
+    private static string ColorFirma(string estado) => estado == EstadoSolicitudFirma.Firmado ? "bg-success" : estado == EstadoSolicitudFirma.Caducado ? "bg-secondary" : "bg-warning text-dark";
 
     private async Task HandleSubmit()
     {

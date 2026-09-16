@@ -49,4 +49,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<HistoricoComparativa> HistoricoComparativas { get; set; }
     public DbSet<PlantillaPreCarga> PlantillasPreCarga { get; set; }
     public DbSet<CodigoPostal> CodigosPostales { get; set; }
+    public DbSet<SolicitudFirma> SolicitudesFirma { get; set; }
+    public DbSet<SolicitudFirmaEvento> SolicitudesFirmaEventos { get; set; }
+    public DbSet<SolicitudFirmaColaborador> SolicitudesFirmaColaboradores { get; set; }
 }

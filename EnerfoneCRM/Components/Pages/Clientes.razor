@@ -284,6 +284,7 @@ else
                         </div>
                         <EditForm Model="clienteSeleccionado" OnValidSubmit="GuardarCliente">
                             <DataAnnotationsValidator />
+                            <ValidationSummary class="alert alert-danger" />
                             <div class="modal-header bg-light border-bottom">
                                 <div class="d-flex gap-2 w-100">
                                     <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@guardando">
@@ -524,7 +525,7 @@ else
                                             <label class="form-label fw-bold">Usuario</label>
                                             <select @bind="clienteSeleccionado.IdUsuario" class="form-select">
                                                 <option value="">Seleccionar usuario...</option>
-                                                @foreach (var usuario in usuarios)
+                                                @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                                 {
                                                     <option value="@usuario.Id">@usuario.NombreUsuario</option>
                                                 }
@@ -3305,7 +3306,10 @@ else
             Id = cliente.Id,
             TipoCliente = cliente.TipoCliente,
             Nombre = cliente.Nombre,
+            Apellidos = cliente.Apellidos,
             DniCif = cliente.DniCif,
+            Empresa = cliente.Empresa,
+            Cif = cliente.Cif,
             Dni = cliente.Dni,
             Email = cliente.Email,
             Telefono = cliente.Telefono,
@@ -3317,7 +3321,9 @@ else
             Puerta = cliente.Puerta,
             Aclarador = cliente.Aclarador,
             Poblacion = cliente.Poblacion,
+            Ciudad = cliente.Ciudad,
             Provincia = cliente.Provincia,
+            Pais = cliente.Pais,
             CodigoPostal = cliente.CodigoPostal,
             Iban = cliente.Iban,
             Representante = cliente.Representante,
@@ -3391,7 +3397,7 @@ else
                 CerrarModal();
 
                 // Si es un cliente nuevo, marcar para resaltar y hacer scroll
-                if (esNuevoCliente && clienteSeleccionado.Id > 0)
+                if (esNuevoCliente && clienteId > 0)
                 {
                     // Buscar en qué página está el cliente
                     var clientesOrdenados = clientes.Where(c =>
@@ -3412,7 +3418,7 @@ else
                     };
                     
                     // Encontrar el índice del cliente
-                    var indiceCliente = clientesOrdenados.FindIndex(c => c.Id == clienteSeleccionado.Id);
+                    var indiceCliente = clientesOrdenados.FindIndex(c => c.Id == clienteId);
                     if (indiceCliente >= 0)
                     {
                         // Calcular la página donde está el cliente
@@ -3420,13 +3426,13 @@ else
                         paginaActual = paginaCliente;
                         AplicarFiltros();
                         
-                        clienteRecienCreado = clienteSeleccionado.Id;
+                        clienteRecienCreado = clienteId;
                         StateHasChanged();
                         await Task.Delay(200); // Dar tiempo para que se renderice
                         
                         try
                         {
-                            await JSRuntime.InvokeVoidAsync("scrollToElement", $"cliente-{clienteSeleccionado.Id}");
+                            await JSRuntime.InvokeVoidAsync("scrollToElement", $"cliente-{clienteId}");
                         }
                         catch
                         {

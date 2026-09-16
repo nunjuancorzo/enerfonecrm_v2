@@ -91,6 +91,9 @@ public class ConfiguracionEmpresa
     [Column("modulo_sips_activo")]
     public bool ModuloSipsActivo { get; set; } = true;
 
+    [Column("envio_documentos_firma_automatico")]
+    public bool EnvioDocumentosFirmaAutomatico { get; set; } = true;
+
     // Configuración OCR para análisis de facturas
     [Column("ocr_proveedor")]
     [StringLength(100)]

@@ -202,14 +202,6 @@ else
                         </div>
                     </div>
                     <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">Fecha Desde</label>
-                            <input type="date" @bind="filtroFechaDesde" class="form-control" />
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">Fecha Hasta</label>
-                            <input type="date" @bind="filtroFechaHasta" class="form-control" />
-                        </div>
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Buscar</label>
                             <input type="text" @bind="textoBusqueda" class="form-control" placeholder="Nombre, Empresa, Tipo Cliente..." />
@@ -631,80 +623,6 @@ else
                                         </InputSelect>
                                         <small class="text-muted">¿Incluye batería virtual?</small>
                                     </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Fecha de Carga</label>
-                                        <InputDate class="form-control" @bind-Value="tarifaActual.FechaCarga" />
-                                        <small class="text-muted">Fecha de actualización</small>
-                                    </div>
-                                </div>
-
-                                <hr class="my-4" />
-                                <h6 class="mb-3"><i class="bi bi-calculator me-2"></i>Precios para Comparador (Opcional)</h6>
-                                <p class="text-muted small">Configura estos precios para que la tarifa aparezca en el comparador de energía</p>
-
-                                <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Término Fijo Diario</label>
-                                        <div class="input-group">
-                                            <InputNumber class="form-control" @bind-Value="tarifaActual.TerminoFijoDiario" step="0.000001" />
-                                            <span class="input-group-text">€/día</span>
-                                        </div>
-                                        <small class="text-muted">Ej: 0.120000</small>
-                                    </div>
-                                </div>
-
-                                <div class="row mb-3">
-                                    <div class="col-12">
-                                        <strong class="d-block mb-2">Precios de Potencia (€/kW/día)</strong>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Periodo 1 (Punta)</label>
-                                        <div class="input-group">
-                                            <InputNumber class="form-control" @bind-Value="tarifaActual.PrecioPotenciaP1" step="0.000001" />
-                                            <span class="input-group-text">€/kW/día</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Periodo 2 (Llano/Valle)</label>
-                                        <div class="input-group">
-                                            <InputNumber class="form-control" @bind-Value="tarifaActual.PrecioPotenciaP2" step="0.000001" />
-                                            <span class="input-group-text">€/kW/día</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Periodo 3 (Valle)</label>
-                                        <div class="input-group">
-                                            <InputNumber class="form-control" @bind-Value="tarifaActual.PrecioPotenciaP3" step="0.000001" />
-                                            <span class="input-group-text">€/kW/día</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="row mb-3">
-                                    <div class="col-12">
-                                        <strong class="d-block mb-2">Precios de Energía (€/kWh)</strong>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Periodo 1 (Punta)</label>
-                                        <div class="input-group">
-                                            <InputNumber class="form-control" @bind-Value="tarifaActual.PrecioEnergiaP1" step="0.000001" />
-                                            <span class="input-group-text">€/kWh</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Periodo 2 (Llano)</label>
-                                        <div class="input-group">
-                                            <InputNumber class="form-control" @bind-Value="tarifaActual.PrecioEnergiaP2" step="0.000001" />
-                                            <span class="input-group-text">€/kWh</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Periodo 3 (Valle)</label>
-                                        <div class="input-group">
-                                            <InputNumber class="form-control" @bind-Value="tarifaActual.PrecioEnergiaP3" step="0.000001" />
-                                            <span class="input-group-text">€/kWh</span>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </EditForm>
@@ -787,8 +705,6 @@ else
     private HashSet<string> tiposClienteSeleccionados = new();
     private HashSet<string> peajesSeleccionados = new();
     private string textoBusqueda = string.Empty;
-    private DateTime? filtroFechaDesde;
-    private DateTime? filtroFechaHasta;
 
     private List<string> tiposClienteDisponibles = new() { "Residencial", "Pyme", "Autonomo" };
     private List<string> peajesDisponibles = new() { "2.0", "3.0", "6.1", "6.2" };
@@ -925,22 +841,6 @@ else
             ).ToList();
         }
 
-        if (filtroFechaDesde.HasValue)
-        {
-            listaTemp = listaTemp.Where(t =>
-                t.FechaCarga.HasValue &&
-                t.FechaCarga.Value.Date >= filtroFechaDesde.Value.Date
-            ).ToList();
-        }
-
-        if (filtroFechaHasta.HasValue)
-        {
-            listaTemp = listaTemp.Where(t =>
-                t.FechaCarga.HasValue &&
-                t.FechaCarga.Value.Date <= filtroFechaHasta.Value.Date
-            ).ToList();
-        }
-
         tarifasParaPaginar = listaTemp;
         paginaActual = 1;
         AplicarOrdenamiento();
@@ -952,8 +852,6 @@ else
         tiposClienteSeleccionados.Clear();
         peajesSeleccionados.Clear();
         textoBusqueda = string.Empty;
-        filtroFechaDesde = null;
-        filtroFechaHasta = null;
         AplicarFiltros();
     }
 
@@ -1057,13 +955,6 @@ else
         Energia4 = tarifa.Energia4,
         Energia5 = tarifa.Energia5,
         Energia6 = tarifa.Energia6,
-        TerminoFijoDiario = tarifa.TerminoFijoDiario,
-        PrecioPotenciaP1 = tarifa.PrecioPotenciaP1,
-        PrecioPotenciaP2 = tarifa.PrecioPotenciaP2,
-        PrecioPotenciaP3 = tarifa.PrecioPotenciaP3,
-        PrecioEnergiaP1 = tarifa.PrecioEnergiaP1,
-        PrecioEnergiaP2 = tarifa.PrecioEnergiaP2,
-        PrecioEnergiaP3 = tarifa.PrecioEnergiaP3,
         Descuento = tarifa.Descuento,
         ObservacionesDescuentos = tarifa.ObservacionesDescuentos,
         Excedentes = tarifa.Excedentes,
@@ -1072,9 +963,7 @@ else
         DiasPenalizacion = tarifa.DiasPenalizacion,
         TipoPenalizacion = tarifa.TipoPenalizacion,
         Comision = tarifa.Comision,
-        PrecioNew = tarifa.PrecioNew,
-        Activa = tarifa.Activa,
-        FechaCarga = tarifa.FechaCarga
+        Activa = tarifa.Activa
     };
 
     private void CerrarModal()

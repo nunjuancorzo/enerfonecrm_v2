@@ -7,6 +7,7 @@
 @inject TarifaTelefoniaService TarifaTelefoniaService
 @inject FicheroClienteService FicheroClienteService
 @inject FicheroContratoService FicheroContratoService
+@inject FirmaService FirmaService
 @inject AuthService AuthService
 @inject ComisionService ComisionService
 @inject UsuarioService UsuarioService
@@ -292,7 +293,7 @@
                                                     </div>
                                                     <div class="col-md-12">
                                                         <label class="form-label fw-bold">IBAN</label>
-                                                        <InputText @bind-Value="nuevoCliente.Iban" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
+                                                        <InputText @bind-Value="nuevoCliente.Iban" class="form-control" maxlength="24" placeholder="ES00 0000 0000 0000 0000 0000" />
                                                     </div>
                                                     
                                                     @* Sección de Archivos Adjuntos *@
@@ -456,7 +457,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">ID Contrato Externo <small class="text-muted">(opcional)</small></label>
-                                            <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID proporcionado por la operadora" />
+                                            <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID proporcionado por la operadora" disabled="@(!AuthService.EsAdminOBackoffice)" />
                                                         </div>
                                                         <div class="col-md-12">
                                                             <label class="form-label fw-bold">Comercial asociado <span class="text-danger">*</span></label>
@@ -749,14 +750,14 @@
                                                         <div class="row g-3">
                                                             <div class="col-md-12">
                                                                 <label class="form-label fw-bold">Tarifa Fibra Segunda Residencia <span class="text-danger">*</span></label>
-                                                                <select @bind="nuevoContrato.TarifaFibraSegundaResidencia" class="form-select">
+                                                                <InputSelect @bind-Value="nuevoContrato.TarifaFibraSegundaResidencia" class="form-select">
                                                                     <option value="">-- Seleccionar tarifa de fibra --</option>
                                                                     @foreach (var tarifa in tarifasFibraSegundaResidenciaDisponibles)
                                                                     {
                                                                         var descripcion = ObtenerDescripcionTarifa(tarifa);
                                                                         <option value="@descripcion">@descripcion - @tarifa.PrecioNew.ToString("N2")€</option>
                                                                     }
-                                                                </select>
+                                                                </InputSelect>
                                                                 @if (!tarifasFibraSegundaResidenciaDisponibles.Any())
                                                                 {
                                                                     <small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle me-1"></i>No hay tarifas de fibra segunda residencia disponibles para esta operadora. Debe crear una primero en Tarifas de Telefonía.</small>
@@ -1220,6 +1221,16 @@
             guardando = true;
             mensajeError = string.Empty;
 
+            if (!string.IsNullOrWhiteSpace(nuevoCliente.Iban))
+            {
+                nuevoCliente.Iban = nuevoCliente.Iban.Replace(" ", "");
+                if (nuevoCliente.Iban.Length != 24)
+                {
+                    mensajeError = "El IBAN debe tener exactamente 24 caracteres.";
+                    return;
+                }
+            }
+
             var (exito, mensaje) = await ClienteService.CrearAsync(nuevoCliente);
             if (!exito)
             {
@@ -1379,6 +1390,12 @@
                         factura.contenido
                     );
                 }
+            }
+
+            var resultadoFirma = await FirmaService.CrearSolicitudAsync(nuevoContrato.Id, esEnvioAutomatico: true);
+            if (!resultadoFirma.Exito)
+            {
+                Console.WriteLine($"[FIRMA] Contrato {nuevoContrato.Id} creado, pero no se pudo enviar automaticamente: {resultadoFirma.Mensaje}");
             }
             
             await OnContratoCreado.InvokeAsync();

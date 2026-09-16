@@ -224,6 +224,20 @@ else
                                     </div>
                                 }
 
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox class="form-check-input" id="envioAutomaticoFirma" @bind-Value="configuracion.EnvioDocumentosFirmaAutomatico" />
+                                        <label class="form-check-label" for="envioAutomaticoFirma">
+                                            <strong>Enviar automáticamente documentación a firma al crear contratos</strong>
+                                            <br />
+                                            <small class="text-muted">
+                                                Si está desactivado, no se enviará automáticamente al cliente al crear un contrato.
+                                                Los botones manuales de envío seguirán funcionando aunque el valor esté desactivado.
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <hr class="my-4" />
 
                                 <h5 class="mb-3"><i class="bi bi-image me-2"></i>Imagen Corporativa</h5>

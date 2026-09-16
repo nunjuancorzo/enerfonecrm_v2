@@ -104,7 +104,7 @@ else
             <div class="card shadow-sm">
                 <div class="card-body p-0">
                     <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
-                        <table class="table table-sm table-bordered table-hover mb-0" id="tarifasLuzTable" style="table-layout: fixed; width: 100%; min-width: 6500px;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="tarifasLuzTable" style="table-layout: fixed; width: 100%; min-width: 5200px;">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th style="width: 60px;">
@@ -117,14 +117,6 @@ else
                                     <th style="width: 300px;">Nombre*</th>
                                     <th style="width: 150px;">Peaje</th>
                                     <th style="width: 150px;">Comisión</th>
-                                    <th style="width: 150px;">Precio New</th>
-                                    <th style="width: 180px;">Término Fijo Diario</th>
-                                    <th style="width: 180px;">Precio Potencia P1</th>
-                                    <th style="width: 180px;">Precio Potencia P2</th>
-                                    <th style="width: 180px;">Precio Potencia P3</th>
-                                    <th style="width: 180px;">Precio Energía P1</th>
-                                    <th style="width: 180px;">Precio Energía P2</th>
-                                    <th style="width: 180px;">Precio Energía P3</th>
                                     <th style="width: 150px;">Potencia 1</th>
                                     <th style="width: 150px;">Potencia 2</th>
                                     <th style="width: 150px;">Potencia 3</th>
@@ -191,38 +183,6 @@ else
                                         <td>
                                             <input type="number" step="0.01" class="form-control form-control-sm" @bind="tarifa.Comision"
                                                    @onpaste="@((e) => OnPaste(e, index, "Comision"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.01" class="form-control form-control-sm" @bind="tarifa.PrecioNew"
-                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioNew"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.TerminoFijoDiario"
-                                                   @onpaste="@((e) => OnPaste(e, index, "TerminoFijoDiario"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioPotenciaP1"
-                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioPotenciaP1"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioPotenciaP2"
-                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioPotenciaP2"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioPotenciaP3"
-                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioPotenciaP3"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioEnergiaP1"
-                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioEnergiaP1"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioEnergiaP2"
-                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioEnergiaP2"))" />
-                                        </td>
-                                        <td>
-                                            <input type="number" step="0.00001" class="form-control form-control-sm" @bind="tarifa.PrecioEnergiaP3"
-                                                   @onpaste="@((e) => OnPaste(e, index, "PrecioEnergiaP3"))" />
                                         </td>
                                         <td>
                                             <input type="text" class="form-control form-control-sm" @bind="tarifa.Potencia1"
@@ -409,16 +369,7 @@ else
             TipoCliente = "",
             Nombre = "",
             Comision = 0,
-            PrecioNew = 0,
-            TerminoFijoDiario = 0,
-            PrecioPotenciaP1 = 0,
-            PrecioPotenciaP2 = 0,
-            PrecioPotenciaP3 = 0,
-            PrecioEnergiaP1 = 0,
-            PrecioEnergiaP2 = 0,
-            PrecioEnergiaP3 = 0,
-            Activa = true,
-            FechaCarga = DateTime.Now
+            Activa = true
         };
 
         tarifas.Insert(0, nuevaTarifa);
@@ -479,14 +430,6 @@ else
                     tarifaOriginal.Nombre ?? "",
                     tarifaOriginal.Peaje ?? "",
                     tarifaOriginal.Comision.ToString(),
-                    tarifaOriginal.PrecioNew.ToString(),
-                    tarifaOriginal.TerminoFijoDiario?.ToString() ?? "",
-                    tarifaOriginal.PrecioPotenciaP1?.ToString() ?? "",
-                    tarifaOriginal.PrecioPotenciaP2?.ToString() ?? "",
-                    tarifaOriginal.PrecioPotenciaP3?.ToString() ?? "",
-                    tarifaOriginal.PrecioEnergiaP1?.ToString() ?? "",
-                    tarifaOriginal.PrecioEnergiaP2?.ToString() ?? "",
-                    tarifaOriginal.PrecioEnergiaP3?.ToString() ?? "",
                     tarifaOriginal.Potencia1 ?? "",
                     tarifaOriginal.Potencia2 ?? "",
                     tarifaOriginal.Potencia3 ?? "",
@@ -516,9 +459,7 @@ else
         {
             var cabeceras = string.Join("\t",
                 "ID", "Empresa", "TipoCliente", "Nombre", "Peaje",
-                "Comision", "PrecioNew", "TerminoFijoDiario",
-                "PrecioPotenciaP1", "PrecioPotenciaP2", "PrecioPotenciaP3",
-                "PrecioEnergiaP1", "PrecioEnergiaP2", "PrecioEnergiaP3",
+                "Comision",
                 "Potencia1", "Potencia2", "Potencia3", "Potencia4", "Potencia5", "Potencia6",
                 "Energia1", "Energia2", "Energia3", "Energia4", "Energia5", "Energia6",
                 "Descuento", "ObservacionesDescuentos", "Permanencia", "Excedentes",
@@ -581,9 +522,7 @@ else
                 {
                     Id = idTarifa,
                     Comision = 0,
-                    PrecioNew = 0,
-                    Activa = true,
-                    FechaCarga = DateTime.Now
+                    Activa = true
                 };
 
                 if (rowData.Count > 1 && !string.IsNullOrWhiteSpace(rowData[1])) tarifa.Empresa = rowData[1];
@@ -591,34 +530,26 @@ else
                 if (rowData.Count > 3 && !string.IsNullOrWhiteSpace(rowData[3])) tarifa.Nombre = rowData[3];
                 if (rowData.Count > 4 && !string.IsNullOrWhiteSpace(rowData[4])) tarifa.Peaje = rowData[4];
                 if (rowData.Count > 5 && decimal.TryParse(rowData[5], out var comision)) tarifa.Comision = comision;
-                if (rowData.Count > 6 && decimal.TryParse(rowData[6], out var precioNew)) tarifa.PrecioNew = precioNew;
-                if (rowData.Count > 7 && decimal.TryParse(rowData[7], out var termFijo)) tarifa.TerminoFijoDiario = termFijo;
-                if (rowData.Count > 8 && decimal.TryParse(rowData[8], out var precPotP1)) tarifa.PrecioPotenciaP1 = precPotP1;
-                if (rowData.Count > 9 && decimal.TryParse(rowData[9], out var precPotP2)) tarifa.PrecioPotenciaP2 = precPotP2;
-                if (rowData.Count > 10 && decimal.TryParse(rowData[10], out var precPotP3)) tarifa.PrecioPotenciaP3 = precPotP3;
-                if (rowData.Count > 11 && decimal.TryParse(rowData[11], out var precEnP1)) tarifa.PrecioEnergiaP1 = precEnP1;
-                if (rowData.Count > 12 && decimal.TryParse(rowData[12], out var precEnP2)) tarifa.PrecioEnergiaP2 = precEnP2;
-                if (rowData.Count > 13 && decimal.TryParse(rowData[13], out var precEnP3)) tarifa.PrecioEnergiaP3 = precEnP3;
-                if (rowData.Count > 14 && !string.IsNullOrWhiteSpace(rowData[14])) tarifa.Potencia1 = rowData[14];
-                if (rowData.Count > 15 && !string.IsNullOrWhiteSpace(rowData[15])) tarifa.Potencia2 = rowData[15];
-                if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16])) tarifa.Potencia3 = rowData[16];
-                if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17])) tarifa.Potencia4 = rowData[17];
-                if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18])) tarifa.Potencia5 = rowData[18];
-                if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) tarifa.Potencia6 = rowData[19];
-                if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20])) tarifa.Energia1 = rowData[20];
-                if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) tarifa.Energia2 = rowData[21];
-                if (rowData.Count > 22 && !string.IsNullOrWhiteSpace(rowData[22])) tarifa.Energia3 = rowData[22];
-                if (rowData.Count > 23 && !string.IsNullOrWhiteSpace(rowData[23])) tarifa.Energia4 = rowData[23];
-                if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24])) tarifa.Energia5 = rowData[24];
-                if (rowData.Count > 25 && !string.IsNullOrWhiteSpace(rowData[25])) tarifa.Energia6 = rowData[25];
-                if (rowData.Count > 26 && !string.IsNullOrWhiteSpace(rowData[26])) tarifa.Descuento = rowData[26];
-                if (rowData.Count > 27 && !string.IsNullOrWhiteSpace(rowData[27])) tarifa.ObservacionesDescuentos = rowData[27];
-                if (rowData.Count > 28 && !string.IsNullOrWhiteSpace(rowData[28])) tarifa.Permanencia = rowData[28];
-                if (rowData.Count > 29 && !string.IsNullOrWhiteSpace(rowData[29])) tarifa.Excedentes = rowData[29];
-                if (rowData.Count > 30 && !string.IsNullOrWhiteSpace(rowData[30])) tarifa.BateriaVirtual = rowData[30];
-                if (rowData.Count > 31 && int.TryParse(rowData[31], out var diasPenal)) tarifa.DiasPenalizacion = diasPenal;
-                if (rowData.Count > 32 && !string.IsNullOrWhiteSpace(rowData[32])) tarifa.TipoPenalizacion = rowData[32];
-                if (rowData.Count > 33) tarifa.Activa = rowData[33] == "1" || rowData[33].ToLower() == "true";
+                if (rowData.Count > 6 && !string.IsNullOrWhiteSpace(rowData[6])) tarifa.Potencia1 = rowData[6];
+                if (rowData.Count > 7 && !string.IsNullOrWhiteSpace(rowData[7])) tarifa.Potencia2 = rowData[7];
+                if (rowData.Count > 8 && !string.IsNullOrWhiteSpace(rowData[8])) tarifa.Potencia3 = rowData[8];
+                if (rowData.Count > 9 && !string.IsNullOrWhiteSpace(rowData[9])) tarifa.Potencia4 = rowData[9];
+                if (rowData.Count > 10 && !string.IsNullOrWhiteSpace(rowData[10])) tarifa.Potencia5 = rowData[10];
+                if (rowData.Count > 11 && !string.IsNullOrWhiteSpace(rowData[11])) tarifa.Potencia6 = rowData[11];
+                if (rowData.Count > 12 && !string.IsNullOrWhiteSpace(rowData[12])) tarifa.Energia1 = rowData[12];
+                if (rowData.Count > 13 && !string.IsNullOrWhiteSpace(rowData[13])) tarifa.Energia2 = rowData[13];
+                if (rowData.Count > 14 && !string.IsNullOrWhiteSpace(rowData[14])) tarifa.Energia3 = rowData[14];
+                if (rowData.Count > 15 && !string.IsNullOrWhiteSpace(rowData[15])) tarifa.Energia4 = rowData[15];
+                if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16])) tarifa.Energia5 = rowData[16];
+                if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17])) tarifa.Energia6 = rowData[17];
+                if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18])) tarifa.Descuento = rowData[18];
+                if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) tarifa.ObservacionesDescuentos = rowData[19];
+                if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20])) tarifa.Permanencia = rowData[20];
+                if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) tarifa.Excedentes = rowData[21];
+                if (rowData.Count > 22 && !string.IsNullOrWhiteSpace(rowData[22])) tarifa.BateriaVirtual = rowData[22];
+                if (rowData.Count > 23 && int.TryParse(rowData[23], out var diasPenal)) tarifa.DiasPenalizacion = diasPenal;
+                if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24])) tarifa.TipoPenalizacion = rowData[24];
+                if (rowData.Count > 25) tarifa.Activa = rowData[25] == "1" || rowData[25].ToLower() == "true";
 
                 if (idTarifa > 0)
                 {
@@ -746,13 +677,6 @@ else
         Energia4 = tarifa.Energia4,
         Energia5 = tarifa.Energia5,
         Energia6 = tarifa.Energia6,
-        TerminoFijoDiario = tarifa.TerminoFijoDiario,
-        PrecioPotenciaP1 = tarifa.PrecioPotenciaP1,
-        PrecioPotenciaP2 = tarifa.PrecioPotenciaP2,
-        PrecioPotenciaP3 = tarifa.PrecioPotenciaP3,
-        PrecioEnergiaP1 = tarifa.PrecioEnergiaP1,
-        PrecioEnergiaP2 = tarifa.PrecioEnergiaP2,
-        PrecioEnergiaP3 = tarifa.PrecioEnergiaP3,
         Descuento = tarifa.Descuento,
         ObservacionesDescuentos = tarifa.ObservacionesDescuentos,
         Excedentes = tarifa.Excedentes,
@@ -761,9 +685,7 @@ else
         DiasPenalizacion = tarifa.DiasPenalizacion,
         TipoPenalizacion = tarifa.TipoPenalizacion,
         Comision = tarifa.Comision,
-        PrecioNew = tarifa.PrecioNew,
-        Activa = tarifa.Activa,
-        FechaCarga = tarifa.FechaCarga
+        Activa = tarifa.Activa
     };
 
     private void ActualizarTarifa(TarifaLuz destino, TarifaLuz origen)
@@ -773,14 +695,6 @@ else
         destino.Nombre = origen.Nombre;
         destino.Peaje = origen.Peaje;
         destino.Comision = origen.Comision;
-        destino.PrecioNew = origen.PrecioNew;
-        destino.TerminoFijoDiario = origen.TerminoFijoDiario;
-        destino.PrecioPotenciaP1 = origen.PrecioPotenciaP1;
-        destino.PrecioPotenciaP2 = origen.PrecioPotenciaP2;
-        destino.PrecioPotenciaP3 = origen.PrecioPotenciaP3;
-        destino.PrecioEnergiaP1 = origen.PrecioEnergiaP1;
-        destino.PrecioEnergiaP2 = origen.PrecioEnergiaP2;
-        destino.PrecioEnergiaP3 = origen.PrecioEnergiaP3;
         destino.Potencia1 = origen.Potencia1;
         destino.Potencia2 = origen.Potencia2;
         destino.Potencia3 = origen.Potencia3;

@@ -14,12 +14,13 @@ CREATE TABLE IF NOT EXISTS `configuracion_empresa` (
   `email` VARCHAR(100) NULL,
   `web` VARCHAR(255) NULL,
   `logo_url` VARCHAR(500) NULL,
+  `envio_documentos_firma_automatico` BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'Indica si el envío de documentos para firmar se hace automáticamente al crear contratos',
   `fecha_actualizacion` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Insertar registro inicial (solo si no existe)
 INSERT INTO `configuracion_empresa` 
-(`nombre_empresa`, `cif`, `direccion`, `ciudad`, `provincia`, `telefono`, `email`)
-SELECT 'Enerfone', '', '', '', '', '', ''
+(`nombre_empresa`, `cif`, `direccion`, `ciudad`, `provincia`, `telefono`, `email`, `envio_documentos_firma_automatico`)
+SELECT 'Enerfone', '', '', '', '', '', '', TRUE
 WHERE NOT EXISTS (SELECT 1 FROM `configuracion_empresa` LIMIT 1);
