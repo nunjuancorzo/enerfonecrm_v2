@@ -1,0 +1,187 @@
+@page "/firma/{Token}"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.JSInterop
+@layout Layout.EmptyLayout
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject FirmaService FirmaService
+@inject IJSRuntime JS
+
+<PageTitle>Firma de documentacion</PageTitle>
+
+<div class="firma-publica-shell">
+    <main class="firma-publica-card">
+        <header class="firma-publica-header">
+            <div class="firma-publica-brand">enerfone <span>CRM</span></div>
+            <h1>Documentacion de contratacion</h1>
+            <p>Consulta la documentacion y completa el proceso de firma.</p>
+        </header>
+
+        @if (cargando)
+        {
+            <div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-3 text-muted">Cargando documentacion...</p></div>
+        }
+        else if (solicitud == null)
+        {
+            <div class="alert alert-danger">El enlace no es valido, ha caducado o ya no esta disponible.</div>
+        }
+        else if (solicitud.Estado == EstadoSolicitudFirma.Firmado)
+        {
+            <div class="alert alert-success"><strong>Proceso completado.</strong><br />La documentacion ya ha sido firmada.</div>
+            <button class="btn btn-outline-primary w-100" @onclick="() => AbrirDocumento(solicitud.DocumentoFirmadoId ?? solicitud.DocumentoOriginalId)"><i class="bi bi-file-pdf me-2"></i>Consultar documento firmado</button>
+        }
+        else
+        {
+            <section class="firma-resumen">
+                <p>Hola <strong>@solicitud.NombreCliente</strong>.</p>
+                <p class="mb-1">Tiene disponible la documentacion correspondiente a su contratacion.</p>
+                <dl class="row small mb-0">
+                    <dt class="col-5">Tipo</dt><dd class="col-7">@solicitud.TipoContrato</dd>
+                    <dt class="col-5">Referencia</dt><dd class="col-7">@solicitud.ReferenciaContrato</dd>
+                    <dt class="col-5">Valido hasta</dt><dd class="col-7">@solicitud.FechaCaducidadUtc.ToLocalTime().ToString("dd/MM/yyyy")</dd>
+                </dl>
+            </section>
+
+            <section class="firma-documento-lista">
+                <h2>Documentacion</h2>
+                <button class="documento-item" @onclick="() => AbrirDocumento(solicitud.DocumentoOriginalId)"><i class="bi bi-file-earmark-pdf"></i><span>Documento de acreditacion y consentimiento</span><i class="bi bi-eye ms-auto"></i></button>
+            </section>
+
+            @if (!confirmando)
+            {
+                <label class="form-check firma-check">
+                    <input class="form-check-input" type="checkbox" @bind="aceptaDocumentacion" />
+                    <span>He leido y acepto la documentacion mostrada.</span>
+                </label>
+                <button class="btn btn-primary btn-lg w-100" @onclick="MostrarConfirmacion" disabled="@(!aceptaDocumentacion)"><i class="bi bi-arrow-right me-2"></i>Continuar</button>
+            }
+            else
+            {
+                <div class="firma-confirmacion">
+                    <h2>Confirmar firma</h2>
+                    <p>Esta a punto de firmar la documentacion correspondiente al contrato <strong>@solicitud.ReferenciaContrato</strong>.</p>
+                    <label class="form-label fw-semibold">Realice su firma</label>
+                    <canvas id="@canvasId" width="700" height="250" class="firma-canvas"></canvas>
+                    <div class="d-flex justify-content-between mt-2">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="LimpiarFirma"><i class="bi bi-eraser me-1"></i>Borrar</button>
+                        <span class="small text-muted align-self-center">Use el dedo, raton o lapiz</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger mt-3">@error</div> }
+                    <button class="btn btn-success btn-lg w-100 mt-3" @onclick="Firmar" disabled="@firmando"><i class="bi bi-pen me-2"></i>Confirmar y firmar</button>
+                    <button class="btn btn-link w-100 mt-2" @onclick="() => confirmando = false" disabled="@firmando">Volver</button>
+                </div>
+            }
+        }
+
+        <footer class="firma-publica-footer">Este enlace es personal. La primera version utiliza firma manuscrita capturada en pantalla y debe validarse juridicamente para el nivel de firma exigible.</footer>
+    </main>
+</div>
+
+@code {
+    [Parameter] public string Token { get; set; } = string.Empty;
+    private SolicitudFirmaPublicaDto? solicitud;
+    private bool cargando = true;
+    private bool aceptaDocumentacion;
+    private bool confirmando;
+    private bool firmando;
+    private bool canvasInicializado;
+    private string error = string.Empty;
+    private readonly string canvasId = "firmaClienteCanvas";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            solicitud = await FirmaService.ObtenerSolicitudPublicaAsync(Token);
+            cargando = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (solicitud?.Estado == EstadoSolicitudFirma.EnProceso && confirmando && !canvasInicializado)
+        {
+            await JS.InvokeVoidAsync("publicSigning.start", canvasId);
+            canvasInicializado = true;
+        }
+    }
+
+    private async Task AbrirDocumento(int documentoId)
+    {
+        var documento = await FirmaService.ObtenerDocumentoPublicoAsync(Token, documentoId);
+        if (documento.Contenido == null)
+        {
+            error = documento.Mensaje;
+            return;
+        }
+
+        await JS.InvokeVoidAsync("openFileInNewTab", documento.Nombre ?? "documento.pdf", Convert.ToBase64String(documento.Contenido), "application/pdf");
+    }
+
+    private void MostrarConfirmacion()
+    {
+        if (aceptaDocumentacion) confirmando = true;
+    }
+
+    private async Task LimpiarFirma()
+    {
+        await JS.InvokeVoidAsync("publicSigning.clear", canvasId);
+    }
+
+    private async Task Firmar()
+    {
+        firmando = true;
+        error = string.Empty;
+        var dataUrl = await JS.InvokeAsync<string>("publicSigning.dataUrl", canvasId);
+        var separador = dataUrl.IndexOf(',');
+        if (separador < 0)
+        {
+            error = "Debe realizar la firma antes de continuar.";
+            firmando = false;
+            return;
+        }
+
+        var firma = Convert.FromBase64String(dataUrl[(separador + 1)..]);
+        var resultado = await FirmaService.CompletarFirmaAsync(Token, aceptaDocumentacion, firma);
+        if (!resultado.Exito)
+        {
+            error = resultado.Mensaje;
+            firmando = false;
+            return;
+        }
+
+        solicitud = await FirmaService.ObtenerSolicitudPublicaAsync(Token);
+        firmaCompletada = true;
+        firmando = false;
+    }
+
+    private bool firmaCompletada;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!firmaCompletada && solicitud?.Estado == EstadoSolicitudFirma.EnProceso)
+        {
+            await FirmaService.AbandonarSolicitudAsync(Token);
+        }
+    }
+}
+
+<style>
+    .firma-publica-shell { min-height: 100vh; background: linear-gradient(135deg, #eef4f8, #fff); padding: 1rem; }
+    .firma-publica-card { max-width: 720px; margin: 0 auto; background: #fff; border: 1px solid #dbe4ea; border-radius: .5rem; box-shadow: 0 .75rem 2rem rgba(15, 42, 61, .08); padding: 1.25rem; }
+    .firma-publica-header { border-bottom: 1px solid #e5e7eb; padding-bottom: 1rem; margin-bottom: 1rem; }
+    .firma-publica-brand { color: #172b4d; font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
+    .firma-publica-brand span { color: #f0b400; font-size: .65rem; }
+    .firma-publica-header h1 { font-size: 1.55rem; margin-bottom: .35rem; }
+    .firma-publica-header p { color: #64748b; margin: 0; }
+    .firma-resumen { background: #f8fafc; border-left: 4px solid #0d6efd; padding: 1rem; margin-bottom: 1.25rem; }
+    .firma-documento-lista h2, .firma-confirmacion h2 { font-size: 1.1rem; }
+    .documento-item { display: flex; align-items: center; gap: .75rem; width: 100%; border: 1px solid #dbe4ea; background: #fff; border-radius: .35rem; padding: .85rem; text-align: left; color: #172b4d; }
+    .documento-item:hover { background: #f8fafc; }
+    .documento-item i:first-child { color: #dc3545; font-size: 1.25rem; }
+    .firma-check { display: flex; gap: .6rem; align-items: flex-start; margin: 1.25rem 0; }
+    .firma-check input { margin-top: .25rem; }
+    .firma-canvas { display: block; width: 100%; height: 190px; border: 1px dashed #94a3b8; border-radius: .35rem; background: #fff; touch-action: none; }
+    .firma-publica-footer { border-top: 1px solid #e5e7eb; color: #64748b; font-size: .75rem; margin-top: 1.5rem; padding-top: 1rem; }
+    @@media (max-width: 480px) { .firma-publica-shell { padding: .5rem; } .firma-publica-card { padding: 1rem; } .firma-publica-header h1 { font-size: 1.3rem; } }
+</style>

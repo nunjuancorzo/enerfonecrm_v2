@@ -1,6 +1,7 @@
 @page "/contratos/telefonia"
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
+@using EnerfoneCRM.Components.Shared
 @using Microsoft.JSInterop
 @rendermode InteractiveServer
 @inject ContratoService ContratoService
@@ -15,6 +16,7 @@
 @inject UsuarioService UsuarioService
 @inject ComisionService ComisionService
 @inject EmailService EmailService
+@inject FirmaService FirmaService
 @inject CodigoPostalService CodigoPostalService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
@@ -350,6 +352,7 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
+                                        <th style="width: 55px; text-align: center;">Firmado</th>
                                         <th style="width: 70px; text-align: center;"></th>
                                         <th style="cursor: pointer; width: 180px;" @onclick='() => OrdenarPor("NombreCliente")'>
                                             Cliente
@@ -418,6 +421,9 @@ else
                                                             <small class="@textoClass">@contrato.OperadoraTel</small>
                                                         }
                                                     }
+                                                </td>
+                                                <td style="text-align: center; white-space: nowrap;">
+                                                    <i class="bi bi-pencil-fill @(contratosFirmados.Contains(contrato.Id) ? "text-primary" : "text-secondary opacity-50")" title="@(contratosFirmados.Contains(contrato.Id) ? "Contrato firmado" : "Contrato no firmado")"></i>
                                                 </td>
                                                 <td style="text-align: center; white-space: nowrap;">
                                                     <i class="bi bi-wifi @(TieneFibra(contrato) ? "text-primary" : "text-secondary opacity-25")" title="Fibra"></i>
@@ -559,6 +565,7 @@ else
                                 </div>
                             </div>
                         <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                            <FirmaContratoPanel ContratoId="contratoSeleccionado.Id" />
                                 @if (!string.IsNullOrEmpty(mensajeError))
                                 {
                                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -1781,6 +1788,7 @@ else
 
     // Contratos con ficheros adjuntos
     private HashSet<int> contratosConFicheros = new();
+    private HashSet<int> contratosFirmados = new();
 
     // Tarifas dinámicas
     private List<TarifaTelefonia> tarifasDisponibles = new();
@@ -1992,6 +2000,7 @@ else
             
             await CargarConteoObservaciones();
             contratosConFicheros = await FicheroContratoService.ObtenerIdsContratosConFicherosAsync();
+            contratosFirmados = await FirmaService.ObtenerContratosFirmadosAsync(contratos.Select(c => c.Id));
             AplicarFiltros();
             
             Console.WriteLine($"[DEBUG ContratosTelefonia] Contratos después de filtros: {contratosFiltrados.Count}");

@@ -77,27 +77,6 @@ namespace EnerfoneCRM.Models
         [StringLength(255)]
         public string? Energia6 { get; set; }
 
-        [Column("termino_fijo_diario")]
-        public decimal? TerminoFijoDiario { get; set; }
-
-        [Column("precio_potencia_p1")]
-        public decimal? PrecioPotenciaP1 { get; set; }
-
-        [Column("precio_potencia_p2")]
-        public decimal? PrecioPotenciaP2 { get; set; }
-
-        [Column("precio_potencia_p3")]
-        public decimal? PrecioPotenciaP3 { get; set; }
-
-        [Column("precio_energia_p1")]
-        public decimal? PrecioEnergiaP1 { get; set; }
-
-        [Column("precio_energia_p2")]
-        public decimal? PrecioEnergiaP2 { get; set; }
-
-        [Column("precio_energia_p3")]
-        public decimal? PrecioEnergiaP3 { get; set; }
-
         [Column("descuento")]
         [StringLength(255)]
         public string? Descuento { get; set; }
@@ -130,14 +109,7 @@ namespace EnerfoneCRM.Models
         public decimal Comision { get; set; }
 
         [Required]
-        [Column("precioNew")]
-        public decimal PrecioNew { get; set; }
-
-        [Required]
         [Column("activa")]
         public bool Activa { get; set; } = true;
-
-        [Column("fecha_carga")]
-        public DateTime? FechaCarga { get; set; }
     }
 }

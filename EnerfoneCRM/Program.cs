@@ -82,6 +82,8 @@ builder.Services.AddScoped<IncidenciaLiquidacionService>();
 builder.Services.AddScoped<ComisionService>();
 builder.Services.AddScoped<LiquidacionService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ContractSigningPdfService>();
+builder.Services.AddScoped<FirmaService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddScoped<PdfSipsService>();
 builder.Services.AddScoped<PdfComparadorService>();
@@ -122,7 +124,7 @@ var app = builder.Build();
 // Configurar ForwardedHeaders para IIS (necesario para detectar hostname correctamente)
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto
 });
 
 // Configure the HTTP request pipeline.

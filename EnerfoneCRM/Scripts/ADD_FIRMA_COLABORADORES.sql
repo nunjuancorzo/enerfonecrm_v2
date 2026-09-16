@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS solicitudes_firma_colaborador (
+    id INT NOT NULL AUTO_INCREMENT,
+    usuario_id INT NOT NULL,
+    proceso_id VARCHAR(36) NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    fecha_creacion_utc DATETIME NOT NULL,
+    fecha_caducidad_utc DATETIME NOT NULL,
+    fecha_firma_utc DATETIME NULL,
+    estado VARCHAR(30) NOT NULL,
+    email_destinatario VARCHAR(255) NOT NULL,
+    nombre_destinatario VARCHAR(255) NULL,
+    documento_original LONGBLOB NOT NULL,
+    documento_firmado LONGBLOB NULL,
+    firma_imagen LONGBLOB NULL,
+    hash_documento_original CHAR(64) NULL,
+    hash_documento_firmado CHAR(64) NULL,
+    ip_firma VARCHAR(64) NULL,
+    user_agent_firma VARCHAR(1000) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_solicitudes_firma_colaborador_token (token_hash),
+    KEY ix_solicitudes_firma_colaborador_usuario_estado (usuario_id, estado)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

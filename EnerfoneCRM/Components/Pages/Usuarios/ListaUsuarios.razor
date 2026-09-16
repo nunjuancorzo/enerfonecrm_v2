@@ -7,6 +7,7 @@
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject EmailService EmailService
+@inject FirmaService FirmaService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -254,6 +255,7 @@ else
                                             <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                         }
                                     </th>
+                                    <th style="width: 65px; text-align: center;">Firmado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -283,6 +285,10 @@ else
                                             <span class="badge bg-@(usuario.TotalContratos > 0 ? "primary" : "secondary")">
                                                 @usuario.TotalContratos
                                             </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <i class="bi bi-pencil-fill @(usuariosColaboradoresFirmados.Contains(usuario.Id) ? "text-primary" : "text-secondary opacity-50")"
+                                               title="@(usuariosColaboradoresFirmados.Contains(usuario.Id) ? "Contrato firmado" : "Contrato no firmado")"></i>
                                         </td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await MostrarModalEditar(usuario)" title="Editar">
@@ -422,6 +428,7 @@ else
     private bool mostrarModalCrear = false;
     private bool mostrarModalEliminar = false;
     private bool enviandoEmail = false;
+    private HashSet<int> usuariosColaboradoresFirmados = new();
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
 
@@ -456,6 +463,7 @@ else
         try
         {
             usuarios = await UsuarioService.ObtenerTodosAsync();
+            usuariosColaboradoresFirmados = await FirmaService.ObtenerUsuariosColaboradoresFirmadosAsync(usuarios.Select(u => u.Id));
             AplicarOrdenamiento();
         }
         catch

@@ -36,8 +36,8 @@ INSERT INTO usuarios (idusuarios, username, nombre, apellidos, direccion, codigo
 VALUES (1, 'administrador', 'Admin', 'Sistema', 'Calle Demo 123', '28001', 'Madrid', 'admin@demo.com', 'Demo2025!', 'Administrador', NULL, 0, 1, NOW());
 
 -- Configuración de la empresa
-INSERT INTO configuracion_empresa (id, nombre_empresa, cif, direccion, codigo_postal, telefono, email, web, ciudad, provincia, pais)
-VALUES (1, 'Enerfone Demo', 'B12345678', 'Av. Demo 100', '28001', '900123456', 'contacto@demo.com', 'www.demo.com', 'Madrid', 'Madrid', 'España');
+INSERT INTO configuracion_empresa (id, nombre_empresa, cif, direccion, codigo_postal, telefono, email, web, ciudad, provincia, pais, envio_documentos_firma_automatico)
+VALUES (1, 'Enerfone Demo', 'B12345678', 'Av. Demo 100', '28001', '900123456', 'contacto@demo.com', 'www.demo.com', 'Madrid', 'Madrid', 'España', TRUE);
 
 -- Comercializadoras de energía
 INSERT INTO comercializadoras (id, nombre, activo) VALUES

@@ -5,6 +5,10 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnerfoneCRM", "EnerfoneCRM\EnerfoneCRM.csproj", "{F3064694-6119-4847-ABAA-9621941525FD}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{1206729C-29C9-49A5-88DF-DAE03E1A41B3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EnerfoneCRM.Tests", "Tests\EnerfoneCRM.Tests\EnerfoneCRM.Tests.csproj", "{3898DFCE-A14A-4266-A622-0B1A235F6EF2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +22,12 @@ Global
 		{F3064694-6119-4847-ABAA-9621941525FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F3064694-6119-4847-ABAA-9621941525FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3064694-6119-4847-ABAA-9621941525FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3898DFCE-A14A-4266-A622-0B1A235F6EF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3898DFCE-A14A-4266-A622-0B1A235F6EF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3898DFCE-A14A-4266-A622-0B1A235F6EF2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3898DFCE-A14A-4266-A622-0B1A235F6EF2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{3898DFCE-A14A-4266-A622-0B1A235F6EF2} = {1206729C-29C9-49A5-88DF-DAE03E1A41B3}
 	EndGlobalSection
 EndGlobal

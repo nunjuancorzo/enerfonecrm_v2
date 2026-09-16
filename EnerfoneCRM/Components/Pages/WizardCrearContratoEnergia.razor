@@ -11,6 +11,7 @@
 @inject ServicioGasService ServicioGasService
 @inject FicheroClienteService FicheroClienteService
 @inject FicheroContratoService FicheroContratoService
+@inject FirmaService FirmaService
 @inject AuthService AuthService
 @inject ComisionService ComisionService
 @inject UsuarioService UsuarioService
@@ -297,7 +298,7 @@
                                                     </div>
                                                     <div class="col-md-12">
                                                         <label class="form-label fw-bold">IBAN</label>
-                                                        <InputText @bind-Value="nuevoCliente.Iban" class="form-control" placeholder="ES00 0000 0000 0000 0000 0000" />
+                                                        <InputText @bind-Value="nuevoCliente.Iban" class="form-control" maxlength="24" placeholder="ES00 0000 0000 0000 0000 0000" />
                                                     </div>
                                                     
                                                     @* Sección de Archivos Adjuntos *@
@@ -455,11 +456,11 @@
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">ID Contrato Externo <small class="text-muted">(opcional)</small></label>
-                                            <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID comercializadora" />
+                                            <InputText @bind-Value="nuevoContrato.IdContratoExterno" class="form-control" placeholder="ID comercializadora" disabled="@(!AuthService.EsAdminOBackoffice)" />
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Estado Contrato</label>
-                                            <InputSelect @bind-Value="nuevoContrato.Estado" class="form-select">
+                                            <InputSelect @bind-Value="nuevoContrato.Estado" class="form-select" disabled="@(!AuthService.EsAdminOBackoffice)">
                                                 <option value="">-- Seleccionar Estado --</option>
                                                 <option value="Pte Carga">Pte Carga</option>
                                                 <option value="Solicitado">Solicitado</option>
@@ -671,9 +672,12 @@
                                             <input type="text" class="form-control" value="@comercializadoraSeleccionada?.Nombre" readonly />
                                             <small class="text-muted">Seleccionada en el paso anterior</small>
 
-                                            <label class="form-label fw-bold mt-3">Comisión (€)</label>
-                                            <InputNumber @bind-Value="nuevoContrato.Comision" class="form-control" readonly />
-                                            <small class="text-muted">Se calcula automáticamente desde las tarifas</small>
+                                            @if (AuthService.EsAdminOBackoffice)
+                                            {
+                                                <label class="form-label fw-bold mt-3">Comisión (€)</label>
+                                                <InputNumber @bind-Value="nuevoContrato.Comision" class="form-control" readonly />
+                                                <small class="text-muted">Se calcula automáticamente desde las tarifas</small>
+                                            }
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label fw-bold">Usuario <span class="text-danger">*</span></label>
@@ -1086,6 +1090,16 @@
             guardando = true;
             mensajeError = string.Empty;
 
+            if (!string.IsNullOrWhiteSpace(nuevoCliente.Iban))
+            {
+                nuevoCliente.Iban = nuevoCliente.Iban.Replace(" ", "");
+                if (nuevoCliente.Iban.Length != 24)
+                {
+                    mensajeError = "El IBAN debe tener exactamente 24 caracteres.";
+                    return;
+                }
+            }
+
             var (exito, mensaje) = await ClienteService.CrearAsync(nuevoCliente);
             if (!exito)
             {
@@ -1378,6 +1392,12 @@
                         factura.contenido
                     );
                 }
+            }
+
+            var resultadoFirma = await FirmaService.CrearSolicitudAsync(nuevoContrato.Id, esEnvioAutomatico: true);
+            if (!resultadoFirma.Exito)
+            {
+                Console.WriteLine($"[FIRMA] Contrato {nuevoContrato.Id} creado, pero no se pudo enviar automaticamente: {resultadoFirma.Mensaje}");
             }
             
             await OnContratoCreado.InvokeAsync();
