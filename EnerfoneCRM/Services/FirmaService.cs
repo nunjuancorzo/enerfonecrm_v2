@@ -20,6 +20,7 @@ public sealed record ResultadoFirma(bool Exito, string Mensaje, string? Url = nu
 
 public class FirmaService
 {
+    private const int TokenExpirationDays = 2;
     private readonly DbContextProvider _dbContextProvider;
     private readonly EmailService _emailService;
     private readonly ContractSigningPdfService _pdfService;
@@ -58,7 +59,7 @@ public class FirmaService
             return new(false, "El envío automático de documentos a firma está desactivado en la configuración de la empresa.");
         }
 
-        var expirationDays = _configuration.GetValue<int?>("PublicSigning:TokenExpirationDays") ?? 30;
+        var expirationDays = TokenExpirationDays;
         if (expirationDays < 1 || expirationDays > 365)
         {
             return new(false, "La caducidad configurada no es valida.");
@@ -302,17 +303,6 @@ public class FirmaService
         return new(true, "Solicitud cancelada.");
     }
 
-    public async Task AbandonarSolicitudAsync(string token)
-    {
-        var solicitud = await ObtenerSolicitudValidaAsync(token, permitirEnProceso: true);
-        if (solicitud == null || solicitud.Estado != EstadoSolicitudFirma.EnProceso)
-        {
-            return;
-        }
-
-        await CambiarEstadoAsync(solicitud.Id, EstadoSolicitudFirma.Caducado, "SolicitudCaducada");
-    }
-
     public async Task<SolicitudFirma?> ObtenerUltimaSolicitudAsync(int contratoId)
     {
         await using var context = _dbContextProvider.CreateDbContext();
@@ -353,7 +343,7 @@ public class FirmaService
         var solicitud = new SolicitudFirmaColaborador
         {
             UsuarioId = usuarioId, ProcesoId = Guid.NewGuid().ToString("D"), TokenHash = _tokenService.Hash(token),
-            FechaCreacionUtc = now, FechaCaducidadUtc = now.AddDays(_configuration.GetValue<int?>("PublicSigning:TokenExpirationDays") ?? 30),
+            FechaCreacionUtc = now, FechaCaducidadUtc = now.AddDays(TokenExpirationDays),
             Estado = EstadoSolicitudFirma.Enviado, EmailDestinatario = usuario.Email,
             NombreDestinatario = string.Join(" ", new[] { usuario.Nombre, usuario.Apellidos }.Where(x => !string.IsNullOrWhiteSpace(x))),
             DocumentoOriginal = original, HashDocumentoOriginal = ContractSigningPdfService.CalcularHash(original)
@@ -467,14 +457,6 @@ public class FirmaService
             }
             await context.SaveChangesAsync();
             await RegistrarEventoAsync(solicitud.Id, "SolicitudCaducada", null, "OK", null);
-            return null;
-        }
-
-        if (solicitud.Estado == EstadoSolicitudFirma.EnProceso && !permitirEnProceso)
-        {
-            solicitud.Estado = EstadoSolicitudFirma.Caducado;
-            await context.SaveChangesAsync();
-            await RegistrarEventoAsync(solicitud.Id, "SolicitudCaducada", null, "OK", "Reapertura del enlace");
             return null;
         }
 

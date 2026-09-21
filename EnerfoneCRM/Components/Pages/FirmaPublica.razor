@@ -4,7 +4,6 @@
 @using Microsoft.JSInterop
 @layout Layout.EmptyLayout
 @rendermode InteractiveServer
-@implements IAsyncDisposable
 @inject FirmaService FirmaService
 @inject IJSRuntime JS
 
@@ -151,19 +150,9 @@
         }
 
         solicitud = await FirmaService.ObtenerSolicitudPublicaAsync(Token);
-        firmaCompletada = true;
         firmando = false;
     }
 
-    private bool firmaCompletada;
-
-    public async ValueTask DisposeAsync()
-    {
-        if (!firmaCompletada && solicitud?.Estado == EstadoSolicitudFirma.EnProceso)
-        {
-            await FirmaService.AbandonarSolicitudAsync(Token);
-        }
-    }
 }
 
 <style>
