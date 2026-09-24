@@ -131,26 +131,40 @@
     {
         firmando = true;
         error = string.Empty;
-        var dataUrl = await JS.InvokeAsync<string>("publicSigning.dataUrl", canvasId);
-        var separador = dataUrl.IndexOf(',');
-        if (separador < 0)
+        try
         {
-            error = "Debe realizar la firma antes de continuar.";
-            firmando = false;
-            return;
-        }
+            if (!await JS.InvokeAsync<bool>("publicSigning.hasInk", canvasId))
+            {
+                error = "No se ha añadido ninguna firma. Dibuje su firma para continuar.";
+                return;
+            }
 
-        var firma = Convert.FromBase64String(dataUrl[(separador + 1)..]);
-        var resultado = await FirmaService.CompletarFirmaAsync(Token, aceptaDocumentacion, firma);
-        if (!resultado.Exito)
+            var dataUrl = await JS.InvokeAsync<string>("publicSigning.dataUrl", canvasId);
+            var separador = dataUrl.IndexOf(',');
+            if (separador < 0)
+            {
+                error = "No se ha añadido ninguna firma. Dibuje su firma para continuar.";
+                return;
+            }
+
+            var firma = Convert.FromBase64String(dataUrl[(separador + 1)..]);
+            var resultado = await FirmaService.CompletarFirmaAsync(Token, aceptaDocumentacion, firma);
+            if (!resultado.Exito)
+            {
+                error = resultado.Mensaje;
+                return;
+            }
+
+            solicitud = await FirmaService.ObtenerSolicitudPublicaAsync(Token);
+        }
+        catch (Exception)
         {
-            error = resultado.Mensaje;
-            firmando = false;
-            return;
+            error = "No se ha podido procesar la firma. Revise el recuadro e inténtelo de nuevo.";
         }
-
-        solicitud = await FirmaService.ObtenerSolicitudPublicaAsync(Token);
-        firmando = false;
+        finally
+        {
+            firmando = false;
+        }
     }
 
 }

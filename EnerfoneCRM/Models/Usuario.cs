@@ -22,6 +22,10 @@ public class Usuario
     [StringLength(100)]
     public string? Apellidos { get; set; }
 
+    [Column("nif_cif")]
+    [StringLength(20)]
+    public string? NifCif { get; set; }
+
     [Column("direccion")]
     [StringLength(255)]
     public string? Direccion { get; set; }

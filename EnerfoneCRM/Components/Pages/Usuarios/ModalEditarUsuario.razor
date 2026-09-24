@@ -118,6 +118,11 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">CIF/NIF</label>
+                        <InputText class="form-control" @bind-Value="usuario.NifCif" />
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label">Dirección</label>
                         <InputText class="form-control" @bind-Value="usuario.Direccion" />
                     </div>
@@ -1186,6 +1191,7 @@
                     Email = Usuario.Email,
                     Nombre = Usuario.Nombre,
                     Apellidos = Usuario.Apellidos,
+                    NifCif = Usuario.NifCif,
                     Telefono = Usuario.Telefono,
                     Direccion = Usuario.Direccion,
                     CodigoPostal = Usuario.CodigoPostal,

@@ -90,6 +90,11 @@
                             </div>
 
                             <div class="mb-3">
+                                <label for="nifCif" class="form-label">CIF/NIF</label>
+                                <InputText id="nifCif" class="form-control" @bind-Value="usuario.NifCif" placeholder="B12345678 o 12345678A" autocomplete="off" />
+                            </div>
+
+                            <div class="mb-3">
                                 <label for="direccion" class="form-label">Dirección <span class="text-danger">*</span></label>
                                 <InputText id="direccion" class="form-control" @bind-Value="usuario.Direccion" placeholder="Calle Principal, 123" autocomplete="off" />
                                 @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.Direccion))
@@ -619,6 +624,9 @@
                             
                             <div class='info-row'>
                                 <span class='label'>Nombre completo:</span> {nuevoColaborador.Nombre} {nuevoColaborador.Apellidos}
+                            </div>
+                            <div class='info-row'>
+                                <span class='label'>CIF/NIF:</span> {nuevoColaborador.NifCif}
                             </div>
                             <div class='info-row'>
                                 <span class='label'>Email:</span> {nuevoColaborador.Email}

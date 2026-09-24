@@ -61,6 +61,11 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label">CIF/NIF</label>
+                        <InputText class="form-control" @bind-Value="model.NifCif" />
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label">Dirección</label>
                         <InputText class="form-control" @bind-Value="model.Direccion" />
                     </div>
@@ -813,6 +818,7 @@
             Telefono = model.Telefono,
             Nombre = model.Nombre,
             Apellidos = model.Apellidos,
+            NifCif = model.NifCif,
             Direccion = model.Direccion,
             CodigoPostal = model.CodigoPostal,
             Localidad = model.Localidad,
@@ -871,6 +877,9 @@
 
         [StringLength(100)]
         public string? Apellidos { get; set; }
+
+        [StringLength(20)]
+        public string? NifCif { get; set; }
 
         [StringLength(255)]
         public string? Direccion { get; set; }
