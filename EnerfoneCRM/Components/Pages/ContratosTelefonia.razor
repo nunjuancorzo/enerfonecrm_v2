@@ -824,7 +824,7 @@ else
                                                             <option value="">Seleccionar comercial...</option>
                                                             @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                                             {
-                                                                <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
+                                                                <option value="@usuario.Id" selected="@(contratoSeleccionado.UsuarioComercialId == usuario.Id)">@usuario.NombreUsuario</option>
                                                             }
                                                         </select>
                                                     }
@@ -2579,6 +2579,8 @@ else
             Estado = contrato.Estado,
             ObservacionesEstado = contrato.ObservacionesEstado,
             Comercial = contrato.Comercial,
+            UsuarioComercialId = contrato.UsuarioComercialId,
+            UsuarioComercializadoraId = contrato.UsuarioComercializadoraId,
             FechaCreacion = contrato.FechaCreacion,
             FechaModificacion = contrato.FechaModificacion,
             FechaAlta = contrato.FechaAlta ?? contrato.FechaCreacion,

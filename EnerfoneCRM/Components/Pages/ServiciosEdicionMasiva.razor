@@ -12,7 +12,7 @@
 
 <PageTitle>Edición Masiva de Servicios Luz</PageTitle>
 
-@if (AuthService.UsuarioActual?.Rol != "Administrador")
+@if (!AuthService.PuedeGestionarTarifas)
 {
     <div class="container mt-5">
         <div class="alert alert-danger">
@@ -364,6 +364,7 @@ else
                     }
                     else
                     {
+                        servicio.Id = 0;
                         serviciosNuevos.Add(servicio);
                         filasCreadas++;
                     }

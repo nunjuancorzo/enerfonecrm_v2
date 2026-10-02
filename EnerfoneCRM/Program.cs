@@ -84,6 +84,8 @@ builder.Services.AddScoped<LiquidacionService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<ContractSigningPdfService>();
 builder.Services.AddScoped<FirmaService>();
+builder.Services.AddScoped<OptimeService>();
+builder.Services.AddScoped<OptimeFirmaService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddScoped<PdfSipsService>();
 builder.Services.AddScoped<PdfComparadorService>();

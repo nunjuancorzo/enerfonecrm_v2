@@ -158,6 +158,13 @@
                 </ul>
 
                 <div class="d-flex align-items-center text-white">
+                    @if (AuthService.EsAdministrador)
+                    {
+                        <a href="optime" class="me-3 btn-optime" style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 50px; padding: 0 14px; border: 2px solid #4FC3F7; border-radius: 8px; background: transparent; color: #fff; text-decoration: none; transition: all 0.3s ease;" title="Optime">
+                            <i class="bi bi-calendar-event" style="font-size: 1.1rem; color: #4FC3F7;"></i>
+                            <span style="font-weight: 500;">Optime</span>
+                        </a>
+                    }
                     @if (AuthService.PuedeVerContratos)
                     {
                         <button @onclick="MostrarAvisosModificaciones" class="me-3 btn-avisos-contratos" style="display: flex; align-items: center; justify-content: center; gap: 3px; width: 80px; height: 50px; border: 2px solid #9E9E9E; border-radius: 8px; background: transparent; text-decoration: none; transition: all 0.3s ease; position: relative; cursor: pointer; padding: 0;" title="Avisos de Modificaciones">
@@ -318,6 +325,7 @@
         background-color: rgba(255, 255, 255, 0.1) !important;
     }
 
+    .btn-optime:hover,
     .btn-avisos-contratos:hover {
         background-color: rgba(255, 255, 255, 0.1) !important;
     }

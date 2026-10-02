@@ -1,0 +1,359 @@
+@page "/optime/formulario"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@layout Layout.EmptyLayout
+@rendermode InteractiveServer
+@inject OptimeService OptimeService
+@inject OptimeFirmaService OptimeFirmaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Ficha Nuevo Colaborador - Alta PdV</PageTitle>
+
+<div class="optime-shell">
+    <main class="optime-card">
+        <header class="optime-header">
+            <div>
+                <h1>Ficha Nuevo Colaborador</h1>
+                <p>Alta PdV - Naturgy Residencial</p>
+            </div>
+        </header>
+
+        <div class="optime-body">
+            @if (enviado)
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i><strong>Ficha enviada correctamente.</strong> Gracias, nos pondremos en contacto contigo.
+                    @if (documentosEnviados)
+                    {
+                        <br /><span>Te hemos enviado por email los documentos para firmar (contrato, adenda y código de buenas prácticas).</span>
+                    }
+                </div>
+                <button class="btn btn-outline-primary w-100" @onclick="Reiniciar">
+                    <i class="bi bi-plus-circle me-2"></i>Enviar otra ficha
+                </button>
+            }
+            else
+            {
+                <p class="mb-4">Este formulario está destinado a la apertura de los puntos de venta captados para la comercialización de P&amp;S Naturgy.</p>
+
+                <EditForm Model="solicitud" OnValidSubmit="Enviar">
+                    <DataAnnotationsValidator />
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Razón social del PdV *</label>
+                            <InputText class="form-control" maxlength="200" @bind-Value="solicitud.RazonSocial" />
+                            <ValidationMessage For="() => solicitud.RazonSocial" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">CIF / NIF del PdV *</label>
+                            <InputText class="form-control" maxlength="20" @bind-Value="solicitud.CifNif" />
+                            <ValidationMessage For="() => solicitud.CifNif" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Dirección fiscal del PdV *</label>
+                            <InputText class="form-control" maxlength="250" @bind-Value="solicitud.DireccionFiscal" />
+                            <ValidationMessage For="() => solicitud.DireccionFiscal" />
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Población *</label>
+                            <InputText class="form-control" maxlength="100" @bind-Value="solicitud.Poblacion" />
+                            <ValidationMessage For="() => solicitud.Poblacion" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Provincia *</label>
+                            <InputText class="form-control" maxlength="100" @bind-Value="solicitud.Provincia" />
+                            <ValidationMessage For="() => solicitud.Provincia" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">CP *</label>
+                            <InputText class="form-control" maxlength="5" inputmode="numeric" @bind-Value="solicitud.CodigoPostal" />
+                            <ValidationMessage For="() => solicitud.CodigoPostal" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Persona de contacto PdV *</label>
+                            <InputText class="form-control" maxlength="150" @bind-Value="solicitud.PersonaContacto" />
+                            <ValidationMessage For="() => solicitud.PersonaContacto" />
+                        </div>
+
+                        <div class="col-md-8">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">NIF Persona de contacto PdV *</label>
+                                    <InputText class="form-control" maxlength="20" @bind-Value="solicitud.NifPersonaContacto" />
+                                    <ValidationMessage For="() => solicitud.NifPersonaContacto" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Teléfono de contacto *</label>
+                                    <InputText class="form-control" maxlength="20" inputmode="tel" @bind-Value="solicitud.Telefono" />
+                                    <ValidationMessage For="() => solicitud.Telefono" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Email *</label>
+                                    <InputText type="email" class="form-control" maxlength="150" @bind-Value="solicitud.Email" />
+                                    <ValidationMessage For="() => solicitud.Email" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="optime-intereses">
+                                <strong>Otros Intereses:</strong>
+                                <label class="form-check"><InputCheckbox class="form-check-input" @bind-Value="solicitud.InteresLowi" /> Lowi</label>
+                                <label class="form-check"><InputCheckbox class="form-check-input" @bind-Value="solicitud.InteresVodafone" /> Vodafone</label>
+                                <label class="form-check"><InputCheckbox class="form-check-input" @bind-Value="solicitud.InteresRentik" /> Rentik</label>
+                                <label class="form-check"><InputCheckbox class="form-check-input" @bind-Value="solicitud.Interes3DSeguridad" /> 3D Seguridad</label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">CNAE <small class="text-muted">(código numérico sin letras ni espacios)</small></label>
+                            <InputText class="form-control" maxlength="10" inputmode="numeric" @bind-Value="solicitud.Cnae" />
+                            <ValidationMessage For="() => solicitud.Cnae" />
+                        </div>
+                        <div class="w-100 m-0"></div>
+                        <div class="col-md-3">
+                            <label class="form-label">IBAN</label>
+                            <div class="input-group">
+                                <span class="input-group-text">ES</span>
+                                <InputText class="form-control" maxlength="2" inputmode="numeric" placeholder="00" @bind-Value="solicitud.IbanDigitos" />
+                            </div>
+                            <ValidationMessage For="() => solicitud.Iban" />
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label">Nº CCC</label>
+                            <InputText class="form-control" maxlength="20" inputmode="numeric" placeholder="20 dígitos" @bind-Value="solicitud.Ccc" />
+                            <ValidationMessage For="() => solicitud.Ccc" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">SWIFT Bancario</label>
+                            <InputText class="form-control" maxlength="11" @bind-Value="solicitud.Swift" />
+                            <ValidationMessage For="() => solicitud.Swift" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Titular cuenta bancaria</label>
+                            <InputText class="form-control" maxlength="200" @bind-Value="solicitud.TitularCuenta" />
+                            <ValidationMessage For="() => solicitud.TitularCuenta" />
+                        </div>
+                    </div>
+
+                    <div class="row g-4 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-check mb-2">
+                                <InputCheckbox class="form-check-input" @bind-Value="solicitud.AceptaCodigoBuenasPracticas" />
+                                Acepto el Código de buenas prácticas *
+                            </label>
+                            <label class="form-check mb-3">
+                                <InputCheckbox class="form-check-input" @bind-Value="solicitud.AceptaAdhesionPdv" />
+                                Acepto la Adhesión PdV *
+                            </label>
+
+                            @foreach (var tipo in TiposDocumento)
+                            {
+                                var tipoActual = tipo;
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1">@tipoActual@(tipoActual == OptimeDocumento.TipoCopiaDni ? " *" : "")</label>
+                                    <InputFile class="form-control form-control-sm" accept="@OptimeService.ExtensionesPermitidas" OnChange="e => CargarArchivo(tipoActual, e)" />
+                                    @if (documentos.TryGetValue(tipoActual, out var doc))
+                                    {
+                                        <small class="text-success"><i class="bi bi-check-circle me-1"></i>@doc.NombreArchivo</small>
+                                    }
+                                </div>
+                            }
+                            <small class="text-muted">Formatos: PDF, JPG o PNG. Máx. 10 MB por archivo.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="optime-firma">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Fecha y firma: <strong>@solicitud.FechaFirma.ToString("dd/MM/yyyy")</strong></span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="LimpiarFirma"><i class="bi bi-eraser me-1"></i>Borrar</button>
+                                </div>
+                                <canvas id="@canvasId" width="600" height="250" class="optime-canvas"></canvas>
+                                <small class="text-muted">Firma con el ratón o con el dedo.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div class="alert alert-danger mt-4 mb-0"><i class="bi bi-exclamation-triangle me-2"></i>@error</div>
+                    }
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-4" disabled="@enviando">
+                        @if (enviando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-send me-2"></i>
+                        }
+                        Enviar ficha
+                    </button>
+                </EditForm>
+            }
+        </div>
+    </main>
+</div>
+
+<style>
+    .optime-shell { min-height: 100vh; background: linear-gradient(135deg, #eef4f8, #fff); padding: 1rem; }
+    .optime-card { max-width: 900px; margin: 1.5rem auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.08); overflow: hidden; }
+    .optime-header { display: flex; justify-content: space-between; align-items: center; padding: 2rem; color: #fff; background: linear-gradient(90deg, #0b4f9c 0%, #3a78c2 55%, #e9eef5 100%); }
+    .optime-header h1 { font-size: 2rem; font-weight: 700; margin: 0; }
+    .optime-header p { margin: 0; font-size: 1.15rem; opacity: .9; }
+    .optime-body { padding: 2rem; }
+    .optime-intereses { border: 1px solid #adb5bd; box-shadow: 2px 2px 6px rgba(0,0,0,.15); padding: .75rem 1rem; height: 100%; }
+    .optime-intereses .form-check { margin-top: .5rem; }
+    .optime-firma { border: 1px solid #212529; padding: .75rem; height: 100%; }
+    .optime-canvas { display: block; width: 100%; height: 180px; border: 1px dashed #94a3b8; border-radius: .35rem; background: #fff; touch-action: none; }
+    @@media (max-width: 576px) {
+        .optime-shell { padding: .25rem; }
+        .optime-header { padding: 1.25rem; }
+        .optime-header h1 { font-size: 1.4rem; }
+        .optime-body { padding: 1rem; }
+    }
+</style>
+
+@code {
+    private static readonly string[] TiposDocumento =
+    {
+        OptimeDocumento.TipoCopiaCif,
+        OptimeDocumento.TipoCopiaEscrituras,
+        OptimeDocumento.TipoCopiaDni
+    };
+
+    private readonly string canvasId = "optimeFirmaCanvas";
+    private OptimeSolicitud solicitud = new();
+    private Dictionary<string, OptimeDocumento> documentos = new();
+    private bool canvasInicializado;
+    private bool enviando;
+    private bool enviado;
+    private bool documentosEnviados;
+    private string? error;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!enviado && !canvasInicializado)
+        {
+            await JS.InvokeVoidAsync("publicSigning.start", canvasId);
+            canvasInicializado = true;
+        }
+    }
+
+    private async Task CargarArchivo(string tipo, InputFileChangeEventArgs e)
+    {
+        error = null;
+        documentos.Remove(tipo);
+        var archivo = e.File;
+
+        var contentType = OptimeService.ObtenerContentType(archivo.Name);
+        if (contentType == null)
+        {
+            error = $"{tipo}: formato no permitido. Usa PDF, JPG o PNG.";
+            return;
+        }
+        if (archivo.Size > OptimeService.MaxTamanoArchivo)
+        {
+            error = $"{tipo}: el archivo supera los 10 MB.";
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(OptimeService.MaxTamanoArchivo).CopyToAsync(ms);
+            documentos[tipo] = new OptimeDocumento
+            {
+                Tipo = tipo,
+                NombreArchivo = Path.GetFileName(archivo.Name),
+                ContentType = contentType,
+                Contenido = ms.ToArray()
+            };
+        }
+        catch
+        {
+            error = $"{tipo}: no se pudo leer el archivo.";
+        }
+    }
+
+    private async Task LimpiarFirma() => await JS.InvokeVoidAsync("publicSigning.clear", canvasId);
+
+    private async Task Enviar()
+    {
+        error = null;
+        if (!solicitud.AceptaCodigoBuenasPracticas || !solicitud.AceptaAdhesionPdv)
+        {
+            error = "Debes aceptar el Código de buenas prácticas y la Adhesión PdV.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(solicitud.Iban) != string.IsNullOrWhiteSpace(solicitud.Ccc))
+        {
+            error = "Indica el IBAN completo (dígitos de control y Nº CCC).";
+            return;
+        }
+        if (!documentos.ContainsKey(OptimeDocumento.TipoCopiaDni))
+        {
+            error = "Adjunta la copia del DNI del representante.";
+            return;
+        }
+
+        enviando = true;
+        try
+        {
+            if (!await JS.InvokeAsync<bool>("publicSigning.hasInk", canvasId))
+            {
+                error = "Añade tu firma para continuar.";
+                return;
+            }
+
+            var dataUrl = await JS.InvokeAsync<string>("publicSigning.dataUrl", canvasId);
+            var separador = dataUrl.IndexOf(',');
+            if (separador < 0)
+            {
+                error = "Añade tu firma para continuar.";
+                return;
+            }
+
+            var docs = documentos.Values.ToList();
+            docs.Add(new OptimeDocumento
+            {
+                Tipo = OptimeDocumento.TipoFirma,
+                NombreArchivo = "firma.png",
+                ContentType = "image/png",
+                Contenido = Convert.FromBase64String(dataUrl[(separador + 1)..])
+            });
+
+            solicitud.FechaFirma = DateOnly.FromDateTime(DateTime.Today);
+            await OptimeService.CrearAsync(solicitud, docs);
+            enviado = true;
+            try
+            {
+                documentosEnviados = (await OptimeFirmaService.EnviarDocumentosAsync(solicitud.Id, Navigation.BaseUri)).Exito;
+            }
+            catch
+            {
+                documentosEnviados = false;
+            }
+        }
+        catch
+        {
+            error = "No se ha podido enviar la ficha. Inténtalo de nuevo.";
+        }
+        finally
+        {
+            enviando = false;
+        }
+    }
+
+    private void Reiniciar()
+    {
+        solicitud = new();
+        documentos = new();
+        canvasInicializado = false;
+        enviado = false;
+        error = null;
+    }
+}
