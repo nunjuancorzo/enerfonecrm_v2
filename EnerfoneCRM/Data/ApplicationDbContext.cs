@@ -52,4 +52,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<SolicitudFirma> SolicitudesFirma { get; set; }
     public DbSet<SolicitudFirmaEvento> SolicitudesFirmaEventos { get; set; }
     public DbSet<SolicitudFirmaColaborador> SolicitudesFirmaColaboradores { get; set; }
+    public DbSet<OptimeSolicitud> OptimeSolicitudes { get; set; }
+    public DbSet<OptimeDocumento> OptimeDocumentos { get; set; }
+    public DbSet<OptimeFirma> OptimeFirmas { get; set; }
 }

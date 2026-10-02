@@ -1,0 +1,661 @@
+@page "/optime"
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@inject AuthService AuthService
+@inject OptimeService OptimeService
+@inject OptimeFirmaService OptimeFirmaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Optime - CRM</PageTitle>
+
+@if (!cargado)
+{
+    <div class="text-center p-5">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+    </div>
+}
+else if (!AuthService.EstaAutenticado)
+{
+    Navigation.NavigateTo("/login", false);
+}
+else if (!TieneAcceso)
+{
+    <div class="container py-4">
+        <div class="alert alert-warning"><i class="bi bi-lock me-2"></i>No tienes permisos para acceder a Optime.</div>
+    </div>
+}
+else
+{
+    <div class="container-fluid py-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <h2 class="mb-0"><i class="bi bi-shop me-2 text-primary"></i>Optime - Altas PdV</h2>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" @onclick="CopiarEnlace" title="@UrlFormulario">
+                    <i class="bi bi-link-45deg me-1"></i>@(enlaceCopiado ? "¡Enlace copiado!" : "Copiar enlace del formulario")
+                </button>
+                <a class="btn btn-outline-primary" href="optime/formulario" target="_blank">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Abrir formulario
+                </a>
+                <button class="btn btn-primary" @onclick="AbrirNueva">
+                    <i class="bi bi-plus-circle me-1"></i>Nueva solicitud
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger alert-dismissible fade show">
+                <i class="bi bi-exclamation-triangle me-2"></i>@mensajeError
+                <button type="button" class="btn-close" @onclick="() => mensajeError = null"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(mensajeExito))
+        {
+            <div class="alert alert-success alert-dismissible fade show">
+                <i class="bi bi-check-circle me-2"></i>@mensajeExito
+                <button type="button" class="btn-close" @onclick="() => mensajeExito = null"></button>
+            </div>
+        }
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Solicitudes (@SolicitudesFiltradas.Count())</h5>
+                <input class="form-control form-control-sm" style="max-width: 320px;" placeholder="Buscar..." @bind="filtro" @bind:event="oninput" />
+            </div>
+            <div class="card-body">
+                @if (cargandoSolicitudes)
+                {
+                    <div class="text-center p-4"><div class="spinner-border text-primary"></div></div>
+                }
+                else if (!SolicitudesFiltradas.Any())
+                {
+                    <div class="alert alert-info mb-0"><i class="bi bi-info-circle me-2"></i>No hay solicitudes registradas.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Razón social</th>
+                                    <th>CIF / NIF</th>
+                                    <th>Población</th>
+                                    <th>Contacto</th>
+                                    <th>Teléfono</th>
+                                    <th>Email</th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in SolicitudesFiltradas)
+                                {
+                                    <tr style="cursor: pointer;" @ondblclick="() => AbrirEdicion(s)">
+                                        <td class="text-nowrap">@s.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td><strong>@s.RazonSocial</strong></td>
+                                        <td>@s.CifNif</td>
+                                        <td>@s.Poblacion <small class="text-muted">(@s.Provincia)</small></td>
+                                        <td>@s.PersonaContacto</td>
+                                        <td>@s.Telefono</td>
+                                        <td>@s.Email</td>
+                                        <td class="text-end text-nowrap">
+                                            <button class="btn btn-sm btn-outline-success me-1" @onclick="() => AbrirEdicion(s)">
+                                                <i class="bi bi-pencil me-1"></i>Ver / Editar
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => solicitudAEliminar = s" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (solicitudEdicion != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <EditForm Model="solicitudEdicion" OnValidSubmit="GuardarEdicion" class="d-flex flex-column overflow-hidden">
+                        <DataAnnotationsValidator />
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-shop me-2"></i>@(EsNueva ? "Nueva ficha PdV" : $"Ficha PdV #{solicitudEdicion.Id} - {solicitudEdicion.RazonSocial}")
+                            </h5>
+                            <button type="button" class="btn-close" @onclick="CerrarEdicion"></button>
+                        </div>
+                        <div class="modal-body">
+                            <ValidationSummary class="text-danger" />
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label">Razón social del PdV *</label>
+                                    <InputText class="form-control" maxlength="200" @bind-Value="solicitudEdicion.RazonSocial" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">CIF / NIF del PdV *</label>
+                                    <InputText class="form-control" maxlength="20" @bind-Value="solicitudEdicion.CifNif" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Dirección fiscal del PdV *</label>
+                                    <InputText class="form-control" maxlength="250" @bind-Value="solicitudEdicion.DireccionFiscal" />
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Población *</label>
+                                    <InputText class="form-control" maxlength="100" @bind-Value="solicitudEdicion.Poblacion" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Provincia *</label>
+                                    <InputText class="form-control" maxlength="100" @bind-Value="solicitudEdicion.Provincia" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">CP *</label>
+                                    <InputText class="form-control" maxlength="5" @bind-Value="solicitudEdicion.CodigoPostal" />
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Persona de contacto PdV *</label>
+                                    <InputText class="form-control" maxlength="150" @bind-Value="solicitudEdicion.PersonaContacto" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">NIF Persona de contacto *</label>
+                                    <InputText class="form-control" maxlength="20" @bind-Value="solicitudEdicion.NifPersonaContacto" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Teléfono de contacto *</label>
+                                    <InputText class="form-control" maxlength="20" @bind-Value="solicitudEdicion.Telefono" />
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Email *</label>
+                                    <InputText class="form-control" maxlength="150" @bind-Value="solicitudEdicion.Email" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">CNAE</label>
+                                    <InputText class="form-control" maxlength="10" @bind-Value="solicitudEdicion.Cnae" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">IBAN</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">ES</span>
+                                        <InputText class="form-control" maxlength="2" @bind-Value="solicitudEdicion.IbanDigitos" />
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Nº CCC</label>
+                                    <InputText class="form-control" maxlength="20" @bind-Value="solicitudEdicion.Ccc" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">SWIFT Bancario</label>
+                                    <InputText class="form-control" maxlength="11" @bind-Value="solicitudEdicion.Swift" />
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Titular cuenta bancaria</label>
+                                    <InputText class="form-control" maxlength="200" @bind-Value="solicitudEdicion.TitularCuenta" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label d-block">Otros intereses</label>
+                                    <label class="form-check form-check-inline"><InputCheckbox class="form-check-input" @bind-Value="solicitudEdicion.InteresLowi" /> Lowi</label>
+                                    <label class="form-check form-check-inline"><InputCheckbox class="form-check-input" @bind-Value="solicitudEdicion.InteresVodafone" /> Vodafone</label>
+                                    <label class="form-check form-check-inline"><InputCheckbox class="form-check-input" @bind-Value="solicitudEdicion.InteresRentik" /> Rentik</label>
+                                    <label class="form-check form-check-inline"><InputCheckbox class="form-check-input" @bind-Value="solicitudEdicion.Interes3DSeguridad" /> 3D Seguridad</label>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-check"><InputCheckbox class="form-check-input" @bind-Value="solicitudEdicion.AceptaCodigoBuenasPracticas" /> Código de buenas prácticas</label>
+                                    <label class="form-check"><InputCheckbox class="form-check-input" @bind-Value="solicitudEdicion.AceptaAdhesionPdv" /> Adhesión PdV</label>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Fecha de firma</label>
+                                    <InputDate class="form-control" @bind-Value="solicitudEdicion.FechaFirma" />
+                                </div>
+                            </div>
+
+                            <hr />
+                            <h6><i class="bi bi-paperclip me-1"></i>Documentación</h6>
+                            @if (cargandoDocumentos)
+                            {
+                                <div class="spinner-border spinner-border-sm text-primary"></div>
+                            }
+                            else
+                            {
+                                <table class="table table-sm align-middle mb-0">
+                                    <tbody>
+                                        @foreach (var tipo in TiposDocumento)
+                                        {
+                                            var tipoActual = tipo;
+                                            var doc = documentos.FirstOrDefault(d => d.Tipo == tipoActual);
+                                            <tr>
+                                                <td style="width: 25%"><strong>@tipoActual</strong></td>
+                                                <td>
+                                                    @if (EsNueva && documentosPendientes.TryGetValue(tipoActual, out var pendiente))
+                                                    {
+                                                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>@pendiente.NombreArchivo</span>
+                                                    }
+                                                    else if (doc != null)
+                                                    {
+                                                        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => VerDocumento(doc.Id)">
+                                                            <i class="bi bi-eye me-1"></i>@doc.NombreArchivo
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Sin documento</span>
+                                                    }
+                                                </td>
+                                                <td style="width: 40%">
+                                                    @if (tipoActual != OptimeDocumento.TipoFirma)
+                                                    {
+                                                        <InputFile class="form-control form-control-sm" accept="@OptimeService.ExtensionesPermitidas" OnChange="e => ReemplazarDocumento(tipoActual, e)" />
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+
+                            @if (!EsNueva)
+                            {
+                                <hr />
+                                <h6><i class="bi bi-pen me-1"></i>Documentos a firma</h6>
+                                <table class="table table-sm align-middle mb-0">
+                                    <tbody>
+                                        @foreach (var tipo in OptimeFirma.Tipos)
+                                        {
+                                            var tipoActual = tipo;
+                                            var f = firmas.FirstOrDefault(x => x.TipoDocumento == tipoActual);
+                                            <tr>
+                                                <td style="width: 35%"><strong>@OptimeFirma.Titulo(tipoActual)</strong></td>
+                                                <td>
+                                                    @if (f == null)
+                                                    {
+                                                        <span class="badge bg-secondary">No enviado</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge @ColorEstadoFirma(f.Estado)">@f.Estado</span>
+                                                        <small class="text-muted ms-1">
+                                                            @(f.FechaFirmaUtc.HasValue
+                                                                ? $"Firmado el {f.FechaFirmaUtc.Value.ToLocalTime():dd/MM/yyyy HH:mm}"
+                                                                : $"Enviado el {f.FechaCreacionUtc.ToLocalTime():dd/MM/yyyy HH:mm}")
+                                                        </small>
+                                                        @if (!string.IsNullOrEmpty(f.ErrorEnvio))
+                                                        {
+                                                            <div class="small text-danger">Error de envío: @f.ErrorEnvio</div>
+                                                        }
+                                                    }
+                                                </td>
+                                                <td class="text-end text-nowrap">
+                                                    @if (f != null)
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" @onclick="() => VerDocumentoFirma(f.Id, false)" title="Ver original"><i class="bi bi-file-earmark-pdf"></i></button>
+                                                        @if (f.Estado == EstadoSolicitudFirma.Firmado)
+                                                        {
+                                                            <button type="button" class="btn btn-sm btn-outline-success me-1" @onclick="() => VerDocumentoFirma(f.Id, true)"><i class="bi bi-file-earmark-check me-1"></i>Firmado</button>
+                                                        }
+                                                    }
+                                                    @if (f?.Estado != EstadoSolicitudFirma.Firmado)
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-primary" disabled="@enviandoFirma" @onclick="() => EnviarFirma(tipoActual)">
+                                                            <i class="bi bi-send me-1"></i>@(f == null ? "Enviar" : "Reenviar")
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+
+                            @if (!EsNueva)
+                            {
+                                <p class="text-muted small mt-3 mb-0">
+                                    Recibida el @solicitudEdicion.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                    @if (solicitudEdicion.FechaModificacion.HasValue)
+                                    {
+                                        <span> · Modificada el @solicitudEdicion.FechaModificacion.Value.ToString("dd/MM/yyyy HH:mm")</span>
+                                    }
+                                </p>
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarEdicion">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" disabled="@guardando"><i class="bi bi-save me-1"></i>Guardar</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (solicitudAEliminar != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Eliminar solicitud</h5>
+                        <button type="button" class="btn-close" @onclick="() => solicitudAEliminar = null"></button>
+                    </div>
+                    <div class="modal-body">
+                        ¿Seguro que quieres eliminar la ficha de <strong>@solicitudAEliminar.RazonSocial</strong> y toda su documentación?
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="() => solicitudAEliminar = null">Cancelar</button>
+                        <button class="btn btn-danger" @onclick="ConfirmarEliminar"><i class="bi bi-trash me-1"></i>Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private static readonly string[] TiposDocumento =
+    {
+        OptimeDocumento.TipoCopiaCif,
+        OptimeDocumento.TipoCopiaEscrituras,
+        OptimeDocumento.TipoCopiaDni,
+        OptimeDocumento.TipoFirma
+    };
+
+    private bool cargado;
+    private bool cargandoSolicitudes;
+    private bool cargandoDocumentos;
+    private bool guardando;
+    private bool enlaceCopiado;
+    private string filtro = string.Empty;
+    private string? mensajeError;
+    private string? mensajeExito;
+    private List<OptimeSolicitud> solicitudes = new();
+    private List<OptimeDocumento> documentos = new();
+    private OptimeSolicitud? solicitudEdicion;
+    private OptimeSolicitud? solicitudAEliminar;
+    private Dictionary<string, OptimeDocumento> documentosPendientes = new();
+    private List<OptimeFirma> firmas = new();
+    private bool enviandoFirma;
+
+    private bool EsNueva => solicitudEdicion?.Id == 0;
+    private bool TieneAcceso => AuthService.EsAdministrador;
+    private string UrlFormulario => Navigation.ToAbsoluteUri("optime/formulario").ToString();
+
+    private IEnumerable<OptimeSolicitud> SolicitudesFiltradas =>
+        string.IsNullOrWhiteSpace(filtro)
+            ? solicitudes
+            : solicitudes.Where(s =>
+                Contiene(s.RazonSocial) || Contiene(s.CifNif) || Contiene(s.Poblacion) || Contiene(s.Provincia)
+                || Contiene(s.PersonaContacto) || Contiene(s.Telefono) || Contiene(s.Email));
+
+    private bool Contiene(string? valor) =>
+        valor != null && valor.Contains(filtro.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            cargado = true;
+            if (AuthService.EstaAutenticado && TieneAcceso)
+                await CargarSolicitudes();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarSolicitudes()
+    {
+        try
+        {
+            cargandoSolicitudes = true;
+            solicitudes = await OptimeService.ObtenerTodasAsync();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar las solicitudes: {ex.Message}";
+        }
+        finally
+        {
+            cargandoSolicitudes = false;
+        }
+    }
+
+    private void AbrirNueva()
+    {
+        solicitudEdicion = new OptimeSolicitud();
+        documentos = new();
+        documentosPendientes = new();
+    }
+
+    private async Task AbrirEdicion(OptimeSolicitud s)
+    {
+        solicitudEdicion = new OptimeSolicitud
+        {
+            Id = s.Id,
+            RazonSocial = s.RazonSocial,
+            CifNif = s.CifNif,
+            DireccionFiscal = s.DireccionFiscal,
+            Poblacion = s.Poblacion,
+            Provincia = s.Provincia,
+            CodigoPostal = s.CodigoPostal,
+            PersonaContacto = s.PersonaContacto,
+            NifPersonaContacto = s.NifPersonaContacto,
+            Telefono = s.Telefono,
+            Email = s.Email,
+            Cnae = s.Cnae,
+            Iban = s.Iban,
+            Ccc = s.Ccc,
+            Swift = s.Swift,
+            TitularCuenta = s.TitularCuenta,
+            InteresLowi = s.InteresLowi,
+            InteresVodafone = s.InteresVodafone,
+            InteresRentik = s.InteresRentik,
+            Interes3DSeguridad = s.Interes3DSeguridad,
+            AceptaCodigoBuenasPracticas = s.AceptaCodigoBuenasPracticas,
+            AceptaAdhesionPdv = s.AceptaAdhesionPdv,
+            FechaFirma = s.FechaFirma,
+            FechaCreacion = s.FechaCreacion,
+            FechaModificacion = s.FechaModificacion
+        };
+        await CargarDocumentos(s.Id);
+        await CargarFirmas(s.Id);
+    }
+
+    private async Task CargarFirmas(int solicitudId)
+    {
+        try
+        {
+            firmas = await OptimeFirmaService.ObtenerUltimasFirmasAsync(solicitudId);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar las firmas: {ex.Message}";
+        }
+    }
+
+    private async Task EnviarFirma(string tipo)
+    {
+        if (solicitudEdicion == null) return;
+        try
+        {
+            enviandoFirma = true;
+            var resultado = await OptimeFirmaService.EnviarDocumentoAsync(solicitudEdicion.Id, tipo, Navigation.BaseUri);
+            if (resultado.Exito)
+                mensajeExito = $"{OptimeFirma.Titulo(tipo)} enviado a {solicitudEdicion.Email}.";
+            else
+                mensajeError = resultado.Mensaje;
+            await CargarFirmas(solicitudEdicion.Id);
+        }
+        finally
+        {
+            enviandoFirma = false;
+        }
+    }
+
+    private async Task VerDocumentoFirma(int firmaId, bool firmado)
+    {
+        try
+        {
+            var (contenido, nombre) = await OptimeFirmaService.ObtenerDocumentoPrivadoAsync(firmaId, firmado);
+            if (contenido == null) return;
+            await JSRuntime.InvokeVoidAsync("openFileInNewTab", nombre, Convert.ToBase64String(contenido), "application/pdf");
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"No se pudo abrir el documento: {ex.Message}";
+        }
+    }
+
+    private static string ColorEstadoFirma(string estado) => estado switch
+    {
+        EstadoSolicitudFirma.Firmado => "bg-success",
+        EstadoSolicitudFirma.EnProceso => "bg-info text-dark",
+        EstadoSolicitudFirma.Enviado => "bg-primary",
+        EstadoSolicitudFirma.Caducado => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    private async Task CargarDocumentos(int solicitudId)
+    {
+        try
+        {
+            cargandoDocumentos = true;
+            documentos = await OptimeService.ObtenerDocumentosSinContenidoAsync(solicitudId);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar la documentación: {ex.Message}";
+        }
+        finally
+        {
+            cargandoDocumentos = false;
+        }
+    }
+
+    private void CerrarEdicion()
+    {
+        solicitudEdicion = null;
+        documentos = new();
+        documentosPendientes = new();
+        firmas = new();
+    }
+
+    private async Task GuardarEdicion()
+    {
+        if (solicitudEdicion == null) return;
+        try
+        {
+            guardando = true;
+            if (EsNueva)
+            {
+                await OptimeService.CrearAsync(solicitudEdicion, documentosPendientes.Values);
+                var envio = await OptimeFirmaService.EnviarDocumentosAsync(solicitudEdicion.Id, Navigation.BaseUri);
+                if (envio.Exito)
+                    mensajeExito = "Ficha creada y documentos enviados a firma.";
+                else
+                    mensajeError = $"Ficha creada, pero hubo problemas al enviar los documentos: {envio.Mensaje}";
+            }
+            else if (await OptimeService.ActualizarAsync(solicitudEdicion))
+                mensajeExito = "Ficha actualizada correctamente.";
+            else
+                mensajeError = "La ficha ya no existe.";
+            CerrarEdicion();
+            await CargarSolicitudes();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al guardar: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task VerDocumento(int documentoId)
+    {
+        try
+        {
+            var doc = await OptimeService.ObtenerDocumentoAsync(documentoId);
+            if (doc == null) return;
+            await JSRuntime.InvokeVoidAsync("openFileInNewTab", doc.NombreArchivo, Convert.ToBase64String(doc.Contenido), doc.ContentType);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"No se pudo abrir el documento: {ex.Message}";
+        }
+    }
+
+    private async Task ReemplazarDocumento(string tipo, InputFileChangeEventArgs e)
+    {
+        if (solicitudEdicion == null) return;
+        var archivo = e.File;
+        var contentType = OptimeService.ObtenerContentType(archivo.Name);
+        if (contentType == null || archivo.Size > OptimeService.MaxTamanoArchivo)
+        {
+            mensajeError = $"{tipo}: archivo no válido (PDF, JPG o PNG, máx. 10 MB).";
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await archivo.OpenReadStream(OptimeService.MaxTamanoArchivo).CopyToAsync(ms);
+            var documento = new OptimeDocumento
+            {
+                Tipo = tipo,
+                NombreArchivo = Path.GetFileName(archivo.Name),
+                ContentType = contentType,
+                Contenido = ms.ToArray()
+            };
+
+            if (EsNueva)
+            {
+                documentosPendientes[tipo] = documento;
+                return;
+            }
+
+            await OptimeService.ReemplazarDocumentoAsync(solicitudEdicion.Id, documento);
+            await CargarDocumentos(solicitudEdicion.Id);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al subir el documento: {ex.Message}";
+        }
+    }
+
+    private async Task ConfirmarEliminar()
+    {
+        if (solicitudAEliminar == null) return;
+        try
+        {
+            await OptimeService.EliminarAsync(solicitudAEliminar.Id);
+            mensajeExito = "Ficha eliminada.";
+            await CargarSolicitudes();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al eliminar: {ex.Message}";
+        }
+        finally
+        {
+            solicitudAEliminar = null;
+        }
+    }
+
+    private async Task CopiarEnlace()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", UrlFormulario);
+            enlaceCopiado = true;
+        }
+        catch
+        {
+            mensajeError = $"No se pudo copiar. Enlace: {UrlFormulario}";
+        }
+    }
+}
