@@ -395,13 +395,140 @@ namespace EnerfoneCRM.Services
                     whereConditions.Add($"({inConditions})");
                     parameters.AddRange(nombresUsuarios);
                 }
-                else if (rolUsuario == "Comercializadora")
+                else if (Usuario.EsRolProveedor(rolUsuario))
                 {
                     var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.NombreUsuario == nombreUsuario);
-                    if (usuario != null && !string.IsNullOrEmpty(usuario.Comercializadora))
+                    if (usuario != null && string.Equals(tipo, "telefonia", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrWhiteSpace(usuario.Comercializadora) ||
+                            await context.UsuarioComercializadoras.AnyAsync(uc => uc.UsuarioId == usuario.Id))
+                        {
+                            whereConditions.Add("1 = 0");
+                        }
+                        else
+                        {
+                            var operadorasIds = await context.UsuarioOperadoras
+                                .Where(uo => uo.UsuarioId == usuario.Id)
+                                .Select(uo => uo.OperadoraId)
+                                .ToListAsync();
+                            if (operadorasIds.Count > 0)
+                            {
+                                var nombresOperadoras = await context.Operadoras
+                                    .Where(o => operadorasIds.Contains(o.Id))
+                                    .Select(o => o.Nombre)
+                                    .ToListAsync();
+                                if (nombresOperadoras.Count > 0)
+                                {
+                                    var operadorasConditions = string.Join(" OR ", nombresOperadoras.Select((_, i) => $"c.operadora_tel = {{{parameters.Count + i}}}"));
+                                    whereConditions.Add($"({operadorasConditions})");
+                                    parameters.AddRange(nombresOperadoras);
+                                }
+                                else
+                                {
+                                    whereConditions.Add("1 = 0");
+                                }
+                            }
+                            else
+                            {
+                                whereConditions.Add("1 = 0");
+                            }
+                        }
+                    }
+                    else if (usuario != null && string.Equals(tipo, "alarma", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrWhiteSpace(usuario.Comercializadora) ||
+                            await context.UsuarioComercializadoras.AnyAsync(uc => uc.UsuarioId == usuario.Id) ||
+                            await context.UsuarioOperadoras.AnyAsync(uo => uo.UsuarioId == usuario.Id))
+                        {
+                            whereConditions.Add("1 = 0");
+                        }
+                        else
+                        {
+                            var empresasIds = await context.UsuarioEmpresasAlarmas
+                                .Where(uea => uea.UsuarioId == usuario.Id)
+                                .Select(uea => uea.EmpresaAlarmaId)
+                                .ToListAsync();
+                            if (empresasIds.Count > 0)
+                            {
+                                var nombresEmpresas = await context.EmpresasAlarmas
+                                    .Where(e => empresasIds.Contains(e.Id))
+                                    .Select(e => e.Nombre)
+                                    .ToListAsync();
+                                if (nombresEmpresas.Count > 0)
+                                {
+                                    var empresasConditions = string.Join(" OR ", nombresEmpresas.Select((_, i) => $"c.empresa_alarma = {{{parameters.Count + i}}}"));
+                                    whereConditions.Add($"({empresasConditions})");
+                                    parameters.AddRange(nombresEmpresas);
+                                }
+                                else
+                                {
+                                    whereConditions.Add("1 = 0");
+                                }
+                            }
+                            else
+                            {
+                                whereConditions.Add("1 = 0");
+                            }
+                        }
+                    }
+                    else if (usuario != null && string.IsNullOrWhiteSpace(tipo))
+                    {
+                        if (!string.IsNullOrWhiteSpace(usuario.Comercializadora))
+                        {
+                            whereConditions.Add($"c.tipo = {{{parameters.Count}}}");
+                            parameters.Add("energia");
+                            whereConditions.Add($"c.en_Comercializadora = {{{parameters.Count}}}");
+                            parameters.Add(usuario.Comercializadora);
+                        }
+                        else if (await context.UsuarioComercializadoras.AnyAsync(uc => uc.UsuarioId == usuario.Id))
+                        {
+                            var ids = await context.UsuarioComercializadoras
+                                .Where(uc => uc.UsuarioId == usuario.Id)
+                                .Select(uc => uc.ComercializadoraId)
+                                .ToListAsync();
+                            var nombres = await context.Comercializadoras
+                                .Where(proveedor => ids.Contains(proveedor.Id))
+                                .Select(proveedor => proveedor.Nombre)
+                                .ToListAsync();
+                            AgregarFiltroProveedor("energia", "c.en_Comercializadora", nombres, whereConditions, parameters);
+                        }
+                        else if (await context.UsuarioOperadoras.AnyAsync(uo => uo.UsuarioId == usuario.Id))
+                        {
+                            var ids = await context.UsuarioOperadoras
+                                .Where(uo => uo.UsuarioId == usuario.Id)
+                                .Select(uo => uo.OperadoraId)
+                                .ToListAsync();
+                            var nombres = await context.Operadoras
+                                .Where(proveedor => ids.Contains(proveedor.Id))
+                                .Select(proveedor => proveedor.Nombre)
+                                .ToListAsync();
+                            AgregarFiltroProveedor("telefonia", "c.operadora_tel", nombres, whereConditions, parameters);
+                        }
+                        else if (await context.UsuarioEmpresasAlarmas.AnyAsync(uea => uea.UsuarioId == usuario.Id))
+                        {
+                            var ids = await context.UsuarioEmpresasAlarmas
+                                .Where(uea => uea.UsuarioId == usuario.Id)
+                                .Select(uea => uea.EmpresaAlarmaId)
+                                .ToListAsync();
+                            var nombres = await context.EmpresasAlarmas
+                                .Where(proveedor => ids.Contains(proveedor.Id))
+                                .Select(proveedor => proveedor.Nombre)
+                                .ToListAsync();
+                            AgregarFiltroProveedor("alarma", "c.empresa_alarma", nombres, whereConditions, parameters);
+                        }
+                        else
+                        {
+                            whereConditions.Add("1 = 0");
+                        }
+                    }
+                    else if (usuario != null && !string.IsNullOrEmpty(usuario.Comercializadora))
                     {
                         whereConditions.Add($"c.en_Comercializadora = {{{parameters.Count}}}");
                         parameters.Add(usuario.Comercializadora);
+                    }
+                    else
+                    {
+                        whereConditions.Add("1 = 0");
                     }
                 }
                 else if (rolUsuario == "Administrador")
@@ -460,6 +587,23 @@ namespace EnerfoneCRM.Services
             }
             
             return contratos;
+        }
+
+        private static void AgregarFiltroProveedor(string tipo, string columna, List<string> proveedores, List<string> condiciones, List<object> parametros)
+        {
+            if (proveedores.Count == 0)
+            {
+                condiciones.Add("1 = 0");
+                return;
+            }
+
+            var tipoParametro = parametros.Count;
+            condiciones.Add($"c.tipo = {{{tipoParametro}}}");
+            parametros.Add(tipo);
+
+            var proveedoresConditions = string.Join(" OR ", proveedores.Select((_, i) => $"{columna} = {{{parametros.Count + i}}}"));
+            condiciones.Add($"({proveedoresConditions})");
+            parametros.AddRange(proveedores);
         }
 
         public async Task<Contrato?> ObtenerPorIdAsync(int id)

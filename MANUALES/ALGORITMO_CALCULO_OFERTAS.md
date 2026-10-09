@@ -1,8 +1,34 @@
-# Algoritmo de Cálculo de Comparativas Eléctricas
+# Algoritmo de Cálculo de Comparativas de Energía
 
 ## 🧮 OBJETIVO
 
-Comparar el coste de la factura eléctrica actual del cliente con las tarifas de Naturgy para calcular el ahorro potencial.
+Comparar el coste de la factura actual del cliente con las tarifas activas de luz o gas para calcular el ahorro potencial.
+
+## Importación de Facturas
+
+- En el comparador, `Importar factura` admite PDF, PNG, JPEG y WebP, hasta 10 MB y 20 páginas. El formato se verifica por su contenido, no solo por el nombre del archivo. Los PDF protegidos deben desbloquearse antes de subirlos.
+- La lectura local de PDF digital usa PdfPig. Las páginas escaneadas y las imágenes requieren Tesseract con idioma `spa`; la conversión de PDF a imágenes requiere `pdftoppm` (Poppler). El OCR local tiene un plazo máximo de dos minutos y sus temporales se eliminan en una carpeta privada del usuario del servidor.
+- La extracción no está ligada a una compañía: utiliza etiquetas, periodos y unidades habituales. Los diseños que no puedan interpretarse localmente pueden analizarse con el proveedor externo configurado en la empresa (OpenAI con modelo visual o Azure Document Intelligence). Google Vision sigue sin estar implementado.
+- El envío a un proveedor externo requiere activar el consentimiento del diálogo. El modo local no realiza llamadas a ese proveedor. Su uso puede tener coste y queda sujeto a sus condiciones de tratamiento de datos. Nunca se incluyen claves API en la pantalla ni en la factura.
+- Siempre se presenta una revisión editable antes de aplicar: valores, referencia de origen, avisos y selección individual. Los valores ausentes no se inventan; los contradictorios quedan sin seleccionar. Debe confirmarse la revisión.
+- Los importes y fechas ambiguos deben corregirse. Las lecturas del contador no se interpretan como consumo. Un consumo total eléctrico no se distribuye automáticamente entre P1-P6. En facturas mixtas deben separarse los importes y consumos de luz y gas.
+- El precio medio del resumen, el descuento actual y los términos fijo/variable actuales de gas se muestran como referencia, no como precios de las nuevas tarifas. La unidad del término fijo del catálogo de gas no se deduce de la factura actual.
+- Al aplicar se limpian los datos de la factura anterior, se transfieren únicamente los campos seleccionados y se convierten a €/kW/día los precios de potencia cuya unidad se haya confirmado. No se calcula ni se guarda automáticamente. Los impuestos no identificados deben confirmarse antes de comparar.
+- Ningún lector garantiza identificar todos los campos de cualquier factura. Documentos borrosos, ocultados, antiguos, mixtos, idiomas o diseños inusuales pueden requerir completar datos o usar un proveedor externo. No se atribuye confianza numérica ficticia a las sugerencias.
+- Pruebas: `dotnet test Tests/EnerfoneCRM.Tests/EnerfoneCRM.Tests.csproj --filter FullyQualifiedName~FacturaImportacionServiceTests`. La prueba marcada `OCRLocal` requiere Tesseract y Poppler instalados; para ejecutarlas sin esos binarios, añadir `&Category!=OCRLocal` al filtro.
+
+## Origen de Tarifas y Unidades (Octubre 2026)
+
+- Electricidad: `TarifaLuzService` consulta `tarifasluz`. Se utilizan `potencia1` a `potencia6` en €/kW/día y `energia1` a `energia6` en €/kWh; ya no se consulta `tarifasenergia`.
+- `2.0TD` requiere dos precios de potencia y tres de energía. `3.0TD` y `6.1TD` requieren seis de cada uno. Un precio requerido ausente, negativo o no numérico excluye la tarifa; no se sustituye por cero. Los ceros explícitos se aceptan.
+- Los precios numéricos admiten coma o punto decimal, sin separadores de miles ni unidades incrustadas. Los peajes eléctricos admiten valores con o sin sufijo `TD`.
+- Gas: `TarifaGasService` consulta `tarifasgas`, filtrando `peaje_gas` y `tipo_cliente`. Se usan `termino_fijo_gas` y `termino_variable_gas`; `precioNew` y `comision` no son precios de consumo.
+- Como el maestro no fija la unidad del término fijo de gas, debe confirmarse €/día o €/mes para las tarifas comparadas. El término mensual se convierte a diario mediante `precio * 12 / 365`. No se deben comparar juntos términos fijos con unidades diferentes.
+- Gas: coste del periodo = `(fijo_diario * días + variable * kWh + impuesto_hidrocarburos_por_kWh * kWh + alquiler + otros_conceptos) * (1 + IVA / 100)`. El impuesto de hidrocarburos, IVA y conceptos de factura son configurables; no se aplica impuesto eléctrico al gas.
+- Las fechas deben estar ordenadas y el importe real pagado es obligatorio. Los consumos introducidos son los del periodo de esa factura, no consumos anuales.
+- Pantalla y PDF muestran estimaciones mensuales y anuales extrapoladas con `365 / días`, no el coste de una factura de duración arbitraria etiquetado como mensual. Se identifica el periodo de referencia en el PDF.
+- El cálculo usa precios base. No interpreta descuentos comerciales en texto libre ni añade automáticamente servicios, permanencias, `pvd_sva` o batería virtual. Esta limitación se muestra en pantalla y PDF. En luz, la compensación de excedentes se toma de `excedentes` cuando hay excedentes y un precio numérico.
+- El motor conserva los nombres internos `DatosTarifaNaturgy` y `TotalNaturgy` por compatibilidad; esos modelos reciben ahora los precios de cualquier comercializadora de `tarifasluz`, no una tarifa fija de Naturgy.
 
 ---
 

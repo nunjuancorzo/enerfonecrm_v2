@@ -88,16 +88,14 @@
     private string error = string.Empty;
     private readonly string canvasId = "firmaClienteCanvas";
 
+    protected override async Task OnInitializedAsync()
+    {
+        solicitud = await FirmaService.ObtenerSolicitudPublicaAsync(Token);
+        cargando = false;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            solicitud = await FirmaService.ObtenerSolicitudPublicaAsync(Token);
-            cargando = false;
-            await InvokeAsync(StateHasChanged);
-            return;
-        }
-
         if (solicitud?.Estado == EstadoSolicitudFirma.EnProceso && confirmando && !canvasInicializado)
         {
             await JS.InvokeVoidAsync("publicSigning.start", canvasId);
@@ -148,7 +146,8 @@
             }
 
             var firma = Convert.FromBase64String(dataUrl[(separador + 1)..]);
-            var resultado = await FirmaService.CompletarFirmaAsync(Token, aceptaDocumentacion, firma);
+            var ipPublicaCliente = await JS.InvokeAsync<string>("publicSigning.getPublicIp");
+            var resultado = await FirmaService.CompletarFirmaAsync(Token, aceptaDocumentacion, firma, ipPublicaCliente);
             if (!resultado.Exito)
             {
                 error = resultado.Mensaje;

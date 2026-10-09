@@ -73,7 +73,10 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Código Postal</label>
-                            <InputText class="form-control" @bind-Value="model.CodigoPostal" />
+                            <div class="input-group">
+                                <SelectorCodigoPostal @bind-Value="model.CodigoPostal" maxlength="5"
+                                                      OnSeleccionado="@(codigo => { model.CodigoPostal = codigo.CodigoPostalValor; model.Localidad = codigo.Ciudad; })" />
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Localidad</label>
@@ -104,25 +107,53 @@
                             <option value="Jefe de ventas">Jefe de ventas</option>
                             <option value="Gestor">Gestor</option>
                             <option value="Colaborador">Colaborador</option>
-                            <option value="Comercializadora">Comercializadora</option>
+                            <option value="Proveedor">Proveedor</option>
                         </InputSelect>
                         <ValidationMessage For="@(() => model.Rol)" />
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Comercializadora @(model.Rol == "Comercializadora" ? "*" : "(opcional)")</label>
-                        <InputSelect class="form-select" @bind-Value="model.Comercializadora">
-                            <option value="">Seleccionar comercializadora...</option>
-                            @foreach (var comercializadora in comercializadoras)
-                            {
-                                <option value="@comercializadora">@comercializadora</option>
-                            }
-                        </InputSelect>
-                        @if (model.Rol == "Comercializadora" && string.IsNullOrEmpty(model.Comercializadora))
+                    @if (model.Rol == "Proveedor")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de proveedor *</label>
+                            <InputSelect class="form-select" @bind-Value="tipoProveedorSeleccionado" @bind-Value:after="OnTipoProveedorChanged">
+                                <option value="energia">Energía</option>
+                                <option value="telefonia">Telefonía</option>
+                                <option value="alarmas">Alarmas</option>
+                            </InputSelect>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">@EtiquetaProveedorSeleccionado *</label>
+                            <InputSelect class="form-select" @bind-Value="proveedorSeleccionadoId">
+                                <option value="">Seleccionar...</option>
+                                @if (tipoProveedorSeleccionado == "energia")
+                                {
+                                    @foreach (var proveedor in todasComercializadoras)
+                                    {
+                                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                                    }
+                                }
+                                else if (tipoProveedorSeleccionado == "telefonia")
+                                {
+                                    @foreach (var proveedor in todasOperadoras)
+                                    {
+                                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                                    }
+                                }
+                                else
+                                {
+                                    @foreach (var proveedor in todasEmpresasAlarmas)
+                                    {
+                                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                                    }
+                                }
+                            </InputSelect>
+                        </div>
+                        @if (!proveedorSeleccionadoId.HasValue)
                         {
-                            <div class="text-danger small mt-1">La comercializadora es obligatoria para este rol</div>
+                            <div class="text-danger small mt-1">Selecciona el proveedor asociado a este usuario.</div>
                         }
-                    </div>
+                    }
 
                     @if (RequiereComisionJerarquia(model.Rol))
                     {
@@ -293,10 +324,12 @@
                         </div>
                     }
 
+                    @if (model.Rol != "Proveedor")
+                    {
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras Permitidas</h6>
-                        <p class="text-muted small">Selecciona las comercializadoras que este usuario podrá visualizar. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras asociadas</h6>
+                        <p class="text-muted small">Selecciona las comercializadoras cuyos contratos podrá ver este usuario. Por defecto, aparecen todas marcadas.</p>
                         
                         <div class="row">
                             @foreach (var comercializadora in todasComercializadoras)
@@ -323,8 +356,8 @@
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-phone me-2"></i>Operadoras Permitidas</h6>
-                        <p class="text-muted small">Selecciona las operadoras que este usuario podrá visualizar. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-phone me-2"></i>Operadoras asociadas</h6>
+                        <p class="text-muted small">Selecciona las operadoras cuyos contratos podrá ver este usuario. Por defecto, aparecen todas marcadas.</p>
                         
                         <div class="row">
                             @foreach (var operadora in todasOperadoras)
@@ -351,8 +384,8 @@
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-shield-shaded me-2"></i>Empresas de Alarmas Permitidas</h6>
-                        <p class="text-muted small">Selecciona las empresas de alarmas que este usuario podrá visualizar. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-shield-shaded me-2"></i>Empresas de alarmas asociadas</h6>
+                        <p class="text-muted small">Selecciona las empresas de alarmas cuyos contratos podrá ver este usuario. Por defecto, aparecen todas marcadas.</p>
                         
                         <div class="row">
                             @foreach (var empresa in todasEmpresasAlarmas)
@@ -376,6 +409,7 @@
                             <div class="alert alert-info">No hay empresas de alarmas registradas en el sistema.</div>
                         }
                     </div>
+                    }
 
                     <hr />
 
@@ -487,6 +521,8 @@
     private List<Usuario> colaboradoresDisponibles = new();
     private HashSet<int> colaboradoresSeleccionados = new();
     private HashSet<int> gestoresSeleccionados = new();
+    private string tipoProveedorSeleccionado = "energia";
+    private int? proveedorSeleccionadoId;
 
     // Variables para los archivos adjuntos
     private string? archivoDniNombre;
@@ -709,12 +745,21 @@
 
     private void OnRolChanged()
     {
-        // Limpiar comercializadora si cambia el rol y no es Comercializadora
-        if (model.Rol != "Comercializadora")
+        if (model.Rol != "Proveedor")
         {
             model.Comercializadora = null;
+            proveedorSeleccionadoId = null;
         }
     }
+
+    private void OnTipoProveedorChanged() => proveedorSeleccionadoId = null;
+
+    private string EtiquetaProveedorSeleccionado => tipoProveedorSeleccionado switch
+    {
+        "telefonia" => "Operadora",
+        "alarmas" => "Empresa de alarmas",
+        _ => "Comercializadora"
+    };
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e, string tipoArchivo)
     {
@@ -763,10 +808,9 @@
             model.Comision = 0m;
         }
 
-        // Validar comercializadora obligatoria para rol Comercializadora
-        if (model.Rol == "Comercializadora" && string.IsNullOrEmpty(model.Comercializadora))
+        if (model.Rol == "Proveedor" && !proveedorSeleccionadoId.HasValue)
         {
-            return; // No enviar si falta comercializadora
+            return;
         }
 
         // Validar que solo puede haber un administrador
@@ -811,6 +855,20 @@
             return;
         }
 
+        model.Comercializadora = model.Rol == "Proveedor" && tipoProveedorSeleccionado == "energia" && proveedorSeleccionadoId.HasValue
+            ? todasComercializadoras.FirstOrDefault(p => p.Id == proveedorSeleccionadoId.Value)?.Nombre
+            : null;
+
+        var comercializadorasIds = comercializadorasSeleccionadas.ToList();
+        var operadorasIds = operadorasSeleccionadas.ToList();
+        var empresasAlarmasIds = empresasAlarmasSeleccionadas.ToList();
+        if (model.Rol == "Proveedor")
+        {
+            comercializadorasIds = tipoProveedorSeleccionado == "energia" ? new List<int> { proveedorSeleccionadoId!.Value } : new List<int>();
+            operadorasIds = tipoProveedorSeleccionado == "telefonia" ? new List<int> { proveedorSeleccionadoId!.Value } : new List<int>();
+            empresasAlarmasIds = tipoProveedorSeleccionado == "alarmas" ? new List<int> { proveedorSeleccionadoId!.Value } : new List<int>();
+        }
+
         var usuario = new Usuario
         {
             NombreUsuario = model.NombreUsuario,
@@ -837,7 +895,7 @@
             Activo = true
         };
 
-        await OnGuardar.InvokeAsync((usuario, model.Password, comercializadorasSeleccionadas.ToList(), operadorasSeleccionadas.ToList(), empresasAlarmasSeleccionadas.ToList(), colaboradoresSeleccionados.ToList(), gestoresSeleccionados.ToList()));
+        await OnGuardar.InvokeAsync((usuario, model.Password, comercializadorasIds, operadorasIds, empresasAlarmasIds, colaboradoresSeleccionados.ToList(), gestoresSeleccionados.ToList()));
     }
 
     private async Task<string> GuardarArchivo(IBrowserFile file, string tipoDocumento)
@@ -922,6 +980,7 @@
     private static bool RequiereComisionJerarquia(string? rol)
     {
         return !string.Equals(rol, "Colaborador", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(rol, "Proveedor", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(rol, "Comercializadora", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(rol, "Administrador", StringComparison.OrdinalIgnoreCase);
     }

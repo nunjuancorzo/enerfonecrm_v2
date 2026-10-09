@@ -27,29 +27,29 @@ public class ContractSigningPdfService
     {
         var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
         var datosTarifa = await ObtenerDatosTarifaAsync(contrato);
-        return GenerarDocumento(contrato, cliente, configuracion, datosTarifa.tarifaLuz, datosTarifa.logoComercializadora, null);
+        return GenerarDocumento(contrato, cliente, configuracion, datosTarifa.tarifaLuz, datosTarifa.tarifaTelefonia, datosTarifa.tarifaAlarma, datosTarifa.logoComercializadora, null, null, null);
     }
 
-    public async Task<byte[]> GenerarDocumentoFirmadoAsync(byte[] documentoOriginal, Contrato contrato, Cliente? cliente, byte[] firma, string ipFirma)
+    public async Task<byte[]> GenerarDocumentoFirmadoAsync(byte[] documentoOriginal, Contrato contrato, Cliente? cliente, byte[] firma, string ipFirma, DateTime fechaFirmaUtc)
     {
         var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
         var datosTarifa = await ObtenerDatosTarifaAsync(contrato);
-        return GenerarDocumento(contrato, cliente, configuracion, datosTarifa.tarifaLuz, datosTarifa.logoComercializadora, firma, ipFirma);
+        return GenerarDocumento(contrato, cliente, configuracion, datosTarifa.tarifaLuz, datosTarifa.tarifaTelefonia, datosTarifa.tarifaAlarma, datosTarifa.logoComercializadora, firma, ipFirma, fechaFirmaUtc);
     }
 
     public async Task<byte[]> GenerarDocumentoColaboradorOriginalAsync(Usuario usuario)
     {
         var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
-        return GenerarDocumentoColaboradorCompleto(usuario, configuracion, null, null);
+        return GenerarDocumentoColaboradorCompleto(usuario, configuracion, null, null, null);
     }
 
-    public async Task<byte[]> GenerarDocumentoColaboradorFirmadoAsync(Usuario usuario, byte[] firma, string ipFirma)
+    public async Task<byte[]> GenerarDocumentoColaboradorFirmadoAsync(Usuario usuario, byte[] firma, string ipFirma, DateTime fechaFirmaUtc)
     {
         var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
-        return GenerarDocumentoColaboradorCompleto(usuario, configuracion, firma, ipFirma);
+        return GenerarDocumentoColaboradorCompleto(usuario, configuracion, firma, ipFirma, fechaFirmaUtc);
     }
 
-    private static byte[] GenerarDocumentoColaboradorCompleto(Usuario usuario, ConfiguracionEmpresa? configuracion, byte[]? firma, string? ipFirma)
+    private static byte[] GenerarDocumentoColaboradorCompleto(Usuario usuario, ConfiguracionEmpresa? configuracion, byte[]? firma, string? ipFirma, DateTime? fechaFirmaUtc)
     {
         var sourcePath = Path.Combine(AppContext.BaseDirectory, "Resources", "contrato_colaboradores.pdf");
         using var document = PdfReader.Open(sourcePath, PdfDocumentOpenMode.Modify);
@@ -61,7 +61,9 @@ public class ContractSigningPdfService
             string.Join(" ", new[] { usuario.CodigoPostal, usuario.Localidad }.Where(x => !string.IsNullOrWhiteSpace(x)))
         }.Where(x => !string.IsNullOrWhiteSpace(x))));
         var cargo = Limpiar(usuario.Rol);
-        const string fechaContrato = "25 de septiembre de 2026";
+        var fechaContrato = firma == null
+            ? "25 de septiembre de 2026"
+            : (fechaFirmaUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd 'de' MMMM 'de' yyyy HH:mm:ss", new CultureInfo("es-ES"));
 
         using (var paginaInicial = XGraphics.FromPdfPage(document.Pages[0], XGraphicsPdfPageOptions.Append))
         {
@@ -100,11 +102,13 @@ public class ContractSigningPdfService
                 var fondoFirma = new XSolidBrush(XColor.FromArgb(240, 230, 255));
                 var fuenteFirma = new XFont("Arial", 8, XFontStyle.Bold);
                 var fuenteIp = new XFont("Arial", 7, XFontStyle.Bold);
-                paginaConFirma.DrawRectangle(fondoFirma, 42, 784, 511, 48);
-                paginaConFirma.DrawString($"Firmado por: {nombre}", fuenteFirma, XBrushes.Black, new XPoint(55, 799));
-                paginaConFirma.DrawString($"IP de firma: {ipFirma ?? "-"}", fuenteIp, XBrushes.Black, new XPoint(55, 813));
-                paginaConFirma.DrawString("Documento de colaborador", fuenteIp, XBrushes.Black, new XPoint(55, 826));
-                paginaConFirma.DrawImage(imagenFirma, 425, 787, 120, 39);
+                var selloY = pagina.Height.Point - 68;
+                paginaConFirma.DrawRectangle(fondoFirma, 42, selloY, 511, 58);
+                paginaConFirma.DrawString($"Firmado por: {nombre}", fuenteFirma, XBrushes.Black, new XPoint(55, selloY + 11));
+                paginaConFirma.DrawString($"IP de firma: {ipFirma ?? "-"}", fuenteIp, XBrushes.Black, new XPoint(55, selloY + 23));
+                paginaConFirma.DrawString($"Fecha y hora de firma: {fechaFirmaUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "-"}", fuenteIp, XBrushes.Black, new XPoint(55, selloY + 35));
+                paginaConFirma.DrawString("Documento de colaborador", fuenteIp, XBrushes.Black, new XPoint(55, selloY + 47));
+                paginaConFirma.DrawImage(imagenFirma, 425, selloY + 4, 120, 50);
             }
         }
 
@@ -161,13 +165,15 @@ public class ContractSigningPdfService
         return string.Join("\n", parrafos).Trim();
     }
 
-    private static byte[] GenerarDocumentoColaborador(Usuario usuario, ConfiguracionEmpresa? configuracion, byte[]? firma, string? ipFirma)
+    private static byte[] GenerarDocumentoColaborador(Usuario usuario, ConfiguracionEmpresa? configuracion, byte[]? firma, string? ipFirma, DateTime? fechaFirmaUtc)
     {
         var logo = ObtenerImagen(configuracion?.LogoUrl);
         var nombre = Limpiar(string.Join(" ", new[] { usuario.Nombre, usuario.Apellidos }.Where(x => !string.IsNullOrWhiteSpace(x))));
         var empresa = configuracion?.NombreEmpresa ?? "ENERGIA Y TELEFONIA MERIDA S.L.";
         var direccion = configuracion?.Direccion ?? "Calle Almendralejo, 43, Local 5, 06800 Mérida (Badajoz)";
-        var fecha = firma == null ? "Fecha pendiente de firma" : DateTime.Now.ToString("dd 'de' MMMM 'de' yyyy", new CultureInfo("es-ES"));
+        var fecha = firma == null
+            ? "Fecha pendiente de firma"
+            : (fechaFirmaUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd 'de' MMMM 'de' yyyy HH:mm:ss", new CultureInfo("es-ES"));
 
         return Document.Create(document =>
         {
@@ -227,7 +233,12 @@ public class ContractSigningPdfService
                     {
                         footer.Item().ExtendHorizontal().Background("#F0E6FF").PaddingVertical(7).PaddingHorizontal(42).Row(row =>
                         {
-                            row.RelativeItem().Column(column => { column.Item().Text($"Firmado por: {nombre}").FontSize(8).Bold(); column.Item().Text($"IP de firma: {ipFirma}").FontSize(7).Bold(); });
+                            row.RelativeItem().Column(column =>
+                            {
+                                column.Item().Text($"Firmado por: {nombre}").FontSize(8).Bold();
+                                column.Item().Text($"IP de firma: {ipFirma ?? "-"}").FontSize(7).Bold();
+                                column.Item().Text($"Fecha y hora de firma: {fechaFirmaUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "-"}").FontSize(7).Bold();
+                            });
                             row.ConstantItem(155).Height(68).Image(firma).FitArea();
                         });
                     }
@@ -237,14 +248,16 @@ public class ContractSigningPdfService
         }).GeneratePdf();
     }
 
-    private static byte[] GenerarDocumento(Contrato contrato, Cliente? cliente, ConfiguracionEmpresa? configuracion, TarifaLuz? tarifaLuz, byte[]? logoComercializadora, byte[]? firma, string? ipFirma = null)
+    private static byte[] GenerarDocumento(Contrato contrato, Cliente? cliente, ConfiguracionEmpresa? configuracion, TarifaLuz? tarifaLuz, TarifaTelefonia? tarifaTelefonia, TarifaAlarma? tarifaAlarma, byte[]? logoComercializadora, byte[]? firma, string? ipFirma, DateTime? fechaFirmaUtc)
     {
         var logo = ObtenerImagen(configuracion?.LogoUrl);
         var nombre = ObtenerNombreCompleto(contrato, cliente);
         var dni = Limpiar(cliente?.DniCif ?? contrato.Dni);
         var telefono = Limpiar(cliente?.Telefono ?? contrato.Telefono);
         var email = Limpiar(cliente?.Email);
-        var proveedor = ObtenerProveedor(contrato);
+        var proveedor = ObtenerProveedor(contrato, tarifaTelefonia, tarifaAlarma);
+        var esTelefonia = EsContratoTelefonia(contrato);
+        var esAlarma = EsContratoAlarma(contrato);
         var referencia = contrato.Id.ToString(CultureInfo.InvariantCulture);
         var empresa = configuracion?.NombreEmpresa ?? "ENERGIA Y TELEFONIA MERIDA S.L.";
         var direccion = configuracion?.Direccion ?? "C/ Almendralejo, 43 local 5";
@@ -314,32 +327,91 @@ public class ContractSigningPdfService
                                     text.Span("REFERENCIA DE CONTRATO: ").Bold();
                                     text.Span(referencia);
                                 });
-                                details.Item().PaddingTop(4).Text(text =>
+                                if (esTelefonia)
                                 {
-                                    text.Span("CUPS LUZ Y/O GAS: ").Bold();
-                                    text.Span(ObtenerCupsContrato(contrato));
-                                });
-                                details.Item().PaddingTop(4).Text(text =>
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("OPERADORA: ").Bold();
+                                        text.Span(proveedor);
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("TARIFA ELEGIDA: ").Bold();
+                                        text.Span(ObtenerTarifaTelefonia(contrato, tarifaTelefonia));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("LÍNEAS CONTRATADAS: ").Bold();
+                                        text.Span(ObtenerLineasTelefonia(contrato));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("DETALLE DE TARIFA: ").Bold();
+                                        text.Span(ObtenerDetalleTarifaTelefonia(tarifaTelefonia));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("PRECIO DE TARIFA: ").Bold();
+                                        text.Span(ObtenerPrecioTarifaTelefonia(tarifaTelefonia));
+                                    });
+                                }
+                                else if (esAlarma)
                                 {
-                                    text.Span("COMERCIALIZADORA: ").Bold();
-                                    text.Span(ObtenerProveedor(contrato));
-                                });
-                                details.Item().PaddingTop(4).Text(text =>
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("EMPRESA DE ALARMAS: ").Bold();
+                                        text.Span(proveedor);
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("TIPO DE ALARMA: ").Bold();
+                                        text.Span(Limpiar(string.Join(" - ", new[] { PrimerValor(contrato.TipoAlarma, tarifaAlarma?.TipoInmueble), contrato.SubtipoInmueble }.Where(x => !string.IsNullOrWhiteSpace(x)))));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("KIT / OPCIONALES: ").Bold();
+                                        text.Span(ObtenerKitAlarma(contrato, tarifaAlarma));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("DIRECCIÓN DE INSTALACIÓN: ").Bold();
+                                        text.Span(ObtenerDireccionInstalacionAlarma(contrato));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("CUOTA MENSUAL: ").Bold();
+                                        text.Span(ObtenerPrecioTarifaAlarma(tarifaAlarma));
+                                    });
+                                }
+                                else
                                 {
-                                    text.Span("TARIFA ELEGIDA: ").Bold();
-                                    text.Span(ObtenerTarifaElegida(contrato));
-                                });
-                                details.Item().PaddingTop(4).Text(text =>
-                                {
-                                    text.Span("PRECIO DE TARIFA: ").Bold();
-                                    text.Span(ObtenerPrecioTarifa(tarifaLuz));
-                                });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("CUPS LUZ Y/O GAS: ").Bold();
+                                        text.Span(ObtenerCupsContrato(contrato));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("COMERCIALIZADORA: ").Bold();
+                                        text.Span(proveedor);
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("TARIFA ELEGIDA: ").Bold();
+                                        text.Span(ObtenerTarifaElegida(contrato));
+                                    });
+                                    details.Item().PaddingTop(4).Text(text =>
+                                    {
+                                        text.Span("PRECIO DE TARIFA: ").Bold();
+                                        text.Span(ObtenerPrecioTarifa(tarifaLuz));
+                                    });
+                                }
                             });
                         });
                     });
                     var fechaFirma = firma == null
                         ? "Fecha pendiente de firma"
-                        : DateTime.Now.ToString("dd 'de' MMMM 'de' yyyy", new CultureInfo("es-ES"));
+                        : (fechaFirmaUtc ?? DateTime.UtcNow).ToLocalTime().ToString("dd 'de' MMMM 'de' yyyy HH:mm:ss", new CultureInfo("es-ES"));
                     content.Item().PaddingTop(12).Text(fechaFirma);
                 });
                 page.Footer().PaddingTop(8).Column(footer =>
@@ -349,7 +421,13 @@ public class ContractSigningPdfService
                     {
                         footer.Item().ExtendHorizontal().Background("#F0E6FF").PaddingVertical(7).PaddingHorizontal(42).Row(row =>
                         {
-                            row.RelativeItem().Column(column => { column.Item().Text($"Firmado por: {nombre}").FontSize(8).Bold(); column.Item().Text($"IP de firma: {ipFirma ?? "-"}").FontSize(7).Bold(); column.Item().Text($"Documento {referencia}").FontSize(7); });
+                            row.RelativeItem().Column(column =>
+                            {
+                                column.Item().Text($"Firmado por: {nombre}").FontSize(8).Bold();
+                                column.Item().Text($"IP de firma: {ipFirma ?? "-"}").FontSize(7).Bold();
+                                column.Item().Text($"Fecha y hora de firma: {fechaFirmaUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss") ?? "-"}").FontSize(7).Bold();
+                                column.Item().Text($"Documento {referencia}").FontSize(7);
+                            });
                             row.ConstantItem(130).Height(52).Image(firma).FitArea();
                         });
                     }
@@ -367,7 +445,7 @@ public class ContractSigningPdfService
         try { return Convert.FromBase64String(base64); } catch (FormatException) { return null; }
     }
 
-    private async Task<(TarifaLuz? tarifaLuz, byte[]? logoComercializadora)> ObtenerDatosTarifaAsync(Contrato contrato)
+    private async Task<(TarifaLuz? tarifaLuz, TarifaTelefonia? tarifaTelefonia, TarifaAlarma? tarifaAlarma, byte[]? logoComercializadora)> ObtenerDatosTarifaAsync(Contrato contrato)
     {
         await using var context = _dbContextProvider.CreateDbContext();
 
@@ -388,7 +466,15 @@ public class ContractSigningPdfService
                 .Select(c => c.LogoContenido)
                 .FirstOrDefaultAsync();
 
-        return (tarifaLuz, logoComercializadora);
+        TarifaTelefonia? tarifaTelefonia = null;
+        if (contrato.TarifaTelId.HasValue)
+            tarifaTelefonia = await context.TarifasTelefonia.AsNoTracking().FirstOrDefaultAsync(t => t.Id == contrato.TarifaTelId.Value);
+
+        TarifaAlarma? tarifaAlarma = null;
+        if (contrato.KitAlarmaId.HasValue)
+            tarifaAlarma = await context.TarifasAlarmas.AsNoTracking().FirstOrDefaultAsync(t => t.Id == contrato.KitAlarmaId.Value);
+
+        return (tarifaLuz, tarifaTelefonia, tarifaAlarma, logoComercializadora);
     }
 
     private static string ObtenerCupsContrato(Contrato contrato)
@@ -428,6 +514,69 @@ public class ContractSigningPdfService
         return Limpiar(string.Join(" | ", valores));
     }
 
+    private static bool EsContratoTelefonia(Contrato contrato) =>
+        contrato.Tipo?.StartsWith("telefon", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool EsContratoAlarma(Contrato contrato) =>
+        contrato.Tipo?.StartsWith("alarma", StringComparison.OrdinalIgnoreCase) == true;
+
+    private static string ObtenerTarifaTelefonia(Contrato contrato, TarifaTelefonia? tarifa) =>
+        Limpiar(string.Join(" | ", new[] { PrimerValor(contrato.TarifaTel, tarifa?.Tarifa), PrimerValor(contrato.TipoTarifaTel, tarifa?.Tipo) }.Where(x => !string.IsNullOrWhiteSpace(x))));
+
+    private static string ObtenerKitAlarma(Contrato contrato, TarifaAlarma? tarifa) =>
+        Limpiar(string.Join(" | ", new[] { PrimerValor(contrato.KitAlarma, tarifa?.NombreTarifa), contrato.OpcionalesAlarma, contrato.CampanaAlarma }.Where(x => !string.IsNullOrWhiteSpace(x))));
+
+    private static string? PrimerValor(params string?[] valores) =>
+        valores.FirstOrDefault(valor => !string.IsNullOrWhiteSpace(valor));
+
+    private static string ObtenerLineasTelefonia(Contrato contrato)
+    {
+        var lineas = new List<string>();
+        if (!string.IsNullOrWhiteSpace(contrato.FijoTel)) lineas.Add($"Fijo: {contrato.FijoTel}");
+        if (!string.IsNullOrWhiteSpace(contrato.LineaMovilPrincipal)) lineas.Add($"Móvil principal: {contrato.LineaMovilPrincipal}");
+        if (!string.IsNullOrWhiteSpace(contrato.LineaMovilPrincipal2)) lineas.Add($"Móvil adicional: {contrato.LineaMovilPrincipal2}");
+
+        var lineasAdicionales = new (string? Telefono, int Numero)[]
+        {
+            (contrato.TelefonoLinea1Tel, 1), (contrato.TelefonoLinea2Tel, 2), (contrato.TelefonoLinea3Tel, 3),
+            (contrato.TelefonoLinea4Tel, 4), (contrato.TelefonoLinea5Tel, 5), (contrato.TelefonoLinea6Tel, 6),
+            (contrato.TelefonoLinea7Tel, 7), (contrato.TelefonoLinea8Tel, 8), (contrato.TelefonoLinea9Tel, 9),
+            (contrato.TelefonoLinea10Tel, 10), (contrato.TelefonoLinea11Tel, 11), (contrato.TelefonoLinea12Tel, 12),
+            (contrato.TelefonoLinea13Tel, 13), (contrato.TelefonoLinea14Tel, 14), (contrato.TelefonoLinea15Tel, 15)
+        };
+        lineas.AddRange(lineasAdicionales
+            .Where(linea => !string.IsNullOrWhiteSpace(linea.Telefono))
+            .Select(linea => $"Línea {linea.Numero}: {linea.Telefono}"));
+
+        return Limpiar(string.Join(" | ", lineas));
+    }
+
+    private static string ObtenerDetalleTarifaTelefonia(TarifaTelefonia? tarifa)
+    {
+        if (tarifa == null) return string.Empty;
+        return Limpiar(string.Join(" | ", new[] { tarifa.Fibra, tarifa.GbMovil, tarifa.Movil2, tarifa.Tv1, tarifa.Tv2 }
+            .Where(x => !string.IsNullOrWhiteSpace(x))));
+    }
+
+    private static string ObtenerPrecioTarifaTelefonia(TarifaTelefonia? tarifa) =>
+        tarifa == null ? string.Empty : $"{tarifa.PrecioNew.ToString("N2", CultureInfo.GetCultureInfo("es-ES"))} €";
+
+    private static string ObtenerDireccionInstalacionAlarma(Contrato contrato) =>
+        Limpiar(string.Join(", ", new[]
+        {
+            string.Join(" ", new[] { contrato.TipoViaInstalacion, contrato.DireccionInstalacionAlarma, contrato.NumeroInstalacion }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            contrato.EscaleraInstalacion,
+            contrato.PisoInstalacion,
+            contrato.PuertaInstalacion,
+            contrato.CodigoPostalInstalacion,
+            contrato.LocalidadInstalacion,
+            contrato.ProvinciaInstalacion,
+            contrato.AclaradorInstalacion
+        }.Where(x => !string.IsNullOrWhiteSpace(x))));
+
+    private static string ObtenerPrecioTarifaAlarma(TarifaAlarma? tarifa) =>
+        tarifa == null ? string.Empty : $"{tarifa.CuotaMensual.ToString("N2", CultureInfo.GetCultureInfo("es-ES"))} €";
+
     private static string ObtenerNombreCompleto(Contrato contrato, Cliente? cliente)
     {
         var nombre = cliente?.Nombre ?? contrato.NombreCliente;
@@ -435,10 +584,10 @@ public class ContractSigningPdfService
         return Limpiar(string.Join(" ", new[] { nombre, apellidos }.Where(s => !string.IsNullOrWhiteSpace(s))));
     }
 
-    private static string ObtenerProveedor(Contrato contrato)
+    private static string ObtenerProveedor(Contrato contrato, TarifaTelefonia? tarifaTelefonia, TarifaAlarma? tarifaAlarma)
     {
-        if (string.Equals(contrato.Tipo, "Telefonia", StringComparison.OrdinalIgnoreCase) || string.Equals(contrato.Tipo, "Telefonía", StringComparison.OrdinalIgnoreCase)) return Limpiar(contrato.OperadoraTel);
-        if (string.Equals(contrato.Tipo, "Alarmas", StringComparison.OrdinalIgnoreCase)) return Limpiar(contrato.EmpresaAlarma);
+        if (EsContratoTelefonia(contrato)) return Limpiar(PrimerValor(contrato.OperadoraTel, tarifaTelefonia?.Compania));
+        if (EsContratoAlarma(contrato)) return Limpiar(PrimerValor(contrato.EmpresaAlarma, tarifaAlarma?.Empresa));
         return Limpiar(contrato.EnComercializadora);
     }
 

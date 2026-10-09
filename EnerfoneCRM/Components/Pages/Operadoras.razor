@@ -119,7 +119,7 @@ else
                                     {
                                         @foreach (var operadora in operadorasFiltradas)
                                         {
-                                            <tr>
+                                            <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(operadora)">
                                                 <td>
                                                     @if (operadora.LogoContenido != null && operadora.LogoContenido.Length > 0)
                                                     {
@@ -155,7 +155,7 @@ else
                                                     }
                                                 </td>
                                                 <td>@operadora.FechaCreacion?.ToString("dd/MM/yyyy")</td>
-                                                <td class="text-end">
+                                                <td class="text-end" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" 
                                                             @onclick="() => MostrarModalEditar(operadora)" 
                                                             title="Editar">

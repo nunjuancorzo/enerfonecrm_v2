@@ -116,7 +116,7 @@ else
                                     {
                                         @foreach (var empresa in empresasAlarmasFiltradas)
                                         {
-                                            <tr>
+                                            <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(empresa)">
                                                 <td>
                                                     @if (empresa.LogoContenido != null && empresa.LogoContenido.Length > 0)
                                                     {
@@ -142,7 +142,7 @@ else
                                                     }
                                                 </td>
                                                 <td>@empresa.FechaCreacion?.ToString("dd/MM/yyyy")</td>
-                                                <td class="text-end">
+                                                <td class="text-end" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" 
                                                             @onclick="() => MostrarModalEditar(empresa)" 
                                                             title="Editar">

@@ -99,7 +99,10 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-3">
                                         <label class="form-label">Código Postal</label>
-                                        <InputText class="form-control" @bind-Value="configuracion.CodigoPostal" />
+                                        <div class="input-group">
+                                            <SelectorCodigoPostal @bind-Value="configuracion.CodigoPostal" maxlength="5"
+                                                                  OnSeleccionado="@(codigo => { configuracion.CodigoPostal = codigo.CodigoPostalValor; configuracion.Ciudad = codigo.Ciudad; configuracion.Provincia = codigo.Provincia; })" />
+                                        </div>
                                     </div>
                                     <div class="col-md-5">
                                         <label class="form-label">Ciudad</label>

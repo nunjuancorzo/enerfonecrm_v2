@@ -7,6 +7,7 @@
 @inject NavigationManager NavigationManager
 @inject DbContextProvider DbContextProvider
 @inject EmailService EmailService
+@inject IncidenciaImagenService IncidenciaImagenService
 @inject RevolappsIncidenciasService RevolappsIncidenciasService
 @rendermode InteractiveServer
 
@@ -134,7 +135,7 @@ else
                     <tbody>
                         @foreach (var incidencia in incidenciasFiltradas)
                         {
-                            <tr>
+                            <tr class="fila-ficha" @ondblclick="() => MostrarDetalle(incidencia)">
                                 <td>@incidencia.Id</td>
                                 <td>@incidencia.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</td>
                                 <td>
@@ -159,17 +160,12 @@ else
                                         @incidencia.Estado
                                     </span>
                                 </td>
-                                <td class="text-nowrap">
+                                <td class="text-nowrap" @ondblclick:stopPropagation="true">
                                     <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-info" @onclick="() => MostrarDetalle(incidencia)">
-                                            <i class="bi bi-eye"></i>
+                                        <button type="button" class="btn btn-sm btn-warning" @onclick="() => MostrarDetalle(incidencia)"
+                                                title="Editar incidencia" aria-label="@($"Editar incidencia #{incidencia.Id}")">
+                                            <i class="bi bi-pencil"></i>
                                         </button>
-                                        @if (AuthService.PuedeGestionarIncidencias)
-                                        {
-                                            <button class="btn btn-sm btn-warning" @onclick="() => EditarIncidencia(incidencia)">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                        }
                                     </div>
                                 </td>
                             </tr>
@@ -190,9 +186,17 @@ else
                                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                                 Detalle de Incidencia #@incidenciaSeleccionada.Id
                             </h5>
-                            <button type="button" class="btn-close" @onclick="CerrarModal"></button>
+                            <button type="button" class="btn-close" @onclick="CerrarModal" disabled="@(guardando || cargandoImagen)"></button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body" data-imagen-incidencia>
+                            @if (!string.IsNullOrEmpty(mensajeError))
+                            {
+                                <div class="alert alert-danger" role="alert">@mensajeError</div>
+                            }
+                            @if (!string.IsNullOrEmpty(mensajeExito))
+                            {
+                                <div class="alert alert-success" role="status">@mensajeExito</div>
+                            }
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <strong>Usuario:</strong> @incidenciaSeleccionada.NombreUsuario
@@ -217,6 +221,29 @@ else
                                 <p>@incidenciaSeleccionada.Asunto</p>
                             </div>
                             <div class="row mb-3">
+                                @if (AuthService.PuedeGestionarIncidencias && incidenciaEdicion != null)
+                                {
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold" for="tipo-incidencia-detalle">Tipo</label>
+                                        <select id="tipo-incidencia-detalle" class="form-select" @bind="incidenciaEdicion.TipoIncidencia" disabled="@guardando">
+                                            @foreach (var tipo in tiposIncidencia) { <option value="@tipo">@tipo</option> }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold" for="prioridad-incidencia-detalle">Prioridad</label>
+                                        <select id="prioridad-incidencia-detalle" class="form-select" @bind="incidenciaEdicion.Prioridad" disabled="@guardando">
+                                            @foreach (var prioridad in prioridadesIncidencia) { <option value="@prioridad">@prioridad</option> }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold" for="estado-incidencia-detalle">Estado</label>
+                                        <select id="estado-incidencia-detalle" class="form-select" @bind="incidenciaEdicion.Estado" disabled="@guardando">
+                                            @foreach (var estado in estadosIncidencia) { <option value="@estado">@estado</option> }
+                                        </select>
+                                    </div>
+                                }
+                                else
+                                {
                                 <div class="col-md-4">
                                     <strong>Tipo:</strong> <span class="badge bg-secondary">@incidenciaSeleccionada.TipoIncidencia</span>
                                 </div>
@@ -232,6 +259,7 @@ else
                                         @incidenciaSeleccionada.Estado
                                     </span>
                                 </div>
+                                }
                             </div>
                             <div class="mb-3">
                                 <strong>Descripción:</strong>
@@ -344,16 +372,21 @@ else
                                 }
                             </div>
 
-                            @if (incidenciaSeleccionada.TieneImagen && !string.IsNullOrEmpty(incidenciaSeleccionada.NombreImagen))
+                            @if (AuthService.PuedeGestionarIncidencias)
+                            {
+                                <SelectorImagenIncidencia @key="versionImagen" OnCambio="ImagenSeleccionada" OnCargaCambio="@(cargando => cargandoImagen = cargando)" Disabled="@guardando" />
+                            }
+
+                            @if (incidenciaSeleccionada is { TieneImagen: true } incidenciaConImagen && !string.IsNullOrEmpty(incidenciaConImagen.NombreImagen))
                             {
                                 <div class="mb-3">
                                     <strong>Imagen adjunta:</strong>
                                     <div class="mt-2">
-                                        <img src="/storage/incidencias/@incidenciaSeleccionada.NombreImagen" 
+                                        <img src="/storage/incidencias/@incidenciaConImagen.NombreImagen"
                                              alt="Imagen de incidencia" 
                                              class="img-fluid rounded border cursor-pointer"
                                              style="max-height: 300px; cursor: pointer;"
-                                             @onclick="() => AbrirImagenCompleta(incidenciaSeleccionada.NombreImagen)" 
+                                             @onclick="() => AbrirImagenCompleta(incidenciaConImagen.NombreImagen)"
                                              title="Click para ampliar" />
                                         <div class="text-muted small mt-1">
                                             <i class="bi bi-info-circle me-1"></i>Click en la imagen para ampliar
@@ -363,7 +396,13 @@ else
                             }
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-primary" @onclick="EnviarIncidenciaARevolapps" disabled="@enviandoARevolapps">
+                            @if (AuthService.PuedeGestionarIncidencias)
+                            {
+                                <button type="button" class="btn btn-primary" @onclick="GuardarCambios" disabled="@(guardando || cargandoImagen)">
+                                    <i class="bi bi-save me-2"></i>Guardar cambios
+                                </button>
+                            }
+                            <button type="button" class="btn btn-outline-primary" @onclick="EnviarIncidenciaARevolapps" disabled="@(enviandoARevolapps || guardando)">
                                 @if (enviandoARevolapps)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -375,7 +414,7 @@ else
                                     <span>Enviar a Incidencias</span>
                                 }
                             </button>
-                            <button type="button" class="btn btn-secondary" @onclick="CerrarModal">Cerrar</button>
+                            <button type="button" class="btn btn-secondary" @onclick="CerrarModal" disabled="@(guardando || cargandoImagen)">Cerrar</button>
                         </div>
                     </div>
                 </div>
@@ -416,6 +455,20 @@ else
                             <button type="button" class="btn-close" @onclick="CerrarModalEdicion"></button>
                         </div>
                         <div class="modal-body">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Tipo</label>
+                                    <select class="form-select" @bind="incidenciaEdicion.TipoIncidencia" disabled="@guardando">
+                                        @foreach (var tipo in tiposIncidencia) { <option value="@tipo">@tipo</option> }
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Prioridad</label>
+                                    <select class="form-select" @bind="incidenciaEdicion.Prioridad" disabled="@guardando">
+                                        @foreach (var prioridad in prioridadesIncidencia) { <option value="@prioridad">@prioridad</option> }
+                                    </select>
+                                </div>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Estado</label>
                                 <select class="form-select" @bind="incidenciaEdicion.Estado">
@@ -456,6 +509,9 @@ else
 }
 
 @code {
+    private static readonly IReadOnlyList<string> tiposIncidencia = Incidencia.TiposPermitidos;
+    private static readonly IReadOnlyList<string> prioridadesIncidencia = Incidencia.PrioridadesPermitidas;
+    private static readonly IReadOnlyList<string> estadosIncidencia = Incidencia.EstadosPermitidos;
     private List<Incidencia> incidencias = new();
     private List<Incidencia> incidenciasFiltradas = new();
     private Incidencia? incidenciaSeleccionada = null;
@@ -464,6 +520,9 @@ else
     private bool mostrarModal = false;
     private bool mostrarModalEdicion = false;
     private bool guardando = false;
+    private ImagenIncidenciaAdjunta? imagenPendiente;
+    private int versionImagen;
+    private bool cargandoImagen;
     private bool enviandoARevolapps = false;
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
@@ -583,14 +642,22 @@ else
 
     private async Task MostrarDetalle(Incidencia incidencia)
     {
+        imagenPendiente = null;
+        versionImagen++;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
         incidenciaSeleccionada = incidencia;
+        if (AuthService.PuedeGestionarIncidencias) EditarIncidencia(incidencia, false);
         mostrarModal = true;
         await CargarComentarios();
     }
 
     private void CerrarModal()
     {
+        if (guardando || cargandoImagen) return;
         mostrarModal = false;
+        incidenciaEdicion = null;
+        imagenPendiente = null;
         incidenciaSeleccionada = null;
         comentariosIncidencia = null;
         nuevoComentario = string.Empty;
@@ -611,6 +678,11 @@ else
     {
         mostrarImagenCompleta = false;
         imagenAmpliadaNombre = null;
+    }
+
+    private void ImagenSeleccionada(ImagenIncidenciaAdjunta? imagen)
+    {
+        if (mostrarModal && AuthService.PuedeGestionarIncidencias && !guardando) imagenPendiente = imagen;
     }
 
     private async Task EnviarIncidenciaARevolapps()
@@ -644,8 +716,9 @@ else
         }
     }
 
-    private void EditarIncidencia(Incidencia incidencia)
+    private void EditarIncidencia(Incidencia incidencia, bool abrirModal = true)
     {
+        if (!AuthService.PuedeGestionarIncidencias) return;
         incidenciaEdicion = new Incidencia
         {
             Id = incidencia.Id,
@@ -663,7 +736,7 @@ else
             TieneImagen = incidencia.TieneImagen,
             NombreImagen = incidencia.NombreImagen
         };
-        mostrarModalEdicion = true;
+        mostrarModalEdicion = abrirModal;
     }
 
     private void CerrarModalEdicion()
@@ -674,15 +747,24 @@ else
 
     private async Task GuardarCambios()
     {
-        if (incidenciaEdicion == null) return;
+        if (incidenciaEdicion == null || guardando || cargandoImagen || !AuthService.PuedeGestionarIncidencias) return;
+        if (!tiposIncidencia.Contains(incidenciaEdicion.TipoIncidencia) || !prioridadesIncidencia.Contains(incidenciaEdicion.Prioridad) || !estadosIncidencia.Contains(incidenciaEdicion.Estado))
+        {
+            mensajeError = "Selecciona un tipo, una prioridad y un estado válidos.";
+            return;
+        }
 
+        var edicion = incidenciaEdicion;
+        var imagenNueva = imagenPendiente;
+        string? nombreCreado = null;
+        var guardadoEnBd = false;
         try
         {
             guardando = true;
             mensajeError = string.Empty;
 
             using var context = DbContextProvider.CreateDbContext();
-            var incidenciaDb = await context.Incidencias.FindAsync(incidenciaEdicion.Id);
+            var incidenciaDb = await context.Incidencias.FindAsync(edicion.Id);
             
             if (incidenciaDb == null)
             {
@@ -690,22 +772,35 @@ else
                 return;
             }
 
-            var estadoAnterior = incidenciaDb.Estado;
-            incidenciaDb.Estado = incidenciaEdicion.Estado;
-            incidenciaDb.ObservacionesAdmin = incidenciaEdicion.ObservacionesAdmin;
-            incidenciaDb.FechaActualizacion = DateTime.Now;
+            var notificarResolucion = incidenciaDb.AplicarCambiosGestion(edicion);
+
+            if (imagenNueva != null)
+            {
+                nombreCreado = await IncidenciaImagenService.GuardarAsync(imagenNueva);
+                incidenciaDb.NombreImagen = nombreCreado;
+                incidenciaDb.TieneImagen = true;
+            }
 
             await context.SaveChangesAsync();
+            guardadoEnBd = true;
+            imagenPendiente = null;
+            versionImagen++;
 
             // Enviar email si el estado cambió a "Resuelta"
-            if (estadoAnterior != "Resuelta" && incidenciaEdicion.Estado == "Resuelta" && !string.IsNullOrEmpty(incidenciaDb.EmailUsuario))
+            if (notificarResolucion && !string.IsNullOrEmpty(incidenciaDb.EmailUsuario))
             {
                 await EnviarEmailIncidenciaResuelta(incidenciaDb);
             }
 
             mensajeExito = "Incidencia actualizada correctamente";
+            var idDetalle = mostrarModal ? incidenciaSeleccionada?.Id : null;
             CerrarModalEdicion();
             await CargarIncidencias();
+            if (idDetalle.HasValue)
+            {
+                incidenciaSeleccionada = incidencias.FirstOrDefault(incidencia => incidencia.Id == idDetalle.Value);
+                if (incidenciaSeleccionada != null) EditarIncidencia(incidenciaSeleccionada, false);
+            }
         }
         catch (Exception ex)
         {
@@ -715,6 +810,11 @@ else
         finally
         {
             guardando = false;
+            if (!guardadoEnBd && nombreCreado != null)
+            {
+                try { IncidenciaImagenService.EliminarSinGuardar(nombreCreado); }
+                catch (Exception excepcion) { Console.WriteLine($"[INCIDENCIAS] No se pudo limpiar el adjunto pendiente: {excepcion.Message}"); }
+            }
         }
     }
 

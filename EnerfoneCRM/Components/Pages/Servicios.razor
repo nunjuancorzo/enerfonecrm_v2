@@ -119,7 +119,7 @@ else
                                 <tbody>
                                     @foreach (var servicio in serviciosFiltrados)
                                     {
-                                        <tr>
+                                        <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(servicio)">
                                             <td>
                                                 <span class="badge bg-@(servicio.Tipo == "Residencial" ? "info" : "success")">
                                                     @servicio.Tipo
@@ -128,7 +128,7 @@ else
                                             <td><strong>@servicio.NombreServicio</strong></td>
                                             <td>@(servicio.Precio?.Replace(".", ","))</td>
                                             <td>@(servicio.Empresa ?? "-")</td>
-                                            <td class="text-end">
+                                            <td class="text-end" @ondblclick:stopPropagation="true">
                                                 <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(servicio)">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>

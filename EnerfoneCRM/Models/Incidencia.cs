@@ -6,6 +6,23 @@ namespace EnerfoneCRM.Models;
 [Table("incidencias")]
 public class Incidencia
 {
+    public static IReadOnlyList<string> TiposPermitidos { get; } = Array.AsReadOnly(new[] { "Error Técnico", "Problema de Datos", "Solicitud de Mejora", "Consulta", "Otro" });
+    public static IReadOnlyList<string> PrioridadesPermitidas { get; } = Array.AsReadOnly(new[] { "Baja", "Media", "Alta", "Crítica" });
+    public static IReadOnlyList<string> EstadosPermitidos { get; } = Array.AsReadOnly(new[] { "Pendiente", "Pendiente subir PRO", "En validación", "En Proceso", "Resuelta", "Cerrada" });
+
+    public bool AplicarCambiosGestion(Incidencia cambios)
+    {
+        if (!TiposPermitidos.Contains(cambios.TipoIncidencia) || !PrioridadesPermitidas.Contains(cambios.Prioridad) || !EstadosPermitidos.Contains(cambios.Estado))
+            throw new ArgumentException("Selecciona un tipo, una prioridad y un estado válidos.");
+        var notificarResolucion = Estado != "Resuelta" && cambios.Estado == "Resuelta";
+        TipoIncidencia = cambios.TipoIncidencia;
+        Prioridad = cambios.Prioridad;
+        Estado = cambios.Estado;
+        ObservacionesAdmin = cambios.ObservacionesAdmin;
+        FechaActualizacion = DateTime.Now;
+        return notificarResolucion;
+    }
+
     [Key]
     [Column("id")]
     public int Id { get; set; }

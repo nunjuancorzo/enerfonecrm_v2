@@ -474,6 +474,7 @@ namespace EnerfoneCRM.Services
 
             var rol = usuarioJerarquia.Rol ?? string.Empty;
             if (rol.Equals("Colaborador", StringComparison.OrdinalIgnoreCase)
+                || rol.Equals("Proveedor", StringComparison.OrdinalIgnoreCase)
                 || rol.Equals("Comercializadora", StringComparison.OrdinalIgnoreCase)
                 || rol.Equals("Administrador", StringComparison.OrdinalIgnoreCase))
             {

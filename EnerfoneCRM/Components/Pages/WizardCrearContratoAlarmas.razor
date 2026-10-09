@@ -84,20 +84,37 @@
                             </div>
                             <div class="card-body">
                                 <div class="row g-3">
-                                    <div class="col-12">
-                                        <div class="btn-group w-100" role="group">
-                                            <button type="button" class="btn @(modoCrearCliente ? "btn-outline-danger" : "btn-danger")" @onclick="() => modoCrearCliente = false">
-                                                <i class="bi bi-search me-2"></i>Seleccionar Cliente Existente
-                                            </button>
-                                            <button type="button" class="btn @(modoCrearCliente ? "btn-danger" : "btn-outline-danger")" @onclick="() => modoCrearCliente = true">
-                                                <i class="bi bi-plus-circle me-2"></i>Crear Nuevo Cliente
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    @if (!modoCrearCliente)
-                                    {
-                                        <!-- Buscar y seleccionar cliente existente -->
+                                                    @if (nuevoCliente.TipoCliente == "Pyme")
+                                                    {
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-bold">CIF Empresa <span class="text-danger">*</span></label>
+                                                            <InputText @bind-Value="nuevoCliente.DniCif" class="form-control" placeholder="CIF" />
+                                                            <ValidationMessage For="@(() => nuevoCliente.DniCif)" />
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-bold">Tipo de documento <span class="text-danger">*</span></label>
+                                                            <InputSelect @bind-Value="nuevoCliente.TipoDocumentoIdentidad" class="form-select">
+                                                                <option value="DNI">DNI</option>
+                                                                <option value="NIE">NIE</option>
+                                                            </InputSelect>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label fw-bold">@nuevoCliente.TipoDocumentoIdentidad <span class="text-danger">*</span></label>
+                                                            <InputText @bind-Value="nuevoCliente.DniCif" class="form-control" placeholder="@(nuevoCliente.TipoDocumentoIdentidad == "NIE" ? "X1234567L" : "12345678Z")" />
+                                                            <ValidationMessage For="@(() => nuevoCliente.DniCif)" />
+                                                        </div>
+                                                        @if (nuevoCliente.TipoDocumentoIdentidad == "NIE")
+                                                        {
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-bold">Nacionalidad <span class="text-danger">*</span></label>
+                                                                <InputText @bind-Value="nuevoCliente.Nacionalidad" class="form-control" maxlength="100" placeholder="Nacionalidad del cliente" />
+                                                                <ValidationMessage For="@(() => nuevoCliente.Nacionalidad)" />
+                                                            </div>
+                                                        }
+                                                    }
                                         <div class="col-12">
                                             <label class="form-label fw-bold">Buscar Cliente</label>
                                             <input type="text" class="form-control" @bind="busquedaCliente" @bind:event="oninput" @bind:after="FiltrarClientes" placeholder="Buscar por nombre, DNI/CIF o teléfono..." />
@@ -154,7 +171,7 @@
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-bold">Tipo Cliente <span class="text-danger">*</span></label>
-                                                        <InputSelect @bind-Value="nuevoCliente.TipoCliente" class="form-select">
+                                                        <InputSelect @bind-Value="nuevoCliente.TipoCliente" @bind-Value:after="ActualizarTipoDocumentoCliente" class="form-select">
                                                             <option value="Particular">Particular</option>
                                                             <option value="Pyme">Pyme</option>
                                                             <option value="Autonomo">Autónomo</option>
@@ -278,7 +295,9 @@
                                                     </div>
                                                     <div class="col-md-4">
                                                         <label class="form-label fw-bold">Código Postal</label>
-                                                        <InputText @bind-Value="nuevoCliente.CodigoPostal" class="form-control" placeholder="CP" />
+                                                        <div class="input-group">
+                                                            <SelectorCodigoPostal @bind-Value="nuevoCliente.CodigoPostal" OnSeleccionado="AplicarCodigoPostalCliente" placeholder="CP" maxlength="5" />
+                                                        </div>
                                                     </div>
                                                     <div class="col-md-4">
                                                         <label class="form-label fw-bold">Aclarador</label>
@@ -474,6 +493,16 @@
                                                 <small class="text-muted">Seleccionado: @nuevoContrato.Comercial</small>
                                             }
                                         </div>
+                                        <div class="col-md-12">
+                                            <label class="form-label fw-bold">Usuario proveedor</label>
+                                            <InputSelect @bind-Value="nuevoContrato.UsuarioComercializadoraId" class="form-select" disabled="@(empresaSeleccionada == null)">
+                                                <option value="">Sin asignar</option>
+                                                @foreach (var usuario in usuariosProveedorAlarmas)
+                                                {
+                                                    <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
                                         <div class="col-md-12 mt-3">
                                             <div class="form-check">
                                                 <InputCheckbox @bind-Value="nuevoContrato.CargadoEnPlataforma" class="form-check-input" id="cargadoEnPlataformaWizardAlarma" />
@@ -632,13 +661,8 @@
                                         <div class="col-md-4">
                                             <label class="form-label fw-bold">Código Postal</label>
                                             <div class="input-group">
-                                                <input type="text" class="form-control" list="codigosPostalesWizardAlarmas" 
-                                                       value="@nuevoContrato.CodigoPostalInstalacion"
-                                                       @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
-                                                       placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
-                                                <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
-                                                    <i class="bi bi-plus-circle"></i>
-                                                </button>
+                                                      <SelectorCodigoPostal @bind-Value="nuevoContrato.CodigoPostalInstalacion" OnSeleccionado="AplicarCodigoPostal"
+                                                                list="codigosPostalesWizardAlarmas" placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                                 <datalist id="codigosPostalesWizardAlarmas">
                                                     @foreach (var cp in codigosPostalesDisponibles)
                                                     {
@@ -760,6 +784,7 @@
     private List<TarifaAlarma> tarifasKit = new();
     private List<TarifaAlarma> tarifasCampana = new();
     private List<Usuario> todosLosUsuarios = new();
+    private List<Usuario> usuariosProveedorAlarmas = new();
 
     // Archivos adjuntos
     private Dictionary<string, List<(string nombreArchivo, byte[] contenido)>> archivosPendientesCliente = new();
@@ -779,6 +804,7 @@
         busquedaCliente = string.Empty;
         clienteSeleccionado = null;
         empresaSeleccionada = null;
+        usuariosProveedorAlarmas = new();
         mensajeError = string.Empty;
         usarDireccionCliente = false;
         archivosPendientesCliente.Clear();
@@ -949,6 +975,14 @@
                 }
             }
 
+            if (nuevoCliente.TipoCliente == "Pyme")
+                nuevoCliente.TipoDocumentoIdentidad = "CIF";
+            else if (nuevoCliente.TipoDocumentoIdentidad != "NIE")
+                nuevoCliente.TipoDocumentoIdentidad = "DNI";
+
+            if (nuevoCliente.TipoCliente == "Pyme" || nuevoCliente.TipoDocumentoIdentidad != "NIE")
+                nuevoCliente.Nacionalidad = null;
+
             var (exito, mensaje) = await ClienteService.CrearAsync(nuevoCliente);
             if (!exito)
             {
@@ -996,9 +1030,26 @@
         }
     }
 
-    private void SeleccionarEmpresa(EmpresaAlarma empresa)
+    private void ActualizarTipoDocumentoCliente()
+    {
+        if (nuevoCliente == null) return;
+        if (nuevoCliente.TipoCliente == "Pyme")
+        {
+            nuevoCliente.TipoDocumentoIdentidad = "CIF";
+            nuevoCliente.Nacionalidad = null;
+        }
+        else if (nuevoCliente.TipoDocumentoIdentidad == "CIF")
+        {
+            nuevoCliente.TipoDocumentoIdentidad = "DNI";
+        }
+    }
+
+    private async Task SeleccionarEmpresa(EmpresaAlarma empresa)
     {
         empresaSeleccionada = empresa;
+        if (nuevoContrato != null)
+            nuevoContrato.UsuarioComercializadoraId = null;
+        usuariosProveedorAlarmas = await UsuarioService.ObtenerUsuariosProveedorAsync("empresa_alarma", empresa.Nombre);
     }
 
     private bool PuedeAvanzar()
@@ -1392,8 +1443,19 @@
         }
     }
 
-    private async Task AbrirMaestroCodigosPostales()
+    private void AplicarCodigoPostal(CodigoPostal codigo)
     {
-        await JS.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
+        if (nuevoContrato == null) return;
+        nuevoContrato.CodigoPostalInstalacion = codigo.CodigoPostalValor;
+        nuevoContrato.LocalidadInstalacion = codigo.Ciudad;
+        nuevoContrato.ProvinciaInstalacion = codigo.Provincia;
+    }
+
+    private void AplicarCodigoPostalCliente(CodigoPostal codigo)
+    {
+        if (nuevoCliente == null) return;
+        nuevoCliente.CodigoPostal = codigo.CodigoPostalValor;
+        nuevoCliente.Poblacion = codigo.Ciudad;
+        nuevoCliente.Provincia = codigo.Provincia;
     }
 }

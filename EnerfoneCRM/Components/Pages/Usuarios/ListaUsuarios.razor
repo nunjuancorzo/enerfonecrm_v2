@@ -171,9 +171,9 @@ else
                                     <li>
                                         <label class="dropdown-item">
                                             <input type="checkbox" class="form-check-input me-2" 
-                                                   checked='@rolesFiltro.Contains("Comercializadora")'
-                                                   @onchange='e => ToggleRolFiltro(e, "Comercializadora")' />
-                                            <span class="badge bg-info">Comercializadora</span>
+                                                  checked='@rolesFiltro.Contains("Proveedor")'
+                                                  @onchange='e => ToggleRolFiltro(e, "Proveedor")' />
+                                              <span class="badge bg-info">Proveedor</span>
                                         </label>
                                     </li>
                                     @if (rolesFiltro.Any())
@@ -262,7 +262,7 @@ else
                             <tbody>
                                 @foreach (var usuario in usuariosFiltrados)
                                 {
-                                    <tr>
+                                    <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(usuario)">
                                         <td class="text-muted"><small>@usuario.Id</small></td>
                                         <td><strong>@usuario.NombreUsuario</strong></td>
                                         <td>@usuario.Email</td>
@@ -290,7 +290,7 @@ else
                                             <i class="bi bi-pencil-fill @(usuariosColaboradoresFirmados.Contains(usuario.Id) ? "text-primary" : "text-secondary opacity-50")"
                                                title="@(usuariosColaboradoresFirmados.Contains(usuario.Id) ? "Contrato firmado" : "Contrato no firmado")"></i>
                                         </td>
-                                        <td>
+                                        <td @ondblclick:stopPropagation="true">
                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await MostrarModalEditar(usuario)" title="Editar">
                                                 <span class="bi bi-pencil"></span>
                                             </button>
@@ -1044,7 +1044,7 @@ else
         "Gestor" => "warning",
         "Colaborador" => "secondary",
         "Backoffice" => "primary",
-        "Comercializadora" => "info",
+        "Proveedor" or "Comercializadora" => "info",
         _ => "secondary"
     };
 }

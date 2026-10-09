@@ -67,6 +67,13 @@ public class Usuario
     [StringLength(255)]
     public string? Comercializadora { get; set; }
 
+    [NotMapped]
+    public string? TipoProveedor { get; set; }
+
+    public static bool EsRolProveedor(string? rol) =>
+        string.Equals(rol, "Proveedor", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(rol, "Comercializadora", StringComparison.OrdinalIgnoreCase);
+
     [Column("comision")]
     public decimal Comision { get; set; } = 0.00m;
 

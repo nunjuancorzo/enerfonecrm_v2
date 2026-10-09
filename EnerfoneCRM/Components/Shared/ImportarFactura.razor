@@ -1,0 +1,200 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject FacturaImportacionService FacturaImportacionService
+
+<button type="button" class="btn btn-outline-primary" @onclick="Abrir"><i class="bi bi-file-earmark-arrow-up me-2"></i>Importar factura</button>
+
+@if (visible)
+{
+    <div class="modal-backdrop show" style="z-index: 1990;"></div>
+    <div class="modal show d-block" style="z-index: 2000;" role="dialog" aria-modal="true" aria-labelledby="@tituloId" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="@tituloId">Importar factura</h5>
+                    <button type="button" class="btn-close" aria-label="Cerrar" @onclick="Cerrar" disabled="@procesando"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label" for="@archivoId">Factura PDF o imagen</label>
+                        <InputFile id="@archivoId" class="form-control" OnChange="CargarArchivoAsync" accept=".pdf,.png,.jpg,.jpeg,.webp" disabled="@procesando" />
+                        <small class="text-muted">PDF, PNG, JPEG o WebP. Máximo 10 MB y 20 páginas.</small>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input id="@consentimientoId" type="checkbox" class="form-check-input" @bind="permitirExterno" disabled="@procesando" />
+                        <label class="form-check-label" for="@consentimientoId">Autorizar envío de la factura al proveedor OCR configurado</label>
+                    </div>
+                    @if (archivoBytes != null)
+                    {
+                        <button type="button" class="btn btn-outline-secondary mb-3" @onclick="AnalizarAsync" disabled="@procesando"><i class="bi bi-arrow-clockwise me-1"></i>Volver a analizar</button>
+                    }
+                    @if (procesando)
+                    {
+                        <div role="status" class="py-3"><span class="spinner-border spinner-border-sm me-2"></span>Analizando factura...</div>
+                    }
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div class="alert alert-danger" role="alert">@error</div>
+                    }
+                    @if (factura != null && !procesando)
+                    {
+                        <div class="d-flex flex-wrap justify-content-between gap-2 align-items-center mb-3">
+                            <span class="text-muted">@nombreArchivo · @factura.Origen</span>
+                            <div class="form-check">
+                                <input id="@camposId" type="checkbox" class="form-check-input" @bind="mostrarVacios" />
+                                <label class="form-check-label" for="@camposId">Mostrar campos no detectados</label>
+                            </div>
+                        </div>
+                        @if (factura.Advertencias.Count > 0)
+                        {
+                            <div class="alert alert-warning" role="alert">
+                                <ul class="mb-0">@foreach (var aviso in factura.Advertencias) { <li>@aviso</li> }</ul>
+                            </div>
+                        }
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead><tr><th>Aplicar</th><th>Dato</th><th>Valor</th><th>Origen / revisión</th></tr></thead>
+                                <tbody>
+                                    @foreach (var campo in factura.Campos.Where(campo => mostrarVacios || !string.IsNullOrWhiteSpace(campo.Valor)))
+                                    {
+                                        <tr @key="campo.Clave">
+                                            <td>
+                                                @if (campo.Aplicable)
+                                                {
+                                                    <input class="form-check-input" type="checkbox" @bind="campo.Seleccionado" aria-label="@($"Aplicar {campo.Etiqueta}")" />
+                                                }
+                                                else { <small class="text-muted">Referencia</small> }
+                                            </td>
+                                            <td style="min-width: 160px;">@campo.Etiqueta</td>
+                                            <td style="min-width: 180px;">
+                                                @if (campo.Clave == "tipo_suministro")
+                                                {
+                                                    <select class="form-select" @bind="campo.Valor" aria-label="@campo.Etiqueta"><option value=""></option><option value="Luz">Luz</option><option value="Gas">Gas</option><option value="Mixto">Mixto</option></select>
+                                                }
+                                                else if (campo.Clave == "unidad_potencia")
+                                                {
+                                                    <select class="form-select" @bind="campo.Valor" aria-label="@campo.Etiqueta"><option value=""></option><option value="dia">€/kW/día</option><option value="mes">€/kW/mes</option><option value="ano">€/kW/año</option></select>
+                                                }
+                                                else
+                                                {
+                                                    <input type="text" class="form-control" @bind="campo.Valor" aria-label="@campo.Etiqueta" maxlength="250" />
+                                                }
+                                            </td>
+                                            <td style="min-width: 160px;">
+                                                @if (campo.Conflicto) { <span class="badge bg-warning text-dark">Confirmar</span> }
+                                                <small class="text-muted">@campo.Evidencia</small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(factura.Texto))
+                        {
+                            <details class="mb-3"><summary>Texto extraído</summary><pre class="mt-2" style="white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto;">@factura.Texto</pre></details>
+                        }
+                        <div class="form-check">
+                            <input id="@revisionId" type="checkbox" class="form-check-input" @bind="confirmado" />
+                            <label class="form-check-label" for="@revisionId">He revisado los datos seleccionados</label>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="Cerrar" disabled="@procesando">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="AplicarAsync" disabled="@(procesando || factura == null || !confirmado)"><i class="bi bi-check-lg me-1"></i>Aplicar datos</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback<FacturaImportada> OnAplicar { get; set; }
+    private readonly string tituloId = $"importar-factura-{Guid.NewGuid():N}";
+    private readonly string archivoId = $"archivo-factura-{Guid.NewGuid():N}";
+    private readonly string consentimientoId = $"ocr-consentimiento-{Guid.NewGuid():N}";
+    private readonly string camposId = $"campos-factura-{Guid.NewGuid():N}";
+    private readonly string revisionId = $"revision-factura-{Guid.NewGuid():N}";
+    private bool visible;
+    private bool procesando;
+    private bool confirmado;
+    private bool permitirExterno;
+    private bool mostrarVacios;
+    private string nombreArchivo = string.Empty;
+    private string error = string.Empty;
+    private byte[]? archivoBytes;
+    private FacturaImportada? factura;
+
+    private void Abrir() { visible = true; error = string.Empty; confirmado = false; }
+    private void Cerrar()
+    {
+        visible = false;
+        archivoBytes = null;
+        factura = null;
+        confirmado = false;
+        permitirExterno = false;
+        error = string.Empty;
+    }
+
+    private async Task CargarArchivoAsync(InputFileChangeEventArgs args)
+    {
+        if (procesando) return;
+        procesando = true;
+        confirmado = false;
+        factura = null;
+        archivoBytes = null;
+        error = string.Empty;
+        try
+        {
+            var archivo = args.File;
+            nombreArchivo = Path.GetFileName(archivo.Name);
+            await using var stream = archivo.OpenReadStream(FacturaImportacionService.MaximoBytes);
+            using var memoria = new MemoryStream();
+            await stream.CopyToAsync(memoria);
+            archivoBytes = memoria.ToArray();
+            procesando = false;
+            await AnalizarAsync();
+        }
+        catch
+        {
+            error = "No se ha podido leer el archivo. Comprueba su formato, que no esté protegido y el límite de 10 MB.";
+        }
+        finally { procesando = false; }
+    }
+
+    private async Task AnalizarAsync()
+    {
+        if (archivoBytes == null || procesando) return;
+        procesando = true;
+        confirmado = false;
+        factura = null;
+        error = string.Empty;
+        try
+        {
+            factura = await FacturaImportacionService.ExtraerAsync(archivoBytes, nombreArchivo, permitirExterno);
+            mostrarVacios = factura.Campos.All(campo => string.IsNullOrWhiteSpace(campo.Valor));
+        }
+        catch (ArgumentException excepcion)
+        {
+            error = excepcion.Message;
+        }
+        catch
+        {
+            error = "No se ha podido analizar la factura. Comprueba que sea legible y no esté protegida.";
+        }
+        finally { procesando = false; }
+    }
+
+    private async Task AplicarAsync()
+    {
+        if (factura == null || !confirmado || procesando) return;
+        var errores = FacturaImportacionService.ValidarParaAplicar(factura);
+        if (errores.Count > 0) { error = string.Join(" ", errores); return; }
+        try
+        {
+            await OnAplicar.InvokeAsync(factura);
+            Cerrar();
+        }
+        catch (ArgumentException excepcion) { error = excepcion.Message; }
+    }
+}

@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EnerfoneCRM.Models
 {
     [Table("clientes_simple")]
-    public class Cliente
+    public class Cliente : IValidatableObject
     {
         [Key]
         [Column("id")]
@@ -27,6 +28,14 @@ namespace EnerfoneCRM.Models
         [Column("dni_cif")]
         [MaxLength(50)]
         public string? DniCif { get; set; }
+
+        [Column("nacionalidad")]
+        [MaxLength(100)]
+        public string? Nacionalidad { get; set; }
+
+        [Column("tipo_documento_identidad")]
+        [StringLength(10)]
+        public string TipoDocumentoIdentidad { get; set; } = "DNI";
 
         [Column("empresa")]
         [MaxLength(255)]
@@ -132,5 +141,20 @@ namespace EnerfoneCRM.Models
 
         [NotMapped]
         public string? NombreUsuario { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (TipoCliente != "Pyme" && TipoDocumentoIdentidad == "NIE" && string.IsNullOrWhiteSpace(Nacionalidad))
+                yield return new ValidationResult("La nacionalidad es obligatoria para un NIE.", new[] { nameof(Nacionalidad) });
+        }
+
+        public static bool EsNIE(string? documento)
+        {
+            var identificador = documento?.Trim();
+            return !string.IsNullOrEmpty(identificador) &&
+                (identificador.StartsWith("X", StringComparison.OrdinalIgnoreCase) ||
+                 identificador.StartsWith("Y", StringComparison.OrdinalIgnoreCase) ||
+                 identificador.StartsWith("Z", StringComparison.OrdinalIgnoreCase));
+        }
     }
 }

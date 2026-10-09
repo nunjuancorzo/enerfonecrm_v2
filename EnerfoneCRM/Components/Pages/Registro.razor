@@ -6,6 +6,7 @@
 @inject UsuarioService UsuarioService
 @inject ConfiguracionService ConfiguracionService
 @inject EmailService EmailService
+@inject FirmaService FirmaService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @rendermode InteractiveServer
@@ -33,8 +34,20 @@
                                 <i class="bi bi-check-circle me-2"></i>¡Registro exitoso!
                             </h5>
                             <p class="mb-0">Tu cuenta ha sido creada correctamente. Un administrador debe activarla antes de que puedas acceder al sistema.</p>
+                            @if (cargando)
+                            {
+                                <p class="mt-2 mb-0" role="status"><span class="spinner-border spinner-border-sm me-1"></span>Completando registro y envío del contrato...</p>
+                            }
+                            @if (contratoFirmaEnviado)
+                            {
+                                <p class="mt-2 mb-0">Hemos enviado el contrato de colaboración a @usuario.Email para que puedas consultarlo y firmarlo.</p>
+                            }
+                            @if (!string.IsNullOrEmpty(avisoFirma))
+                            {
+                                <div class="alert alert-warning mt-3 mb-0" role="alert">@avisoFirma</div>
+                            }
                             <hr />
-                            <button class="btn btn-primary mt-2" @onclick='() => Navigation.NavigateTo("/login")'>
+                            <button class="btn btn-primary mt-2" @onclick='() => Navigation.NavigateTo("/login")' disabled="@cargando">
                                 Ir al Login
                             </button>
                         </div>
@@ -59,7 +72,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
-                                    <InputText id="email" type="email" class="form-control" @bind-Value="usuario.Email" placeholder="usuario@ejemplo.com" autocomplete="off" />
+                                    <InputText id="email" type="email" class="form-control" @bind-Value="usuario.Email" placeholder="usuario@ejemplo.com" autocomplete="email" required />
                                     <ValidationMessage For="@(() => usuario.Email)" />
                                 </div>
                             </div>
@@ -106,7 +119,10 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label for="codigoPostal" class="form-label">Código Postal <span class="text-danger">*</span></label>
-                                    <InputText id="codigoPostal" class="form-control" @bind-Value="usuario.CodigoPostal" placeholder="28001" autocomplete="off" />
+                                    <div class="input-group">
+                                        <SelectorCodigoPostal @bind-Value="usuario.CodigoPostal" id="codigoPostal" placeholder="28001" autocomplete="off" maxlength="5"
+                                                              OnSeleccionado="@(codigo => { usuario.CodigoPostal = codigo.CodigoPostalValor; usuario.Localidad = codigo.Ciudad; })" />
+                                    </div>
                                     @if (intentoEnvio && string.IsNullOrWhiteSpace(usuario.CodigoPostal))
                                     {
                                         <div class="text-danger small mt-1">El código postal es obligatorio</div>
@@ -427,10 +443,16 @@
         return nombreArchivo;
     }
 
+    private bool contratoFirmaEnviado;
+    private string avisoFirma = string.Empty;
+
     private async Task HandleRegistro()
     {
+        if (cargando || registroExitoso) return;
         intentoEnvio = true;
         mensajeError = string.Empty;
+        avisoFirma = string.Empty;
+        contratoFirmaEnviado = false;
 
         // Validaciones
         if (string.IsNullOrWhiteSpace(usuario.NombreUsuario))
@@ -442,6 +464,13 @@
         if (string.IsNullOrWhiteSpace(usuario.Email))
         {
             mensajeError = "El email es obligatorio";
+            return;
+        }
+
+        usuario.Email = usuario.Email.Trim();
+        if (!EmailService.EsEmailValido(usuario.Email))
+        {
+            mensajeError = "Introduce una dirección de email válida.";
             return;
         }
 
@@ -525,6 +554,7 @@
 
             if (exito)
             {
+                registroExitoso = true;
                 // Obtener el ID del usuario creado
                 var usuarioCreado = await UsuarioService.ObtenerPorNombreUsuarioAsync(usuario.NombreUsuario);
                 if (usuarioCreado != null)
@@ -560,9 +590,21 @@
 
                     await UsuarioService.ActualizarAsync(usuarioCreado);
 
-                    // Enviar email de notificación a los administradores
-                    await EnviarNotificacionAdministrador(usuarioCreado);
+                    try
+                    {
+                        var resultadoFirma = await FirmaService.CrearSolicitudColaboradorAsync(usuarioCreado.Id);
+                        contratoFirmaEnviado = resultadoFirma.Exito;
+                        if (!resultadoFirma.Exito)
+                            avisoFirma = "La cuenta está creada, pero no se ha podido enviar el contrato de colaboración. Contacta con un administrador para que lo reenvíe.";
+                    }
+                    catch (Exception excepcionFirma)
+                    {
+                        avisoFirma = "La cuenta está creada, pero el contrato de colaboración queda pendiente de envío. Contacta con un administrador.";
+                        Console.WriteLine($"[REGISTRO] Error al solicitar la firma del contrato: {excepcionFirma.GetType().Name}");
+                    }
+                                    await EnviarNotificacionAdministrador(usuarioCreado);
                 }
+                else avisoFirma = "La cuenta está creada, pero no se ha podido recuperar para enviar el contrato. Contacta con un administrador.";
 
                 registroExitoso = true;
             }
@@ -573,6 +615,11 @@
         }
         catch (Exception ex)
         {
+            if (registroExitoso)
+            {
+                avisoFirma = "La cuenta está creada, pero no se han podido completar todos los pasos del registro. Contacta con un administrador para revisar los documentos y el envío del contrato.";
+                return;
+            }
             var errorCompleto = ex.InnerException != null ? $"{ex.Message} - InnerException: {ex.InnerException.Message}" : ex.Message;
             mensajeError = $"Error al registrar: {errorCompleto}";
             Console.WriteLine($"[REGISTRO] Error: {errorCompleto}");

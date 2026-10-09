@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using EnerfoneCRM.Models;
 
 namespace EnerfoneCRM.Services
 {
@@ -11,6 +13,92 @@ namespace EnerfoneCRM.Services
     public class ComparadorCalculoService
     {
         private static readonly string[] PERIODS = { "P1", "P2", "P3", "P4", "P5", "P6" };
+
+        public static DatosTarifaNaturgy PrepararTarifaLuz(TarifaLuz tarifa)
+        {
+            var peaje = NormalizarPeaje(tarifa.Peaje);
+            if (peaje != "2.0" && peaje != "3.0" && peaje != "6.1")
+                throw new ArgumentException("El peaje de la tarifa no está soportado por la comparativa.");
+
+            var potencias = new[] { tarifa.Potencia1, tarifa.Potencia2, tarifa.Potencia3, tarifa.Potencia4, tarifa.Potencia5, tarifa.Potencia6 };
+            var energias = new[] { tarifa.Energia1, tarifa.Energia2, tarifa.Energia3, tarifa.Energia4, tarifa.Energia5, tarifa.Energia6 };
+            var periodosPotencia = peaje == "2.0" ? 2 : 6;
+            var periodosEnergia = peaje == "2.0" ? 3 : 6;
+
+            return new DatosTarifaNaturgy
+            {
+                Familia = "Luz",
+                Variante = tarifa.Nombre,
+                Peaje = peaje + "TD",
+                IdTarifa = tarifa.Id,
+                NombreTarifa = tarifa.Nombre,
+                Empresa = tarifa.Empresa,
+                Status = "valid",
+                PreciosPotencia = potencias.Take(periodosPotencia).Select((precio, indice) => LeerPrecioTarifa(precio, $"Potencia P{indice + 1}")).ToList(),
+                PreciosEnergia = energias.Take(periodosEnergia).Select((precio, indice) => LeerPrecioTarifa(precio, $"Energía P{indice + 1}")).ToList()
+            };
+        }
+
+        public static string NormalizarPeaje(string? peaje) =>
+            (peaje ?? string.Empty).Trim().ToUpperInvariant().Replace("TD", string.Empty);
+
+        public static decimal LeerPrecioTarifa(string? precio, string campo)
+        {
+            if (string.IsNullOrWhiteSpace(precio) ||
+                !decimal.TryParse(precio.Trim().Replace(',', '.'), NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
+                    CultureInfo.InvariantCulture, out var valor) || valor < 0)
+                throw new ArgumentException($"{campo}: falta un precio numérico no negativo en la tarifa.");
+
+            return valor;
+        }
+
+        public ResultadoCalculoComparativa CalcularComparativaGas(DatosFacturaGas factura, TarifaGas tarifa)
+        {
+            var dias = factura.FechaFin.DayNumber - factura.FechaInicio.DayNumber;
+            if (dias <= 0 || factura.ConsumoKwh <= 0 || factura.TotalReportado <= 0 ||
+                factura.PorcentajeIVA < 0 || factura.PorcentajeIVA > 100 ||
+                factura.ImpuestoHidrocarburosPorKwh < 0 || factura.AlquilerEquipos < 0 || factura.OtrosConceptos < 0)
+                throw new ArgumentException("Los datos de facturación de gas no son válidos.");
+
+            var precioFijo = LeerPrecioTarifa(tarifa.TerminoFijoGas, "Término fijo de gas");
+            var precioVariable = LeerPrecioTarifa(tarifa.TerminoVariableGas, "Término variable de gas");
+            var fijoDiario = factura.TerminoFijoMensual ? precioFijo * 12m / 365m : precioFijo;
+            var costeFijo = fijoDiario * dias;
+            var costeVariable = precioVariable * factura.ConsumoKwh;
+            var impuestoHidrocarburos = factura.ConsumoKwh * factura.ImpuestoHidrocarburosPorKwh;
+            var baseImponible = costeFijo + costeVariable + impuestoHidrocarburos + factura.AlquilerEquipos + factura.OtrosConceptos;
+            var iva = baseImponible * factura.PorcentajeIVA / 100m;
+            var total = baseImponible + iva;
+            var ahorro = factura.TotalReportado - total;
+
+            return new ResultadoCalculoComparativa
+            {
+                Days = dias,
+                EnergyPeriodCount = 1,
+                Status = ahorro >= 0 ? "saving" : "overcost",
+                EnergyLines = new List<LineaDetalle>
+                {
+                    new LineaDetalle { Period = "Gas", Quantity = factura.ConsumoKwh, NaturgyPrice = precioVariable, NaturgyAmount = costeVariable }
+                },
+                Totals = new TotalesComparativa
+                {
+                    TotalFixedNaturgy = costeFijo,
+                    TotalEnergyNaturgy = costeVariable,
+                    TotalConsumption = factura.ConsumoKwh,
+                    HydrocarbonTaxNaturgy = impuestoHidrocarburos,
+                    TaxableBaseNaturgy = baseImponible,
+                    VatNaturgy = iva,
+                    TotalCurrent = factura.TotalReportado,
+                    TotalCurrentReal = factura.TotalReportado,
+                    TotalNaturgy = total,
+                    SavingPeriod = ahorro,
+                    SavingDaily = ahorro / dias,
+                    SavingMonthly = ahorro / dias * 365m / 12m,
+                    SavingAnnual = ahorro / dias * 365m,
+                    SavingPercentCurrent = ahorro / factura.TotalReportado * 100m
+                }
+            };
+        }
 
         /// <summary>
         /// Calcula una comparativa entre la factura actual del cliente y una tarifa Naturgy
@@ -279,6 +367,19 @@ namespace EnerfoneCRM.Services
 
     #region Modelos de datos
 
+    public class DatosFacturaGas
+    {
+        public DateOnly FechaInicio { get; set; }
+        public DateOnly FechaFin { get; set; }
+        public decimal TotalReportado { get; set; }
+        public decimal ConsumoKwh { get; set; }
+        public bool TerminoFijoMensual { get; set; }
+        public decimal PorcentajeIVA { get; set; } = 21m;
+        public decimal ImpuestoHidrocarburosPorKwh { get; set; } = 0.00234m;
+        public decimal AlquilerEquipos { get; set; }
+        public decimal OtrosConceptos { get; set; }
+    }
+
     public class DatosFacturaActual
     {
         public DateOnly FechaInicio { get; set; }
@@ -362,6 +463,8 @@ namespace EnerfoneCRM.Services
 
     public class TotalesComparativa
     {
+        public decimal TotalFixedNaturgy { get; set; }
+        public decimal HydrocarbonTaxNaturgy { get; set; }
         public decimal TotalPowerCurrent { get; set; }
         public decimal TotalPowerNaturgy { get; set; }
         public decimal TotalEnergyCurrent { get; set; }

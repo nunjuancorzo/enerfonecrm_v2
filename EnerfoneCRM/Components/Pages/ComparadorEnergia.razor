@@ -3,7 +3,8 @@
 @using EnerfoneCRM.Services
 @using System.Linq
 @rendermode InteractiveServer
-@inject TarifaEnergiaService TarifaEnergiaService
+@inject TarifaLuzService TarifaLuzService
+@inject TarifaGasService TarifaGasService
 @inject ComercializadoraService ComercializadoraService
 @inject SipsService SipsService
 @inject AuthService AuthService
@@ -61,13 +62,27 @@ else
                 </div>
             }
 
+            @if (!string.IsNullOrEmpty(mensajeAviso))
+            {
+                <div class="alert alert-warning" role="alert">@mensajeAviso</div>
+            }
+
             @if (!resultadosCalculados)
             {
+                <div class="mb-3"><ImportarFactura OnAplicar="AplicarFacturaImportadaAsync" /></div>
                 <!-- Wizard de comparativa -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-body p-5">
                                 @if (pasoActual == 1)
                         {
+                            <div class="d-flex justify-content-center mb-4">
+                                <div class="btn-group" role="group" aria-label="Suministro">
+                                    <input type="radio" class="btn-check" name="suministro" id="comparativa-luz" checked="@(tipoSuministro == "Luz")" @onchange='() => CambiarSuministro("Luz")' />
+                                    <label class="btn btn-outline-warning" for="comparativa-luz"><i class="bi bi-lightning me-2"></i>Luz</label>
+                                    <input type="radio" class="btn-check" name="suministro" id="comparativa-gas" checked="@(tipoSuministro == "Gas")" @onchange='() => CambiarSuministro("Gas")' />
+                                    <label class="btn btn-outline-warning" for="comparativa-gas"><i class="bi bi-fire me-2"></i>Gas</label>
+                                </div>
+                            </div>
                             <!-- Título CUPS -->
                             <div class="text-center mb-4">
                                 <h4 class="text-muted">Paso 1/3 - Compañía y Tarifa Actual</h4>
@@ -83,7 +98,7 @@ else
                             </div>
 
                             <!-- Checkbox Consultar SIPS (solo superadmin) -->
-                            @if (AuthService.EsSuperAdmin)
+                            @if (AuthService.EsSuperAdmin && tipoSuministro == "Luz")
                             {
                                 <div class="d-flex justify-content-center mb-5">
                                     <div class="form-check form-switch">
@@ -126,11 +141,11 @@ else
                                             @bind="tarifaActual"
                                             style="border: 2px solid #e0e0e0; border-radius: 10px;">
                                         <option value=""></option>
-                                        @foreach (var tarifa in listadoTarifas)
+                                        @foreach (var tarifa in PeajesDisponibles)
                                         {
                                             <option value="@tarifa">@tarifa</option>
                                         }
-                                        @if (!string.IsNullOrEmpty(tarifaActual) && !listadoTarifas.Contains(tarifaActual))
+                                        @if (!string.IsNullOrEmpty(tarifaActual) && !PeajesDisponibles.Contains(tarifaActual))
                                         {
                                             <option value="@tarifaActual" selected>@tarifaActual</option>
                                         }
@@ -252,7 +267,7 @@ else
                             <!-- Importe pagado (opcional) -->
                             <div class="row justify-content-center mb-4">
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Importe pagado (opcional)</label>
+                                    <label class="form-label fw-bold">Importe pagado de la factura *</label>
                                     <div class="input-group input-group-lg">
                                         <input type="number"
                                                class="form-control"
@@ -281,6 +296,41 @@ else
                                 </div>
                             </div>
 
+                            @if (tipoSuministro == "Gas")
+                            {
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Consumo de la factura (kWh) *</label>
+                                        <input type="number" class="form-control" @bind="consumoGas" min="0" step="0.01" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Unidad del término fijo de las tarifas *</label>
+                                        <select class="form-select" @bind="unidadTerminoFijoGas">
+                                            <option value="">Seleccione...</option>
+                                            <option value="Diaria">€/día</option>
+                                            <option value="Mensual">€/mes</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">I.V.A. (%)</label>
+                                        <select class="form-select" @bind="porcentajeIVA"><option value="0">0</option><option value="5">5</option><option value="10">10</option><option value="21">21</option></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Impuesto hidrocarburos (€/kWh)</label>
+                                        <input type="number" class="form-control" @bind="impuestoHidrocarburosGas" min="0" step="0.00001" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Alquiler de contador del periodo (€)</label>
+                                        <input type="number" class="form-control" @bind="alquilerContador" min="0" step="0.01" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Otros conceptos del periodo, antes de IVA (€)</label>
+                                        <input type="number" class="form-control" @bind="otrosConceptos" min="0" step="0.01" />
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
                             <!-- Consumo anual -->
                             <div class="row justify-content-end mb-4">
                                 <div class="col-md-6">
@@ -298,6 +348,19 @@ else
                                 </div>
                             </div>
 
+                            @if (tarifaActual == "3.0TD" || tarifaActual == "6.1TD")
+                            {
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-4"><label class="form-label fw-bold">Consumo P1 (kWh)</label><input type="number" class="form-control" @bind="consumoP1" min="0" step="0.01" /></div>
+                                    <div class="col-md-4"><label class="form-label fw-bold">Consumo P2 (kWh)</label><input type="number" class="form-control" @bind="consumoP2" min="0" step="0.01" /></div>
+                                    <div class="col-md-4"><label class="form-label fw-bold">Consumo P3 (kWh)</label><input type="number" class="form-control" @bind="consumoP3" min="0" step="0.01" /></div>
+                                    <div class="col-md-4"><label class="form-label fw-bold">Consumo P4 (kWh)</label><input type="number" class="form-control" @bind="consumoP4" min="0" step="0.01" /></div>
+                                    <div class="col-md-4"><label class="form-label fw-bold">Consumo P5 (kWh)</label><input type="number" class="form-control" @bind="consumoP5" min="0" step="0.01" /></div>
+                                    <div class="col-md-4"><label class="form-label fw-bold">Consumo P6 (kWh)</label><input type="number" class="form-control" @bind="consumoP6" min="0" step="0.01" /></div>
+                                </div>
+                            }
+                            else
+                            {
                             <!-- Consumos por periodo -->
                             <div class="row g-4 mb-4">
                                 <div class="col-md-4">
@@ -331,6 +394,7 @@ else
                                            style="border: 2px solid #e0e0e0; border-radius: 10px;" />
                                 </div>
                             </div>
+                            }
 
                             <!-- Potencias (dinámicas según tipo de tarifa) -->
                             @if (tarifaActual == "2.0TD")
@@ -545,6 +609,7 @@ else
                                     <option value="No">No</option>
                                 </select>
                             </div>
+                            }
 
                             <!-- Botones de navegación -->
                             <div class="d-flex justify-content-center gap-3 mt-4">
@@ -553,7 +618,7 @@ else
                                     <i class="bi bi-arrow-left me-2"></i>Atrás
                                 </button>
                                 <button class="btn btn-warning px-4" 
-                                        @onclick="CalcularComparativa">
+                                    @onclick="CalcularComparativa" disabled="@calculando">
                                     <i class="bi bi-calculator me-2"></i>Calcular ofertas
                                 </button>
                             </div>
@@ -572,7 +637,7 @@ else
                             <li class="nav-item">
                                 <button class="nav-link @(vistaActual == "coste" ? "active" : "")" 
                                         @onclick='() => vistaActual = "coste"'>
-                                    Coste factura
+                                    Coste mensual estimado
                                 </button>
                             </li>
                             <li class="nav-item">
@@ -614,8 +679,8 @@ else
                                                     <th>#</th>
                                                     <th>Compañía</th>
                                                     <th>Descripción</th>
-                                                    <th class="text-end">Coste</th>
-                                                    <th class="text-end">Ahorro</th>
+                                                    <th class="text-end">Coste / mes</th>
+                                                    <th class="text-end">Ahorro / mes</th>
                                                     <th class="text-end">Ahorro anual</th>
                                                 </tr>
                                             </thead>
@@ -744,7 +809,7 @@ else
                                                             </div>
                                                             <div class="d-flex align-items-center gap-4 me-4">
                                                                 <div class="text-end">
-                                                                    <div class="text-muted small">Coste mensual</div>
+                                                                    <div class="text-muted small">Coste mensual estimado</div>
                                                                     <strong class="fs-5">@oferta.CosteMensual.ToString("N2") €</strong>
                                                                 </div>
                                                                 @if (oferta.AhorroMensual > 0)
@@ -770,8 +835,8 @@ else
                                                                 <div class="row g-3">
                                                                     <div class="col-6">
                                                                         <div class="p-3 border rounded text-center">
-                                                                            <div class="text-muted small">Potencia</div>
-                                                                            <div class="fw-bold fs-5 text-info">@oferta.CostePotencia.ToString("N2") €</div>
+                                                                            <div class="text-muted small">@(tipoSuministro == "Gas" ? "Término fijo" : "Potencia")</div>
+                                                                            <div class="fw-bold fs-5 text-info">@((tipoSuministro == "Gas" ? oferta.CosteTerminoFijo : oferta.CostePotencia).ToString("N2")) €</div>
                                                                         </div>
                                                                     </div>
                                                                     <div class="col-6">
@@ -1128,6 +1193,113 @@ else
     // Datos de entrada
     private string tipoTarifa = string.Empty;
     private string tipoSuministro = "Luz";
+    private string mensajeAviso = string.Empty;
+    private List<decimal> preciosPotenciaImportados = new();
+    private List<decimal> preciosEnergiaImportados = new();
+    private decimal? consumoGas;
+    private decimal impuestoHidrocarburosGas = 0.00234m;
+    private string unidadTerminoFijoGas = string.Empty;
+    private List<string> peajesGas = new() { "RL.1", "RL.2", "RL.3", "RL.4" };
+    private IEnumerable<string> PeajesDisponibles => tipoSuministro == "Gas" ? peajesGas : listadoTarifas;
+
+    private async Task CambiarSuministro(string suministro)
+    {
+        tipoSuministro = suministro;
+        tarifaActual = string.Empty;
+        consultarSips = false;
+        consumoGas = null;
+        unidadTerminoFijoGas = string.Empty;
+        alquilerContador = null;
+        otrosConceptos = null;
+        mensajeError = string.Empty;
+        mensajeAviso = string.Empty;
+        if (suministro != "Gas") return;
+        try
+        {
+            var tarifas = await TarifaGasService.ObtenerActivasAsync();
+            var peajes = tarifas.Where(tarifa => !string.IsNullOrWhiteSpace(tarifa.PeajeGas))
+                .Select(tarifa => tarifa.PeajeGas!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(peaje => peaje).ToList();
+            if (peajes.Count > 0) peajesGas = peajes;
+        }
+        catch
+        {
+            mensajeError = "No se han podido cargar los peajes de tarifasgas.";
+        }
+    }
+
+    private async Task AplicarFacturaImportadaAsync(FacturaImportada factura)
+    {
+        var errores = FacturaImportacionService.ValidarParaAplicar(factura);
+        if (errores.Count > 0) throw new ArgumentException(string.Join(" ", errores));
+        var suministro = factura.Obtener("tipo_suministro") ?? tipoSuministro;
+        var tipoClienteAnterior = tipoCliente;
+        NuevaComparacion();
+        tipoCliente = tipoClienteAnterior;
+        await CambiarSuministro(suministro);
+        cups = factura.Obtener("cups") ?? string.Empty;
+        companiaActual = factura.Obtener("comercializadora_actual") ?? string.Empty;
+        if (!string.IsNullOrEmpty(companiaActual) && !listadoCompanias.Contains(companiaActual)) listadoCompanias.Add(companiaActual);
+        var peaje = factura.Obtener(suministro == "Gas" ? "peaje_gas" : "peaje_luz");
+        if (suministro == "Gas") tarifaActual = peaje ?? string.Empty;
+        else
+        {
+            var normalizado = ComparadorCalculoService.NormalizarPeaje(peaje);
+            tarifaActual = normalizado is "2.0" or "3.0" or "6.1" ? normalizado + "TD" : string.Empty;
+        }
+        nombreCliente = factura.Obtener("nombre_cliente") ?? string.Empty;
+        emailCliente = factura.Obtener("email_cliente") ?? string.Empty;
+        direccionCliente = factura.Obtener("direccion_cliente") ?? string.Empty;
+        fechaInicioFacturacion = FacturaImportacionService.TryFecha(factura.Obtener("fecha_inicio"), out var inicio) ? inicio : null;
+        fechaFinFacturacion = FacturaImportacionService.TryFecha(factura.Obtener("fecha_fin"), out var fin) ? fin : null;
+        totalFacturaActual = NumeroImportado(factura, "total_factura");
+        alquilerContador = NumeroImportado(factura, "alquiler_contador");
+        otrosConceptos = NumeroImportado(factura, "otros_conceptos");
+        porcentajeIVA = NumeroImportado(factura, "iva_porcentaje") ?? 21m;
+        porcentajeImpuestoElectricidad = NumeroImportado(factura, "impuesto_electricidad_porcentaje") ?? 5.11m;
+        impuestoHidrocarburosGas = NumeroImportado(factura, "impuesto_hidrocarburos_kwh") ?? 0.00234m;
+        excedentes = NumeroImportado(factura, "excedentes_kwh");
+        excesoPotencia = NumeroImportado(factura, "exceso_potencia");
+        energiaReactiva = NumeroImportado(factura, "energia_reactiva");
+        financiacionBonoSocial = NumeroImportado(factura, "bono_social");
+
+        var potencias = Enumerable.Range(1, 6).Select(indice => NumeroImportado(factura, $"potencia_p{indice}")).ToArray();
+        var consumos = Enumerable.Range(1, 6).Select(indice => NumeroImportado(factura, $"consumo_p{indice}")).ToArray();
+        var unidad = factura.Obtener("unidad_potencia");
+        var factorPotencia = unidad == "mes" ? 12m / 365m : unidad == "ano" ? 1m / 365m : 1m;
+        preciosPotenciaImportados = Enumerable.Range(1, 6).Select(indice => (NumeroImportado(factura, $"precio_potencia_p{indice}") ?? 0) * factorPotencia).ToList();
+        preciosEnergiaImportados = Enumerable.Range(1, 6).Select(indice => NumeroImportado(factura, $"precio_energia_p{indice}") ?? 0).ToList();
+        potenciaPunta = potencias[0]; potenciaValle = potencias[1];
+        potenciaP1 = potencias[0]; potenciaP2 = potencias[1]; potenciaP3 = potencias[2];
+        potenciaP4 = potencias[3]; potenciaP5 = potencias[4]; potenciaP6 = potencias[5];
+        consumoPunta = consumos[0]; consumoLlano = consumos[1]; consumoValle = consumos[2];
+        consumoP1 = consumos[0]; consumoP2 = consumos[1]; consumoP3 = consumos[2];
+        consumoP4 = consumos[3]; consumoP5 = consumos[4]; consumoP6 = consumos[5];
+        precioPotenciaPunta = preciosPotenciaImportados[0]; precioPotenciaValle = preciosPotenciaImportados[1];
+        precioConsumoPunta = preciosEnergiaImportados[0]; precioConsumoLlano = preciosEnergiaImportados[1]; precioConsumoValle = preciosEnergiaImportados[2];
+        if (suministro == "Gas") consumoGas = NumeroImportado(factura, "consumo_total");
+
+        mensajeExito = "Datos revisados importados. La comparativa no se ha calculado ni guardado.";
+        var avisos = new List<string>();
+        if (string.IsNullOrEmpty(companiaActual) || string.IsNullOrEmpty(tarifaActual)) avisos.Add("Falta confirmar comercializadora o peaje.");
+        if (!fechaInicioFacturacion.HasValue || !fechaFinFacturacion.HasValue || !totalFacturaActual.HasValue) avisos.Add("Faltan datos de facturación obligatorios.");
+        if (suministro == "Luz")
+        {
+            var numeroPotencias = tarifaActual == "2.0TD" ? 2 : 6;
+            var numeroConsumos = tarifaActual == "2.0TD" ? 3 : 6;
+            if (potencias.Take(numeroPotencias).Any(valor => !valor.HasValue) || consumos.Take(numeroConsumos).Any(valor => !valor.HasValue))
+                avisos.Add("Faltan potencias o consumos por periodo. El consumo total no se ha repartido automáticamente.");
+        }
+        else avisos.Add("Confirma la unidad del término fijo de las tarifas de gas; no se deduce de la factura actual.");
+        if (string.IsNullOrWhiteSpace(factura.Obtener("iva_porcentaje"))) avisos.Add("IVA no identificado: confirma el porcentaje antes de calcular.");
+        if (suministro == "Luz" && string.IsNullOrWhiteSpace(factura.Obtener("impuesto_electricidad_porcentaje")))
+            avisos.Add("Confirma el impuesto eléctrico; no se ha identificado en la factura.");
+        if (suministro == "Gas" && string.IsNullOrWhiteSpace(factura.Obtener("impuesto_hidrocarburos_kwh")))
+            avisos.Add("Confirma el impuesto de hidrocarburos; no se ha identificado en la factura.");
+        mensajeAviso = string.Join(" ", avisos);
+    }
+
+    private static decimal? NumeroImportado(FacturaImportada factura, string clave) =>
+        FacturaImportacionService.TryNumero(factura.Obtener(clave), out var numero) ? numero : null;
     private decimal? potenciaP1 = null;
     private decimal? potenciaP2 = null;
     private decimal? potenciaP3 = null;
@@ -1564,6 +1736,8 @@ else
         calculando = true;
         mensajeError = string.Empty;
         mensajeExito = string.Empty;
+        mensajeAviso = string.Empty;
+        ofertasSeleccionadas.Clear();
         StateHasChanged();
 
         try
@@ -1577,12 +1751,24 @@ else
                 return;
             }
 
+            if (fechaFinFacturacion <= fechaInicioFacturacion)
+            {
+                mensajeError = "La fecha de fin debe ser posterior a la de inicio de facturación.";
+                return;
+            }
+
             // Validar que el total de factura esté informado
             if (!totalFacturaActual.HasValue || totalFacturaActual.Value <= 0)
             {
                 mensajeError = "El importe pagado de la factura es obligatorio para el cálculo";
                 calculando = false;
                 StateHasChanged();
+                return;
+            }
+
+            if (tipoSuministro == "Gas")
+            {
+                await CalcularComparativaGas();
                 return;
             }
 
@@ -1613,7 +1799,7 @@ else
                         potenciaP4!.Value, potenciaP5!.Value, potenciaP6!.Value
                     };
                     // Precios de potencia actual (si no están, usar 0)
-                    preciosPotenciaActual = new List<decimal> { 0, 0, 0, 0, 0, 0 };
+                    preciosPotenciaActual = preciosPotenciaImportados.Count == 6 ? preciosPotenciaImportados.ToList() : new List<decimal> { 0, 0, 0, 0, 0, 0 };
                 }
             }
 
@@ -1653,10 +1839,16 @@ else
                     consumoP1 ?? 0, consumoP2 ?? 0, consumoP3 ?? 0,
                     consumoP4 ?? 0, consumoP5 ?? 0, consumoP6 ?? 0
                 };
-                preciosEnergiaActual = new List<decimal> { 0, 0, 0, 0, 0, 0 };
+                preciosEnergiaActual = preciosEnergiaImportados.Count == 6 ? preciosEnergiaImportados.ToList() : new List<decimal> { 0, 0, 0, 0, 0, 0 };
             }
 
             // Preparar datos de la factura actual
+            if (consumos.Any(consumo => consumo < 0) || consumos.Sum() <= 0 || potencias.Any(potencia => potencia <= 0))
+            {
+                mensajeError = "Introduce consumos no negativos y potencias positivas para todos los periodos.";
+                return;
+            }
+
             var facturaActualDatos = new DatosFacturaActual
             {
                 FechaInicio = fechaInicioFacturacion.Value,
@@ -1696,7 +1888,7 @@ else
             };
 
             // Obtener todas las tarifas de energía
-            var todasLasTarifas = await TarifaEnergiaService.ObtenerTodasAsync();
+            var todasLasTarifas = await TarifaLuzService.ObtenerActivasAsync();
             
             Console.WriteLine($"[DEBUG Comparador] Total tarifas en BD: {todasLasTarifas.Count}");
             Console.WriteLine($"[DEBUG Comparador] Tarifa seleccionada: {tarifaActual}");
@@ -1706,6 +1898,8 @@ else
             int tarifasActivas = 0;
             int tarifasDescartadasTipoCliente = 0;
             int tarifasDescartadasTipoTarifa = 0;
+            int tarifasPreciosInvalidos = 0;
+            var factorMensual = 365m / ((fechaFinFacturacion.Value.DayNumber - fechaInicioFacturacion.Value.DayNumber) * 12);
 
             foreach (var tarifa in todasLasTarifas)
             {
@@ -1716,7 +1910,7 @@ else
                 tarifasActivas++;
 
                 // Filtrar por tipo de cliente
-                if (!TarifaCompatibleConTipoCliente(tarifa))
+                if (!TarifaCompatibleConTipoCliente(tarifa.TipoCliente))
                 {
                     tarifasDescartadasTipoCliente++;
                     continue;
@@ -1725,8 +1919,8 @@ else
                 // Filtrar por peaje seleccionado
                 if (!string.IsNullOrWhiteSpace(tarifaActual))
                 {
-                    string peajeBuscado = tarifaActual.Replace("TD", "").Trim();
-                    string peajeTarifa = (tarifa.Peaje ?? "").Trim();
+                    string peajeBuscado = ComparadorCalculoService.NormalizarPeaje(tarifaActual);
+                    string peajeTarifa = ComparadorCalculoService.NormalizarPeaje(tarifa.Peaje);
                     
                     if (!string.Equals(peajeTarifa, peajeBuscado, StringComparison.OrdinalIgnoreCase))
                     {
@@ -1735,47 +1929,17 @@ else
                     }
                 }
 
-                // Preparar datos de la tarifa Naturgy
-                var tarifaNaturgyDatos = new DatosTarifaNaturgy
+                DatosTarifaNaturgy tarifaNaturgyDatos;
+                try
                 {
-                    Familia = "Plan Fijo Luz",
-                    Variante = "ONE",
-                    Peaje = tarifaActual,
-                    IdTarifa = tarifa.Id,
-                    NombreTarifa = tarifa.Nombre,
-                    Empresa = tarifa.Empresa,
-                    Status = "valid"
-                };
-
-                // Configurar precios de potencia según peaje
-                if (tarifaActual == "2.0TD")
-                {
-                    tarifaNaturgyDatos.PreciosPotencia = new List<decimal>
-                    {
-                        tarifa.PrecioPotenciaP1 ?? 0,
-                        tarifa.PrecioPotenciaP2 ?? 0
-                    };
-                    tarifaNaturgyDatos.PreciosEnergia = new List<decimal>
-                    {
-                        tarifa.PrecioEnergiaP1 ?? 0,
-                        tarifa.PrecioEnergiaP2 ?? 0,
-                        tarifa.PrecioEnergiaP3 ?? 0
-                    };
+                    tarifaNaturgyDatos = ComparadorCalculoService.PrepararTarifaLuz(tarifa);
+                    reglas.PrecioExcedentesNaturgy = excedentes > 0 && !string.IsNullOrWhiteSpace(tarifa.Excedentes)
+                        ? ComparadorCalculoService.LeerPrecioTarifa(tarifa.Excedentes, "Excedentes") : 0;
                 }
-                else
+                catch (ArgumentException)
                 {
-                    // Para 3.0TD y 6.1TD: usar los 3 periodos disponibles + 3 ceros
-                    // TODO: Extender modelo TarifaEnergia para soportar P4-P6
-                    tarifaNaturgyDatos.PreciosPotencia = new List<decimal>
-                    {
-                        tarifa.PrecioPotenciaP1 ?? 0, tarifa.PrecioPotenciaP2 ?? 0,
-                        tarifa.PrecioPotenciaP3 ?? 0, 0, 0, 0
-                    };
-                    tarifaNaturgyDatos.PreciosEnergia = new List<decimal>
-                    {
-                        tarifa.PrecioEnergiaP1 ?? 0, tarifa.PrecioEnergiaP2 ?? 0,
-                        tarifa.PrecioEnergiaP3 ?? 0, 0, 0, 0
-                    };
+                    tarifasPreciosInvalidos++;
+                    continue;
                 }
 
                 // Calcular comparativa usando el nuevo servicio
@@ -1785,6 +1949,12 @@ else
                     reglas
                 );
 
+                if (resultado.Status == "error")
+                {
+                    tarifasPreciosInvalidos++;
+                    continue;
+                }
+
                 // Convertir resultado al modelo de vista
                 comercializadoras.Add(new ResultadoComparativa
                 {
@@ -1792,11 +1962,11 @@ else
                     Empresa = tarifa.Empresa,
                     NombreTarifa = tarifa.Nombre,
                     CosteTerminoFijo = 0, // El término fijo está incluido en totales
-                    CostePotencia = resultado.Totals.TotalPowerNaturgy,
-                    CosteEnergia = resultado.Totals.TotalEnergyNaturgy,
+                    CostePotencia = resultado.Totals.TotalPowerNaturgy * factorMensual,
+                    CosteEnergia = resultado.Totals.TotalEnergyNaturgy * factorMensual,
                     CosteTotal = resultado.Totals.TotalNaturgy,
-                    CosteMensual = resultado.Totals.TotalNaturgy,
-                    CosteActual = resultado.Totals.TotalCurrent,
+                    CosteMensual = resultado.Totals.TotalNaturgy * factorMensual,
+                    CosteActual = resultado.Totals.TotalCurrent * factorMensual,
                     AhorroMensual = resultado.Totals.SavingMonthly,
                     AhorroAnual = resultado.Totals.SavingAnnual,
                     PorcentajeAhorro = resultado.Totals.SavingPercentCurrent,
@@ -1805,12 +1975,16 @@ else
                     PrecioEnergiaPunta = tarifaNaturgyDatos.PreciosEnergia.ElementAtOrDefault(0),
                     PrecioEnergiaLlano = tarifaNaturgyDatos.PreciosEnergia.ElementAtOrDefault(1),
                     PrecioEnergiaValle = tarifaNaturgyDatos.PreciosEnergia.ElementAtOrDefault(2),
-                    TerminoFijoDiario = tarifa.TerminoFijoDiario ?? 0
+                    TerminoFijoDiario = 0
                 });
             }
 
             Console.WriteLine($"[DEBUG Comparador] Tarifas activas: {tarifasActivas}");
             Console.WriteLine($"[DEBUG Comparador] Tarifas calculadas: {comercializadoras.Count}");
+
+            mensajeAviso = "Estimación con precios base; descuentos comerciales, permanencias y servicios adicionales de la tarifa no incluidos.";
+            if (tarifasPreciosInvalidos > 0)
+                mensajeAviso += $" Se han excluido {tarifasPreciosInvalidos} tarifas con precios incompletos o no numéricos.";
 
             // Filtrar para mostrar solo ofertas con ahorro (si está activado)
             int tarifasAntesAhorro = comercializadoras.Count;
@@ -1994,12 +2168,12 @@ else
         return 30m;
     }
 
-    private bool TarifaCompatibleConTipoCliente(TarifaEnergia tarifa)
+    private bool TarifaCompatibleConTipoCliente(string? tipoClienteDeTarifa)
     {
         // Mapeo correcto: Particular → Residencial, Empresa → Pyme
         // En la BD: tipo_cliente = "Residencial" o "Pyme"
         var tipoClienteNormalizado = NormalizarTexto(tipoCliente);
-        var tipoClienteTarifa = NormalizarTexto(tarifa.TipoCliente);
+        var tipoClienteTarifa = NormalizarTexto(tipoClienteDeTarifa);
 
         // Si la tarifa no tiene tipo_cliente definido, no se descarta
         if (string.IsNullOrWhiteSpace(tipoClienteTarifa))
@@ -2007,11 +2181,11 @@ else
 
         // Mapeo: "particular" del formulario → "residencial" de la BD
         if (tipoClienteNormalizado == "particular")
-            return tipoClienteTarifa == "residencial";
+            return tipoClienteTarifa == "residencial" || tipoClienteTarifa == "particular";
 
         // Mapeo: "empresa" del formulario → "pyme" de la BD
         if (tipoClienteNormalizado == "empresa")
-            return tipoClienteTarifa == "pyme";
+            return tipoClienteTarifa == "pyme" || tipoClienteTarifa == "empresa" || tipoClienteTarifa == "autonomo";
 
         // Si no coincide con ninguno, permitir por defecto
         return true;
@@ -2066,95 +2240,76 @@ else
         return true;
     }
 
-    private async Task CompararTarifas()
+    private async Task CalcularComparativaGas()
     {
-        mensajeError = string.Empty;
-        mensajeExito = string.Empty;
-
-        // Validaciones
-        if (string.IsNullOrEmpty(tipoTarifa))
+        if (consumoGas is null or <= 0 || string.IsNullOrEmpty(unidadTerminoFijoGas) ||
+            porcentajeIVA < 0 || porcentajeIVA > 100 || impuestoHidrocarburosGas < 0 ||
+            alquilerContador < 0 || otrosConceptos < 0)
         {
-            mensajeError = "Debe seleccionar un tipo de tarifa";
+            mensajeError = "Introduce el consumo de gas, confirma la unidad del término fijo y revisa los impuestos e importes.";
             return;
         }
 
-        if (potenciaP1 <= 0)
+        var factura = new DatosFacturaGas
         {
-            mensajeError = "Debe introducir al menos la potencia del periodo 1";
-            return;
-        }
-
-        if (consumoP1 <= 0 && consumoP2 <= 0 && consumoP3 <= 0)
+            FechaInicio = fechaInicioFacturacion!.Value,
+            FechaFin = fechaFinFacturacion!.Value,
+            TotalReportado = totalFacturaActual!.Value,
+            ConsumoKwh = consumoGas.Value,
+            TerminoFijoMensual = unidadTerminoFijoGas == "Mensual",
+            PorcentajeIVA = porcentajeIVA,
+            ImpuestoHidrocarburosPorKwh = impuestoHidrocarburosGas,
+            AlquilerEquipos = alquilerContador ?? 0,
+            OtrosConceptos = otrosConceptos ?? 0
+        };
+        var tarifas = await TarifaGasService.ObtenerActivasAsync();
+        var factorMensual = 365m / ((factura.FechaFin.DayNumber - factura.FechaInicio.DayNumber) * 12m);
+        var descartadas = 0;
+        comercializadoras.Clear();
+        foreach (var tarifa in tarifas)
         {
-            mensajeError = "Debe introducir al menos un consumo estimado";
-            return;
-        }
+            if (!TarifaCompatibleConTipoCliente(tarifa.TipoCliente) ||
+                ComparadorCalculoService.NormalizarPeaje(tarifa.PeajeGas).Replace("RL.", "RL") !=
+                ComparadorCalculoService.NormalizarPeaje(tarifaActual).Replace("RL.", "RL")) continue;
 
-        calculando = true;
-        StateHasChanged();
-
-        try
-        {
-            // Obtener todas las tarifas de energía de la base de datos
-            var todasLasTarifas = await TarifaEnergiaService.ObtenerTodasAsync();
-            
-            comercializadoras.Clear();
-
-            foreach (var tarifa in todasLasTarifas)
+            ResultadoCalculoComparativa resultado;
+            try
             {
-                // Solo incluir tarifas que tengan los precios configurados
-                if (tarifa.TerminoFijoDiario == null || tarifa.TerminoFijoDiario <= 0 ||
-                    tarifa.PrecioPotenciaP1 == null || tarifa.PrecioPotenciaP1 <= 0 ||
-                    tarifa.PrecioEnergiaP1 == null || tarifa.PrecioEnergiaP1 <= 0)
-                {
-                    continue; // Saltar tarifas sin precios configurados
-                }
-
-                // Calcular costes anuales
-                decimal costeTerminoFijo = tarifa.TerminoFijoDiario.Value * 365;
-                
-                decimal costePotencia = (tarifa.PrecioPotenciaP1.Value * (potenciaP1 ?? 0) + 
-                                        (tarifa.PrecioPotenciaP2 ?? 0) * (potenciaP2 ?? 0) + 
-                                        (tarifa.PrecioPotenciaP3 ?? 0) * (potenciaP3 ?? 0)) * 365;
-                
-                decimal costeEnergia = (tarifa.PrecioEnergiaP1.Value * (consumoP1 ?? 0) + 
-                                       (tarifa.PrecioEnergiaP2 ?? 0) * (consumoP2 ?? 0) + 
-                                       (tarifa.PrecioEnergiaP3 ?? 0) * (consumoP3 ?? 0));
-                
-                decimal costeTotal = costeTerminoFijo + costePotencia + costeEnergia;
-
-                comercializadoras.Add(new ResultadoComparativa
-                {
-                    Empresa = tarifa.Empresa,
-                    NombreTarifa = tarifa.Nombre,
-                    CosteTerminoFijo = costeTerminoFijo,
-                    CostePotencia = costePotencia,
-                    CosteEnergia = costeEnergia,
-                    CosteTotal = costeTotal
-                });
+                resultado = ComparadorCalculoService.CalcularComparativaGas(factura, tarifa);
             }
-
-            resultadosCalculados = true;
-            
-            if (comercializadoras.Count == 0)
+            catch (ArgumentException)
             {
-                mensajeError = "No se encontraron tarifas con precios configurados. Por favor, configure los precios en las tarifas de energía.";
+                descartadas++;
+                continue;
             }
-            else
+            comercializadoras.Add(new ResultadoComparativa
             {
-                mensajeExito = $"Comparativa realizada con éxito. Se encontraron {comercializadoras.Count} tarifas.";
-            }
+                IdTarifa = tarifa.Id,
+                Empresa = tarifa.Empresa,
+                NombreTarifa = tarifa.Nombre,
+                CosteTerminoFijo = resultado.Totals.TotalFixedNaturgy * factorMensual,
+                CosteEnergia = resultado.Totals.TotalEnergyNaturgy * factorMensual,
+                CosteTotal = resultado.Totals.TotalNaturgy,
+                CosteMensual = resultado.Totals.TotalNaturgy * factorMensual,
+                CosteActual = resultado.Totals.TotalCurrent * factorMensual,
+                AhorroMensual = resultado.Totals.SavingMonthly,
+                AhorroAnual = resultado.Totals.SavingAnnual,
+                PorcentajeAhorro = resultado.Totals.SavingPercentCurrent
+            });
         }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error al realizar la comparativa: {ex.Message}";
-        }
-        finally
-        {
-            calculando = false;
-            StateHasChanged();
-        }
+        mensajeAviso = "Estimación con precios base; descuentos comerciales, permanencias y servicios adicionales de la tarifa no incluidos.";
+        if (descartadas > 0) mensajeAviso += $" Se han excluido {descartadas} tarifas con precios incompletos o no numéricos.";
+        var ofertasAntesFiltro = comercializadoras.Count;
+        if (mostrarSoloOfertasConAhorro) comercializadoras = comercializadoras.Where(oferta => oferta.AhorroMensual > 0).ToList();
+        comercializadoras = comercializadoras.OrderByDescending(oferta => oferta.AhorroMensual).ToList();
+        resultadosCalculados = true;
+        if (comercializadoras.Count > 0)
+            mensajeExito = $"Se encontraron {comercializadoras.Count} ofertas de gas disponibles.";
+        else
+            mensajeError = ofertasAntesFiltro > 0 ? "Ninguna oferta de gas genera ahorro. Desactiva el filtro para ver todas las opciones." : "No se encontraron tarifas de gas válidas para el peaje y tipo de cliente seleccionados.";
     }
+
+    private Task CompararTarifas() => CalcularComparativa();
 
     private void MostrarDetalles(ResultadoComparativa comercializadora)
     {
@@ -2196,13 +2351,18 @@ else
 
             var datosComparativa = new PdfComparadorService.DatosComparativa
             {
+                TipoSuministro = tipoSuministro,
+                FechaInicio = fechaInicioFacturacion,
+                FechaFin = fechaFinFacturacion,
+                Notas = NotasComparativa,
+                PotenciasContratadas = PotenciasParaPdf,
                 Cups = cups,
                 NombreCliente = nombreCliente,
                 EmailCliente = emailCliente,
                 DireccionCliente = direccionCliente,
                 CompaniaActual = companiaActual,
                 TarifaActual = tarifaActual,
-                ConsumoAnual = consumoAnual ?? 0,
+                ConsumoAnual = ConsumoAnualParaPdf,
                 PotenciaPunta = potenciaPunta ?? 0,
                 PotenciaValle = potenciaValle ?? 0,
                 LogoCompaniaActual = ObtenerLogoComerializadoraBytes(companiaActual),
@@ -2243,6 +2403,14 @@ else
         comercializadoras.Clear();
         mensajeExito = string.Empty;
         mensajeError = string.Empty;
+        mensajeAviso = string.Empty;
+        consumoGas = null;
+        unidadTerminoFijoGas = string.Empty;
+        impuestoHidrocarburosGas = 0.00234m;
+        otrosConceptos = null;
+        preciosPotenciaImportados.Clear();
+        preciosEnergiaImportados.Clear();
+        OnTipoTarifaChanged();
         cups = string.Empty;
         companiaActual = string.Empty;
         tarifaActual = string.Empty;
@@ -2291,6 +2459,27 @@ else
         consultarSips = false;
     }
 
+    private string NotasComparativa => mensajeAviso + (tipoSuministro == "Gas"
+        ? $" Término fijo de tarifas interpretado en {(unidadTerminoFijoGas == "Mensual" ? "€/mes" : "€/día")}." : string.Empty);
+
+    private List<decimal> PotenciasParaPdf => tipoSuministro == "Gas" ? new()
+        : tarifaActual == "2.0TD" ? new() { potenciaPunta ?? 0, potenciaValle ?? 0 }
+        : new() { potenciaP1 ?? 0, potenciaP2 ?? 0, potenciaP3 ?? 0, potenciaP4 ?? 0, potenciaP5 ?? 0, potenciaP6 ?? 0 };
+
+    private decimal ConsumoAnualParaPdf
+    {
+        get
+        {
+            if (tipoSuministro == "Luz" && consumoAnual > 0) return consumoAnual.Value;
+            var dias = fechaFinFacturacion.HasValue && fechaInicioFacturacion.HasValue
+                ? fechaFinFacturacion.Value.DayNumber - fechaInicioFacturacion.Value.DayNumber : 0;
+            var consumoPeriodo = tipoSuministro == "Gas" ? consumoGas ?? 0
+                : tarifaActual == "2.0TD" ? (consumoPunta ?? 0) + (consumoLlano ?? 0) + (consumoValle ?? 0)
+                : (consumoP1 ?? 0) + (consumoP2 ?? 0) + (consumoP3 ?? 0) + (consumoP4 ?? 0) + (consumoP5 ?? 0) + (consumoP6 ?? 0);
+            return dias > 0 ? consumoPeriodo * 365m / dias : 0;
+        }
+    }
+
     private async Task GenerarDocumentos()
     {
         try
@@ -2319,13 +2508,18 @@ else
             // Preparar los datos para el PDF
             var datosComparativa = new PdfComparadorService.DatosComparativa
             {
+                TipoSuministro = tipoSuministro,
+                FechaInicio = fechaInicioFacturacion,
+                FechaFin = fechaFinFacturacion,
+                Notas = NotasComparativa,
+                PotenciasContratadas = PotenciasParaPdf,
                 Cups = cups,
                 NombreCliente = nombreCliente,
                 EmailCliente = emailCliente,
                 DireccionCliente = direccionCliente,
                 CompaniaActual = companiaActual,
                 TarifaActual = tarifaActual,
-                ConsumoAnual = consumoAnual ?? 0,
+                ConsumoAnual = ConsumoAnualParaPdf,
                 PotenciaPunta = potenciaPunta ?? 0,
                 PotenciaValle = potenciaValle ?? 0,
                 LogoCompaniaActual = ObtenerLogoComerializadoraBytes(companiaActual),

@@ -8,6 +8,11 @@ public class PdfComparadorService
 {
     public class DatosComparativa
     {
+        public string TipoSuministro { get; set; } = "Luz";
+        public DateOnly? FechaInicio { get; set; }
+        public DateOnly? FechaFin { get; set; }
+        public string Notas { get; set; } = string.Empty;
+        public List<decimal> PotenciasContratadas { get; set; } = new();
         public string Cups { get; set; } = string.Empty;
         public string NombreCliente { get; set; } = string.Empty;
         public string EmailCliente { get; set; } = string.Empty;
@@ -152,6 +157,10 @@ public class PdfComparadorService
                                         txt.Span(datos.TarifaActual).FontSize(11).FontColor(Colors.Blue.Darken2);
                                     });
 
+                                    c.Item().PaddingTop(6).Text($"Suministro: {datos.TipoSuministro}").FontSize(10);
+                                    if (datos.FechaInicio.HasValue && datos.FechaFin.HasValue)
+                                        c.Item().PaddingTop(6).Text($"Factura de referencia: {datos.FechaInicio:dd/MM/yyyy} - {datos.FechaFin:dd/MM/yyyy}").FontSize(10);
+
                                     c.Item().PaddingTop(6).Row(innerRow =>
                                     {
                                         innerRow.RelativeItem().Text(txt =>
@@ -159,17 +168,15 @@ public class PdfComparadorService
                                             txt.Span("Consumo anual: ").Bold().FontSize(10);
                                             txt.Span($"{datos.ConsumoAnual:N0} kWh").FontSize(10);
                                         });
-                                        innerRow.RelativeItem().Text(txt =>
-                                        {
-                                            txt.Span("Potencia P1: ").Bold().FontSize(10);
-                                            txt.Span($"{datos.PotenciaPunta:N2} kW").FontSize(10);
-                                        });
-                                        innerRow.RelativeItem().Text(txt =>
-                                        {
-                                            txt.Span("Potencia P2: ").Bold().FontSize(10);
-                                            txt.Span($"{datos.PotenciaValle:N2} kW").FontSize(10);
-                                        });
                                     });
+                                    if (datos.TipoSuministro != "Gas")
+                                    {
+                                        var potencias = datos.PotenciasContratadas.Count > 0 ? datos.PotenciasContratadas : new List<decimal> { datos.PotenciaPunta, datos.PotenciaValle };
+                                        for (var indice = 0; indice < potencias.Count; indice++)
+                                        {
+                                            c.Item().PaddingTop(4).Text($"Potencia P{indice + 1}: {potencias[indice]:N2} kW").FontSize(10);
+                                        }
+                                    }
 
                                     c.Item().PaddingTop(10).Background(Colors.Blue.Darken2).Padding(8).Text(txt =>
                                     {
@@ -179,6 +186,9 @@ public class PdfComparadorService
                                 });
                             });
                         });
+
+                        if (!string.IsNullOrWhiteSpace(datos.Notas))
+                            column.Item().PaddingBottom(15).Text(datos.Notas).FontSize(9).FontColor(Colors.Grey.Darken2);
 
                         // Separador visual
                         column.Item().PaddingBottom(15).LineHorizontal(2).LineColor(Colors.Green.Darken2);
@@ -263,14 +273,8 @@ public class PdfComparadorService
 
                                                 desglose.Item().PaddingTop(8).Row(r =>
                                                 {
-                                                    r.RelativeItem().Text("Término fijo:").FontSize(10);
-                                                    r.AutoItem().Text($"{oferta.CosteTerminoFijo:N2} €/mes").Bold().FontSize(10);
-                                                });
-
-                                                desglose.Item().PaddingTop(5).Row(r =>
-                                                {
-                                                    r.RelativeItem().Text("Potencia:").FontSize(10);
-                                                    r.AutoItem().Text($"{oferta.CostePotencia:N2} €/mes").Bold().FontSize(10);
+                                                    r.RelativeItem().Text(datos.TipoSuministro == "Gas" ? "Término fijo:" : "Potencia:").FontSize(10);
+                                                    r.AutoItem().Text($"{(datos.TipoSuministro == "Gas" ? oferta.CosteTerminoFijo : oferta.CostePotencia):N2} €/mes").Bold().FontSize(10);
                                                 });
 
                                                 desglose.Item().PaddingTop(5).Row(r =>

@@ -47,5 +47,15 @@ window.publicSigning = {
     dataUrl: function (id) {
         const canvas = document.getElementById(id);
         return canvas ? canvas.toDataURL('image/png') : '';
+    },
+    getPublicIp: async function () {
+        try {
+            const response = await fetch('https://ipinfo.io/json', { cache: 'no-store' });
+            if (!response.ok) return '';
+            const result = await response.json();
+            return typeof result.ip === 'string' ? result.ip : '';
+        } catch {
+            return '';
+        }
     }
 };

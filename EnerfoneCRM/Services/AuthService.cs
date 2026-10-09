@@ -37,7 +37,11 @@ public class AuthService
     public bool EsDirectorComercial => _usuarioActual?.Rol == "Director comercial";
     public bool EsJefeVentas => _usuarioActual?.Rol == "Jefe de ventas";
     public bool EsGestor => _usuarioActual?.Rol == "Gestor";
-    public bool EsComercializadora => _usuarioActual?.Rol == "Comercializadora";
+    public bool EsProveedor => Usuario.EsRolProveedor(_usuarioActual?.Rol);
+    public bool EsProveedorEnergia => EsProveedor && _usuarioActual?.TipoProveedor == "energia";
+    public bool EsProveedorTelefonia => EsProveedor && _usuarioActual?.TipoProveedor == "telefonia";
+    public bool EsProveedorAlarmas => EsProveedor && _usuarioActual?.TipoProveedor == "alarmas";
+    public bool EsComercializadora => EsProveedorEnergia;
     public bool EsUsuario => _usuarioActual?.Rol == "Colaborador";
     public bool EsBackoffice => _usuarioActual?.Rol == "Backoffice";
     
@@ -124,6 +128,7 @@ public class AuthService
                     _usuarioActual = await context.Usuarios.FindAsync(usuarioId.Value);
                     if (_usuarioActual != null)
                     {
+                        await CargarTipoProveedorAsync(_usuarioActual, context);
                         Console.WriteLine($"[AUTH] Usuario restaurado de sesión: {_usuarioActual.NombreUsuario}");
                         NotificarCambioAutenticacion();
                         return true;
@@ -195,6 +200,7 @@ public class AuthService
                 return (false, "Contraseña incorrecta");
             }
 
+            await CargarTipoProveedorAsync(usuario, context);
             _usuarioActual = usuario;
             Console.WriteLine($"[AUTH] Login exitoso. Usuario autenticado: {_usuarioActual.NombreUsuario}");
             
@@ -213,6 +219,28 @@ public class AuthService
             Console.WriteLine($"[AUTH] Error en login: {ex.Message}");
             return (false, $"Error: {ex.Message}");
         }
+    }
+
+    private static async Task CargarTipoProveedorAsync(Usuario usuario, ApplicationDbContext context)
+    {
+        usuario.TipoProveedor = null;
+        if (!Usuario.EsRolProveedor(usuario.Rol)) return;
+
+        if (!string.IsNullOrWhiteSpace(usuario.Comercializadora) ||
+            await context.UsuarioComercializadoras.AnyAsync(uc => uc.UsuarioId == usuario.Id))
+        {
+            usuario.TipoProveedor = "energia";
+            return;
+        }
+
+        if (await context.UsuarioOperadoras.AnyAsync(uo => uo.UsuarioId == usuario.Id))
+        {
+            usuario.TipoProveedor = "telefonia";
+            return;
+        }
+
+        if (await context.UsuarioEmpresasAlarmas.AnyAsync(uea => uea.UsuarioId == usuario.Id))
+            usuario.TipoProveedor = "alarmas";
     }
 
     public async Task GuardarSesionAsync(bool recordarMe = false)

@@ -47,7 +47,7 @@
                                 <li><a class="dropdown-item" href="nuevo-contrato"><i class="bi bi-file-earmark-plus me-2" style="color: #4CAF50;"></i>Nuevo Contrato</a></li>
                                 <li><hr class="dropdown-divider" style="border-color: rgba(255, 255, 255, 0.1);"></li>
                             }
-                            @if (AuthService.UsuarioActual?.Rol != "Comercializadora" && AuthService.PuedeVerClientes)
+                            @if (!AuthService.EsProveedor && AuthService.PuedeVerClientes)
                             {
                                 <li><a class="dropdown-item" href="clientes"><i class="bi bi-person-vcard-fill me-2" style="color: #66BB6A;"></i>Clientes</a></li>
                             }
@@ -58,10 +58,16 @@
                                         <i class="bi bi-file-earmark-text me-2" style="color: #4FC3F7;"></i>Contratos
                                     </a>
                                     <ul class="dropdown-menu" aria-labelledby="navbarSubmenuContratos">
-                                        <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
-                                        @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                                        @if (!AuthService.EsProveedor || AuthService.EsProveedorEnergia)
+                                        {
+                                            <li><a class="dropdown-item" href="contratos/energia"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Energía</a></li>
+                                        }
+                                        @if (!AuthService.EsProveedor || AuthService.EsProveedorTelefonia)
                                         {
                                             <li><a class="dropdown-item" href="contratos/telefonia"><i class="bi bi-telephone-fill text-primary me-2"></i>Telefonía</a></li>
+                                        }
+                                        @if (!AuthService.EsProveedor || AuthService.EsProveedorAlarmas)
+                                        {
                                             <li><a class="dropdown-item" href="contratos/alarmas"><i class="bi bi-shield-check text-danger me-2"></i>Alarmas</a></li>
                                         }
                                     </ul>
