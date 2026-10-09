@@ -116,7 +116,7 @@ else
                                     {
                                         @foreach (var comercializadora in comercializadoras)
                                         {
-                                            <tr>
+                                            <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(comercializadora)">
                                                 <td>
                                                     @if (comercializadora.LogoContenido != null && comercializadora.LogoContenido.Length > 0)
                                                     {
@@ -142,7 +142,7 @@ else
                                                     }
                                                 </td>
                                                 <td>@comercializadora.FechaCreacion?.ToString("dd/MM/yyyy")</td>
-                                                <td class="text-end">
+                                                <td class="text-end" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" 
                                                             @onclick="() => MostrarModalEditar(comercializadora)" 
                                                             title="Editar">

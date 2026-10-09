@@ -7,7 +7,6 @@
 @rendermode InteractiveServer
 @inject OptimeService OptimeService
 @inject OptimeFirmaService OptimeFirmaService
-@inject NavigationManager Navigation
 @inject IJSRuntime JS
 
 <PageTitle>Ficha Nuevo Colaborador - Alta PdV</PageTitle>
@@ -28,7 +27,7 @@
                     <i class="bi bi-check-circle me-2"></i><strong>Ficha enviada correctamente.</strong> Gracias, nos pondremos en contacto contigo.
                     @if (documentosEnviados)
                     {
-                        <br /><span>Te hemos enviado por email los documentos para firmar (contrato, adenda y código de buenas prácticas).</span>
+                        <br /><span>Te hemos enviado por email una copia de los tres documentos firmados.</span>
                     }
                 </div>
                 <button class="btn btn-outline-primary w-100" @onclick="Reiniciar">
@@ -70,7 +69,10 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">CP *</label>
-                            <InputText class="form-control" maxlength="5" inputmode="numeric" @bind-Value="solicitud.CodigoPostal" />
+                            <div class="input-group">
+                                <SelectorCodigoPostal @bind-Value="solicitud.CodigoPostal" maxlength="5" inputmode="numeric"
+                                                      OnSeleccionado="@(codigo => { solicitud.CodigoPostal = codigo.CodigoPostalValor; solicitud.Poblacion = codigo.Ciudad; solicitud.Provincia = codigo.Provincia; })" />
+                            </div>
                             <ValidationMessage For="() => solicitud.CodigoPostal" />
                         </div>
                         <div class="col-12">
@@ -331,7 +333,8 @@
             enviado = true;
             try
             {
-                documentosEnviados = (await OptimeFirmaService.EnviarDocumentosAsync(solicitud.Id, Navigation.BaseUri)).Exito;
+                var ipPublicaCliente = await JS.InvokeAsync<string>("publicSigning.getPublicIp");
+                documentosEnviados = (await OptimeFirmaService.ProcesarAltaFirmadaAsync(solicitud.Id, ipPublicaCliente)).Exito;
             }
             catch
             {

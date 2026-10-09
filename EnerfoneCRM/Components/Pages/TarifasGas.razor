@@ -299,7 +299,7 @@ else
                                     {
                                         @foreach (var tarifa in tarifasFiltradas)
                                         {
-                                            <tr>
+                                            <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(tarifa)">
                                                 <td><strong>@tarifa.Empresa</strong></td>
                                                 <td><span class="badge @ObtenerColorTipoCliente(tarifa.TipoCliente)">@tarifa.TipoCliente</span></td>
                                                 <td>@tarifa.Nombre</td>
@@ -318,7 +318,7 @@ else
                                                         <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactiva</span>
                                                     }
                                                 </td>
-                                                <td class="text-end" style="white-space: nowrap;">
+                                                <td class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(tarifa)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>

@@ -158,7 +158,10 @@ else
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">CP *</label>
-                                    <InputText class="form-control" maxlength="5" @bind-Value="solicitudEdicion.CodigoPostal" />
+                                    <div class="input-group">
+                                        <SelectorCodigoPostal @bind-Value="solicitudEdicion.CodigoPostal" maxlength="5"
+                                                              OnSeleccionado="@(codigo => { solicitudEdicion.CodigoPostal = codigo.CodigoPostalValor; solicitudEdicion.Poblacion = codigo.Ciudad; solicitudEdicion.Provincia = codigo.Provincia; })" />
+                                    </div>
                                 </div>
                                 <div class="col-md-8">
                                     <label class="form-label">Persona de contacto PdV *</label>
@@ -300,10 +303,10 @@ else
                                                             <button type="button" class="btn btn-sm btn-outline-success me-1" @onclick="() => VerDocumentoFirma(f.Id, true)"><i class="bi bi-file-earmark-check me-1"></i>Firmado</button>
                                                         }
                                                     }
-                                                    @if (f?.Estado != EstadoSolicitudFirma.Firmado)
+                                                    @if (f == null)
                                                     {
                                                         <button type="button" class="btn btn-sm btn-outline-primary" disabled="@enviandoFirma" @onclick="() => EnviarFirma(tipoActual)">
-                                                            <i class="bi bi-send me-1"></i>@(f == null ? "Enviar" : "Reenviar")
+                                                            <i class="bi bi-send me-1"></i>Enviar
                                                         </button>
                                                     }
                                                 </td>

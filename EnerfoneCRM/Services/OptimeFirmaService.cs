@@ -16,6 +16,7 @@ public class OptimeFirmaService
 
     private readonly DbContextProvider _dbContextProvider;
     private readonly EmailService _emailService;
+    private readonly UsuarioService _usuarioService;
     private readonly IConfiguration _configuration;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<OptimeFirmaService> _logger;
@@ -24,12 +25,14 @@ public class OptimeFirmaService
     public OptimeFirmaService(
         DbContextProvider dbContextProvider,
         EmailService emailService,
+        UsuarioService usuarioService,
         IConfiguration configuration,
         IHttpContextAccessor httpContextAccessor,
         ILogger<OptimeFirmaService> logger)
     {
         _dbContextProvider = dbContextProvider;
         _emailService = emailService;
+        _usuarioService = usuarioService;
         _configuration = configuration;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
@@ -47,6 +50,82 @@ public class OptimeFirmaService
 
         return errores.Count == 0
             ? new(true, "Documentos enviados a firma.")
+            : new(false, string.Join(" | ", errores));
+    }
+
+    public async Task<ResultadoFirma> ProcesarAltaFirmadaAsync(int solicitudId, string? ipPublicaCliente = null)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        var solicitud = await context.OptimeSolicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.Id == solicitudId);
+        if (solicitud == null) return new(false, "Solicitud no encontrada.");
+        if (string.IsNullOrWhiteSpace(solicitud.Email) || !new EmailAddressAttribute().IsValid(solicitud.Email))
+            return new(false, "La solicitud no tiene un email válido.");
+
+        var documentoFirma = await context.OptimeDocumentos.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.SolicitudId == solicitudId && d.Tipo == OptimeDocumento.TipoFirma);
+        if (documentoFirma?.Contenido is not { Length: > 0 } imagenFirma)
+            return new(false, "La solicitud no tiene una firma válida.");
+
+        var ahora = DateTime.Now;
+        var ahoraUtc = ahora.ToUniversalTime();
+        var ip = ObtenerIp(ipPublicaCliente);
+        var registros = new List<OptimeFirma>();
+        var adjuntos = new List<(byte[] Contenido, string NombreArchivo, string TipoMime)>();
+
+        foreach (var tipo in OptimeFirma.Tipos)
+        {
+            var original = GenerarDocumento(tipo, solicitud, null, null, ahora);
+            var firmado = GenerarDocumento(tipo, solicitud, imagenFirma, ip, ahora);
+            registros.Add(new OptimeFirma
+            {
+                SolicitudId = solicitudId,
+                TipoDocumento = tipo,
+                ProcesoId = Guid.NewGuid().ToString("D"),
+                TokenHash = _tokenService.Hash(_tokenService.Generar()),
+                FechaCreacionUtc = ahoraUtc,
+                FechaCaducidadUtc = ahoraUtc,
+                FechaFirmaUtc = ahoraUtc,
+                Estado = EstadoSolicitudFirma.Firmado,
+                EmailDestinatario = solicitud.Email.Trim(),
+                NombreDestinatario = solicitud.PersonaContacto,
+                DocumentoOriginal = original,
+                DocumentoFirmado = firmado,
+                FirmaImagen = imagenFirma,
+                HashDocumentoOriginal = ContractSigningPdfService.CalcularHash(original),
+                HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado),
+                IpFirma = ip,
+                UserAgentFirma = _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString()
+            });
+            adjuntos.Add((firmado, NombreArchivo(tipo, true), "application/pdf"));
+        }
+
+        context.OptimeFirmas.AddRange(registros);
+        await context.SaveChangesAsync();
+
+        var errores = new List<string>();
+        var envioCliente = await _emailService.EnviarEmailConAdjuntosEnMemoriaAsync(
+            solicitud.Email.Trim(),
+            "Documentación firmada de alta Optime",
+            $"<p>Hola {WebUtility.HtmlEncode(solicitud.PersonaContacto)},</p><p>Adjuntamos una copia de los tres documentos firmados para el alta del punto de venta <strong>{WebUtility.HtmlEncode(solicitud.RazonSocial)}</strong>.</p>",
+            adjuntos);
+        if (!envioCliente.exito) errores.Add($"Cliente: {envioCliente.mensaje}");
+
+        var administradores = await _usuarioService.ObtenerAdministradoresActivosAsync();
+        if (administradores.Count == 0)
+            errores.Add("No hay ningún usuario administrador activo con email.");
+
+        foreach (var administrador in administradores)
+        {
+            var envioAdministrador = await _emailService.EnviarEmailConAdjuntosEnMemoriaAsync(
+                administrador.Email,
+                $"Nueva alta de usuario Optime: {solicitud.RazonSocial}",
+                $"<p>Se ha dado de alta un nuevo usuario de Optime.</p><p><strong>Punto de venta:</strong> {WebUtility.HtmlEncode(solicitud.RazonSocial)}<br/><strong>Persona de contacto:</strong> {WebUtility.HtmlEncode(solicitud.PersonaContacto)}<br/><strong>Email:</strong> {WebUtility.HtmlEncode(solicitud.Email)}</p><p>Se adjuntan los tres documentos firmados.</p>",
+                adjuntos);
+            if (!envioAdministrador.exito) errores.Add($"Administrador {administrador.Email}: {envioAdministrador.mensaje}");
+        }
+
+        return errores.Count == 0
+            ? new(true, "Documentos firmados enviados al cliente y al administrador.")
             : new(false, string.Join(" | ", errores));
     }
 
@@ -172,14 +251,19 @@ public class OptimeFirmaService
         if (firma.Estado == EstadoSolicitudFirma.Enviado)
         {
             firma.Estado = EstadoSolicitudFirma.EnProceso;
-            firma.IpFirma ??= ObtenerIp();
+            if (string.IsNullOrWhiteSpace(firma.IpFirma))
+            {
+                var ipSolicitud = ObtenerIp();
+                if (!string.IsNullOrWhiteSpace(ipSolicitud))
+                    firma.IpFirma = ipSolicitud;
+            }
             await context.SaveChangesAsync();
         }
 
         return firma;
     }
 
-    public async Task<ResultadoFirma> CompletarFirmaAsync(string token, byte[] imagenFirma)
+    public async Task<ResultadoFirma> CompletarFirmaAsync(string token, byte[] imagenFirma, string? ipPublicaCliente = null)
     {
         if (imagenFirma.Length == 0 || imagenFirma.Length > 2 * 1024 * 1024)
             return new(false, "La firma no es válida.");
@@ -195,15 +279,17 @@ public class OptimeFirmaService
         var solicitud = await context.OptimeSolicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.Id == firma.SolicitudId);
         if (solicitud == null) return new(false, "Solicitud no encontrada.");
 
-        var ip = string.IsNullOrWhiteSpace(firma.IpFirma) ? ObtenerIp() : firma.IpFirma;
-        var ahora = DateTime.Now;
-        var firmado = GenerarDocumento(firma.TipoDocumento, solicitud, imagenFirma, ip, ahora);
+        var ip = ObtenerIp(ipPublicaCliente);
+        if (string.IsNullOrWhiteSpace(ip)) ip = ObtenerIp(firma.IpFirma);
+        var fechaFirmaUtc = DateTime.UtcNow;
+        var fechaFirmaLocal = fechaFirmaUtc.ToLocalTime();
+        var firmado = GenerarDocumento(firma.TipoDocumento, solicitud, imagenFirma, ip, fechaFirmaLocal);
 
         firma.DocumentoFirmado = firmado;
         firma.HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado);
         firma.FirmaImagen = imagenFirma;
         firma.Estado = EstadoSolicitudFirma.Firmado;
-        firma.FechaFirmaUtc = ahora.ToUniversalTime();
+        firma.FechaFirmaUtc = fechaFirmaUtc;
         firma.IpFirma = ip;
         firma.UserAgentFirma = _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString();
         await context.SaveChangesAsync();
@@ -233,16 +319,8 @@ public class OptimeFirmaService
         return (baseUrl ?? string.Empty).TrimEnd('/');
     }
 
-    private string ObtenerIp()
-    {
-        var context = _httpContextAccessor.HttpContext;
-        var forwarded = context?.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
-        var address = forwarded ?? context?.Connection.RemoteIpAddress?.ToString();
-        if (string.IsNullOrWhiteSpace(address)) return string.Empty;
-        if (IPAddress.TryParse(address, out var parsed))
-            return IPAddress.IsLoopback(parsed) ? "127.0.0.1" : parsed.MapToIPv4().ToString();
-        return address;
-    }
+    private string ObtenerIp(string? ipNavegador = null) =>
+        FirmaIpResolver.ObtenerIpPublica(_httpContextAccessor.HttpContext, ipNavegador);
 
     // ---------- Generación de PDF sobre las plantillas de Resources ----------
 
@@ -266,7 +344,7 @@ public class OptimeFirmaService
         }
 
         if (firma is { Length: > 0 })
-            EstamparPieFirma(document, s, firma, ip, OptimeFirma.Titulo(tipo));
+            EstamparPieFirma(document, s, firma, ip, OptimeFirma.Titulo(tipo), fecha);
 
         using var stream = new MemoryStream();
         document.Save(stream, false);
@@ -355,20 +433,21 @@ public class OptimeFirmaService
         g.DrawImage(imagen, x + (ancho - w) / 2, y + (alto - h) / 2, w, h);
     }
 
-    private static void EstamparPieFirma(PdfDocument document, OptimeSolicitud s, byte[] firma, string? ip, string titulo)
+    private static void EstamparPieFirma(PdfDocument document, OptimeSolicitud s, byte[] firma, string? ip, string titulo, DateTime fechaFirma)
     {
         var fuente = new XFont("Arial", 7, XFontStyle.Bold);
         var fondo = new XSolidBrush(XColor.FromArgb(240, 230, 255));
         foreach (var pagina in document.Pages)
         {
             using var g = XGraphics.FromPdfPage(pagina, XGraphicsPdfPageOptions.Append);
-            var y = pagina.Height.Point - 32;
-            g.DrawRectangle(fondo, 42, y, pagina.Width.Point - 84, 28);
-            g.DrawString($"Firmado por: {s.PersonaContacto} ({s.NifPersonaContacto}) - {s.RazonSocial}", fuente, XBrushes.Black, new XPoint(50, y + 11));
-            g.DrawString($"IP de firma: {ip ?? "-"} | {titulo}", fuente, XBrushes.Black, new XPoint(50, y + 22));
+            var y = pagina.Height.Point - 48;
+            g.DrawRectangle(fondo, 42, y, pagina.Width.Point - 84, 42);
+            g.DrawString($"Firmado por: {s.PersonaContacto} ({s.NifPersonaContacto}) - {s.RazonSocial}", fuente, XBrushes.Black, new XPoint(50, y + 10));
+            g.DrawString($"IP de firma: {ip ?? "-"}", fuente, XBrushes.Black, new XPoint(50, y + 21));
+            g.DrawString($"Fecha y hora de firma: {fechaFirma:dd/MM/yyyy HH:mm:ss} | {titulo}", fuente, XBrushes.Black, new XPoint(50, y + 32));
             using var imagen = XImage.FromStream(() => new MemoryStream(firma));
-            var escala = Math.Min(80 / imagen.PointWidth, 24 / imagen.PointHeight);
-            g.DrawImage(imagen, pagina.Width.Point - 46 - imagen.PointWidth * escala, y + 2, imagen.PointWidth * escala, imagen.PointHeight * escala);
+            var escala = Math.Min(80 / imagen.PointWidth, 34 / imagen.PointHeight);
+            g.DrawImage(imagen, pagina.Width.Point - 46 - imagen.PointWidth * escala, y + 4, imagen.PointWidth * escala, imagen.PointHeight * escala);
         }
     }
 

@@ -7,6 +7,7 @@
 @inject AuthService AuthService
 @inject NavigationManager NavigationManager
 @inject EmailService EmailService
+@inject IncidenciaImagenService IncidenciaImagenService
 @inject DbContextProvider DbContextProvider
 @inject IConfiguration Configuration
 @rendermode InteractiveServer
@@ -34,7 +35,7 @@ else
                             Enviar Incidencia
                         </h4>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body" data-imagen-incidencia>
                     @if (!string.IsNullOrEmpty(mensajeExito))
                     {
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -123,28 +124,10 @@ else
                             <small class="text-muted">Caracteres restantes: @(2000 - (incidencia.Descripcion?.Length ?? 0))</small>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-image-fill me-1"></i>Imagen adjunta (opcional)
-                            </label>
-                            <InputFile OnChange="@CargarImagen" class="form-control" accept="image/*" />
-                            <small class="text-muted">Formatos soportados: JPG, PNG, GIF, BMP, WEBP, etc. Tamaño máximo: 5 MB</small>
-                            @if (!string.IsNullOrEmpty(nombreImagen))
-                            {
-                                <div class="mt-2 alert alert-info py-2">
-                                    <i class="bi bi-check-circle-fill me-1"></i>Imagen seleccionada: <strong>@nombreImagen</strong> (@tamanoImagenMB MB)
-                                </div>
-                            }
-                            @if (!string.IsNullOrEmpty(errorImagen))
-                            {
-                                <div class="mt-2 alert alert-danger py-2">
-                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>@errorImagen
-                                </div>
-                            }
-                        </div>
+                        <SelectorImagenIncidencia @key="versionImagen" OnCambio="ImagenSeleccionada" OnCargaCambio="@(cargando => cargandoImagen = cargando)" Disabled="@enviando" />
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-danger" disabled="@enviando">
+                            <button type="submit" class="btn btn-danger" disabled="@(enviando || cargandoImagen)">
                                 @if (enviando)
                                 {
                                     <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -156,7 +139,7 @@ else
                                     <span>Enviar Incidencia</span>
                                 }
                             </button>
-                            <button type="button" class="btn btn-outline-secondary" @onclick="Limpiar" disabled="@enviando">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="Limpiar" disabled="@(enviando || cargandoImagen)">
                                 <i class="bi bi-arrow-counterclockwise me-2"></i>Limpiar
                             </button>
                         </div>
@@ -176,11 +159,12 @@ else
     private byte[]? imagenBytes = null;
     private string? nombreImagen = null;
     private string? tipoMimeImagen = null;
-    private string? errorImagen = null;
-    private decimal tamanoImagenMB = 0;
+    private int versionImagen;
+    private bool cargandoImagen;
 
     private async Task EnviarFormulario()
     {
+        if (cargandoImagen || enviando) return;
         try
         {
             enviando = true;
@@ -291,26 +275,7 @@ else
 
     private async Task<string> GuardarImagenIncidenciaAsync(byte[] bytes, string nombreOriginal)
     {
-        var storagePath = Configuration.GetValue<string>("StoragePath");
-        if (string.IsNullOrEmpty(storagePath))
-        {
-            storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
-        }
-
-        var incidenciasDir = Path.Combine(storagePath, "incidencias");
-        if (!Directory.Exists(incidenciasDir))
-        {
-            Directory.CreateDirectory(incidenciasDir);
-        }
-
-        var safeOriginal = Path.GetFileName(nombreOriginal);
-        var ext = Path.GetExtension(safeOriginal);
-        if (string.IsNullOrWhiteSpace(ext)) ext = ".bin";
-
-        var fileName = $"inc_{Guid.NewGuid():N}{ext}";
-        var ruta = Path.Combine(incidenciasDir, fileName);
-        await File.WriteAllBytesAsync(ruta, bytes);
-        return fileName;
+        return await IncidenciaImagenService.GuardarAsync(ImagenIncidenciaAdjunta.Crear(bytes, nombreOriginal));
     }
 
     private string GenerarEmailIncidencia(Usuario usuario, string fecha)
@@ -402,59 +367,21 @@ else
         return sb.ToString();
     }
 
-    private async Task CargarImagen(InputFileChangeEventArgs e)
+    private void ImagenSeleccionada(ImagenIncidenciaAdjunta? imagen)
     {
-        try
-        {
-            errorImagen = null;
-            nombreImagen = null;
-            imagenBytes = null;
-            tipoMimeImagen = null;
-            tamanoImagenMB = 0;
-
-            var archivo = e.File;
-            
-            // Validar tipo de archivo
-            if (!archivo.ContentType.StartsWith("image/"))
-            {
-                errorImagen = "El archivo debe ser una imagen";
-                return;
-            }
-
-            // Validar tamaño (5 MB máximo)
-            const long maxFileSize = 5 * 1024 * 1024; // 5 MB
-            if (archivo.Size > maxFileSize)
-            {
-                errorImagen = "La imagen no puede superar los 5 MB";
-                return;
-            }
-
-            // Leer el archivo
-            using var memoryStream = new MemoryStream();
-            await archivo.OpenReadStream(maxFileSize).CopyToAsync(memoryStream);
-            imagenBytes = memoryStream.ToArray();
-            nombreImagen = archivo.Name;
-            tipoMimeImagen = archivo.ContentType;
-            tamanoImagenMB = Math.Round((decimal)archivo.Size / 1024 / 1024, 2);
-        }
-        catch (Exception ex)
-        {
-            errorImagen = $"Error al cargar la imagen: {ex.Message}";
-            imagenBytes = null;
-            nombreImagen = null;
-            tipoMimeImagen = null;
-            Console.WriteLine($"[INCIDENCIA] Error al cargar imagen: {ex.Message}");
-        }
+        imagenBytes = imagen?.Contenido;
+        nombreImagen = imagen?.Nombre;
+        tipoMimeImagen = imagen?.TipoMime;
     }
 
     private void Limpiar()
     {
+        if (cargandoImagen || enviando) return;
         incidencia = new IncidenciaFormulario();
         imagenBytes = null;
         nombreImagen = null;
         tipoMimeImagen = null;
-        errorImagen = null;
-        tamanoImagenMB = 0;
+        versionImagen++;
     }
 
     private class IncidenciaFormulario

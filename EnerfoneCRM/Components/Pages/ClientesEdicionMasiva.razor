@@ -240,8 +240,11 @@ else
                                                    @onpaste="@((e) => OnPaste(e, index, "Provincia"))" maxlength="100" />
                                         </td>
                                         <td>
-                                            <input type="text" class="form-control form-control-sm" @bind="cliente.CodigoPostal" 
-                                                   @onpaste="@((e) => OnPaste(e, index, "CodigoPostal"))" maxlength="10" />
+                                              <div class="input-group input-group-sm">
+                                                      <SelectorCodigoPostal @bind-Value="cliente.CodigoPostal" class="form-control-sm" maxlength="5"
+                                                                OnPaste="@((e) => OnPaste(e, index, "CodigoPostal"))"
+                                                                OnSeleccionado="@(codigo => { cliente.CodigoPostal = codigo.CodigoPostalValor; cliente.Poblacion = codigo.Ciudad; cliente.Ciudad = codigo.Ciudad; cliente.Provincia = codigo.Provincia; })" />
+                                              </div>
                                         </td>
                                         <td>
                                             <input type="text" class="form-control form-control-sm" @bind="cliente.Pais" 

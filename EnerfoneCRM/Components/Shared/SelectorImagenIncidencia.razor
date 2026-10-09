@@ -1,0 +1,117 @@
+@using EnerfoneCRM.Models
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div id="@zonaId" @ref="contenedor" class="mb-3" tabindex="0" role="group" aria-label="Imagen adjunta">
+    <label class="form-label fw-bold" for="@entradaId"><i class="bi bi-image me-1"></i>Imagen adjunta</label>
+    <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-2">
+        <i class="bi bi-clipboard mt-1" aria-hidden="true"></i>
+        <div>
+            <strong>Puedes pegar imágenes en esta incidencia.</strong>
+            <span class="d-block">Copia una imagen y pégala con <kbd>Ctrl</kbd> + <kbd>V</kbd> (<kbd>⌘</kbd> + <kbd>V</kbd> en Mac), o selecciónala como archivo.</span>
+        </div>
+    </div>
+    <InputFile id="@entradaId" class="form-control" OnChange="CargarAsync" accept="image/png,image/jpeg,image/gif,image/bmp,image/webp" disabled="@(Disabled || cargando)" />
+    <small class="text-muted">PNG, JPEG, GIF, BMP o WebP. Máximo 20 MB.</small>
+    @if (cargando)
+    {
+        <div class="mt-2" role="status"><span class="spinner-border spinner-border-sm me-1"></span>Cargando imagen...</div>
+    }
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger mt-2 py-2" role="alert">@error</div>
+    }
+    @if (imagen != null)
+    {
+        <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+            <small class="text-muted">@imagen.Nombre · @((imagen.Contenido.Length / 1024m / 1024m).ToString("N2")) MB</small>
+            <button type="button" class="btn btn-sm btn-outline-danger" title="Quitar imagen" aria-label="Quitar imagen" @onclick="QuitarAsync" disabled="@(Disabled || cargando)"><i class="bi bi-trash"></i></button>
+        </div>
+        @if (!string.IsNullOrEmpty(urlPrevia))
+        {
+            <img src="@urlPrevia" alt="Imagen adjunta pendiente de guardar" class="img-fluid border rounded mt-2" style="max-height: 240px; object-fit: contain;" />
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<ImagenIncidenciaAdjunta?> OnCambio { get; set; }
+    [Parameter] public EventCallback<bool> OnCargaCambio { get; set; }
+    private readonly string zonaId = $"zona-imagen-{Guid.NewGuid():N}";
+    private readonly string entradaId = $"imagen-incidencia-{Guid.NewGuid():N}";
+    private ElementReference contenedor;
+    private IJSObjectReference? modulo;
+    private DotNetObjectReference<SelectorImagenIncidencia>? referencia;
+    private ImagenIncidenciaAdjunta? imagen;
+    private string? urlPrevia;
+    private string error = string.Empty;
+    private bool cargando;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./js/imagenIncidencia.js");
+            referencia = DotNetObjectReference.Create(this);
+            await modulo.InvokeVoidAsync("enlazar", contenedor, referencia, ImagenIncidenciaAdjunta.MaximoBytes);
+        }
+        if (modulo != null) await modulo.InvokeVoidAsync("deshabilitar", zonaId, Disabled || cargando);
+    }
+
+    private async Task CargarAsync(InputFileChangeEventArgs args)
+    {
+        if (Disabled || cargando) return;
+        cargando = true;
+        error = string.Empty;
+        await OnCargaCambio.InvokeAsync(true);
+        try
+        {
+            using var memoria = new MemoryStream();
+            await using var archivo = args.File.OpenReadStream(ImagenIncidenciaAdjunta.MaximoBytes);
+            await archivo.CopyToAsync(memoria);
+            imagen = ImagenIncidenciaAdjunta.Crear(memoria.ToArray(), args.File.Name);
+            urlPrevia = modulo != null ? await modulo.InvokeAsync<string?>("vistaPrevia", zonaId) : null;
+            await OnCambio.InvokeAsync(imagen);
+        }
+        catch (ArgumentException excepcion) { await ErrorPegado(excepcion.Message); }
+        catch { await ErrorPegado("No se ha podido cargar la imagen. Comprueba el formato y el límite de 20 MB."); }
+        finally
+        {
+            cargando = false;
+            await OnCargaCambio.InvokeAsync(false);
+        }
+    }
+
+    [JSInvokable]
+    public async Task ErrorPegado(string mensaje)
+    {
+        if (Disabled) return;
+        await QuitarAsync();
+        error = mensaje;
+        StateHasChanged();
+    }
+
+    private async Task QuitarAsync()
+    {
+        imagen = null;
+        urlPrevia = null;
+        error = string.Empty;
+        if (modulo != null) await modulo.InvokeVoidAsync("limpiar", zonaId);
+        await OnCambio.InvokeAsync(null);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (modulo != null)
+            {
+                await modulo.InvokeVoidAsync("liberar", zonaId);
+                await modulo.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+        finally { referencia?.Dispose(); }
+    }
+}

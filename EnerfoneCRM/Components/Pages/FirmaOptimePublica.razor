@@ -92,15 +92,15 @@
     private bool firmando;
     private string error = string.Empty;
 
+    protected override async Task OnInitializedAsync()
+    {
+        firma = await OptimeFirmaService.ObtenerPorTokenAsync(Token);
+        cargando = false;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            firma = await OptimeFirmaService.ObtenerPorTokenAsync(Token);
-            cargando = false;
-            await InvokeAsync(StateHasChanged);
-        }
-        else if (confirmando && !canvasInicializado)
+        if (confirmando && !canvasInicializado)
         {
             await JS.InvokeVoidAsync("publicSigning.start", canvasId);
             canvasInicializado = true;
@@ -136,7 +136,8 @@
                 return;
             }
 
-            var resultado = await OptimeFirmaService.CompletarFirmaAsync(Token, Convert.FromBase64String(data[(pos + 1)..]));
+            var ipPublicaCliente = await JS.InvokeAsync<string>("publicSigning.getPublicIp");
+            var resultado = await OptimeFirmaService.CompletarFirmaAsync(Token, Convert.FromBase64String(data[(pos + 1)..]), ipPublicaCliente);
             if (resultado.Exito)
                 firma = await OptimeFirmaService.ObtenerPorTokenAsync(Token);
             else

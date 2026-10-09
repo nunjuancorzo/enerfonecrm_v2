@@ -14,6 +14,38 @@ public class EmailService
         _dbContextProvider = dbContextProvider;
     }
 
+    public static bool EsEmailValido(string? email) => !string.IsNullOrWhiteSpace(email) &&
+        new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email.Trim());
+
+    public static string ObtenerIdentificacionCliente(Cliente cliente)
+    {
+        var (nombre, representante, esPyme) = ObtenerDatosCliente(cliente);
+        return esPyme && !string.IsNullOrWhiteSpace(representante)
+            ? $"{nombre} - Representante: {representante}" : nombre;
+    }
+
+    public static string GenerarDatosClienteNotificacion(Cliente cliente)
+    {
+        var (nombre, representante, esPyme) = ObtenerDatosCliente(cliente);
+        var etiqueta = esPyme ? "Pyme / Razón social" : "Cliente";
+        var html = $"<p><span class='label'>{etiqueta}:</span> <span class='value'>{WebUtility.HtmlEncode(nombre)}</span></p>";
+        if (esPyme)
+            html += $"<p><span class='label'>Representante:</span> <span class='value'>{WebUtility.HtmlEncode(representante ?? "No informado")}</span></p>";
+        return html;
+    }
+
+    private static (string nombre, string? representante, bool esPyme) ObtenerDatosCliente(Cliente cliente)
+    {
+        var esPyme = string.Equals(cliente.TipoCliente?.Trim(), "Pyme", StringComparison.OrdinalIgnoreCase);
+        var nombre = esPyme && !string.IsNullOrWhiteSpace(cliente.Empresa) ? cliente.Empresa.Trim() : cliente.Nombre?.Trim();
+        var representante = cliente.Representante?.Trim();
+        if (esPyme && string.IsNullOrWhiteSpace(representante) && !string.IsNullOrWhiteSpace(cliente.Empresa) &&
+            !string.Equals(cliente.Nombre?.Trim(), nombre, StringComparison.OrdinalIgnoreCase))
+            representante = cliente.Nombre?.Trim();
+        return (string.IsNullOrWhiteSpace(nombre) ? "No informado" : nombre,
+            string.IsNullOrWhiteSpace(representante) ? null : representante, esPyme);
+    }
+
     public async Task<(bool exito, string mensaje)> EnviarEmailConAdjuntoAsync(
         string destinatario,
         string asunto,
@@ -145,6 +177,59 @@ public class EmailService
             smtp.EnableSsl = config.SmtpUsarSsl;
 
             // Enviar el email
+            await smtp.SendMailAsync(message);
+
+            return (true, "Email enviado correctamente");
+        }
+        catch (SmtpException smtpEx)
+        {
+            return (false, $"Error al enviar email: {smtpEx.Message}");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error inesperado al enviar email: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool exito, string mensaje)> EnviarEmailConAdjuntosEnMemoriaAsync(
+        string destinatario,
+        string asunto,
+        string cuerpoHtml,
+        IReadOnlyCollection<(byte[] Contenido, string NombreArchivo, string TipoMime)> adjuntos)
+    {
+        try
+        {
+            using var context = _dbContextProvider.CreateDbContext();
+            var config = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+
+            if (config == null)
+                return (false, "No se encontró la configuración de la empresa");
+
+            if (string.IsNullOrEmpty(config.SmtpServidor) ||
+                string.IsNullOrEmpty(config.SmtpUsuario) ||
+                string.IsNullOrEmpty(config.SmtpPassword))
+                return (false, "La configuración SMTP está incompleta. Configure el servidor de email en Configuración de Empresa");
+
+            using var message = new MailMessage
+            {
+                From = new MailAddress(config.SmtpEmailDesde ?? config.SmtpUsuario, config.SmtpNombreDesde ?? config.NombreEmpresa),
+                Subject = asunto,
+                Body = cuerpoHtml,
+                IsBodyHtml = true
+            };
+            message.To.Add(destinatario);
+
+            foreach (var adjunto in adjuntos)
+            {
+                var stream = new MemoryStream(adjunto.Contenido);
+                message.Attachments.Add(new Attachment(stream, adjunto.NombreArchivo, adjunto.TipoMime));
+            }
+
+            using var smtp = new SmtpClient(config.SmtpServidor, config.SmtpPuerto ?? 587)
+            {
+                Credentials = new NetworkCredential(config.SmtpUsuario, config.SmtpPassword),
+                EnableSsl = config.SmtpUsarSsl
+            };
             await smtp.SendMailAsync(message);
 
             return (true, "Email enviado correctamente");

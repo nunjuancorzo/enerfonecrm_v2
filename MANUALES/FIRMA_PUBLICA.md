@@ -33,6 +33,17 @@ Ejemplo de configuracion:
 
 ## Flujo para el colaborador
 
+### Registro de un nuevo usuario
+
+- El email del registro es obligatorio y debe tener un formato valido. Se guarda sin espacios al principio o al final.
+- Tras crear el usuario Colaborador, todavia inactivo, el registro solicita automaticamente la firma del contrato de colaboracion. El correo contiene un enlace para consultar y firmar el documento; no requiere iniciar sesion ni activar antes la cuenta.
+- Se reutiliza `FirmaService.CrearSolicitudColaboradorAsync`, la plantilla `Resources/contrato_colaboradores.pdf` y la solicitud de firma del colaborador. La URL es `/firma-colaborador/{token}` y su caducidad actual es de dos dias.
+- Deben estar disponibles la tabla `solicitudes_firma_colaboradores`, la plantilla y la configuracion SMTP. `PublicSigning:Enabled` debe estar activo y `PublicSigning:BaseUrl` debe ser una URL HTTPS publica, sin query ni fragmento. HTTP solo se admite para localhost en desarrollo.
+- La pantalla confirma el envio cuando SMTP lo acepta. Si falla el envio o la generacion, la cuenta no se vuelve a crear: se muestra un aviso y un administrador puede reenviar el contrato desde la ficha del usuario.
+- Las notificaciones a administradores se conservan y se envian despues de solicitar la firma al nuevo colaborador.
+
+### Envio de contratos al cliente
+
 1. Abrir la ficha del contrato en energia, telefonia o alarmas.
 2. Comprobar que existe cliente, email valido y datos de proveedor.
 3. Pulsar `Enviar documentacion al cliente`.

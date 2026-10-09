@@ -1,0 +1,250 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inherits InputBase<string?>
+@inject CodigoPostalService CodigoPostalService
+
+<input @attributes="AdditionalAttributes" type="text" class="@($"form-control {CssClass} {(string.IsNullOrEmpty(errorCodigoPostal) ? "" : "is-invalid")}")"
+       value="@CurrentValueAsString" @onchange="ValidarCodigoPostalAsync" @onpaste="OnPaste"
+       disabled="@Disabled" aria-invalid="@(!string.IsNullOrEmpty(errorCodigoPostal) ? "true" : "false")"
+       aria-describedby="@(!string.IsNullOrEmpty(errorCodigoPostal) ? errorId : null)" />
+<button @ref="botonAbrir" class="btn btn-outline-secondary" type="button" @onclick="AbrirAsync"
+        title="Seleccionar código postal" aria-label="Seleccionar código postal" disabled="@Disabled">
+    <i class="bi bi-search" aria-hidden="true"></i>
+</button>
+
+@if (!string.IsNullOrEmpty(errorCodigoPostal))
+{
+    <div id="@errorId" class="invalid-feedback d-block" role="alert">@errorCodigoPostal</div>
+}
+
+@if (visible)
+{
+    <div class="modal-backdrop show" style="z-index: 1990;" @onclick="CerrarAsync"></div>
+    <div class="modal show" style="display: block; z-index: 2000;" tabindex="-1" role="dialog"
+         aria-modal="true" aria-labelledby="@tituloId" @onclick="CerrarAsync" @onkeydown="AlPulsarTecla" @onkeydown:stopPropagation="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="@tituloId">Seleccionar código postal</h5>
+                    <button type="button" class="btn-close" aria-label="Cerrar" @onclick="CerrarAsync"></button>
+                </div>
+                <div class="modal-body">
+                    <input @ref="campoBusqueda" type="search" class="form-control mb-3"
+                           placeholder="Código postal, localidad o provincia" aria-label="Buscar código postal, localidad o provincia"
+                           value="@busqueda" @oninput="CambiarBusqueda" onkeydown="if (event.key === 'Enter') event.preventDefault();" />
+                    @if (cargando)
+                    {
+                        <div class="text-center py-4" role="status">
+                            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cargando...
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(error))
+                    {
+                        <div class="alert alert-danger" role="alert">@error</div>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CargarAsync">
+                            <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Reintentar
+                        </button>
+                    }
+                    else
+                    {
+                        var resultados = Resultados;
+                        var totalPaginas = Math.Max(1, (resultados.Count + tamanoPagina - 1) / tamanoPagina);
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr><th>Código postal</th><th>Localidad</th><th>Provincia</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var codigo in resultados.Skip((paginaActual - 1) * tamanoPagina).Take(tamanoPagina))
+                                    {
+                                        <tr @key="codigo.Id">
+                                            <td>@codigo.CodigoPostalValor</td>
+                                            <td>@codigo.Ciudad</td>
+                                            <td>@codigo.Provincia</td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" @onclick="() => SeleccionarAsync(codigo)"
+                                                        title="Seleccionar" aria-label="@($"Seleccionar {codigo.CodigoPostalValor}, {codigo.Ciudad}, {codigo.Provincia}")" disabled="@seleccionando">
+                                                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                    @if (resultados.Count == 0)
+                                    {
+                                        <tr><td colspan="4" class="text-center text-muted py-4">No hay códigos postales disponibles.</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between gap-2 mt-3">
+                            <small class="text-muted">@resultados.Count resultados</small>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" title="Página anterior" aria-label="Página anterior"
+                                        disabled="@(paginaActual <= 1)" @onclick="() => paginaActual--"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+                                <small>@paginaActual / @totalPaginas</small>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" title="Página siguiente" aria-label="Página siguiente"
+                                        disabled="@(paginaActual >= totalPaginas)" @onclick="() => paginaActual++"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarAsync">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<CodigoPostal> OnSeleccionado { get; set; }
+    [Parameter] public EventCallback<ClipboardEventArgs> OnPaste { get; set; }
+
+    private const int tamanoPagina = 50;
+    private readonly string tituloId = $"selector-codigo-postal-{Guid.NewGuid():N}";
+    private readonly string errorId = $"error-codigo-postal-{Guid.NewGuid():N}";
+    private ValidationMessageStore? mensajesValidacion;
+    private string errorCodigoPostal = string.Empty;
+    private int versionValidacion;
+    private List<CodigoPostal> codigos = new();
+    private ElementReference botonAbrir;
+    private ElementReference campoBusqueda;
+    private bool visible;
+    private bool cargando;
+    private bool seleccionando;
+    private bool enfocarBusqueda;
+    private string busqueda = string.Empty;
+    private string error = string.Empty;
+    private int paginaActual = 1;
+
+    private List<CodigoPostal> Resultados => codigos.Where(codigo =>
+        codigo.CodigoPostalValor.Contains(busqueda.Trim(), StringComparison.OrdinalIgnoreCase) ||
+        codigo.Ciudad.Contains(busqueda.Trim(), StringComparison.OrdinalIgnoreCase) ||
+        codigo.Provincia.Contains(busqueda.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+    protected override bool TryParseValueFromString(string? value, out string? result, out string? validationErrorMessage)
+    {
+        result = value;
+        validationErrorMessage = null;
+        return true;
+    }
+
+    private async Task ValidarCodigoPostalAsync(ChangeEventArgs args)
+    {
+        if (Disabled) return;
+        var codigoPostal = args.Value?.ToString()?.Trim() ?? string.Empty;
+        var versionActual = ++versionValidacion;
+        CurrentValue = codigoPostal;
+        MostrarErrorCodigoPostal(string.Empty);
+        if (string.IsNullOrEmpty(codigoPostal)) return;
+
+        if (codigoPostal.Length != 5 || codigoPostal.Any(caracter => caracter < '0' || caracter > '9'))
+        {
+            MostrarErrorCodigoPostal("El código postal debe tener 5 dígitos.");
+            return;
+        }
+
+        try
+        {
+            var codigo = await CodigoPostalService.BuscarPorCodigoAsync(codigoPostal);
+            if (versionActual != versionValidacion || CurrentValue != codigoPostal) return;
+            if (codigo == null)
+            {
+                MostrarErrorCodigoPostal("El código postal no existe en el maestro o está inactivo.");
+                return;
+            }
+            await OnSeleccionado.InvokeAsync(codigo);
+        }
+        catch
+        {
+            if (versionActual == versionValidacion)
+                MostrarErrorCodigoPostal("No se ha podido validar el código postal. Inténtalo de nuevo.");
+        }
+    }
+
+    private void MostrarErrorCodigoPostal(string mensaje)
+    {
+        errorCodigoPostal = mensaje;
+        if (EditContext == null) return;
+        mensajesValidacion ??= new ValidationMessageStore(EditContext);
+        mensajesValidacion.Clear(FieldIdentifier);
+        if (!string.IsNullOrEmpty(mensaje))
+            mensajesValidacion.Add(FieldIdentifier, mensaje);
+        EditContext.NotifyValidationStateChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (visible && enfocarBusqueda)
+        {
+            enfocarBusqueda = false;
+            await campoBusqueda.FocusAsync();
+        }
+    }
+
+    private async Task AbrirAsync()
+    {
+        if (Disabled) return;
+        busqueda = string.Empty;
+        paginaActual = 1;
+        visible = true;
+        enfocarBusqueda = true;
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        cargando = true;
+        error = string.Empty;
+        try
+        {
+            codigos = await CodigoPostalService.ObtenerActivosAsync();
+        }
+        catch
+        {
+            codigos = new();
+            error = "No se han podido cargar los códigos postales.";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void CambiarBusqueda(ChangeEventArgs args)
+    {
+        busqueda = args.Value?.ToString() ?? string.Empty;
+        paginaActual = 1;
+    }
+
+    private async Task SeleccionarAsync(CodigoPostal codigo)
+    {
+        if (seleccionando) return;
+        seleccionando = true;
+        try
+        {
+            versionValidacion++;
+            CurrentValue = codigo.CodigoPostalValor;
+            MostrarErrorCodigoPostal(string.Empty);
+            await OnSeleccionado.InvokeAsync(codigo);
+            await CerrarAsync();
+        }
+        finally
+        {
+            seleccionando = false;
+        }
+    }
+
+    private async Task CerrarAsync()
+    {
+        visible = false;
+        await botonAbrir.FocusAsync();
+    }
+
+    private async Task AlPulsarTecla(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") await CerrarAsync();
+    }
+
+}

@@ -245,8 +245,11 @@ else
                                                    @onpaste="@((e) => OnPaste(e, index, "Direccion"))" maxlength="500" />
                                         </td>
                                         <td>
-                                            <input type="text" class="form-control form-control-sm" @bind="contrato.CodigoPostal" 
-                                                   @onpaste="@((e) => OnPaste(e, index, "CodigoPostal"))" maxlength="10" />
+                                              <div class="input-group input-group-sm">
+                                                      <SelectorCodigoPostal @bind-Value="contrato.CodigoPostal" class="form-control-sm" maxlength="5"
+                                                                OnPaste="@((e) => OnPaste(e, index, "CodigoPostal"))"
+                                                                OnSeleccionado="@(codigo => { contrato.CodigoPostal = codigo.CodigoPostalValor; contrato.LocalidadInstalacion = codigo.Ciudad; contrato.ProvinciaInstalacion = codigo.Provincia; })" />
+                                              </div>
                                         </td>
                                         <td>
                                             <input type="text" class="form-control form-control-sm" @bind="contrato.Iban" 

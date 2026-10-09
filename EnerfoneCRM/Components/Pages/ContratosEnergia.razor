@@ -1,7 +1,6 @@
 @page "/contratos/energia"
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
-@using EnerfoneCRM.Components.Shared
 @using Microsoft.JSInterop
 @rendermode InteractiveServer
 @inject ContratoService ContratoService
@@ -65,6 +64,13 @@ else
         <div class="alert alert-warning m-4">
             <i class="bi bi-exclamation-triangle me-2"></i>
             No tienes acceso a esta página. Por favor, inicia sesión.
+        </div>
+    }
+    else if (AuthService.EsProveedor && !AuthService.EsProveedorEnergia)
+    {
+        <div class="alert alert-warning m-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Esta cuenta de proveedor no está asociada a una comercializadora de energía.
         </div>
     }
     else
@@ -412,10 +418,10 @@ else
                                         {
                                             var tieneArchivo = contratosConFicheros.Contains(contrato.Id);
                                             var textoClass = tieneArchivo ? "text-primary" : "";
-                                            <tr style="font-size: 0.875rem;"
+                                            <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(contrato)" style="font-size: 0.875rem;"
                                                 @onmouseenter="(e) => MostrarInfoFila(e, contrato)"
                                                 @onmouseleave="OcultarInfoFila">
-                                                <td>
+                                                <td @ondblclick:stopPropagation="true">
                                                     <input type="checkbox" class="form-check-input" 
                                                            @onchange="() => ToggleSeleccionContrato(contrato.Id)" 
                                                            checked="@contratosSeleccionados.Contains(contrato.Id)" />
@@ -429,6 +435,7 @@ else
                                                         <i class="bi bi-chat-left-text-fill text-primary ms-1" 
                                                            style="cursor: pointer; font-size: 0.85rem;" 
                                                            @onclick="() => MostrarHistoricoObservaciones(contrato.Id)"
+                                                           @ondblclick:stopPropagation="true"
                                                            title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
                                                     }
                                                 </td>
@@ -470,7 +477,7 @@ else
                                                 {
                                                     <td><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
                                                 }
-                                                <td class="text-end" style="white-space: nowrap;">
+                                                <td class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(contrato)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
@@ -1188,7 +1195,7 @@ else
                                             </div>
                                                         </div>
                                                         <div class="mb-0">
-                                                            <label class="form-label fw-bold">Usuario Comercializadora</label>
+                                                            <label class="form-label fw-bold">Usuario proveedor</label>
                                                             <select @onchange="OnUsuarioComercializadoraChanged"
                                                                     class="form-select"
                                                                     disabled="@(!PuedeEditarCampo() || string.IsNullOrEmpty(contratoSeleccionado.EnComercializadora))">
@@ -1266,13 +1273,8 @@ else
                                             <div class="col-md-3">
                                                 <label class="form-label fw-bold">Código Postal</label>
                                                 <div class="input-group">
-                                                    <input type="text" class="form-control" list="codigosPostalesContrato" 
-                                                           value="@contratoSeleccionado.CodigoPostalInstalacion"
-                                                           @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
-                                                           placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" disabled="@(!PuedeEditarCampo())" />
-                                                    <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales" disabled="@(!PuedeEditarCampo())">
-                                                        <i class="bi bi-plus-circle"></i>
-                                                    </button>
+                                                       <SelectorCodigoPostal @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" OnSeleccionado="AplicarCodigoPostal" Disabled="@(!PuedeEditarCampo())"
+                                                                    list="codigosPostalesContrato" placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                                     <datalist id="codigosPostalesContrato">
                                                         @foreach (var cp in codigosPostalesDisponibles)
                                                         {
@@ -2343,7 +2345,7 @@ else
                 // Cargar usuarios comercializadora filtrados
                 var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
                 usuariosComercializadoraFiltrados = todosUsuarios
-                    .Where(u => u.Rol == "Comercializadora" && u.Comercializadora == contratoSeleccionado.EnComercializadora)
+                    .Where(u => Usuario.EsRolProveedor(u.Rol) && u.Comercializadora == contratoSeleccionado.EnComercializadora)
                     .ToList();
 
                 // Recargar servicios según comercializadora y tipo de cliente
@@ -3883,7 +3885,7 @@ else
     private bool PuedeEditarCampo()
     {
         // Comercializadora solo puede editar Estado, Observaciones estado y Estado servicio
-        if (AuthService.UsuarioActual?.Rol == "Comercializadora")
+        if (AuthService.EsProveedor)
         {
             return false;
         }
@@ -4631,7 +4633,7 @@ else
             if (usuario == null || !usuario.RecibirNotificaciones || string.IsNullOrEmpty(usuario.Email)) return;
 
             // Generar el contenido del email
-            var asunto = $"Modificación en contrato de energía - {cliente.Nombre}";
+            var asunto = $"Modificación en contrato de energía - {EmailService.ObtenerIdentificacionCliente(cliente)}";
             var cuerpo = GenerarEmailNotificacionContrato(usuario, contrato, cliente);
 
             // Enviar email
@@ -4662,7 +4664,7 @@ else
         sb.Append("<p>Te informamos que se ha modificado un contrato de energía asociado a tu cartera de clientes:</p>");
 
         sb.Append("<div class='info-box'>");
-        sb.Append("<p><span class='label'>Cliente:</span> <span class='value'>" + cliente.Nombre + "</span></p>");
+        sb.Append(EmailService.GenerarDatosClienteNotificacion(cliente));
         sb.Append("<p><span class='label'>Comercializadora:</span> <span class='value'>" + (contrato.EnComercializadora ?? "-") + "</span></p>");
         sb.Append("<p><span class='label'>Tarifa:</span> <span class='value'>" + (contrato.EnTarifa ?? "-") + "</span></p>");
         sb.Append("<p><span class='label'>Estado:</span> <span class='value'>" + (contrato.Estado ?? "-") + "</span></p>");
@@ -4879,9 +4881,12 @@ else
         }
     }
 
-    private async Task AbrirMaestroCodigosPostales()
+    private void AplicarCodigoPostal(CodigoPostal codigo)
     {
-        await JS.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
+        if (contratoSeleccionado == null || !PuedeEditarCampo()) return;
+        contratoSeleccionado.CodigoPostalInstalacion = codigo.CodigoPostalValor;
+        contratoSeleccionado.LocalidadInstalacion = codigo.Ciudad;
+        contratoSeleccionado.ProvinciaInstalacion = codigo.Provincia;
     }
 
     private void OnCupsInputModal(ChangeEventArgs e, string propertyName)

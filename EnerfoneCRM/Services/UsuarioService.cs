@@ -45,6 +45,15 @@ public class UsuarioService
         return await context.Usuarios.FindAsync(id);
     }
 
+    public async Task<List<HistoricoLiquidacion>> ObtenerLiquidacionesUsuarioAsync(int usuarioId)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        return await context.HistoricoLiquidaciones.AsNoTracking()
+            .Where(liquidacion => liquidacion.UsuarioId == usuarioId)
+            .OrderByDescending(liquidacion => liquidacion.FechaAprobacion)
+            .ToListAsync();
+    }
+
     public async Task<Usuario?> ObtenerPorNombreUsuarioAsync(string nombreUsuario)
     {
         await using var context = _dbContextProvider.CreateDbContext();
@@ -210,6 +219,56 @@ public class UsuarioService
             .Where(uc => uc.UsuarioId == usuarioId)
             .Select(uc => uc.ComercializadoraId)
             .ToListAsync();
+    }
+
+    public async Task<List<Usuario>> ObtenerUsuariosProveedorAsync(string tipoProveedor, string nombreProveedor)
+    {
+        if (string.IsNullOrWhiteSpace(nombreProveedor)) return new List<Usuario>();
+
+        await using var context = _dbContextProvider.CreateDbContext();
+        if (tipoProveedor.Equals("comercializadora", StringComparison.OrdinalIgnoreCase))
+        {
+            return await context.Usuarios.AsNoTracking()
+                .Where(u => (u.Rol == "Proveedor" || u.Rol == "Comercializadora") && u.Comercializadora == nombreProveedor)
+                .OrderBy(u => u.NombreUsuario)
+                .ToListAsync();
+        }
+
+        if (tipoProveedor.Equals("operadora", StringComparison.OrdinalIgnoreCase))
+        {
+            var proveedorId = await context.Operadoras
+                .Where(o => o.Nombre == nombreProveedor)
+                .Select(o => (int?)o.Id)
+                .FirstOrDefaultAsync();
+            if (!proveedorId.HasValue) return new List<Usuario>();
+
+            var usuariosIds = context.UsuarioOperadoras
+                .Where(uo => uo.OperadoraId == proveedorId.Value)
+                .Select(uo => uo.UsuarioId);
+            return await context.Usuarios.AsNoTracking()
+                .Where(u => (u.Rol == "Proveedor" || u.Rol == "Comercializadora") && string.IsNullOrEmpty(u.Comercializadora) && usuariosIds.Contains(u.Id))
+                .OrderBy(u => u.NombreUsuario)
+                .ToListAsync();
+        }
+
+        if (tipoProveedor.Equals("empresa_alarma", StringComparison.OrdinalIgnoreCase))
+        {
+            var proveedorId = await context.EmpresasAlarmas
+                .Where(e => e.Nombre == nombreProveedor)
+                .Select(e => (int?)e.Id)
+                .FirstOrDefaultAsync();
+            if (!proveedorId.HasValue) return new List<Usuario>();
+
+            var usuariosIds = context.UsuarioEmpresasAlarmas
+                .Where(uea => uea.EmpresaAlarmaId == proveedorId.Value)
+                .Select(uea => uea.UsuarioId);
+            return await context.Usuarios.AsNoTracking()
+                .Where(u => (u.Rol == "Proveedor" || u.Rol == "Comercializadora") && string.IsNullOrEmpty(u.Comercializadora) && usuariosIds.Contains(u.Id))
+                .OrderBy(u => u.NombreUsuario)
+                .ToListAsync();
+        }
+
+        return new List<Usuario>();
     }
 
     public async Task<(bool exito, string mensaje)> ActualizarComercializadorasPermitidasAsync(int usuarioId, List<int> comercializadorasIds)

@@ -39,11 +39,11 @@ else
             No tienes acceso a esta página. Por favor, inicia sesión.
         </div>
     }
-    else if (AuthService.UsuarioActual?.Rol == "Comercializadora")
+    else if (AuthService.EsProveedor)
     {
         <div class="alert alert-warning m-4">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            No tienes acceso a esta página. Los usuarios con rol Comercializadora solo pueden acceder a Contratos de Energía.
+            No tienes acceso a esta página. Los usuarios proveedores solo pueden acceder a los contratos de su proveedor.
         </div>
     }
     else
@@ -178,12 +178,16 @@ else
                                     {
                                         @foreach (var cliente in clientesFiltrados)
                                         {
-                                            <tr id="cliente-@cliente.Id">
+                                            <tr id="cliente-@cliente.Id" class="fila-ficha" @ondblclick="() => MostrarModalEditar(cliente)">
                                                 <td><small>@(cliente.FechaAlta?.ToString("dd/MM/yyyy") ?? "-")</small></td>
                                                 <td>
                                                     @if (cliente.TipoCliente == "Pyme")
                                                     {
                                                         <span class="badge bg-primary">Pyme</span>
+                                                    }
+                                                    else if (cliente.TipoCliente == "Autonomo")
+                                                    {
+                                                        <span class="badge bg-success">Autónomo</span>
                                                     }
                                                     else
                                                     {
@@ -196,7 +200,7 @@ else
                                                 <td>
                                                     <span class="badge bg-info">@contratoPorCliente.GetValueOrDefault(cliente.Id, 0)</span>
                                                 </td>
-                                                <td class="text-end" style="white-space: nowrap;">
+                                                <td class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(cliente)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
@@ -314,7 +318,7 @@ else
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo Cliente <span class="text-danger">*</span></label>
-                                        <InputSelect @bind-Value="clienteSeleccionado.TipoCliente" class="form-select">
+                                        <InputSelect @bind-Value="clienteSeleccionado.TipoCliente" @bind-Value:after="ActualizarTipoDocumentoCliente" class="form-select">
                                             <option value="Particular">Particular</option>
                                             <option value="Pyme">Pyme</option>
                                             <option value="Autonomo">Autónomo</option>
@@ -325,19 +329,35 @@ else
                                         <InputText @bind-Value="clienteSeleccionado.Nombre" class="form-control" />
                                         <ValidationMessage For="() => clienteSeleccionado.Nombre" class="text-danger" />
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold">
-                                            @if (clienteSeleccionado.TipoCliente == "Pyme")
-                                            {
-                                                <text>CIF Empresa</text>
-                                            }
-                                            else
-                                            {
-                                                <text>DNI/CIF</text>
-                                            }
-                                        </label>
-                                        <InputText @bind-Value="clienteSeleccionado.DniCif" class="form-control" />
-                                    </div>
+                                    @if (clienteSeleccionado.TipoCliente == "Pyme")
+                                    {
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">CIF Empresa</label>
+                                            <InputText @bind-Value="clienteSeleccionado.DniCif" class="form-control" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Tipo de documento</label>
+                                            <InputSelect @bind-Value="clienteSeleccionado.TipoDocumentoIdentidad" class="form-select">
+                                                <option value="DNI">DNI</option>
+                                                <option value="NIE">NIE</option>
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">@clienteSeleccionado.TipoDocumentoIdentidad</label>
+                                            <InputText @bind-Value="clienteSeleccionado.DniCif" class="form-control" />
+                                        </div>
+                                        @if (clienteSeleccionado.TipoDocumentoIdentidad == "NIE")
+                                        {
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold">Nacionalidad *</label>
+                                                <InputText @bind-Value="clienteSeleccionado.Nacionalidad" class="form-control" maxlength="100" />
+                                                <ValidationMessage For="() => clienteSeleccionado.Nacionalidad" class="text-danger" />
+                                            </div>
+                                        }
+                                    }
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Email</label>
                                         <InputText @bind-Value="clienteSeleccionado.Email" class="form-control" type="email" />
@@ -466,13 +486,8 @@ else
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal <small class="text-muted">(opcional)</small></label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control" list="codigosPostalesCliente" 
-                                                   value="@clienteSeleccionado.CodigoPostal"
-                                                   @onchange="@(e => AlSeleccionarCodigoPostalCliente(e.Value?.ToString()))"
-                                                   placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
-                                            <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
-                                                <i class="bi bi-plus-circle"></i>
-                                            </button>
+                                              <SelectorCodigoPostal @bind-Value="clienteSeleccionado.CodigoPostal" OnSeleccionado="AplicarCodigoPostalCliente"
+                                                           list="codigosPostalesCliente" placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                             <datalist id="codigosPostalesCliente">
                                                 @foreach (var cp in codigosPostalesDisponibles)
                                                 {
@@ -1118,13 +1133,8 @@ else
                                             <div class="col-md-3">
                                                 <label class="form-label fw-bold">Código Postal</label>
                                                 <div class="input-group">
-                                                    <input type="text" class="form-control" list="codigosPostalesContrato" 
-                                                           value="@nuevoContrato.CodigoPostalInstalacion"
-                                                           @onchange="@(e => AlSeleccionarCodigoPostalContrato(e.Value?.ToString()))"
-                                                           placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
-                                                    <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
-                                                        <i class="bi bi-plus-circle"></i>
-                                                    </button>
+                                                       <SelectorCodigoPostal @bind-Value="nuevoContrato.CodigoPostalInstalacion" OnSeleccionado="AplicarCodigoPostalContrato"
+                                                                    list="codigosPostalesContrato" placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                                     <datalist id="codigosPostalesContrato">
                                                         @foreach (var cp in codigosPostalesDisponibles)
                                                         {
@@ -1297,6 +1307,16 @@ else
                                         </select>
                                     </div>
                                     <div class="col-md-6">
+                                        <label class="form-label fw-bold">Usuario proveedor</label>
+                                        <InputSelect @bind-Value="nuevoContrato.UsuarioComercializadoraId" class="form-select" disabled="@string.IsNullOrWhiteSpace(nuevoContrato.OperadoraTel)">
+                                            <option value="">Sin asignar</option>
+                                            @foreach (var usuario in usuariosProveedorFiltrados)
+                                            {
+                                                <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label fw-bold">Tipo de Tarifa</label>
                                         <InputSelect @bind-Value="nuevoContrato.TipoTarifaTel" @bind-Value:after="CargarTarifasDisponiblesTelefonia" class="form-select">
                                             <option value="">-- Seleccionar --</option>
@@ -1330,10 +1350,10 @@ else
                                             <option value="">Seleccionar usuario...</option>
                                             @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                             {
-                                                <option value="@usuario.Id" selected="@(nuevoContrato.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
+                                                <option value="@usuario.Id" selected="@(nuevoContrato.UsuarioComercialId == usuario.Id)">@usuario.NombreUsuario</option>
                                             }
                                         </select>
-                                        @if (nuevoContrato != null && nuevoContrato.UsuarioComercializadoraId.HasValue)
+                                        @if (nuevoContrato != null && nuevoContrato.UsuarioComercialId.HasValue)
                                         {
                                             <small class="text-muted">Seleccionado: @nuevoContrato.Comercial</small>
                                         }
@@ -1728,13 +1748,8 @@ else
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal</label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control" list="codigosPostalesContratoTel" 
-                                                   value="@nuevoContrato.CodigoPostalInstalacion"
-                                                   @onchange="@(e => AlSeleccionarCodigoPostalContrato(e.Value?.ToString()))"
-                                                   placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
-                                            <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
-                                                <i class="bi bi-plus-circle"></i>
-                                            </button>
+                                              <SelectorCodigoPostal @bind-Value="nuevoContrato.CodigoPostalInstalacion" OnSeleccionado="AplicarCodigoPostalContrato"
+                                                           list="codigosPostalesContratoTel" placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                             <datalist id="codigosPostalesContratoTel">
                                                 @foreach (var cp in codigosPostalesDisponibles)
                                                 {
@@ -1864,6 +1879,16 @@ else
                                         </InputSelect>
                                     </div>
                                     <div class="col-md-6">
+                                        <label class="form-label fw-bold">Usuario proveedor</label>
+                                        <InputSelect class="form-select" @bind-Value="nuevoContrato.UsuarioComercializadoraId" disabled="@string.IsNullOrWhiteSpace(nuevoContrato.EmpresaAlarma)">
+                                            <option value="">Sin asignar</option>
+                                            @foreach (var usuario in usuariosProveedorFiltrados)
+                                            {
+                                                <option value="@usuario.Id">@usuario.NombreUsuario</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label fw-bold">Estado</label>
                                         <InputSelect class="form-select" @bind-Value="nuevoContrato.Estado">
                                             <option value="Pte Carga">Pte Carga</option>
@@ -1938,10 +1963,10 @@ else
                                             <option value="">Seleccionar usuario...</option>
                                             @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                             {
-                                                <option value="@usuario.Id" selected="@(nuevoContrato.UsuarioComercializadoraId == usuario.Id)">@usuario.NombreUsuario</option>
+                                                <option value="@usuario.Id" selected="@(nuevoContrato.UsuarioComercialId == usuario.Id)">@usuario.NombreUsuario</option>
                                             }
                                         </select>
-                                        @if (nuevoContrato != null && nuevoContrato.UsuarioComercializadoraId.HasValue)
+                                        @if (nuevoContrato != null && nuevoContrato.UsuarioComercialId.HasValue)
                                         {
                                             <small class="text-muted">Seleccionado: @nuevoContrato.Comercial</small>
                                         }
@@ -2118,13 +2143,8 @@ else
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal</label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control" list="codigosPostalesContratoAl" 
-                                                   value="@nuevoContrato.CodigoPostalInstalacion"
-                                                   @onchange="@(e => AlSeleccionarCodigoPostalContrato(e.Value?.ToString()))"
-                                                   placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
-                                            <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
-                                                <i class="bi bi-plus-circle"></i>
-                                            </button>
+                                              <SelectorCodigoPostal @bind-Value="nuevoContrato.CodigoPostalInstalacion" OnSeleccionado="AplicarCodigoPostalContrato"
+                                                           list="codigosPostalesContratoAl" placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                             <datalist id="codigosPostalesContratoAl">
                                                 @foreach (var cp in codigosPostalesDisponibles)
                                                 {
@@ -2288,6 +2308,7 @@ else
     private List<TarifaEnergia> tarifasEnergiaDisponibles = new();
     private List<TarifaEnergia> tarifasEnergiaBase = new();
     private List<Usuario> usuariosComercializadoraFiltrados = new();
+    private List<Usuario> usuariosProveedorFiltrados = new();
     private List<Servicio> serviciosDisponibles = new();
     private List<string> operadorasTelefonia = new();
     private List<Operadora> operadorasActivasTelefonia = new();
@@ -2406,7 +2427,7 @@ else
                 // Cargar usuarios comercializadora filtrados por la comercializadora seleccionada
                 var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
                 usuariosComercializadoraFiltrados = todosUsuarios
-                    .Where(u => u.Rol == "Comercializadora" && u.Comercializadora == nuevoContrato.EnComercializadora)
+                    .Where(u => Usuario.EsRolProveedor(u.Rol) && u.Comercializadora == nuevoContrato.EnComercializadora)
                     .ToList();
                 
                 // Recargar servicios filtrados por comercializadora y tipo de cliente
@@ -2542,6 +2563,12 @@ else
 
     private async Task OnOperadoraTelefoniaChanged()
     {
+        usuariosProveedorFiltrados = string.IsNullOrWhiteSpace(nuevoContrato?.OperadoraTel)
+            ? new List<Usuario>()
+            : await UsuarioService.ObtenerUsuariosProveedorAsync("operadora", nuevoContrato.OperadoraTel);
+        if (nuevoContrato != null)
+            nuevoContrato.UsuarioComercializadoraId = null;
+
         // Cargar información de la operadora seleccionada
         if (!string.IsNullOrEmpty(nuevoContrato?.OperadoraTel))
         {
@@ -3185,9 +3212,20 @@ else
         }
     }
 
-    private async Task AbrirMaestroCodigosPostales()
+    private void AplicarCodigoPostalCliente(CodigoPostal codigo)
     {
-        await JSRuntime.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
+        if (clienteSeleccionado == null) return;
+        clienteSeleccionado.CodigoPostal = codigo.CodigoPostalValor;
+        clienteSeleccionado.Poblacion = codigo.Ciudad;
+        clienteSeleccionado.Provincia = codigo.Provincia;
+    }
+
+    private void AplicarCodigoPostalContrato(CodigoPostal codigo)
+    {
+        if (nuevoContrato == null) return;
+        nuevoContrato.CodigoPostalInstalacion = codigo.CodigoPostalValor;
+        nuevoContrato.LocalidadInstalacion = codigo.Ciudad;
+        nuevoContrato.ProvinciaInstalacion = codigo.Provincia;
     }
 
     private void AplicarFiltros()
@@ -3287,6 +3325,7 @@ else
         clienteSeleccionado = new Cliente 
         { 
             TipoCliente = "Particular",
+            TipoDocumentoIdentidad = "DNI",
             IdUsuario = AuthService.UsuarioActual?.Id,
             NombreUsuario = AuthService.UsuarioActual?.NombreUsuario,
             Direccion = string.Empty,
@@ -3308,6 +3347,10 @@ else
             Nombre = cliente.Nombre,
             Apellidos = cliente.Apellidos,
             DniCif = cliente.DniCif,
+            Nacionalidad = cliente.Nacionalidad,
+            TipoDocumentoIdentidad = !string.IsNullOrWhiteSpace(cliente.TipoDocumentoIdentidad)
+                ? cliente.TipoDocumentoIdentidad
+                : cliente.TipoCliente == "Pyme" ? "CIF" : Cliente.EsNIE(cliente.DniCif) ? "NIE" : "DNI",
             Empresa = cliente.Empresa,
             Cif = cliente.Cif,
             Dni = cliente.Dni,
@@ -3347,6 +3390,20 @@ else
         archivosPendientesCliente = new();
     }
 
+    private void ActualizarTipoDocumentoCliente()
+    {
+        if (clienteSeleccionado == null) return;
+        if (clienteSeleccionado.TipoCliente == "Pyme")
+        {
+            clienteSeleccionado.TipoDocumentoIdentidad = "CIF";
+            clienteSeleccionado.Nacionalidad = null;
+        }
+        else if (clienteSeleccionado.TipoDocumentoIdentidad == "CIF")
+        {
+            clienteSeleccionado.TipoDocumentoIdentidad = "DNI";
+        }
+    }
+
     private async Task GuardarCliente()
     {
         if (clienteSeleccionado == null) return;
@@ -3366,6 +3423,14 @@ else
                 clienteSeleccionado.Iban = clienteSeleccionado.Iban.Substring(0, 24);
             }
         }
+
+        if (clienteSeleccionado.TipoCliente == "Pyme")
+            clienteSeleccionado.TipoDocumentoIdentidad = "CIF";
+        else if (clienteSeleccionado.TipoDocumentoIdentidad != "NIE")
+            clienteSeleccionado.TipoDocumentoIdentidad = "DNI";
+
+        if (clienteSeleccionado.TipoCliente == "Pyme" || clienteSeleccionado.TipoDocumentoIdentidad != "NIE")
+            clienteSeleccionado.Nacionalidad = null;
 
         try
         {
@@ -3867,6 +3932,12 @@ else
     {
         try
         {
+            usuariosProveedorFiltrados = string.IsNullOrWhiteSpace(nuevoContrato?.EmpresaAlarma)
+                ? new List<Usuario>()
+                : await UsuarioService.ObtenerUsuariosProveedorAsync("empresa_alarma", nuevoContrato.EmpresaAlarma);
+            if (nuevoContrato != null)
+                nuevoContrato.UsuarioComercializadoraId = null;
+
             if (string.IsNullOrEmpty(nuevoContrato?.EmpresaAlarma))
             {
                 tarifasAlarmaKit = new();

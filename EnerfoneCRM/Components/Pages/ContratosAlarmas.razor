@@ -1,7 +1,6 @@
 @page "/contratos/alarmas"
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
-@using EnerfoneCRM.Components.Shared
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Forms
 @rendermode InteractiveServer
@@ -41,11 +40,11 @@ else
             No tienes acceso a esta página. Por favor, inicia sesión.
         </div>
     }
-    else if (AuthService.UsuarioActual?.Rol == "Comercializadora")
+    else if (AuthService.EsProveedor && !AuthService.EsProveedorAlarmas)
     {
         <div class="alert alert-warning m-4">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            No tienes acceso a esta página. Los usuarios con rol Comercializadora solo pueden acceder a Contratos de Energía.
+            Esta cuenta de proveedor no está asociada a una empresa de alarmas.
         </div>
     }
     else
@@ -389,7 +388,7 @@ else
                                         {
                                             var tieneArchivo = contratosConFicheros.Contains(contrato.Id);
                                             var textoClass = tieneArchivo ? "text-primary" : "";
-                                            <tr style="font-size: 0.875rem;">
+                                            <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(contrato)" style="font-size: 0.875rem;">
                                                 <td><small class="@textoClass">@contrato.Id</small></td>
                                                 <td><small class="@textoClass">@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
                                                 <td><small class="@textoClass">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
@@ -400,6 +399,7 @@ else
                                                         <i class="bi bi-chat-left-text-fill text-primary ms-1" 
                                                            style="cursor: pointer; font-size: 0.85rem;" 
                                                            @onclick="() => MostrarHistoricoObservaciones(contrato.Id)"
+                                                           @ondblclick:stopPropagation="true"
                                                            title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
                                                     }
                                                 </td>
@@ -440,7 +440,7 @@ else
                                                 {
                                                     <td><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
                                                 }
-                                                <td class="text-end" style="white-space: nowrap;">
+                                                <td class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(contrato)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
@@ -790,11 +790,21 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Empresa de Alarma <span class="text-danger">*</span></label>
-                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.EmpresaAlarma" @bind-Value:after="FiltrarTarifasPorEmpresa">
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.EmpresaAlarma" @bind-Value:after="OnEmpresaProveedorChanged">
                                             <option value="">-- Seleccionar empresa --</option>
                                             @foreach (var empresa in empresasAlarmas)
                                             {
                                                 <option value="@empresa.Nombre">@empresa.Nombre</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Usuario proveedor</label>
+                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.UsuarioComercializadoraId" disabled="@(!PuedeEditar() || string.IsNullOrWhiteSpace(contratoSeleccionado.EmpresaAlarma))">
+                                            <option value="">Sin asignar</option>
+                                            @foreach (var usuario in usuariosProveedorAlarmas)
+                                            {
+                                                <option value="@usuario.Id">@usuario.NombreUsuario</option>
                                             }
                                         </InputSelect>
                                     </div>
@@ -954,13 +964,8 @@ else
                                     <div class="col-md-3">
                                         <label class="form-label fw-bold">Código Postal</label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control" list="codigosPostalesAlarmas" 
-                                                   value="@contratoSeleccionado.CodigoPostalInstalacion"
-                                                   @onchange="@(e => AlSeleccionarCodigoPostal(e.Value?.ToString()))"
-                                                   placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
-                                            <button class="btn btn-outline-secondary" type="button" @onclick="AbrirMaestroCodigosPostales" title="Gestionar códigos postales">
-                                                <i class="bi bi-plus-circle"></i>
-                                            </button>
+                                              <SelectorCodigoPostal @bind-Value="contratoSeleccionado.CodigoPostalInstalacion" OnSeleccionado="AplicarCodigoPostal"
+                                                           list="codigosPostalesAlarmas" placeholder="Escribe para buscar CP" maxlength="5" autocomplete="off" />
                                             <datalist id="codigosPostalesAlarmas">
                                                 @foreach (var cp in codigosPostalesDisponibles)
                                                 {
@@ -1475,6 +1480,7 @@ else
     private List<Contrato> contratosParaPaginar = new();
     private List<Cliente> clientes = new();
     private List<Usuario> usuarios = new();
+    private List<Usuario> usuariosProveedorAlarmas = new();
     private List<TarifaAlarma> tarifasKit = new();
     private List<TarifaAlarma> tarifasCampana = new();
     private List<EmpresaAlarma> empresasAlarmas = new();
@@ -1724,6 +1730,10 @@ else
     {
         try
         {
+            usuariosProveedorAlarmas = contratoSeleccionado == null || string.IsNullOrWhiteSpace(contratoSeleccionado.EmpresaAlarma)
+                ? new List<Usuario>()
+                : await UsuarioService.ObtenerUsuariosProveedorAsync("empresa_alarma", contratoSeleccionado.EmpresaAlarma);
+
             if (string.IsNullOrEmpty(contratoSeleccionado?.EmpresaAlarma))
             {
                 var todasKit = await TarifaAlarmaService.ObtenerPorTipoAsync("Kit");
@@ -1747,6 +1757,13 @@ else
             tarifasKit = new();
             tarifasCampana = new();
         }
+    }
+
+    private async Task OnEmpresaProveedorChanged()
+    {
+        if (contratoSeleccionado != null)
+            contratoSeleccionado.UsuarioComercializadoraId = null;
+        await FiltrarTarifasPorEmpresa();
     }
     
     private void AplicarFiltros()
@@ -3010,7 +3027,7 @@ else
             if (usuario == null || !usuario.RecibirNotificaciones || string.IsNullOrEmpty(usuario.Email)) return;
 
             // Generar el contenido del email
-            var asunto = $"Modificación en contrato de alarmas - {cliente.Nombre}";
+            var asunto = $"Modificación en contrato de alarmas - {EmailService.ObtenerIdentificacionCliente(cliente)}";
             var cuerpo = GenerarEmailNotificacionContrato(usuario, contrato, cliente);
 
             // Enviar email
@@ -3041,7 +3058,7 @@ else
         sb.Append("<p>Te informamos que se ha modificado un contrato de alarmas asociado a tu cartera de clientes:</p>");
 
         sb.Append("<div class='info-box'>");
-        sb.Append("<p><span class='label'>Cliente:</span> <span class='value'>" + cliente.Nombre + "</span></p>");
+        sb.Append(EmailService.GenerarDatosClienteNotificacion(cliente));
         sb.Append("<p><span class='label'>Empresa de Alarmas:</span> <span class='value'>" + (contrato.EmpresaAlarma ?? "-") + "</span></p>");
         sb.Append("<p><span class='label'>Estado:</span> <span class='value'>" + (contrato.Estado ?? "-") + "</span></p>");
         sb.Append("<p><span class='label'>Tipo de Alarma:</span> <span class='value'>" + (contrato.TipoAlarma ?? "-") + "</span></p>");
@@ -3335,8 +3352,11 @@ else
         }
     }
 
-    private async Task AbrirMaestroCodigosPostales()
+    private void AplicarCodigoPostal(CodigoPostal codigo)
     {
-        await JS.InvokeVoidAsync("open", "/administracion/codigos-postales", "_blank");
+        if (contratoSeleccionado == null) return;
+        contratoSeleccionado.CodigoPostalInstalacion = codigo.CodigoPostalValor;
+        contratoSeleccionado.LocalidadInstalacion = codigo.Ciudad;
+        contratoSeleccionado.ProvinciaInstalacion = codigo.Provincia;
     }
 }

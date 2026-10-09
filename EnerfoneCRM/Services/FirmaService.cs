@@ -155,6 +155,16 @@ public class FirmaService
             return null;
         }
 
+        if (string.IsNullOrWhiteSpace(solicitud.IpFirma))
+        {
+            var ipSolicitud = ObtenerIp();
+            if (!string.IsNullOrWhiteSpace(ipSolicitud))
+            {
+                await GuardarIpSolicitudAsync(solicitud.Id, ipSolicitud);
+                solicitud.IpFirma = ipSolicitud;
+            }
+        }
+
         if (solicitud.Estado is EstadoSolicitudFirma.Enviado or EstadoSolicitudFirma.Pendiente)
         {
             await CambiarEstadoAsync(solicitud.Id, EstadoSolicitudFirma.EnProceso, "EnlaceAbierto");
@@ -162,10 +172,6 @@ public class FirmaService
         }
         else
         {
-            if (string.IsNullOrWhiteSpace(solicitud.IpFirma))
-            {
-                await GuardarIpSolicitudAsync(solicitud.Id, ObtenerIp());
-            }
             await RegistrarEventoAsync(solicitud.Id, "EnlaceAbierto", null, "OK", null);
         }
         await using var context = _dbContextProvider.CreateDbContext();
@@ -212,7 +218,7 @@ public class FirmaService
         return (documento.Fichero, documento.NombreFichero, "OK");
     }
 
-    public async Task<ResultadoFirma> CompletarFirmaAsync(string token, bool aceptaDocumentacion, byte[] firma)
+    public async Task<ResultadoFirma> CompletarFirmaAsync(string token, bool aceptaDocumentacion, byte[] firma, string? ipPublicaCliente = null)
     {
         if (!aceptaDocumentacion)
         {
@@ -246,8 +252,10 @@ public class FirmaService
             return new(false, "No se encontro la documentacion de la solicitud.");
         }
 
-        var ipFirma = string.IsNullOrWhiteSpace(actual.IpFirma) ? ObtenerIp() : actual.IpFirma;
-        var firmado = await _pdfService.GenerarDocumentoFirmadoAsync(original.Fichero, contrato, cliente, firma, ipFirma);
+        var ipFirma = ObtenerIp(ipPublicaCliente);
+        if (string.IsNullOrWhiteSpace(ipFirma)) ipFirma = ObtenerIp(actual.IpFirma);
+        var fechaFirmaUtc = DateTime.UtcNow;
+        var firmado = await _pdfService.GenerarDocumentoFirmadoAsync(original.Fichero, contrato, cliente, firma, ipFirma, fechaFirmaUtc);
         var documentoFirmado = new FicheroContrato
         {
             IdContrato = actual.ContratoId,
@@ -258,12 +266,11 @@ public class FirmaService
         context.FicherosContratos.Add(documentoFirmado);
         await context.SaveChangesAsync();
         actual.Estado = EstadoSolicitudFirma.Firmado;
-        actual.FechaAceptacionUtc = DateTime.UtcNow;
-        actual.FechaFirmaUtc = DateTime.UtcNow;
+        actual.FechaAceptacionUtc = fechaFirmaUtc;
+        actual.FechaFirmaUtc = fechaFirmaUtc;
         actual.FirmaImagen = firma;
         actual.DocumentoFirmadoId = documentoFirmado.Id;
         actual.HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado);
-        actual.IpFirma = ObtenerIp();
         actual.IpFirma = ipFirma;
         actual.UserAgentFirma = ObtenerUserAgent();
         if (contrato.Estado == "Pte Firma")
@@ -331,13 +338,18 @@ public class FirmaService
 
     public async Task<ResultadoFirma> CrearSolicitudColaboradorAsync(int usuarioId)
     {
+        if (!_configuration.GetValue("PublicSigning:Enabled", true))
+            return new(false, "La firma pública está desactivada.");
+        var token = _tokenService.Generar();
+        string url;
+        try { url = ConstruirUrlFirmaColaborador(_configuration["PublicSigning:BaseUrl"], token); }
+        catch (ArgumentException excepcion) { return new(false, excepcion.Message); }
         await using var context = _dbContextProvider.CreateDbContext();
         var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId);
         if (usuario == null) return new(false, "Colaborador no encontrado.");
-        if (string.IsNullOrWhiteSpace(usuario.Email) || !new EmailAddressAttribute().IsValid(usuario.Email)) return new(false, "El colaborador no tiene un email valido.");
+        if (!EmailService.EsEmailValido(usuario.Email)) return new(false, "El colaborador no tiene un email valido.");
         var original = await _pdfService.GenerarDocumentoColaboradorOriginalAsync(usuario);
         var now = DateTime.UtcNow;
-        var token = _tokenService.Generar();
         var anteriores = await context.SolicitudesFirmaColaboradores.Where(s => s.UsuarioId == usuarioId && s.Estado != EstadoSolicitudFirma.Firmado).ToListAsync();
         foreach (var anterior in anteriores) anterior.Estado = EstadoSolicitudFirma.Cancelado;
         var solicitud = new SolicitudFirmaColaborador
@@ -350,10 +362,18 @@ public class FirmaService
         };
         context.SolicitudesFirmaColaboradores.Add(solicitud);
         await context.SaveChangesAsync();
-        var baseUrl = _configuration["PublicSigning:BaseUrl"]?.TrimEnd('/') ?? "";
-        var url = $"{baseUrl}/firma-colaborador/{Uri.EscapeDataString(token)}";
         var email = await _emailService.EnviarEmailSimpleAsync(usuario.Email, "Contrato de colaboracion pendiente de firma", $"<p>Hola {WebUtility.HtmlEncode(solicitud.NombreDestinatario)},</p><p>Puede consultar y firmar su contrato de colaboracion aqui:</p><p><a href=\"{WebUtility.HtmlEncode(url)}\">Consultar y firmar contrato</a></p>");
         return email.exito ? new(true, "Contrato enviado a firma.", url) : new(false, email.mensaje);
+    }
+
+    public static string ConstruirUrlFirmaColaborador(string? baseUrl, string token)
+    {
+        if (!Uri.TryCreate(baseUrl?.Trim(), UriKind.Absolute, out var direccion) ||
+            (direccion.Scheme != Uri.UriSchemeHttps && !(direccion.Scheme == Uri.UriSchemeHttp && direccion.IsLoopback)) ||
+            !string.IsNullOrEmpty(direccion.Query) || !string.IsNullOrEmpty(direccion.Fragment) || !string.IsNullOrEmpty(direccion.UserInfo))
+            throw new ArgumentException("Configura PublicSigning:BaseUrl con una URL HTTPS pública válida para enviar contratos a firma.");
+        if (string.IsNullOrWhiteSpace(token)) throw new ArgumentException("Token de firma no válido.");
+        return $"{direccion.AbsoluteUri.TrimEnd('/')}/firma-colaborador/{Uri.EscapeDataString(token)}";
     }
 
     public async Task<SolicitudFirmaColaborador?> ObtenerSolicitudColaboradorAsync(string token)
@@ -364,8 +384,12 @@ public class FirmaService
         if (solicitud.FechaCaducidadUtc <= DateTime.UtcNow) { solicitud.Estado = EstadoSolicitudFirma.Caducado; await context.SaveChangesAsync(); return null; }
         if (string.IsNullOrWhiteSpace(solicitud.IpFirma))
         {
-            solicitud.IpFirma = ObtenerIp();
-            await context.SaveChangesAsync();
+            var ipSolicitud = ObtenerIp();
+            if (!string.IsNullOrWhiteSpace(ipSolicitud))
+            {
+                solicitud.IpFirma = ipSolicitud;
+                await context.SaveChangesAsync();
+            }
         }
         return solicitud;
     }
@@ -403,16 +427,18 @@ public class FirmaService
         return contenido == null ? (null, null) : (contenido, firmado ? "contrato-colaborador-firmado.pdf" : "contrato-colaborador.pdf");
     }
 
-    public async Task<ResultadoFirma> CompletarFirmaColaboradorAsync(string token, byte[] firma)
+    public async Task<ResultadoFirma> CompletarFirmaColaboradorAsync(string token, byte[] firma, string? ipPublicaCliente = null)
     {
         await using var context = _dbContextProvider.CreateDbContext();
         var solicitud = await context.SolicitudesFirmaColaboradores.FirstOrDefaultAsync(s => s.TokenHash == _tokenService.Hash(token));
         if (solicitud == null || solicitud.Estado != EstadoSolicitudFirma.Enviado || solicitud.FechaCaducidadUtc <= DateTime.UtcNow) return new(false, "El enlace no es valido o ha caducado.");
         var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.Id == solicitud.UsuarioId);
         if (usuario == null) return new(false, "Colaborador no encontrado.");
-        var ipFirma = string.IsNullOrWhiteSpace(solicitud.IpFirma) ? ObtenerIp() : solicitud.IpFirma;
-        var firmado = await _pdfService.GenerarDocumentoColaboradorFirmadoAsync(usuario, firma, ipFirma);
-        solicitud.DocumentoFirmado = firmado; solicitud.FirmaImagen = firma; solicitud.Estado = EstadoSolicitudFirma.Firmado; solicitud.FechaFirmaUtc = DateTime.UtcNow; solicitud.HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado); solicitud.IpFirma = ipFirma; solicitud.UserAgentFirma = ObtenerUserAgent();
+        var ipFirma = ObtenerIp(ipPublicaCliente);
+        if (string.IsNullOrWhiteSpace(ipFirma)) ipFirma = ObtenerIp(solicitud.IpFirma);
+        var fechaFirmaUtc = DateTime.UtcNow;
+        var firmado = await _pdfService.GenerarDocumentoColaboradorFirmadoAsync(usuario, firma, ipFirma, fechaFirmaUtc);
+        solicitud.DocumentoFirmado = firmado; solicitud.FirmaImagen = firma; solicitud.Estado = EstadoSolicitudFirma.Firmado; solicitud.FechaFirmaUtc = fechaFirmaUtc; solicitud.HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado); solicitud.IpFirma = ipFirma; solicitud.UserAgentFirma = ObtenerUserAgent();
         await context.SaveChangesAsync();
         return new(true, "Contrato firmado correctamente.");
     }
@@ -502,19 +528,8 @@ public class FirmaService
         return $"{baseUrl}/firma/{Uri.EscapeDataString(token)}";
     }
 
-    private string ObtenerIp()
-    {
-        var context = _httpContextAccessor.HttpContext;
-        var forwarded = context?.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
-        var address = forwarded ?? context?.Connection.RemoteIpAddress?.ToString();
-        if (string.IsNullOrWhiteSpace(address)) return string.Empty;
-        if (System.Net.IPAddress.TryParse(address, out var parsed))
-        {
-            if (System.Net.IPAddress.IsLoopback(parsed)) return "127.0.0.1";
-            return parsed.MapToIPv4().ToString();
-        }
-        return address;
-    }
+    private string ObtenerIp(string? ipNavegador = null) =>
+        FirmaIpResolver.ObtenerIpPublica(_httpContextAccessor.HttpContext, ipNavegador);
 
     private async Task GuardarIpSolicitudAsync(int solicitudId, string ip)
     {

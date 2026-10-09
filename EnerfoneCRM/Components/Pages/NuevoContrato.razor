@@ -35,6 +35,8 @@
 
                     <div class="row g-4 justify-content-center">
                         <!-- Energía -->
+                        @if (!AuthService.EsProveedor || AuthService.EsProveedorEnergia)
+                        {
                         <div class="col-md-4">
                             <div class="card h-100 shadow-sm border-warning hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="CrearContratoEnergia">
                                 <div class="card-body text-center p-4">
@@ -46,9 +48,10 @@
                                 </div>
                             </div>
                         </div>
+                        }
 
                         <!-- Telefonía -->
-                        @if (AuthService.UsuarioActual?.Rol != "Comercializadora")
+                        @if (!AuthService.EsProveedor || AuthService.EsProveedorTelefonia)
                         {
                             <div class="col-md-4">
                                 <div class="card h-100 shadow-sm border-primary hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="CrearContratoTelefonia">
@@ -62,7 +65,11 @@
                                 </div>
                             </div>
 
-                            <!-- Alarmas -->
+                        }
+
+                        <!-- Alarmas -->
+                        @if (!AuthService.EsProveedor || AuthService.EsProveedorAlarmas)
+                        {
                             <div class="col-md-4">
                                 <div class="card h-100 shadow-sm border-danger hover-card" style="cursor: pointer; transition: all 0.3s ease;" @onclick="CrearContratoAlarmas">
                                     <div class="card-body text-center p-4">

@@ -52,6 +52,21 @@
                 </div>
                 <DataAnnotationsValidator />
                 <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button type="button" class="nav-link @(pestanaActiva == "datos" ? "active" : "")" @onclick='() => pestanaActiva = "datos"' role="tab">
+                                <i class="bi bi-person me-1"></i>Datos del usuario
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button type="button" class="nav-link @(pestanaActiva == "liquidaciones" ? "active" : "")" @onclick='() => pestanaActiva = "liquidaciones"' role="tab">
+                                <i class="bi bi-cash-stack me-1"></i>Liquidaciones (@liquidacionesUsuario.Count)
+                            </button>
+                        </li>
+                    </ul>
+
+                    @if (pestanaActiva == "datos")
+                    {
                     <div class="card shadow-sm mb-3 border-primary">
                         <div class="card-header bg-primary text-white"><h6 class="mb-0"><i class="bi bi-pen me-2"></i>Firma de contrato de colaboracion</h6></div>
                         <div class="card-body">
@@ -130,7 +145,10 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Código Postal</label>
-                            <InputText class="form-control" @bind-Value="usuario.CodigoPostal" />
+                            <div class="input-group">
+                                <SelectorCodigoPostal @bind-Value="usuario.CodigoPostal" maxlength="5"
+                                                      OnSeleccionado="@(codigo => { usuario.CodigoPostal = codigo.CodigoPostalValor; usuario.Localidad = codigo.Ciudad; })" />
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Localidad</label>
@@ -147,24 +165,52 @@
                             <option value="Jefe de ventas">Jefe de ventas</option>
                             <option value="Gestor">Gestor</option>
                             <option value="Colaborador">Colaborador</option>
-                            <option value="Comercializadora">Comercializadora</option>
+                            <option value="Proveedor">Proveedor</option>
                         </InputSelect>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Comercializadora @(usuario.Rol == "Comercializadora" ? "*" : "(opcional)")</label>
-                        <InputSelect class="form-select" @bind-Value="usuario.Comercializadora">
-                            <option value="">Seleccionar comercializadora...</option>
-                            @foreach (var comercializadora in comercializadoras)
-                            {
-                                <option value="@comercializadora">@comercializadora</option>
-                            }
-                        </InputSelect>
-                        @if (usuario.Rol == "Comercializadora" && string.IsNullOrEmpty(usuario.Comercializadora))
+                    @if (usuario.Rol == "Proveedor")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de proveedor *</label>
+                            <InputSelect class="form-select" @bind-Value="tipoProveedorSeleccionado" @bind-Value:after="OnTipoProveedorChanged">
+                                <option value="energia">Energía</option>
+                                <option value="telefonia">Telefonía</option>
+                                <option value="alarmas">Alarmas</option>
+                            </InputSelect>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">@EtiquetaProveedorSeleccionado *</label>
+                            <InputSelect class="form-select" @bind-Value="proveedorSeleccionadoId">
+                                <option value="">Seleccionar...</option>
+                                @if (tipoProveedorSeleccionado == "energia")
+                                {
+                                    @foreach (var proveedor in todasComercializadoras)
+                                    {
+                                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                                    }
+                                }
+                                else if (tipoProveedorSeleccionado == "telefonia")
+                                {
+                                    @foreach (var proveedor in todasOperadoras)
+                                    {
+                                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                                    }
+                                }
+                                else
+                                {
+                                    @foreach (var proveedor in todasEmpresasAlarmas)
+                                    {
+                                        <option value="@proveedor.Id">@proveedor.Nombre</option>
+                                    }
+                                }
+                            </InputSelect>
+                        </div>
+                        @if (!proveedorSeleccionadoId.HasValue)
                         {
-                            <div class="text-danger small mt-1">La comercializadora es obligatoria para este rol</div>
+                            <div class="text-danger small mt-1">Selecciona el proveedor asociado a este usuario.</div>
                         }
-                    </div>
+                    }
 
                     @if (RequiereComisionJerarquia(usuario.Rol))
                     {
@@ -541,6 +587,8 @@
                         </div>
                     }
 
+                    @if (usuario.Rol != "Proveedor")
+                    {
                     <div class="mb-3">
                         <hr />
                         <h6 class="mb-3"><i class="bi bi-percent me-2"></i>Aplicar Porcentaje Global de Comisión</h6>
@@ -570,8 +618,8 @@
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras Permitidas y Comisiones</h6>
-                        <p class="text-muted small">Marca las comercializadoras que este usuario podrá visualizar y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-building me-2"></i>Comercializadoras asociadas y comisiones</h6>
+                        <p class="text-muted small">Marca las comercializadoras cuyos contratos podrá ver este usuario y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
                         
                         <div class="table-responsive">
                             <table class="table table-sm table-hover">
@@ -624,8 +672,8 @@
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-phone me-2"></i>Operadoras Permitidas y Comisiones</h6>
-                        <p class="text-muted small">Marca las operadoras que este usuario podrá visualizar y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-phone me-2"></i>Operadoras asociadas y comisiones</h6>
+                        <p class="text-muted small">Marca las operadoras cuyos contratos podrá ver este usuario y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
                         
                         <div class="table-responsive">
                             <table class="table table-sm table-hover">
@@ -678,8 +726,8 @@
 
                     <div class="mb-3">
                         <hr />
-                        <h6 class="mb-3"><i class="bi bi-shield-check me-2"></i>Empresas de Alarmas Permitidas y Comisiones</h6>
-                        <p class="text-muted small">Marca las empresas de alarmas que este usuario podrá visualizar y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
+                        <h6 class="mb-3"><i class="bi bi-shield-check me-2"></i>Empresas de alarmas asociadas y comisiones</h6>
+                        <p class="text-muted small">Marca las empresas de alarmas cuyos contratos podrá ver este usuario y configura su porcentaje de comisión. Por defecto, aparecen todas marcadas.</p>
                         
                         <div class="table-responsive">
                             <table class="table table-sm table-hover">
@@ -729,6 +777,7 @@
                             <div class="alert alert-info mb-0">No hay empresas de alarmas registradas en el sistema.</div>
                         }
                     </div>
+                    }
 
                     <hr />
 
@@ -977,6 +1026,59 @@
                             <InputText type="password" class="form-control" @bind-Value="nuevaPassword" placeholder="Dejar en blanco para no cambiar" />
                         </div>
                     </div>
+                    }
+                    else
+                    {
+                        @if (cargandoLiquidacionesUsuario)
+                        {
+                            <div class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Cargando liquidaciones...</div>
+                        }
+                        else if (!liquidacionesUsuario.Any())
+                        {
+                            <div class="alert alert-info mb-0">Este usuario todavía no tiene liquidaciones registradas.</div>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <strong>@liquidacionesUsuario.Count</strong> liquidación(es)
+                                    <span class="text-muted ms-3">Total acumulado: @liquidacionesUsuario.Sum(liquidacion => liquidacion.TotalComisiones ?? 0m).ToString("N2") €</span>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CargarLiquidacionesUsuarioAsync" title="Actualizar liquidaciones">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Contratos</th>
+                                            <th>Energía</th>
+                                            <th>Telefonía</th>
+                                            <th>Alarmas</th>
+                                            <th class="text-end">Total</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var liquidacion in liquidacionesUsuario)
+                                        {
+                                            <tr>
+                                                <td>@((liquidacion.FechaLiquidada ?? liquidacion.FechaAceptada ?? liquidacion.FechaEnIncidencia ?? liquidacion.FechaAprobacion).ToString("dd/MM/yyyy"))</td>
+                                                <td>@liquidacion.CantidadContratos</td>
+                                                <td>@liquidacion.ContratosEnergia</td>
+                                                <td>@liquidacion.ContratosTelefonia</td>
+                                                <td>@liquidacion.ContratosAlarmas</td>
+                                                <td class="text-end">@((liquidacion.TotalComisiones ?? 0m).ToString("N2")) €</td>
+                                                <td><span class="badge @ColorEstadoLiquidacion(liquidacion.Estado)">@liquidacion.Estado</span></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    }
                 </div>
             </EditForm>
         </div>
@@ -990,6 +1092,9 @@
     [Parameter] public EventCallback OnCancelar { get; set; }
 
     private Usuario usuario = new();
+    private string pestanaActiva = "datos";
+    private string tipoProveedorSeleccionado = "energia";
+    private int? proveedorSeleccionadoId;
     private string mensajeError = string.Empty;
     private string? comisionTexto;  // Campo auxiliar para permitir valores vacíos
     private string rolOriginal = string.Empty;  // Para validar cambios de rol a Administrador
@@ -998,6 +1103,8 @@
     private bool enviandoFirma = false;
     private string mensajeFirma = string.Empty;
     private SolicitudFirmaColaborador? solicitudFirmaColaborador;
+    private List<HistoricoLiquidacion> liquidacionesUsuario = new();
+    private bool cargandoLiquidacionesUsuario;
     private List<string> comercializadoras = new();
     private List<Comercializadora> todasComercializadoras = new();
     private List<Operadora> todasOperadoras = new();
@@ -1018,6 +1125,13 @@
     private Dictionary<int, decimal> comisionesComercializadoras = new();
     private Dictionary<int, decimal> comisionesOperadoras = new();
     private Dictionary<int, decimal> comisionesEmpresasAlarmas = new();
+
+    private string EtiquetaProveedorSeleccionado => tipoProveedorSeleccionado switch
+    {
+        "telefonia" => "Operadora",
+        "alarmas" => "Empresa de alarmas",
+        _ => "Comercializadora"
+    };
     
     // Porcentaje global para aplicar a todas las comisiones
     private decimal? porcentajeGlobal;
@@ -1175,6 +1289,9 @@
             
             if (Usuario != null)
             {
+                pestanaActiva = "datos";
+                liquidacionesUsuario = new();
+                await CargarLiquidacionesUsuarioAsync();
                 solicitudFirmaColaborador = await FirmaService.ObtenerUltimaSolicitudColaboradorAsync(Usuario.Id);
                 usuariosJerarquiaCache = null;
 
@@ -1196,7 +1313,7 @@
                     Direccion = Usuario.Direccion,
                     CodigoPostal = Usuario.CodigoPostal,
                     Localidad = Usuario.Localidad,
-                    Rol = Usuario.Rol,
+                    Rol = Usuario.Rol == "Comercializadora" ? "Proveedor" : Usuario.Rol,
                     GestorId = Usuario.GestorId,
                     JefeVentasId = Usuario.JefeVentasId,
                     DirectorComercialId = Usuario.DirectorComercialId,
@@ -1232,7 +1349,7 @@
                 // Cargar comercializadoras permitidas
                 var comercializadorasPermitidas = await UsuarioService.ObtenerComercializadorasPermitidasAsync(usuario.Id) ?? new List<int>();
                 // Si no hay ninguna seleccionada, marcar todas por defecto
-                if (!comercializadorasPermitidas.Any() && todasComercializadoras.Any())
+                if (!comercializadorasPermitidas.Any() && todasComercializadoras.Any() && usuario.Rol != "Proveedor")
                 {
                     comercializadorasSeleccionadas = new HashSet<int>(todasComercializadoras.Select(c => c.Id));
                 }
@@ -1244,7 +1361,7 @@
                 // Cargar operadoras permitidas
                 var operadorasPermitidas = await UsuarioService.ObtenerOperadorasPermitidasAsync(usuario.Id) ?? new List<int>();
                 // Si no hay ninguna seleccionada, marcar todas por defecto
-                if (!operadorasPermitidas.Any() && todasOperadoras.Any())
+                if (!operadorasPermitidas.Any() && todasOperadoras.Any() && usuario.Rol != "Proveedor")
                 {
                     operadorasSeleccionadas = new HashSet<int>(todasOperadoras.Select(o => o.Id));
                 }
@@ -1256,7 +1373,7 @@
                 // Cargar empresas de alarmas permitidas
                 var empresasAlarmasPermitidas = await UsuarioService.ObtenerEmpresasAlarmasPermitidasAsync(usuario.Id) ?? new List<int>();
                 // Si no hay ninguna seleccionada, marcar todas por defecto
-                if (!empresasAlarmasPermitidas.Any() && todasEmpresasAlarmas.Any())
+                if (!empresasAlarmasPermitidas.Any() && todasEmpresasAlarmas.Any() && usuario.Rol != "Proveedor")
                 {
                     empresasAlarmasSeleccionadas = new HashSet<int>(todasEmpresasAlarmas.Select(e => e.Id));
                 }
@@ -1264,6 +1381,8 @@
                 {
                     empresasAlarmasSeleccionadas = new HashSet<int>(empresasAlarmasPermitidas);
                 }
+
+                InicializarProveedorSeleccionado();
 
                 // Cargar comisiones personalizadas y usar el porcentaje por defecto del proveedor cuando no exista personalización
                 var comisionesComercializadorasDb = await UsuarioService.ObtenerComisionesProveedorAsync(usuario.Id, "comercializadora");
@@ -1350,6 +1469,38 @@
             mensajeError = "Error al cargar los datos del usuario. Revisa los logs del servidor para más detalles.";
         }
     }
+
+    private async Task CargarLiquidacionesUsuarioAsync()
+    {
+        if (Usuario == null || Usuario.Id <= 0)
+        {
+            liquidacionesUsuario = new();
+            return;
+        }
+
+        try
+        {
+            cargandoLiquidacionesUsuario = true;
+            liquidacionesUsuario = await UsuarioService.ObtenerLiquidacionesUsuarioAsync(Usuario.Id);
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar las liquidaciones del usuario: {ex.Message}";
+            liquidacionesUsuario = new();
+        }
+        finally
+        {
+            cargandoLiquidacionesUsuario = false;
+        }
+    }
+
+    private static string ColorEstadoLiquidacion(string? estado) => estado switch
+    {
+        "Liquidada" => "bg-success",
+        "Aceptada" => "bg-primary",
+        "En incidencia" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
 
     private void InicializarDiccionariosComision()
     {
@@ -1525,10 +1676,10 @@
 
     private void OnRolChanged()
     {
-        // Limpiar comercializadora si cambia el rol y no es Comercializadora
-        if (usuario.Rol != "Comercializadora")
+        if (usuario.Rol != "Proveedor")
         {
             usuario.Comercializadora = null;
+            proveedorSeleccionadoId = null;
         }
 
         if (!RequiereComisionJerarquia(usuario.Rol))
@@ -1537,10 +1688,75 @@
         }
     }
 
+    private void OnTipoProveedorChanged() => proveedorSeleccionadoId = null;
+
+    private void InicializarProveedorSeleccionado()
+    {
+        tipoProveedorSeleccionado = "energia";
+        proveedorSeleccionadoId = null;
+        if (usuario.Rol != "Proveedor") return;
+
+        if (!string.IsNullOrWhiteSpace(usuario.Comercializadora))
+        {
+            var comercializadora = todasComercializadoras.FirstOrDefault(p => p.Nombre == usuario.Comercializadora);
+            if (comercializadora != null)
+            {
+                proveedorSeleccionadoId = comercializadora.Id;
+                return;
+            }
+        }
+
+        if (operadorasSeleccionadas.Count > 0)
+        {
+            tipoProveedorSeleccionado = "telefonia";
+            proveedorSeleccionadoId = operadorasSeleccionadas.OrderBy(id => id).First();
+        }
+        else if (empresasAlarmasSeleccionadas.Count > 0)
+        {
+            tipoProveedorSeleccionado = "alarmas";
+            proveedorSeleccionadoId = empresasAlarmasSeleccionadas.OrderBy(id => id).First();
+        }
+        else if (comercializadorasSeleccionadas.Count > 0)
+        {
+            tipoProveedorSeleccionado = "energia";
+            proveedorSeleccionadoId = comercializadorasSeleccionadas.OrderBy(id => id).First();
+        }
+    }
+
+    private void PrepararProveedorParaGuardar()
+    {
+        if (usuario.Rol != "Proveedor") return;
+
+        comercializadorasSeleccionadas.Clear();
+        operadorasSeleccionadas.Clear();
+        empresasAlarmasSeleccionadas.Clear();
+        usuario.Comercializadora = null;
+
+        if (!proveedorSeleccionadoId.HasValue) return;
+
+        if (tipoProveedorSeleccionado == "energia")
+        {
+            comercializadorasSeleccionadas.Add(proveedorSeleccionadoId.Value);
+            usuario.Comercializadora = todasComercializadoras.FirstOrDefault(p => p.Id == proveedorSeleccionadoId.Value)?.Nombre;
+        }
+        else if (tipoProveedorSeleccionado == "telefonia")
+        {
+            operadorasSeleccionadas.Add(proveedorSeleccionadoId.Value);
+        }
+        else if (tipoProveedorSeleccionado == "alarmas")
+        {
+            empresasAlarmasSeleccionadas.Add(proveedorSeleccionadoId.Value);
+        }
+    }
+
+    private static bool EsRolProveedor(string? rol) =>
+        string.Equals(rol, "Proveedor", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(rol, "Comercializadora", StringComparison.OrdinalIgnoreCase);
+
     private static bool RequiereComisionJerarquia(string? rol)
     {
         return !string.Equals(rol, "Colaborador", StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(rol, "Comercializadora", StringComparison.OrdinalIgnoreCase)
+            && !EsRolProveedor(rol)
             && !string.Equals(rol, "Administrador", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1586,10 +1802,10 @@
             usuario.Comision = 0m;
         }
 
-        // Validar comercializadora obligatoria para rol Comercializadora
-        if (usuario.Rol == "Comercializadora" && string.IsNullOrEmpty(usuario.Comercializadora))
+        if (usuario.Rol == "Proveedor" && !proveedorSeleccionadoId.HasValue)
         {
-            return; // No enviar si falta comercializadora
+            mensajeError = "Selecciona el tipo y el proveedor asociado.";
+            return;
         }
 
         // Validar que solo puede haber un administrador
@@ -1637,6 +1853,8 @@
         {
             usuario.PasswordHash = nuevaPassword;
         }
+
+        PrepararProveedorParaGuardar();
         
         // Actualizar la jerarquía basándose en las selecciones de los checkboxes
         // Esto asegura que los campos *Id de los subordinados se actualicen correctamente
