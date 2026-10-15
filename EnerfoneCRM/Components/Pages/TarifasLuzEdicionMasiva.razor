@@ -333,7 +333,7 @@ else
         if (firstRender)
         {
             dotnetReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotnetReference);
+            await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "tarifasLuzTable", dotnetReference);
         }
     }
 
@@ -517,6 +517,7 @@ else
                 {
                     idTarifa = parsedId;
                 }
+                DecimalPegado.Validar(rowData, 5);
 
                 var tarifa = new TarifaLuz
                 {
@@ -529,7 +530,7 @@ else
                 if (rowData.Count > 2 && !string.IsNullOrWhiteSpace(rowData[2])) tarifa.TipoCliente = rowData[2];
                 if (rowData.Count > 3 && !string.IsNullOrWhiteSpace(rowData[3])) tarifa.Nombre = rowData[3];
                 if (rowData.Count > 4 && !string.IsNullOrWhiteSpace(rowData[4])) tarifa.Peaje = rowData[4];
-                if (rowData.Count > 5 && decimal.TryParse(rowData[5], out var comision)) tarifa.Comision = comision;
+                if (rowData.Count > 5 && DecimalPegado.TryParse(rowData[5], out var comision)) tarifa.Comision = comision;
                 if (rowData.Count > 6 && !string.IsNullOrWhiteSpace(rowData[6])) tarifa.Potencia1 = rowData[6];
                 if (rowData.Count > 7 && !string.IsNullOrWhiteSpace(rowData[7])) tarifa.Potencia2 = rowData[7];
                 if (rowData.Count > 8 && !string.IsNullOrWhiteSpace(rowData[8])) tarifa.Potencia3 = rowData[8];

@@ -40,7 +40,6 @@ else
                 <div>
                     <h2><i class="bi bi-table me-2"></i>Edición Masiva de Contratos Telefonía</h2>
                     <p class="text-muted mb-0">Edita múltiples contratos de telefonía de forma simultánea. Puedes copiar y pegar desde Excel.</p>
-                    <p class="alert alert-info mt-2 mb-0"><strong>Vista Simplificada</strong> - Para editar líneas individuales (Líneas 1-15 con tarifa, tipo, ICC), utiliza el formulario de edición completo de cada contrato</p>
                 </div>
             </div>
             <div class="d-flex gap-2 flex-wrap">
@@ -114,7 +113,7 @@ else
             <div class="card shadow-sm">
                 <div class="card-body p-0">
                     <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
-                        <table class="table table-sm table-bordered table-hover mb-0" id="contratosTelefoniaTable" style="table-layout: fixed; width: 100%; min-width: 6000px;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="contratosTelefoniaTable" style="table-layout: fixed; width: 100%; min-width: @(6000 + CamposContratoEdicionMasiva.Obtener("telefonia").Count * 220)px;">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th style="width: 60px;">
@@ -143,6 +142,7 @@ else
                                     <th style="width: 200px;">Estado</th>
                                     <th style="width: 180px;">Comisión</th>
                                     <th style="width: 400px;">Observaciones</th>
+                                    <CeldasContratoEdicionMasiva Tipo="telefonia" Cabecera="true" />
                                 </tr>
                             </thead>
                             <tbody>
@@ -267,6 +267,7 @@ else
                                             <textarea class="form-control form-control-sm" @bind="contrato.Observaciones" 
                                                       @onpaste="@((e) => OnPaste(e, index, "Observaciones"))" rows="1"></textarea>
                                         </td>
+                                        <CeldasContratoEdicionMasiva @key="contrato" Tipo="telefonia" Contrato="contrato" OnError="@((string error) => mensajeError = error)" />
                                     </tr>
                                 }
                             </tbody>
@@ -370,7 +371,7 @@ else
             try
             {
                 dotnetReference = DotNetObjectReference.Create(this);
-                await JSRuntime.InvokeVoidAsync("initializeContratosTelefoniaPaste", dotnetReference);
+                await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "contratosTelefoniaTable", dotnetReference);
             }
             catch (Exception ex)
             {
@@ -411,6 +412,7 @@ else
                 {
                     idContrato = parsedId;
                 }
+                DecimalPegado.Validar(rowData, 20);
 
                 var contrato = new Contrato
                 {
@@ -449,11 +451,13 @@ else
                 if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) contrato.Estado = rowData[19];
                 if (rowData.Count > 20 && !string.IsNullOrWhiteSpace(rowData[20]))
                 {
-                    if (decimal.TryParse(rowData[20], out decimal comision))
+                    if (DecimalPegado.TryParse(rowData[20], out decimal comision))
                         contrato.Comision = comision;
                 }
                 if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) contrato.Observaciones = rowData[21];
                 
+                CamposContratoEdicionMasiva.Aplicar(contrato, "telefonia", rowData);
+
                 // Si tiene ID válido, buscar y actualizar el existente
                 if (idContrato > 0)
                 {
@@ -484,6 +488,7 @@ else
                         contratoExistente.Comision = contrato.Comision;
                         contratoExistente.Observaciones = contrato.Observaciones;
                         
+                        CamposContratoEdicionMasiva.Copiar(contrato, contratoExistente, "telefonia", rowData.Count);
                         contratosActualizados.Add((contratoExistente, indiceExistente));
                         filasActualizadas++;
                     }
@@ -664,6 +669,7 @@ else
                     Comision = contratoOriginal.Comision,
                     Observaciones = contratoOriginal.Observaciones
                 };
+                CamposContratoEdicionMasiva.Copiar(contratoOriginal, copia, "telefonia");
                 filasCopia.Add(copia);
                 
                 // Construir fila en formato TSV para portapapeles (compatible con Excel)
@@ -691,6 +697,7 @@ else
                     contratoOriginal.Comision?.ToString() ?? "",
                     contratoOriginal.Observaciones ?? ""
                 );
+                fila += "\t" + CamposContratoEdicionMasiva.Valores(contratoOriginal, "telefonia");
                 datosParaPortapapeles.Add(fila);
             }
         }
@@ -705,6 +712,8 @@ else
                 "Direccion", "CP", "IBAN", "Estado", "Comision", "Observaciones"
             );
             
+            cabeceras += "\t" + CamposContratoEdicionMasiva.Cabeceras("telefonia");
+
             var textoConCabeceras = cabeceras + "\n" + string.Join("\n", datosParaPortapapeles);
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", textoConCabeceras);
             mensajeExito = $"✓ {filasCopia.Count} fila(s) copiada(s) con ID. Al pegar, los registros con ID se actualizarán, sin ID se crearán como nuevos.";
@@ -782,6 +791,7 @@ else
             {
                 idContrato = parsedId;
             }
+            DecimalPegado.Validar(columnas, 20);
 
             var contrato = new Contrato
             {
@@ -807,9 +817,11 @@ else
                 CodigoPostal = columnas.Length > 17 ? columnas[17].Trim() : "",
                 Iban = columnas.Length > 18 ? columnas[18].Trim() : "",
                 Estado = columnas.Length > 19 ? columnas[19].Trim() : "",
-                Comision = columnas.Length > 20 && decimal.TryParse(columnas[20].Trim(), out decimal comision) ? comision : null,
+                Comision = columnas.Length > 20 && DecimalPegado.TryParse(columnas[20].Trim(), out decimal comision) ? comision : null,
                 Observaciones = columnas.Length > 21 ? columnas[21].Trim() : ""
             };
+
+            CamposContratoEdicionMasiva.Aplicar(contrato, "telefonia", columnas);
 
             // Si tiene ID válido, buscar y actualizar el existente
             if (idContrato > 0)
@@ -840,6 +852,7 @@ else
                     contratoExistente.Comision = contrato.Comision;
                     contratoExistente.Observaciones = contrato.Observaciones;
                     
+                    CamposContratoEdicionMasiva.Copiar(contrato, contratoExistente, "telefonia", columnas.Length);
                     contratosActualizados.Add((contratoExistente, indiceExistente));
                     filasActualizadas++;
                 }
@@ -984,6 +997,9 @@ else
 
         await using var context = DbContextProvider.CreateDbContext();
         var usuariosValidos = await context.Usuarios.Select(u => u.Id).ToListAsync();
+        var erroresReferencias = await CamposContratoEdicionMasiva.ValidarReferenciasAsync(contratos, context);
+        erroresValidacion.AddRange(erroresReferencias);
+        esValido = erroresReferencias.Count == 0;
 
         for (int i = 0; i < contratos.Count; i++)
         {

@@ -181,7 +181,7 @@ else
         if (firstRender)
         {
             dotNetReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotNetReference);
+            await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "serviciosGasTable", dotNetReference);
         }
     }
 

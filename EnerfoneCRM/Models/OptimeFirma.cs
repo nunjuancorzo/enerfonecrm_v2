@@ -14,7 +14,7 @@ public class OptimeFirma
 
     public static string Titulo(string tipo) => tipo switch
     {
-        TipoContrato => "Contrato de colaboración mercantil OPTIME + LOPD",
+        TipoContrato => "Contrato de colaboración comercial OPTIME y anexos",
         TipoAdenda => "Adenda comercial - Adhesión del Punto de Venta (Mayorista)",
         TipoCodigoBuenasPracticas => "Aceptación del Código de Buenas Prácticas",
         _ => tipo

@@ -113,7 +113,7 @@ else
             <div class="card shadow-sm">
                 <div class="card-body p-0">
                     <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
-                        <table class="table table-sm table-bordered table-hover mb-0" id="contratosEnergiaTable" style="table-layout: fixed; width: 100%; min-width: 7000px;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="contratosEnergiaTable" style="table-layout: fixed; width: 100%; min-width: @(7000 + CamposContratoEdicionMasiva.Obtener("energia").Count * 220)px;">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th style="width: 60px;">
@@ -147,6 +147,7 @@ else
                                     <th style="width: 200px;">Estado*</th>
                                     <th style="width: 180px;">Comisión</th>
                                     <th style="width: 400px;">Observaciones</th>
+                                    <CeldasContratoEdicionMasiva Tipo="energia" Cabecera="true" />
                                 </tr>
                             </thead>
                             <tbody>
@@ -288,6 +289,7 @@ else
                                             <textarea class="form-control form-control-sm" @bind="contrato.Observaciones" 
                                                       @onpaste="@((e) => OnPaste(e, index, "Observaciones"))" rows="1"></textarea>
                                         </td>
+                                        <CeldasContratoEdicionMasiva @key="contrato" Tipo="energia" Contrato="contrato" OnError="@((string error) => mensajeError = error)" />
                                     </tr>
                                 }
                             </tbody>
@@ -391,7 +393,7 @@ else
             try
             {
                 dotnetReference = DotNetObjectReference.Create(this);
-                await JSRuntime.InvokeVoidAsync("initializeContratosEnergiaPaste", dotnetReference);
+                await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "contratosEnergiaTable", dotnetReference);
             }
             catch (Exception ex)
             {
@@ -431,6 +433,7 @@ else
                 {
                     idContrato = parsedId;
                 }
+                DecimalPegado.Validar(rowData, 11, 12, 13, 14, 15, 16, 17, 18, 25);
 
                 var contrato = new Contrato
                 {
@@ -456,42 +459,42 @@ else
                 if (rowData.Count > 10 && !string.IsNullOrWhiteSpace(rowData[10])) contrato.TipoOperacion = rowData[10];
                 if (rowData.Count > 11 && !string.IsNullOrWhiteSpace(rowData[11]))
                 {
-                    if (decimal.TryParse(rowData[11], out decimal p1))
+                    if (DecimalPegado.TryParse(rowData[11], out decimal p1))
                         contrato.PotenciaContratadaP1 = p1;
                 }
                 if (rowData.Count > 12 && !string.IsNullOrWhiteSpace(rowData[12]))
                 {
-                    if (decimal.TryParse(rowData[12], out decimal p2))
+                    if (DecimalPegado.TryParse(rowData[12], out decimal p2))
                         contrato.PotenciaContratadaP2 = p2;
                 }
                 if (rowData.Count > 13 && !string.IsNullOrWhiteSpace(rowData[13]))
                 {
-                    if (decimal.TryParse(rowData[13], out decimal p3))
+                    if (DecimalPegado.TryParse(rowData[13], out decimal p3))
                         contrato.PotenciaContratadaP3 = p3;
                 }
                 if (rowData.Count > 14 && !string.IsNullOrWhiteSpace(rowData[14]))
                 {
-                    if (decimal.TryParse(rowData[14], out decimal p4))
+                    if (DecimalPegado.TryParse(rowData[14], out decimal p4))
                         contrato.PotenciaContratadaP4 = p4;
                 }
                 if (rowData.Count > 15 && !string.IsNullOrWhiteSpace(rowData[15]))
                 {
-                    if (decimal.TryParse(rowData[15], out decimal p5))
+                    if (DecimalPegado.TryParse(rowData[15], out decimal p5))
                         contrato.PotenciaContratadaP5 = p5;
                 }
                 if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16]))
                 {
-                    if (decimal.TryParse(rowData[16], out decimal p6))
+                    if (DecimalPegado.TryParse(rowData[16], out decimal p6))
                         contrato.PotenciaContratadaP6 = p6;
                 }
                 if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17]))
                 {
-                    if (decimal.TryParse(rowData[17], out decimal consumoAnual))
+                    if (DecimalPegado.TryParse(rowData[17], out decimal consumoAnual))
                         contrato.ConsumoAnual = consumoAnual;
                 }
                 if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18]))
                 {
-                    if (decimal.TryParse(rowData[18], out decimal consumoGas))
+                    if (DecimalPegado.TryParse(rowData[18], out decimal consumoGas))
                         contrato.ConsumoAnualGas = consumoGas;
                 }
                 if (rowData.Count > 19 && !string.IsNullOrWhiteSpace(rowData[19])) contrato.PeajeLuz = rowData[19];
@@ -502,11 +505,13 @@ else
                 if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24])) contrato.Estado = rowData[24];
                 if (rowData.Count > 25 && !string.IsNullOrWhiteSpace(rowData[25]))
                 {
-                    if (decimal.TryParse(rowData[25], out decimal comision))
+                    if (DecimalPegado.TryParse(rowData[25], out decimal comision))
                         contrato.Comision = comision;
                 }
                 if (rowData.Count > 26 && !string.IsNullOrWhiteSpace(rowData[26])) contrato.Observaciones = rowData[26];
                 
+                CamposContratoEdicionMasiva.Aplicar(contrato, "energia", rowData);
+
                 // Si tiene ID válido, buscar y actualizar el existente
                 if (idContrato > 0)
                 {
@@ -542,6 +547,7 @@ else
                         contratoExistente.Comision = contrato.Comision;
                         contratoExistente.Observaciones = contrato.Observaciones;
                         
+                        CamposContratoEdicionMasiva.Copiar(contrato, contratoExistente, "energia", rowData.Count);
                         contratosActualizados.Add((contratoExistente, indiceExistente));
                         filasActualizadas++;
                     }
@@ -727,6 +733,7 @@ else
                     Comision = contratoOriginal.Comision,
                     Observaciones = contratoOriginal.Observaciones
                 };
+                CamposContratoEdicionMasiva.Copiar(contratoOriginal, copia, "energia");
                 filasCopia.Add(copia);
                 
                 // Construir fila en formato TSV para portapapeles (compatible con Excel)
@@ -759,6 +766,7 @@ else
                     contratoOriginal.Comision?.ToString() ?? "",
                     contratoOriginal.Observaciones ?? ""
                 );
+                fila += "\t" + CamposContratoEdicionMasiva.Valores(contratoOriginal, "energia");
                 datosParaPortapapeles.Add(fila);
             }
         }
@@ -774,6 +782,8 @@ else
                 "Comision", "Observaciones"
             );
             
+            cabeceras += "\t" + CamposContratoEdicionMasiva.Cabeceras("energia");
+
             var textoConCabeceras = cabeceras + "\n" + string.Join("\n", datosParaPortapapeles);
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", textoConCabeceras);
             mensajeExito = $"✓ {filasCopia.Count} fila(s) copiada(s) con ID. Al pegar, los registros con ID se actualizarán, sin ID se crearán como nuevos.";
@@ -851,6 +861,7 @@ else
             {
                 idContrato = parsedId;
             }
+            DecimalPegado.Validar(columnas, 11, 12, 13, 14, 15, 16, 17, 18, 25);
 
             var contrato = new Contrato
             {
@@ -867,23 +878,25 @@ else
                 EnCups = columnas.Length > 8 ? columnas[8].Trim() : "",
                 EnCupsGas = columnas.Length > 9 ? columnas[9].Trim() : "",
                 TipoOperacion = columnas.Length > 10 ? columnas[10].Trim() : "",
-                PotenciaContratadaP1 = columnas.Length > 11 && decimal.TryParse(columnas[11].Trim(), out decimal p1) ? p1 : null,
-                PotenciaContratadaP2 = columnas.Length > 12 && decimal.TryParse(columnas[12].Trim(), out decimal p2) ? p2 : null,
-                PotenciaContratadaP3 = columnas.Length > 13 && decimal.TryParse(columnas[13].Trim(), out decimal p3) ? p3 : null,
-                PotenciaContratadaP4 = columnas.Length > 14 && decimal.TryParse(columnas[14].Trim(), out decimal p4) ? p4 : null,
-                PotenciaContratadaP5 = columnas.Length > 15 && decimal.TryParse(columnas[15].Trim(), out decimal p5) ? p5 : null,
-                PotenciaContratadaP6 = columnas.Length > 16 && decimal.TryParse(columnas[16].Trim(), out decimal p6) ? p6 : null,
-                ConsumoAnual = columnas.Length > 17 && decimal.TryParse(columnas[17].Trim(), out decimal consumoAnual) ? consumoAnual : null,
-                ConsumoAnualGas = columnas.Length > 18 && decimal.TryParse(columnas[18].Trim(), out decimal consumoGas) ? consumoGas : null,
+                PotenciaContratadaP1 = columnas.Length > 11 && DecimalPegado.TryParse(columnas[11].Trim(), out decimal p1) ? p1 : null,
+                PotenciaContratadaP2 = columnas.Length > 12 && DecimalPegado.TryParse(columnas[12].Trim(), out decimal p2) ? p2 : null,
+                PotenciaContratadaP3 = columnas.Length > 13 && DecimalPegado.TryParse(columnas[13].Trim(), out decimal p3) ? p3 : null,
+                PotenciaContratadaP4 = columnas.Length > 14 && DecimalPegado.TryParse(columnas[14].Trim(), out decimal p4) ? p4 : null,
+                PotenciaContratadaP5 = columnas.Length > 15 && DecimalPegado.TryParse(columnas[15].Trim(), out decimal p5) ? p5 : null,
+                PotenciaContratadaP6 = columnas.Length > 16 && DecimalPegado.TryParse(columnas[16].Trim(), out decimal p6) ? p6 : null,
+                ConsumoAnual = columnas.Length > 17 && DecimalPegado.TryParse(columnas[17].Trim(), out decimal consumoAnual) ? consumoAnual : null,
+                ConsumoAnualGas = columnas.Length > 18 && DecimalPegado.TryParse(columnas[18].Trim(), out decimal consumoGas) ? consumoGas : null,
                 PeajeLuz = columnas.Length > 19 ? columnas[19].Trim() : "",
                 PeajeGas = columnas.Length > 20 ? columnas[20].Trim() : "",
                 Direccion = columnas.Length > 21 ? columnas[21].Trim() : "",
                 CodigoPostal = columnas.Length > 22 ? columnas[22].Trim() : "",
                 Iban = columnas.Length > 23 ? columnas[23].Trim() : "",
                 Estado = columnas.Length > 24 ? columnas[24].Trim() : "",
-                Comision = columnas.Length > 25 && decimal.TryParse(columnas[25].Trim(), out decimal comision) ? comision : null,
+                Comision = columnas.Length > 25 && DecimalPegado.TryParse(columnas[25].Trim(), out decimal comision) ? comision : null,
                 Observaciones = columnas.Length > 26 ? columnas[26].Trim() : ""
             };
+
+            CamposContratoEdicionMasiva.Aplicar(contrato, "energia", columnas);
 
             // Si tiene ID válido, buscar y actualizar el existente
             if (idContrato > 0)
@@ -919,6 +932,7 @@ else
                     contratoExistente.Comision = contrato.Comision;
                     contratoExistente.Observaciones = contrato.Observaciones;
                     
+                    CamposContratoEdicionMasiva.Copiar(contrato, contratoExistente, "energia", columnas.Length);
                     contratosActualizados.Add((contratoExistente, indiceExistente));
                     filasActualizadas++;
                 }
@@ -1063,6 +1077,9 @@ else
 
         await using var context = DbContextProvider.CreateDbContext();
         var usuariosValidos = await context.Usuarios.Select(u => u.Id).ToListAsync();
+        var erroresReferencias = await CamposContratoEdicionMasiva.ValidarReferenciasAsync(contratos, context);
+        erroresValidacion.AddRange(erroresReferencias);
+        esValido = erroresReferencias.Count == 0;
 
         for (int i = 0; i < contratos.Count; i++)
         {

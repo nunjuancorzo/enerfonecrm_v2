@@ -360,7 +360,7 @@ else
         if (firstRender)
         {
             dotnetReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotnetReference);
+            await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "clientesTable", dotnetReference);
         }
     }
     

@@ -244,7 +244,7 @@ else
         if (firstRender)
         {
             dotNetReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotNetReference);
+            await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "tarifasTelefoniaTable", dotNetReference);
         }
     }
 
@@ -432,6 +432,7 @@ else
                 {
                     idTarifa = parsedId;
                 }
+                DecimalPegado.Validar(rowData, 11, 12);
 
                 var tarifa = new TarifaTelefonia
                 {
@@ -454,8 +455,8 @@ else
                 if (rowData.Count > 8 && !string.IsNullOrWhiteSpace(rowData[8])) tarifa.Tv2 = rowData[8];
                 if (rowData.Count > 9 && !string.IsNullOrWhiteSpace(rowData[9])) tarifa.Precio = rowData[9];
                 if (rowData.Count > 10 && !string.IsNullOrWhiteSpace(rowData[10])) tarifa.Comision = rowData[10];
-                if (rowData.Count > 11 && decimal.TryParse(rowData[11], out var precioNew)) tarifa.PrecioNew = precioNew;
-                if (rowData.Count > 12 && decimal.TryParse(rowData[12], out var comisionNew)) tarifa.ComisionNew = comisionNew;
+                if (rowData.Count > 11 && DecimalPegado.TryParse(rowData[11], out var precioNew)) tarifa.PrecioNew = precioNew;
+                if (rowData.Count > 12 && DecimalPegado.TryParse(rowData[12], out var comisionNew)) tarifa.ComisionNew = comisionNew;
                 if (rowData.Count > 13 && !string.IsNullOrWhiteSpace(rowData[13])) tarifa.Permanencia = rowData[13];
                 if (rowData.Count > 14 && int.TryParse(rowData[14], out var diasPenal)) tarifa.DiasPenalizacion = diasPenal;
                 if (rowData.Count > 15 && !string.IsNullOrWhiteSpace(rowData[15])) tarifa.TipoPenalizacion = rowData[15];

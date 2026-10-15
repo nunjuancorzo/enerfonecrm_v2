@@ -8,6 +8,7 @@
 @inject OptimeService OptimeService
 @inject OptimeFirmaService OptimeFirmaService
 @inject IJSRuntime JS
+@inject ILogger<OptimeFormulario> Logger
 
 <PageTitle>Ficha Nuevo Colaborador - Alta PdV</PageTitle>
 
@@ -18,6 +19,10 @@
                 <h1>Ficha Nuevo Colaborador</h1>
                 <p>Alta PdV - Naturgy Residencial</p>
             </div>
+            @if (!string.IsNullOrWhiteSpace(errorDocumentos))
+            {
+                <div class="alert alert-warning">La ficha está guardada, pero la documentación firmada no se ha enviado: @errorDocumentos Contacta con un administrador.</div>
+            }
         </header>
 
         <div class="optime-body">
@@ -76,7 +81,7 @@
                             <ValidationMessage For="() => solicitud.CodigoPostal" />
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Persona de contacto PdV *</label>
+                            <label class="form-label">Nombre completo del firmante *</label>
                             <InputText class="form-control" maxlength="150" @bind-Value="solicitud.PersonaContacto" />
                             <ValidationMessage For="() => solicitud.PersonaContacto" />
                         </div>
@@ -84,7 +89,7 @@
                         <div class="col-md-8">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label">NIF Persona de contacto PdV *</label>
+                                    <label class="form-label">NIF del firmante *</label>
                                     <InputText class="form-control" maxlength="20" @bind-Value="solicitud.NifPersonaContacto" />
                                     <ValidationMessage For="() => solicitud.NifPersonaContacto" />
                                 </div>
@@ -235,6 +240,7 @@
     private bool enviado;
     private bool documentosEnviados;
     private string? error;
+    private string? errorDocumentos;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -298,7 +304,7 @@
         }
         if (!documentos.ContainsKey(OptimeDocumento.TipoCopiaDni))
         {
-            error = "Adjunta la copia del DNI del representante.";
+            error = "Adjunta la copia del DNI del firmante.";
             return;
         }
 
@@ -334,16 +340,23 @@
             try
             {
                 var ipPublicaCliente = await JS.InvokeAsync<string>("publicSigning.getPublicIp");
-                documentosEnviados = (await OptimeFirmaService.ProcesarAltaFirmadaAsync(solicitud.Id, ipPublicaCliente)).Exito;
+                var resultado = await OptimeFirmaService.ProcesarAltaFirmadaAsync(solicitud.Id, ipPublicaCliente);
+                documentosEnviados = resultado.Exito;
+                errorDocumentos = resultado.Exito ? null : resultado.Mensaje;
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.LogError(ex, "Error generando o enviando los documentos firmados de Optime para la solicitud {Id}", solicitud.Id);
                 documentosEnviados = false;
+                errorDocumentos = ex is System.ComponentModel.DataAnnotations.ValidationException
+                    ? ex.Message : "No se pudo generar o enviar la documentación.";
             }
         }
-        catch
+        catch (Exception ex)
         {
-            error = "No se ha podido enviar la ficha. Inténtalo de nuevo.";
+            Logger.LogError(ex, "Error guardando la ficha de alta de Optime");
+            error = ex is System.ComponentModel.DataAnnotations.ValidationException
+                ? ex.Message : "No se ha podido enviar la ficha. Inténtalo de nuevo.";
         }
         finally
         {
@@ -357,6 +370,7 @@
         documentos = new();
         canvasInicializado = false;
         enviado = false;
+        errorDocumentos = null;
         error = null;
     }
 }

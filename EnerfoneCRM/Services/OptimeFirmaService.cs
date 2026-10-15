@@ -74,8 +74,8 @@ public class OptimeFirmaService
 
         foreach (var tipo in OptimeFirma.Tipos)
         {
-            var original = GenerarDocumento(tipo, solicitud, null, null, ahora);
-            var firmado = GenerarDocumento(tipo, solicitud, imagenFirma, ip, ahora);
+            var original = GenerarDocumento(tipo, solicitud, ahora);
+            var firmado = FirmarDocumento(tipo, original, solicitud, imagenFirma, ip, ahora);
             registros.Add(new OptimeFirma
             {
                 SolicitudId = solicitudId,
@@ -142,12 +142,12 @@ public class OptimeFirmaService
         byte[] original;
         try
         {
-            original = GenerarDocumento(tipo, solicitud, null, null, DateTime.Now);
+            original = GenerarDocumento(tipo, solicitud, DateTime.Now);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generando documento Optime {Tipo} para solicitud {Id}", tipo, solicitudId);
-            return new(false, "No se pudo generar el documento.");
+            return new(false, ex is ValidationException ? ex.Message : "No se pudo generar el documento.");
         }
 
         var anteriores = await context.OptimeFirmas
@@ -283,7 +283,7 @@ public class OptimeFirmaService
         if (string.IsNullOrWhiteSpace(ip)) ip = ObtenerIp(firma.IpFirma);
         var fechaFirmaUtc = DateTime.UtcNow;
         var fechaFirmaLocal = fechaFirmaUtc.ToLocalTime();
-        var firmado = GenerarDocumento(firma.TipoDocumento, solicitud, imagenFirma, ip, fechaFirmaLocal);
+        var firmado = FirmarDocumento(firma.TipoDocumento, firma.DocumentoOriginal, solicitud, imagenFirma, ip, fechaFirmaLocal);
 
         firma.DocumentoFirmado = firmado;
         firma.HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado);
@@ -324,8 +324,11 @@ public class OptimeFirmaService
 
     // ---------- Generación de PDF sobre las plantillas de Resources ----------
 
-    private static byte[] GenerarDocumento(string tipo, OptimeSolicitud s, byte[]? firma, string? ip, DateTime fecha)
+    internal static byte[] GenerarDocumento(string tipo, OptimeSolicitud s, DateTime fecha)
     {
+        if (!OptimeFirma.Tipos.Contains(tipo))
+            throw new ArgumentException("Tipo de documento no válido.", nameof(tipo));
+
         var plantilla = tipo switch
         {
             OptimeFirma.TipoContrato => "optime_contrato_colaboracion.pdf",
@@ -338,43 +341,80 @@ public class OptimeFirmaService
 
         switch (tipo)
         {
-            case OptimeFirma.TipoContrato: RellenarContrato(document, s, firma, fecha); break;
-            case OptimeFirma.TipoAdenda: RellenarAdenda(document, s, firma, fecha); break;
-            default: RellenarCodigoBuenasPracticas(document, s, firma, fecha); break;
+            case OptimeFirma.TipoContrato: RellenarContrato(document, s, fecha); break;
+            case OptimeFirma.TipoAdenda: RellenarAdenda(document, s, fecha); break;
+            default: RellenarCodigoBuenasPracticas(document, s, fecha); break;
         }
-
-        if (firma is { Length: > 0 })
-            EstamparPieFirma(document, s, firma, ip, OptimeFirma.Titulo(tipo), fecha);
 
         using var stream = new MemoryStream();
         document.Save(stream, false);
         return stream.ToArray();
     }
 
-    private static void RellenarContrato(PdfDocument document, OptimeSolicitud s, byte[]? firma, DateTime fecha)
+    internal static byte[] FirmarDocumento(string tipo, byte[] original, OptimeSolicitud s, byte[] firma, string? ip, DateTime fecha)
     {
+        using var origen = new MemoryStream(original);
+        using var document = PdfReader.Open(origen, PdfDocumentOpenMode.Modify);
+        switch (tipo)
+        {
+            case OptimeFirma.TipoContrato when document.PageCount == 25:
+                DibujarFirma(document.Pages[11], firma, 294, 415, 155, 60);
+                DibujarFirma(document.Pages[17], firma, 298, 175, 155, 60);
+                DibujarFirma(document.Pages[24], firma, 294, 474, 155, 60);
+                break;
+            // Los enlaces pendientes conservan el contrato anterior que recibió el firmante.
+            case OptimeFirma.TipoContrato when document.PageCount == 19:
+                DibujarFirma(document.Pages[8], firma, 298, 115, 150, 65);
+                DibujarFirma(document.Pages[18], firma, 321, 509, 150, 65);
+                break;
+            case OptimeFirma.TipoContrato:
+                throw new InvalidOperationException("La versión del contrato Optime no es compatible con la firma.");
+            case OptimeFirma.TipoAdenda:
+                DibujarFirma(document.Pages[2], firma, 120, 458, 160, 42);
+                break;
+            case OptimeFirma.TipoCodigoBuenasPracticas:
+                DibujarFirma(document.Pages[0], firma, 135, 405, 160, 55);
+                break;
+            default:
+                throw new ArgumentException("Tipo de documento no válido.", nameof(tipo));
+        }
+
+        EstamparPieFirma(document, s, firma, ip, OptimeFirma.Titulo(tipo), fecha,
+            pieCompacto: tipo == OptimeFirma.TipoContrato && document.PageCount == 25);
+        using var stream = new MemoryStream();
+        document.Save(stream, false);
+        return stream.ToArray();
+    }
+
+    private static void RellenarContrato(PdfDocument document, OptimeSolicitud s, DateTime fecha)
+    {
+        Validator.ValidateObject(s, new ValidationContext(s), validateAllProperties: true);
+        if (document.PageCount != 25)
+            throw new InvalidOperationException("La plantilla del contrato Optime debe ser la versión de octubre de 2026 (25 páginas).");
+
         var domicilio = $"{s.DireccionFiscal}, {s.CodigoPostal} {s.Poblacion} ({s.Provincia})";
         using (var g = XGraphics.FromPdfPage(document.Pages[0], XGraphicsPdfPageOptions.Append))
         {
-            // Coordenadas de los campos originales del PDF (origen arriba-izquierda)
-            Escribir(g, s.Poblacion, 441, 121, 58);
-            Escribir(g, fecha.ToString("dd/MM/yyyy"), 514, 121, 70);
-            Escribir(g, s.PersonaContacto, 204, 302, 306);
-            Escribir(g, s.NifPersonaContacto, 143, 322, 108);
-            Escribir(g, s.RazonSocial, 93, 346, 414);
-            Escribir(g, s.CifNif, 339, 362, 154);
-            Escribir(g, domicilio, 204, 383, 302);
-            Escribir(g, s.RazonSocial, 170, 644, 320);
+            EscribirEnEspacios(g, s.Poblacion, (102, 132, 145));
+            EscribirEnEspacios(g, fecha.ToString("dd"), (265, 132, 20));
+            EscribirEnEspacios(g, fecha.ToString("MMMM", Es), (305, 132, 118));
+            EscribirEnEspacios(g, fecha.ToString("yy"), (451, 132, 35));
+            EscribirEnEspacios(g, s.PersonaContacto, (188, 340, 315));
+            EscribirEnEspacios(g, s.NifPersonaContacto, (245, 355, 60));
+            EscribirEnEspacios(g, s.RazonSocial, (350, 449, 153));
+            EscribirEnEspacios(g, s.CifNif, (154, 464, 71));
+            EscribirEnEspacios(g, domicilio, (347, 464, 156), (114, 485, 364));
+            EscribirEnEspacios(g, s.Email, (85, 587, 418));
         }
-
-        if (firma is { Length: > 0 })
+        foreach (var (pagina, y, yFirmante) in new[] { (11, 396d, 548d), (17, 150d, 325d), (24, 450d, 625d) })
         {
-            DibujarFirma(document.Pages[8], firma, 298, 115, 150, 65);
-            DibujarFirma(document.Pages[18], firma, 321, 509, 150, 65);
+            using var g = XGraphics.FromPdfPage(document.Pages[pagina], XGraphicsPdfPageOptions.Append);
+            EscribirEnEspacios(g, s.RazonSocial,
+                (298, y, 205), (298, y + 10, 205));
+            EscribirEnEspacios(g, s.PersonaContacto, (298, yFirmante, 205), (298, yFirmante + 12, 205));
         }
     }
-
-    private static void RellenarAdenda(PdfDocument document, OptimeSolicitud s, byte[]? firma, DateTime fecha)
+    private static void RellenarAdenda(PdfDocument document, OptimeSolicitud s, DateTime fecha)
     {
         using (var g = XGraphics.FromPdfPage(document.Pages[0], XGraphicsPdfPageOptions.Append))
         {
@@ -392,11 +432,9 @@ public class OptimeFirmaService
             Escribir(g, s.NifPersonaContacto, 80, 542, 200);
         }
 
-        if (firma is { Length: > 0 })
-            DibujarFirma(document.Pages[2], firma, 120, 458, 160, 42);
     }
 
-    private static void RellenarCodigoBuenasPracticas(PdfDocument document, OptimeSolicitud s, byte[]? firma, DateTime fecha)
+    private static void RellenarCodigoBuenasPracticas(PdfDocument document, OptimeSolicitud s, DateTime fecha)
     {
         using (var g = XGraphics.FromPdfPage(document.Pages[0], XGraphicsPdfPageOptions.Append))
         {
@@ -405,8 +443,35 @@ public class OptimeFirmaService
             Escribir(g, $"{s.NifPersonaContacto} - {s.PersonaContacto}", 118, 508, 400, tamano: 11);
         }
 
-        if (firma is { Length: > 0 })
-            DibujarFirma(document.Pages[0], firma, 135, 405, 160, 55);
+    }
+
+    private static void EscribirEnEspacios(XGraphics g, string? texto, params (double X, double Y, double Ancho)[] espacios)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return;
+        var palabras = texto.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        for (var tamano = 10d; tamano >= 6; tamano -= 0.5)
+        {
+            var fuente = new XFont("Arial", tamano, XFontStyle.Regular);
+            var lineas = new List<string>();
+            var indice = 0;
+            foreach (var espacio in espacios)
+            {
+                var linea = string.Empty;
+                while (indice < palabras.Length)
+                {
+                    var candidata = linea.Length == 0 ? palabras[indice] : $"{linea} {palabras[indice]}";
+                    if (g.MeasureString(candidata, fuente).Width > espacio.Ancho) break;
+                    linea = candidata;
+                    indice++;
+                }
+                lineas.Add(linea);
+            }
+            if (indice != palabras.Length) continue;
+            for (var i = 0; i < espacios.Length; i++)
+                g.DrawString(lineas[i], fuente, XBrushes.Black, new XPoint(espacios[i].X, espacios[i].Y));
+            return;
+        }
+        throw new ValidationException($"El texto «{texto}» no cabe en el campo del contrato Optime. Abrevia este dato antes de generar el documento.");
     }
 
     private static void Escribir(XGraphics g, string? texto, double x, double yBase, double anchoMax, double tamano = 10, bool negrita = false)
@@ -433,20 +498,29 @@ public class OptimeFirmaService
         g.DrawImage(imagen, x + (ancho - w) / 2, y + (alto - h) / 2, w, h);
     }
 
-    private static void EstamparPieFirma(PdfDocument document, OptimeSolicitud s, byte[] firma, string? ip, string titulo, DateTime fechaFirma)
+    private static void EstamparPieFirma(PdfDocument document, OptimeSolicitud s, byte[] firma, string? ip, string titulo, DateTime fechaFirma, bool pieCompacto = false)
     {
         var fuente = new XFont("Arial", 7, XFontStyle.Bold);
         var fondo = new XSolidBrush(XColor.FromArgb(240, 230, 255));
         foreach (var pagina in document.Pages)
         {
             using var g = XGraphics.FromPdfPage(pagina, XGraphicsPdfPageOptions.Append);
-            var y = pagina.Height.Point - 48;
-            g.DrawRectangle(fondo, 42, y, pagina.Width.Point - 84, 42);
-            g.DrawString($"Firmado por: {s.PersonaContacto} ({s.NifPersonaContacto}) - {s.RazonSocial}", fuente, XBrushes.Black, new XPoint(50, y + 10));
-            g.DrawString($"IP de firma: {ip ?? "-"}", fuente, XBrushes.Black, new XPoint(50, y + 21));
-            g.DrawString($"Fecha y hora de firma: {fechaFirma:dd/MM/yyyy HH:mm:ss} | {titulo}", fuente, XBrushes.Black, new XPoint(50, y + 32));
+            var y = pagina.Height.Point - (pieCompacto ? 30 : 48);
+            g.DrawRectangle(fondo, 42, y, pagina.Width.Point - 84, pieCompacto ? 28 : 42);
+            if (pieCompacto)
+            {
+                Escribir(g, $"Firmado por: {s.PersonaContacto} ({s.NifPersonaContacto}) - {s.RazonSocial}", 50, y + 8, pagina.Width.Point - 152, tamano: 7);
+                Escribir(g, $"IP de firma: {ip ?? "-"}", 50, y + 16, pagina.Width.Point - 152, tamano: 7);
+                Escribir(g, $"Fecha y hora de firma: {fechaFirma:dd/MM/yyyy HH:mm:ss} | {titulo}", 50, y + 24, pagina.Width.Point - 152, tamano: 7);
+            }
+            else
+            {
+                g.DrawString($"Firmado por: {s.PersonaContacto} ({s.NifPersonaContacto}) - {s.RazonSocial}", fuente, XBrushes.Black, new XPoint(50, y + 10));
+                g.DrawString($"IP de firma: {ip ?? "-"}", fuente, XBrushes.Black, new XPoint(50, y + 21));
+                g.DrawString($"Fecha y hora de firma: {fechaFirma:dd/MM/yyyy HH:mm:ss} | {titulo}", fuente, XBrushes.Black, new XPoint(50, y + 32));
+            }
             using var imagen = XImage.FromStream(() => new MemoryStream(firma));
-            var escala = Math.Min(80 / imagen.PointWidth, 34 / imagen.PointHeight);
+            var escala = Math.Min((pieCompacto ? 50 : 80) / imagen.PointWidth, (pieCompacto ? 22 : 34) / imagen.PointHeight);
             g.DrawImage(imagen, pagina.Width.Point - 46 - imagen.PointWidth * escala, y + 4, imagen.PointWidth * escala, imagen.PointHeight * escala);
         }
     }

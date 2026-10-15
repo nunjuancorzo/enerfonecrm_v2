@@ -109,6 +109,44 @@ Nombre3    Apellido3    email3@test.com    555555555
    - ✅ Registros actualizados
    - ❌ Errores (si los hay)
 
+## Edición masiva de contratos desde Inicio rápido
+
+Las tablas de energía, telefonía y alarmas incluyen los datos contractuales de sus
+formularios de creación y edición. Los campos adicionales se sitúan **al final**
+para conservar el orden de las hojas existentes:
+
+- **Comunes:** fecha de alta, ID externo, carga en plataforma, Cliente ID y datos
+  del titular bancario diferente (indicador, DNI, nombre e IBAN).
+- **Energía:** dirección completa de instalación, servicio de luz y gas por ID,
+  estado de cada servicio y observaciones de estado.
+- **Telefonía:** dirección completa de instalación, tipo de tarifa, alta nueva
+  de las dos líneas principales, fibra de segunda residencia y observaciones de
+  estado. Las **15 líneas adicionales** aparecen como columnas; cada una incluye
+  teléfono, tarifa, tipo, ICC y alta nueva.
+- **Alarmas:** tipo de vía, contrato anterior, compañía y número anteriores y
+  fecha de permanencia. El resto de la dirección de instalación ya estaba incluido.
+
+El Cliente ID y los IDs de servicio deben existir. El Cliente ID vincula el
+contrato; los datos personales del cliente se gestionan en su propio formulario.
+Los adjuntos, firmas e históricos no se editan como celdas.
+
+### Formatos al pegar
+
+- Los campos decimales de Inicio rápido aceptan **coma o punto** como separador
+  decimal: `3,45` y `3.45` representan el mismo importe, y `0.12345` conserva su
+  precisión. No se admiten separadores de miles ni formatos mixtos.
+- Fechas nuevas: `dd/MM/yyyy` o `yyyy-MM-dd`; al copiar se usa `yyyy-MM-dd`.
+- Indicadores: `1`/`0`, `true`/`false` o `sí`/`no`. Al copiar se usa `1`/`0`.
+- IDs: enteros positivos o celda vacía para quitar el vínculo opcional.
+- Los formatos no válidos muestran un error en lugar de convertirse en cero.
+
+Usa **Copiar** para obtener las cabeceras y todas las columnas, y **Pegar** para
+crear o actualizar filas completas. Pegar un rango dentro de la tabla modifica
+las celdas a partir de la seleccionada, sin alterar los IDs de solo lectura.
+Las hojas antiguas sin las columnas adicionales no borran esos datos en los
+contratos existentes. Una columna adicional presente pero vacía sí elimina su
+valor opcional. Todos los cambios requieren **Guardar Cambios**.
+
 ## ⚡ Atajos de Teclado
 
 - **Ctrl/Cmd + S**: Guardar cambios
@@ -146,7 +184,10 @@ Nombre3    Apellido3    email3@test.com    555555555
 
 #### Nuevos Archivos
 - `/Components/Pages/ClientesEdicionMasiva.razor` - Página principal
-- `/wwwroot/js/clientesEdicionMasiva.js` - Lógica JavaScript para copy/paste
+- `/wwwroot/js/edicionMasiva.js` - Lógica compartida de pegado para las tablas de Inicio rápido
+- `/Components/Shared/CeldasContratoEdicionMasiva.razor` - Celdas adicionales de contratos
+- `/Services/CamposContratoEdicionMasiva.cs` - Campos adicionales y su correspondencia con el portapapeles
+- `/Services/DecimalPegado.cs` - Conversión decimal independiente de la configuración regional
 - `/ADD_CAMPOS_FALTANTES_CLIENTES.sql` - Script de migración DB
 
 #### Archivos Modificados

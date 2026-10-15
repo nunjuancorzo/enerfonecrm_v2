@@ -1,0 +1,61 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+
+@foreach (var campo in CamposContratoEdicionMasiva.Obtener(Tipo))
+{
+    if (Cabecera)
+    {
+        <th style="width: 220px;">@campo.Etiqueta</th>
+    }
+    else if (Contrato != null)
+    {
+        <td>
+            @if (campo.TipoEntrada == "boolean")
+            {
+                <select class="form-select form-select-sm" aria-label="@campo.Etiqueta"
+                        value="@campo.Leer(Contrato)" @onchange="e => Cambiar(campo, e)">
+                    @if (campo.PermiteVacio)
+                    {
+                        <option value="">-- Sin indicar --</option>
+                    }
+                    <option value="0">No</option>
+                    <option value="1">Sí</option>
+                </select>
+            }
+            else
+            {
+                <input type="@campo.TipoEntrada" class="form-control form-control-sm" aria-label="@campo.Etiqueta"
+                       value="@campo.Leer(Contrato)" maxlength="@campo.MaxLength" step="1"
+                       @onchange="e => Cambiar(campo, e)" />
+            }
+            @if (errores.TryGetValue(campo.Nombre, out var error))
+            {
+                <small class="text-danger">@error</small>
+            }
+        </td>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public string Tipo { get; set; } = "";
+    [Parameter] public bool Cabecera { get; set; }
+    [Parameter] public Contrato? Contrato { get; set; }
+    [Parameter] public EventCallback<string> OnError { get; set; }
+
+    private readonly Dictionary<string, string> errores = new();
+
+    private async Task Cambiar(CampoContratoEdicionMasiva campo, ChangeEventArgs e)
+    {
+        if (Contrato == null) return;
+        try
+        {
+            campo.Asignar(Contrato, e.Value?.ToString() ?? "");
+            errores.Remove(campo.Nombre);
+        }
+        catch (FormatException ex)
+        {
+            errores[campo.Nombre] = ex.Message;
+            await OnError.InvokeAsync(ex.Message);
+        }
+    }
+}

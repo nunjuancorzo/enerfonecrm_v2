@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using EnerfoneCRM.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,6 +63,7 @@ public class OptimeService
     public async Task CrearAsync(OptimeSolicitud solicitud, IEnumerable<OptimeDocumento> documentos)
     {
         Normalizar(solicitud);
+        Validator.ValidateObject(solicitud, new ValidationContext(solicitud), validateAllProperties: true);
         solicitud.Id = 0;
         solicitud.FechaCreacion = DateTime.Now;
         solicitud.FechaModificacion = null;
@@ -86,6 +88,7 @@ public class OptimeService
     public async Task<bool> ActualizarAsync(OptimeSolicitud solicitud)
     {
         Normalizar(solicitud);
+        Validator.ValidateObject(solicitud, new ValidationContext(solicitud), validateAllProperties: true);
         await using var context = _dbContextProvider.CreateDbContext();
         var existente = await context.OptimeSolicitudes.FindAsync(solicitud.Id);
         if (existente == null)

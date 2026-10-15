@@ -557,6 +557,14 @@ else
                 <div class="mb-1"><i class="bi bi-person me-2 opacity-75"></i><span class="etiqueta">Cliente:</span><strong>@contratoInfoFila.NombreCliente</strong></div>
                 <div class="mb-1"><i class="bi bi-card-text me-2 opacity-75"></i><span class="etiqueta">DNI/CIF:</span><strong>@(contratoInfoFila.Dni ?? contratoInfoFila.Cliente?.DniCif ?? "-")</strong></div>
                 <div class="mb-1"><i class="bi bi-people me-2 opacity-75"></i><span class="etiqueta">Tipo Cliente:</span><strong>@(string.IsNullOrWhiteSpace(tipoClienteInfoFila) ? "-" : tipoClienteInfoFila)</strong></div>
+                @if (!string.IsNullOrWhiteSpace(contratoInfoFila.EnCups))
+                {
+                    <div class="mb-1"><i class="bi bi-lightning-charge-fill text-warning me-2"></i><span class="etiqueta">CUPS Luz:</span><strong>@contratoInfoFila.EnCups</strong></div>
+                }
+                @if (!string.IsNullOrWhiteSpace(contratoInfoFila.EnCupsGas))
+                {
+                    <div class="mb-1"><i class="bi bi-fire text-danger me-2"></i><span class="etiqueta">CUPS Gas:</span><strong>@contratoInfoFila.EnCupsGas</strong></div>
+                }
                 @if (!string.IsNullOrWhiteSpace(contratoInfoFila.EnTarifa))
                 {
                     <div class="mb-1"><i class="bi bi-lightning-charge-fill text-warning me-2"></i><span class="etiqueta">Tarifa Luz:</span><strong>@contratoInfoFila.EnTarifa</strong></div>

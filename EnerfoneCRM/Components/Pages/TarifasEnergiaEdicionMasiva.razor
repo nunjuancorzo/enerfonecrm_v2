@@ -404,7 +404,7 @@ else
         if (firstRender)
         {
             dotnetReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotnetReference);
+            await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "tarifasEnergiaTable", dotnetReference);
         }
     }
     
@@ -667,6 +667,7 @@ else
                 {
                     idTarifa = parsedId;
                 }
+                DecimalPegado.Validar(rowData, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 
                 var tarifa = new TarifaEnergia
                 {
@@ -684,15 +685,15 @@ else
                 if (rowData.Count > 4 && !string.IsNullOrWhiteSpace(rowData[4])) tarifa.TipoCliente = rowData[4];
                 if (rowData.Count > 5 && !string.IsNullOrWhiteSpace(rowData[5])) tarifa.Peaje = rowData[5];
                 if (rowData.Count > 6 && !string.IsNullOrWhiteSpace(rowData[6])) tarifa.PeajeGas = rowData[6];
-                if (rowData.Count > 7 && decimal.TryParse(rowData[7], out var comision)) tarifa.Comision = comision;
-                if (rowData.Count > 8 && decimal.TryParse(rowData[8], out var precioNew)) tarifa.PrecioNew = precioNew;
-                if (rowData.Count > 9 && decimal.TryParse(rowData[9], out var termFijo)) tarifa.TerminoFijoDiario = termFijo;
-                if (rowData.Count > 10 && decimal.TryParse(rowData[10], out var precPotP1)) tarifa.PrecioPotenciaP1 = precPotP1;
-                if (rowData.Count > 11 && decimal.TryParse(rowData[11], out var precPotP2)) tarifa.PrecioPotenciaP2 = precPotP2;
-                if (rowData.Count > 12 && decimal.TryParse(rowData[12], out var precPotP3)) tarifa.PrecioPotenciaP3 = precPotP3;
-                if (rowData.Count > 13 && decimal.TryParse(rowData[13], out var precEnP1)) tarifa.PrecioEnergiaP1 = precEnP1;
-                if (rowData.Count > 14 && decimal.TryParse(rowData[14], out var precEnP2)) tarifa.PrecioEnergiaP2 = precEnP2;
-                if (rowData.Count > 15 && decimal.TryParse(rowData[15], out var precEnP3)) tarifa.PrecioEnergiaP3 = precEnP3;
+                if (rowData.Count > 7 && DecimalPegado.TryParse(rowData[7], out var comision)) tarifa.Comision = comision;
+                if (rowData.Count > 8 && DecimalPegado.TryParse(rowData[8], out var precioNew)) tarifa.PrecioNew = precioNew;
+                if (rowData.Count > 9 && DecimalPegado.TryParse(rowData[9], out var termFijo)) tarifa.TerminoFijoDiario = termFijo;
+                if (rowData.Count > 10 && DecimalPegado.TryParse(rowData[10], out var precPotP1)) tarifa.PrecioPotenciaP1 = precPotP1;
+                if (rowData.Count > 11 && DecimalPegado.TryParse(rowData[11], out var precPotP2)) tarifa.PrecioPotenciaP2 = precPotP2;
+                if (rowData.Count > 12 && DecimalPegado.TryParse(rowData[12], out var precPotP3)) tarifa.PrecioPotenciaP3 = precPotP3;
+                if (rowData.Count > 13 && DecimalPegado.TryParse(rowData[13], out var precEnP1)) tarifa.PrecioEnergiaP1 = precEnP1;
+                if (rowData.Count > 14 && DecimalPegado.TryParse(rowData[14], out var precEnP2)) tarifa.PrecioEnergiaP2 = precEnP2;
+                if (rowData.Count > 15 && DecimalPegado.TryParse(rowData[15], out var precEnP3)) tarifa.PrecioEnergiaP3 = precEnP3;
                 if (rowData.Count > 16 && !string.IsNullOrWhiteSpace(rowData[16])) tarifa.Potencia1 = rowData[16];
                 if (rowData.Count > 17 && !string.IsNullOrWhiteSpace(rowData[17])) tarifa.Potencia2 = rowData[17];
                 if (rowData.Count > 18 && !string.IsNullOrWhiteSpace(rowData[18])) tarifa.Potencia3 = rowData[18];

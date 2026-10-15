@@ -114,7 +114,7 @@ else
             <div class="card shadow-sm">
                 <div class="card-body p-0">
                     <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow: auto;">
-                        <table class="table table-sm table-bordered table-hover mb-0" id="contratosAlarmasTable" style="table-layout: fixed; width: 100%; min-width: 7000px;">
+                        <table class="table table-sm table-bordered table-hover mb-0" id="contratosAlarmasTable" style="table-layout: fixed; width: 100%; min-width: @(7000 + CamposContratoEdicionMasiva.Obtener("alarma").Count * 220)px;">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th style="width: 60px;">
@@ -146,6 +146,7 @@ else
                                     <th style="width: 180px;">Comisión</th>
                                     <th style="width: 400px;">Observaciones Alarma</th>
                                     <th style="width: 400px;">Observaciones</th>
+                                    <CeldasContratoEdicionMasiva Tipo="alarma" Cabecera="true" />
                                 </tr>
                             </thead>
                             <tbody>
@@ -272,6 +273,7 @@ else
                                             <textarea class="form-control form-control-sm" @bind="contrato.Observaciones" 
                                                       @onpaste="@((e) => OnPaste(e, index, "Observaciones"))" rows="1"></textarea>
                                         </td>
+                                        <CeldasContratoEdicionMasiva @key="contrato" Tipo="alarma" Contrato="contrato" OnError="@((string error) => mensajeError = error)" />
                                     </tr>
                                 }
                             </tbody>
@@ -385,7 +387,7 @@ else
             try
             {
                 dotnetReference = DotNetObjectReference.Create(this);
-                await JSRuntime.InvokeVoidAsync("initializeContratosAlarmasPaste", dotnetReference);
+                await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "contratosAlarmasTable", dotnetReference);
             }
             catch (Exception ex)
             {
@@ -426,6 +428,7 @@ else
                 {
                     idContrato = parsedId;
                 }
+                DecimalPegado.Validar(rowData, 22);
 
                 var contrato = new Contrato
                 {
@@ -462,12 +465,14 @@ else
                 if (rowData.Count > 21 && !string.IsNullOrWhiteSpace(rowData[21])) contrato.Estado = rowData[21];
                 if (rowData.Count > 22 && !string.IsNullOrWhiteSpace(rowData[22]))
                 {
-                    if (decimal.TryParse(rowData[22], out decimal comision))
+                    if (DecimalPegado.TryParse(rowData[22], out decimal comision))
                         contrato.Comision = comision;
                 }
                 if (rowData.Count > 23 && !string.IsNullOrWhiteSpace(rowData[23])) contrato.ObservacionesAlarma = rowData[23];
                 if (rowData.Count > 24 && !string.IsNullOrWhiteSpace(rowData[24])) contrato.Observaciones = rowData[24];
                 
+                CamposContratoEdicionMasiva.Aplicar(contrato, "alarma", rowData);
+
                 // Si tiene ID válido, buscar y actualizar el existente
                 if (idContrato > 0)
                 {
@@ -501,6 +506,7 @@ else
                         contratoExistente.ObservacionesAlarma = contrato.ObservacionesAlarma;
                         contratoExistente.Observaciones = contrato.Observaciones;
                         
+                        CamposContratoEdicionMasiva.Copiar(contrato, contratoExistente, "alarma", rowData.Count);
                         contratosActualizados.Add((contratoExistente, indiceExistente));
                         filasActualizadas++;
                     }
@@ -694,6 +700,7 @@ else
                     ObservacionesAlarma = contratoOriginal.ObservacionesAlarma,
                     Observaciones = contratoOriginal.Observaciones
                 };
+                CamposContratoEdicionMasiva.Copiar(contratoOriginal, copia, "alarma");
                 filasCopia.Add(copia);
                 
                 // Construir fila en formato TSV para portapapeles (compatible con Excel)
@@ -724,6 +731,7 @@ else
                     contratoOriginal.ObservacionesAlarma ?? "",
                     contratoOriginal.Observaciones ?? ""
                 );
+                fila += "\t" + CamposContratoEdicionMasiva.Valores(contratoOriginal, "alarma");
                 datosParaPortapapeles.Add(fila);
             }
         }
@@ -739,6 +747,8 @@ else
                 "ObservacionesAlarma", "Observaciones"
             );
             
+            cabeceras += "\t" + CamposContratoEdicionMasiva.Cabeceras("alarma");
+
             var textoConCabeceras = cabeceras + "\n" + string.Join("\n", datosParaPortapapeles);
             await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", textoConCabeceras);
             mensajeExito = $"✓ {filasCopia.Count} fila(s) copiada(s) con ID. Al pegar, los registros con ID se actualizarán, sin ID se crearán como nuevos.";
@@ -816,6 +826,7 @@ else
             {
                 idContrato = parsedId;
             }
+            DecimalPegado.Validar(columnas, 22);
 
             var contrato = new Contrato
             {
@@ -843,10 +854,12 @@ else
                 AclaradorInstalacion = columnas.Length > 19 ? columnas[19].Trim() : "",
                 Iban = columnas.Length > 20 ? columnas[20].Trim() : "",
                 Estado = columnas.Length > 21 ? columnas[21].Trim() : "",
-                Comision = columnas.Length > 22 && decimal.TryParse(columnas[22].Trim(), out decimal comision) ? comision : null,
+                Comision = columnas.Length > 22 && DecimalPegado.TryParse(columnas[22].Trim(), out decimal comision) ? comision : null,
                 ObservacionesAlarma = columnas.Length > 23 ? columnas[23].Trim() : "",
                 Observaciones = columnas.Length > 24 ? columnas[24].Trim() : ""
             };
+
+            CamposContratoEdicionMasiva.Aplicar(contrato, "alarma", columnas);
 
             // Si tiene ID válido, buscar y actualizar el existente
             if (idContrato > 0)
@@ -880,6 +893,7 @@ else
                     contratoExistente.ObservacionesAlarma = contrato.ObservacionesAlarma;
                     contratoExistente.Observaciones = contrato.Observaciones;
                     
+                    CamposContratoEdicionMasiva.Copiar(contrato, contratoExistente, "alarma", columnas.Length);
                     contratosActualizados.Add((contratoExistente, indiceExistente));
                     filasActualizadas++;
                 }
@@ -1024,6 +1038,9 @@ else
 
         await using var context = DbContextProvider.CreateDbContext();
         var usuariosValidos = await context.Usuarios.Select(u => u.Id).ToListAsync();
+        var erroresReferencias = await CamposContratoEdicionMasiva.ValidarReferenciasAsync(contratos, context);
+        erroresValidacion.AddRange(erroresReferencias);
+        esValido = erroresReferencias.Count == 0;
 
         for (int i = 0; i < contratos.Count; i++)
         {

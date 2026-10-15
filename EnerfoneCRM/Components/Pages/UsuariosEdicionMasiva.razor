@@ -336,7 +336,7 @@ else
         if (firstRender)
         {
             dotnetReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("initializeExcelLikePaste", dotnetReference);
+            await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "usuariosTable", dotnetReference);
         }
     }
     
@@ -565,6 +565,7 @@ else
             {
                 idUsuario = parsedId;
             }
+            DecimalPegado.Validar(columnas, 15);
 
             var usuario = new Usuario
             {
@@ -583,7 +584,7 @@ else
                 JefeVentasId = columnas.Length > 12 && int.TryParse(columnas[12].Trim(), out int jefeId) ? jefeId : null,
                 DirectorComercialId = columnas.Length > 13 && int.TryParse(columnas[13].Trim(), out int directorId) ? directorId : null,
                 Comercializadora = columnas.Length > 14 ? columnas[14].Trim() : "",
-                Comision = columnas.Length > 15 && decimal.TryParse(columnas[15].Trim(), out decimal comision) ? comision : 0.00m,
+                Comision = columnas.Length > 15 && DecimalPegado.TryParse(columnas[15].Trim(), out decimal comision) ? comision : 0.00m,
                 Activo = columnas.Length > 16 && (columnas[16].Trim() == "1" || columnas[16].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)),
                 ExcluirLogAcceso = columnas.Length > 17 && (columnas[17].Trim() == "1" || columnas[17].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)),
                 RecibirNotificaciones = columnas.Length > 18 && (columnas[18].Trim() == "1" || columnas[18].Trim().Equals("true", StringComparison.OrdinalIgnoreCase)),
