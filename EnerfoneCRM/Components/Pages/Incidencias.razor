@@ -793,14 +793,11 @@ else
             }
 
             mensajeExito = "Incidencia actualizada correctamente";
-            var idDetalle = mostrarModal ? incidenciaSeleccionada?.Id : null;
             CerrarModalEdicion();
+            mostrarModal = false;
+            incidenciaSeleccionada = null;
+            comentariosIncidencia = null;
             await CargarIncidencias();
-            if (idDetalle.HasValue)
-            {
-                incidenciaSeleccionada = incidencias.FirstOrDefault(incidencia => incidencia.Id == idDetalle.Value);
-                if (incidenciaSeleccionada != null) EditarIncidencia(incidenciaSeleccionada, false);
-            }
         }
         catch (Exception ex)
         {

@@ -49,16 +49,8 @@ else
     }
     else
     {
-        <div class="container-fluid p-4" style="max-width: 2200px;">
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <h2 class="mb-0">
-                        <i class="bi bi-shield-check me-2 text-danger"></i>
-                        Contratos de Alarmas
-                    </h2>
-                    <p class="text-muted">Gestión de contratos de sistemas de seguridad</p>
-                </div>
-            </div>
+        <div class="container-fluid p-4 contract-page" style="max-width: 2200px;">
+            <ContratoTabs />
 
             @if (!string.IsNullOrEmpty(mensajeExito))
             {
@@ -68,7 +60,7 @@ else
                 </div>
             }
 
-            <div class="card shadow-sm mb-3">
+            <div class="card shadow-sm mb-3 contract-filter-card">
                 <div class="card-header bg-white py-3">
                     <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h6>
                 </div>
@@ -270,6 +262,12 @@ else
                 <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                     <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Listado de Contratos</h5>
                     <div class="d-flex gap-2">
+                        @if (contratosSeleccionados.Any() && AuthService.PuedeGestionarContratos)
+                        {
+                            <button class="btn btn-warning" @onclick="MostrarModalCambioEstadoMasivo">
+                                <i class="bi bi-arrow-repeat me-2"></i>Cambiar estado (@contratosSeleccionados.Count)
+                            </button>
+                        }
                         <div class="btn-group">
                             <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!contratosFiltrados.Any())">
                                 <i class="bi bi-download me-2"></i>Exportar
@@ -279,6 +277,9 @@ else
                                 <li><a class="dropdown-item" @onclick="ExportarExcel" style="cursor: pointer;"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel (XLSX)</a></li>
                             </ul>
                         </div>
+                        <button class="btn btn-info" @onclick="CargarDatos" disabled="@cargando" title="Actualizar listado de contratos">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Actualizar
+                        </button>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -293,27 +294,29 @@ else
                     }
                     else
                     {
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                        <div class="table-responsive contract-list-wrap">
+                            <table class="table table-hover mb-0 contract-list-table">
+                                <colgroup>
+                                    <col class="contract-select-column" />
+                                    <col />
+                                    <col />
+                                    <col />
+                                    <col />
+                                    <col class="contract-signed-column" />
+                                    <col />
+                                    <col />
+                                    <col class="contract-actions-column" />
+                                </colgroup>
                                 <thead class="table-light">
                                     <tr style="font-size: 0.875rem;">
-                                        <th style="cursor: pointer; width: 50px;" @onclick='() => OrdenarPor("Id")'>
-                                            ID
-                                            @if (columnaOrden == "Id")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
+                                        <th class="contract-select-header" style="width: 36px;">
+                                            <input type="checkbox" class="form-check-input"
+                                                   @onchange="SeleccionarTodosContratosVisibles"
+                                                   checked="@(contratosFiltrados.Any() && contratosFiltrados.All(c => contratosSeleccionados.Contains(c.Id)))" />
                                         </th>
                                         <th style="cursor: pointer; width: 75px;" @onclick='() => OrdenarPor("FechaCreacion")'>
                                             F. Creación
                                             @if (columnaOrden == "FechaCreacion")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
-                                        <th style="cursor: pointer; width: 75px;" @onclick='() => OrdenarPor("FechaModificacion")'>
-                                            F. Modif.
-                                            @if (columnaOrden == "FechaModificacion")
                                             {
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
@@ -332,29 +335,8 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 95px;" @onclick='() => OrdenarPor("Dni")'>
-                                            DNI/CIF
-                                            @if (columnaOrden == "Dni")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
                                         <th style="width: 130px;">Empresa</th>
-                                        <th style="width: 55px; text-align: center;">Firmado</th>
-                                        <th style="cursor: pointer; width: 95px;" @onclick='() => OrdenarPor("TipoAlarma")'>
-                                            Tipo Alarma
-                                            @if (columnaOrden == "TipoAlarma")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
-                                        <th style="cursor: pointer; width: 110px;" @onclick='() => OrdenarPor("KitAlarma")'>
-                                            Kit/Campaña
-                                            @if (columnaOrden == "KitAlarma")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
+                                        <th class="contract-signed-header" style="width: 36px; text-align: center;" aria-label="Firmado" title="Firmado"></th>
                                         <th style="width: 85px; cursor: pointer;" @onclick='() => OrdenarPor("Comercial")'>
                                             Comercial
                                             @if (columnaOrden == "Comercial")
@@ -369,14 +351,14 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th class="text-end" style="width: 85px;">Acciones</th>
+                                        <th class="text-end contract-actions-header" style="width: 105px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @if (!contratos.Any())
                                     {
                                         <tr>
-                                            <td colspan="12" class="text-center text-muted py-5">
+                                            <td colspan="9" class="text-center text-muted py-5">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay contratos registrados</p>
                                             </td>
@@ -389,26 +371,17 @@ else
                                             var tieneArchivo = contratosConFicheros.Contains(contrato.Id);
                                             var textoClass = tieneArchivo ? "text-primary" : "";
                                             <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(contrato)" style="font-size: 0.875rem;">
-                                                <td><small class="@textoClass">@contrato.Id</small></td>
-                                                <td><small class="@textoClass">@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
-                                                <td><small class="@textoClass">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
-                                                <td>
+                                                <td data-label="Seleccionar" class="contract-select-cell" @ondblclick:stopPropagation="true">
+                                                    <input type="checkbox" class="form-check-input"
+                                                           @onchange="() => ToggleSeleccionContrato(contrato.Id)"
+                                                           checked="@contratosSeleccionados.Contains(contrato.Id)" />
+                                                </td>
+                                                <td data-label="F. creación"><small class="@textoClass">@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
+                                                <td data-label="Estado">
                                                     <span class="badge @ObtenerColorEstado(contrato.Estado)" style="font-size: 0.75rem;">@contrato.Estado</span>
-                                                    @if (conteoObservacionesPorContrato.ContainsKey(contrato.Id) && conteoObservacionesPorContrato[contrato.Id] > 0)
-                                                    {
-                                                        <i class="bi bi-chat-left-text-fill text-primary ms-1" 
-                                                           style="cursor: pointer; font-size: 0.85rem;" 
-                                                           @onclick="() => MostrarHistoricoObservaciones(contrato.Id)"
-                                                           @ondblclick:stopPropagation="true"
-                                                           title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
-                                                    }
                                                 </td>
-                                                <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass"><strong>@contrato.NombreCliente</strong></small></td>
-                                                <td style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass">@(contrato.Dni ?? contrato.Cliente?.DniCif ?? "-")</small></td>
-                                                <td>
-                                                    <i class="bi bi-pencil-fill @(contratosFirmados.Contains(contrato.Id) ? "text-primary" : "text-secondary opacity-50")" title="@(contratosFirmados.Contains(contrato.Id) ? "Contrato firmado" : "Contrato no firmado")"></i>
-                                                </td>
-                                                <td>
+                                                <td data-label="Cliente" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass"><strong>@contrato.NombreCliente</strong></small></td>
+                                                <td data-label="Empresa">
                                                     @if (!string.IsNullOrEmpty(contrato.EmpresaAlarma))
                                                     {
                                                         var empresa = empresasAlarmas.FirstOrDefault(e => e.Nombre == contrato.EmpresaAlarma);
@@ -429,18 +402,27 @@ else
                                                         <small class="text-muted">-</small>
                                                     }
                                                 </td>
-                                                <td><span class="badge bg-secondary" style="font-size: 0.75rem;">@contrato.TipoAlarma</span></td>
-                                                <td><small class="@textoClass">@contrato.KitAlarma @contrato.CampanaAlarma</small></td>
-                                                <td><small class="@textoClass">@contrato.Comercial</small></td>
+                                                <td data-label="" class="contract-signed-cell">
+                                                    <i class="bi bi-pencil-fill @(contratosFirmados.Contains(contrato.Id) ? "text-primary" : "text-secondary opacity-50")" title="@(contratosFirmados.Contains(contrato.Id) ? "Contrato firmado" : "Contrato no firmado")"></i>
+                                                </td>
+                                                <td data-label="Comercial">
+                                                    <div class="contract-commercial-cell">
+                                                        <small class="@textoClass">@contrato.Comercial</small>
+                                                        @if (conteoObservacionesPorContrato.ContainsKey(contrato.Id) && conteoObservacionesPorContrato[contrato.Id] > 0)
+                                                        {
+                                                            <i class="bi bi-chat-left-text-fill text-primary" @onclick="() => MostrarHistoricoObservaciones(contrato.Id)" @ondblclick:stopPropagation="true" title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
+                                                        }
+                                                    </div>
+                                                </td>
                                                 @if (PuedeMostrarComision(contrato.Estado))
                                                 {
-                                                    <td><span class="badge bg-danger" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                    <td data-label="Comisión"><span class="badge contract-commission-badge" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
                                                 }
                                                 else if (AuthService.UsuarioActual?.Rol == "Colaborador")
                                                 {
-                                                    <td><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
+                                                    <td data-label="Comisión"><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
                                                 }
-                                                <td class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
+                                                <td data-label="Acciones" class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(contrato)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
@@ -510,6 +492,46 @@ else
             </div>
         </div>
 
+        @if (mostrarModalCambioEstadoMasivo)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title"><i class="bi bi-arrow-repeat me-2"></i>Cambio de estado masivo</h5>
+                            <button type="button" class="btn-close" @onclick="CerrarModalCambioEstadoMasivo"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Contratos seleccionados:</strong> @contratosSeleccionados.Count</p>
+                            <label class="form-label fw-bold">Nuevo estado</label>
+                            <InputSelect @bind-Value="nuevoEstadoMasivo" class="form-select">
+                                <option value="">Seleccionar estado...</option>
+                                @foreach (var estado in estadosDisponibles)
+                                {
+                                    <option value="@estado">@estado</option>
+                                }
+                            </InputSelect>
+                            @if (nuevoEstadoMasivo == "Activo")
+                            {
+                                <label class="form-label fw-bold mt-3">Fecha de activación</label>
+                                <input type="date" class="form-control" @bind="fechaActivacionMasivo" />
+                            }
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" @onclick="CerrarModalCambioEstadoMasivo">Cancelar</button>
+                            <button type="button" class="btn btn-warning" @onclick="AplicarCambioEstadoMasivo" disabled="@(string.IsNullOrEmpty(nuevoEstadoMasivo) || guardando)">
+                                @if (guardando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Aplicar cambio
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         <!-- Modal Editar -->
         @if (mostrarModal && contratoSeleccionado != null)
         {
@@ -552,7 +574,6 @@ else
                                 </div>
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
-                                <FirmaContratoPanel ContratoId="contratoSeleccionado.Id" />
                                 @if (!string.IsNullOrEmpty(mensajeError))
                                 {
                                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -561,33 +582,63 @@ else
                                     </div>
                                 }
                                 
+                                <div class="card shadow-sm mb-3">
+                                    <div class="card-body bg-light">
+                                        <div class="row g-3 align-items-center">
+                                            <div class="col-sm-6 col-xl">
+                                                <small class="text-muted">Estado</small>
+                                                <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select form-select-sm" disabled="@(!PuedeEditarCamposAdministrativos())">
+                                                    <option value="">-- Seleccionar Estado --</option>
+                                                    @foreach (var estado in estadosDisponibles)
+                                                    {
+                                                        <option value="@estado">@estado</option>
+                                                    }
+                                                </InputSelect>
+                                            </div>
+                                            <div class="col-sm-6 col-xl">
+                                                <small class="text-muted">Fecha Creación</small>
+                                                <div class="fw-bold">@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")</div>
+                                            </div>
+                                            <div class="col-sm-6 col-xl">
+                                                <small class="text-muted">Última Modificación</small>
+                                                <div class="fw-bold">@(contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm") ?? "-")</div>
+                                            </div>
+                                            <div class="col-sm-6 col-xl">
+                                                <small class="text-muted">Comercial</small>
+                                                <div class="fw-bold text-truncate" title="@contratoSeleccionado.Comercial">@contratoSeleccionado.Comercial</div>
+                                            </div>
+                                            @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
+                                            {
+                                                <div class="col-sm-6 col-xl">
+                                                    <small class="text-muted">Comisión (€)</small>
+                                                    <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control form-control-sm" step="0.01" disabled="@(AuthService.UsuarioActual?.Rol != "Administrador" && AuthService.UsuarioActual?.Rol != "Backoffice")" />
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="nav nav-tabs mb-3" role="tablist" aria-label="Secciones del contrato de alarmas">
+                                    <button type="button" id="alarm-edit-tab-client" class="nav-link @(pestanaEdicionAlarmas == 0 ? "active" : string.Empty)" role="tab" aria-controls="alarm-edit-panel-client" aria-selected="@(pestanaEdicionAlarmas == 0)" @onclick="() => pestanaEdicionAlarmas = 0">General</button>
+                                    <button type="button" id="alarm-edit-tab-basic" class="nav-link @(pestanaEdicionAlarmas == 1 ? "active" : string.Empty)" role="tab" aria-controls="alarm-edit-panel-basic" aria-selected="@(pestanaEdicionAlarmas == 1)" @onclick="() => pestanaEdicionAlarmas = 1">Información básica</button>
+                                    <button type="button" id="alarm-edit-tab-service" class="nav-link @(pestanaEdicionAlarmas == 2 ? "active" : string.Empty)" role="tab" aria-controls="alarm-edit-panel-service" aria-selected="@(pestanaEdicionAlarmas == 2)" @onclick="() => pestanaEdicionAlarmas = 2">Configuración</button>
+                                    <button type="button" id="alarm-edit-tab-documents" class="nav-link @(pestanaEdicionAlarmas == 3 ? "active" : string.Empty)" role="tab" aria-controls="alarm-edit-panel-documents" aria-selected="@(pestanaEdicionAlarmas == 3)" @onclick="() => pestanaEdicionAlarmas = 3">Documentación</button>
+                                    <button type="button" id="alarm-edit-tab-history" class="nav-link @(pestanaEdicionAlarmas == 4 ? "active" : string.Empty)" role="tab" aria-controls="alarm-edit-panel-history" aria-selected="@(pestanaEdicionAlarmas == 4)" @onclick="() => pestanaEdicionAlarmas = 4">Historial</button>
+                                </div>
+
+                                <div id="alarm-edit-panel-client" role="tabpanel" aria-labelledby="alarm-edit-tab-client" hidden="@(pestanaEdicionAlarmas != 0)">
                                 <!-- Fechas -->
                                 <div class="row mb-3">
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-plus me-1"></i>Fecha de Creación</label>
-                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold text-muted"><i class="bi bi-calendar-check me-1"></i>Fecha de Modificación</label>
-                                        <input type="text" class="form-control" value="@contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")" readonly />
-                                    </div>
-                                    <div class="col-md-4">
                                         <label class="form-label fw-bold"><i class="bi bi-calendar-event me-1"></i>Fecha Alta</label>
-                                        @if (AuthService.EsAdminOBackoffice)
-                                        {
-                                            <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
-                                        }
-                                        else
-                                        {
-                                            <input type="text" class="form-control" value="@contratoSeleccionado.FechaAlta?.ToString("dd/MM/yyyy")" readonly />
-                                        }
+                                        <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" disabled="@(!PuedeEditar())" />
                                     </div>
                                 </div>
 
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold"><i class="bi bi-tag me-1"></i>ID Contrato Externo</label>
-                                        <InputText @bind-Value="contratoSeleccionado.IdContratoExterno" class="form-control" placeholder="ID de la empresa" />
+                                        <InputText @bind-Value="contratoSeleccionado.IdContratoExterno" class="form-control" placeholder="ID de la empresa" disabled="@(!PuedeEditarCamposAdministrativos())" />
                                     </div>
                                 </div>
 
@@ -693,21 +744,11 @@ else
                                     </div>
                                 }
 
-                                <hr class="my-3" />
-
+                                </div>
                                 <!-- Información Básica -->
+                                <div id="alarm-edit-panel-basic" role="tabpanel" aria-labelledby="alarm-edit-tab-basic" hidden="@(pestanaEdicionAlarmas != 1)">
                                 <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-info-circle me-2"></i>Información Básica</h6>
                                 <div class="row mb-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-bold">Estado</label>
-                                        <InputSelect class="form-select" @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged">
-                                            <option value="">-- Seleccionar Estado --</option>
-                                            @foreach (var estado in estadosDisponibles)
-                                            {
-                                                <option value="@estado">@estado</option>
-                                            }
-                                        </InputSelect>
-                                    </div>
                                     @if (contratoSeleccionado.Estado == "Activo" && mostrarCampoFechaActivo)
                                     {
                                         <div class="col-md-4">
@@ -726,7 +767,7 @@ else
                                         <label class="form-label fw-bold">Comercial</label>
                                         @if (AuthService.EsAdminOBackoffice)
                                         {
-                                            <select @onchange="OnUsuarioComercialChanged" class="form-select">
+                                            <select @onchange="OnUsuarioComercialChanged" class="form-select" disabled="@(!PuedeEditarCamposAdministrativos())">
                                                 <option value="">-- Seleccionar Comercial --</option>
                                                 @foreach (var usuario in usuarios.OrderBy(u => u.NombreUsuario))
                                                 {
@@ -744,7 +785,7 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-6">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="cargadoEnPlataformaAlarma" @bind="contratoSeleccionado.CargadoEnPlataforma">
+                                            <input class="form-check-input" type="checkbox" id="cargadoEnPlataformaAlarma" @bind="contratoSeleccionado.CargadoEnPlataforma" disabled="@(!PuedeEditarCamposAdministrativos())">
                                             <label class="form-check-label" for="cargadoEnPlataformaAlarma">
                                                 <i class="bi bi-cloud-check me-1"></i><strong>Ya está cargado en la plataforma de la empresa</strong>
                                             </label>
@@ -784,6 +825,16 @@ else
                                         </div>
                                     </div>
                                 }
+
+                                </div>
+                                <div id="alarm-edit-panel-service" role="tabpanel" aria-labelledby="alarm-edit-tab-service" hidden="@(pestanaEdicionAlarmas != 2)">
+                                <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-sliders me-2"></i>2. Configuración del Servicio</h6>
+                                <div class="row g-2 align-items-center mb-3">
+                                    <div class="col-md-2"><strong>ID Contrato</strong></div>
+                                    <div class="col-auto"><span class="badge bg-secondary">#@contratoSeleccionado.Id</span></div>
+                                </div>
+                                <ContratoPdfAdjunto @bind-PdfContratoUrl="contratoSeleccionado.PdfContratoUrl"
+                                                    PuedeEditar="PuedeEditar()" />
 
                                 <!-- Tipo de Alarma -->
                                 <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-shield-check me-2"></i>Tipo de Alarma</h6>
@@ -990,30 +1041,15 @@ else
                                     </div>
                                 </div>
                                 <div class="row mb-3">
-                                    @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
-                                    {
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Comisión (€)</label>
-                                            <InputNumber class="form-control" @bind-Value="contratoSeleccionado.Comision" step="0.01" disabled="@(AuthService.UsuarioActual?.Rol != "Administrador" && AuthService.UsuarioActual?.Rol != "Backoffice")" />
-                                            @if (AuthService.UsuarioActual?.Rol == "Administrador" || AuthService.UsuarioActual?.Rol == "Backoffice")
-                                            {
-                                                <small class="text-muted">Editable manualmente por tu rol</small>
-                                            }
-                                            else
-                                            {
-                                                <small class="text-muted">Se calcula automáticamente desde la tarifa</small>
-                                            }
-                                        </div>
-                                    }
-                                </div>
-
-                                <div class="row mb-3">
                                     <div class="col-md-12">
                                         <label class="form-label fw-bold">Observaciones</label>
                                         <InputTextArea class="form-control" @bind-Value="contratoSeleccionado.ObservacionesAlarma" rows="3" />
                                     </div>
                                 </div>
 
+                                </div>
+                                <div id="alarm-edit-panel-documents" role="tabpanel" aria-labelledby="alarm-edit-tab-documents" hidden="@(pestanaEdicionAlarmas != 3)">
+                                <FirmaContratoPanel ContratoId="contratoSeleccionado.Id" />
                                 @* Sección de Archivos del Cliente (Solo lectura) *@
                                 @if (contratoSeleccionado.IdCliente.HasValue && contratoSeleccionado.IdCliente.Value > 0)
                                 {
@@ -1110,8 +1146,8 @@ else
                                     </div>
                                 </div>
 
-                                <hr />
-
+                                </div>
+                                <div id="alarm-edit-panel-history" role="tabpanel" aria-labelledby="alarm-edit-tab-history" hidden="@(pestanaEdicionAlarmas != 4)">
                                 <!-- Histórico de Observaciones -->
                                 <div class="row mb-3">
                                     <div class="col-md-6">
@@ -1147,7 +1183,7 @@ else
                                                                         <i class="bi bi-clock me-1"></i>
                                                                         @obs.FechaHora.ToString("dd/MM/yyyy HH:mm")
                                                                     </small>
-                                                                    @if (PuedeEditar() && AuthService.UsuarioActual?.NombreUsuario == obs.Usuario)
+                                                                    @if (PuedeGestionarEdicion() && AuthService.UsuarioActual?.NombreUsuario == obs.Usuario)
                                                                     {
                                                                         <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1" @onclick="() => EliminarObservacion(obs.Id)" title="Eliminar">
                                                                             <i class="bi bi-trash" style="font-size: 0.8rem;"></i>
@@ -1197,6 +1233,7 @@ else
                                             <p class="text-muted fst-italic">No hay cambios registrados</p>
                                         }
                                     </div>
+                                </div>
                                 </div>
                             </div>
                         </EditForm>
@@ -1495,14 +1532,19 @@ else
     private Cliente? clienteSeleccionadoInfo;
     
     private bool cargandoSesion = true;
+    private int? contratoPendienteAbrir;
     private bool cargando = false;
     private bool guardando = false;
     private bool mostrarModal = false;
+    private int pestanaEdicionAlarmas;
     private bool mostrarModalEliminar = false;
+    private bool mostrarModalCambioEstadoMasivo = false;
     private bool mostrarModalObservaciones = false;
     private bool mostrarModalNuevaObservacion = false;
     private string observacionesActuales = string.Empty;
     private string nuevaObservacionTexto = string.Empty;
+    private string nuevoEstadoMasivo = string.Empty;
+    private DateTime? fechaActivacionMasivo;
     private bool guardandoObservacion = false;
     private List<ObservacionContrato> observacionesHistoricas = new();
     private List<HistoricoCambioContrato> cambiosHistoricos = new();
@@ -1517,6 +1559,7 @@ else
     // Contratos con ficheros adjuntos
     private HashSet<int> contratosConFicheros = new();
     private HashSet<int> contratosFirmados = new();
+    private HashSet<int> contratosSeleccionados = new();
     
     // Variables para fecha de activación
     private DateTime? fechaActivacion;
@@ -1570,9 +1613,7 @@ else
         
         if (!string.IsNullOrEmpty(idStr) && int.TryParse(idStr, out int contratoId))
         {
-            // Guardar el ID para abrirlo después de cargar los datos
-            await Task.Delay(100);
-            _ = AbrirContratoDesdeUrl(contratoId);
+            contratoPendienteAbrir = contratoId;
         }
         
         // Si se pasó el parámetro crear=true, abrir el wizard después de cargar
@@ -1640,6 +1681,11 @@ else
             if (AuthService.EstaAutenticado)
             {
                 await CargarDatos();
+                if (contratoPendienteAbrir is int contratoId)
+                {
+                    contratoPendienteAbrir = null;
+                    await AbrirContratoDesdeUrl(contratoId);
+                }
                 StateHasChanged();
             }
             else
@@ -2277,6 +2323,7 @@ else
         {
             Id = contrato.Id,
             IdContratoExterno = contrato.IdContratoExterno,
+            PdfContratoUrl = contrato.PdfContratoUrl,
             Tipo = "alarma",
             Estado = contrato.Estado,
             Comercial = contrato.Comercial,
@@ -2345,6 +2392,7 @@ else
         // Cargar histórico de cambios
         await CargarCambiosHistoricos();
         
+        pestanaEdicionAlarmas = 0;
         mostrarModal = true;
     }
 
@@ -2417,6 +2465,9 @@ else
     
     private async Task EjecutarGuardadoContrato()
     {
+        if (contratoSeleccionado == null) return;
+        if (contratoSeleccionado.Id > 0 && !AplicarRestriccionesEdicion()) return;
+
         // Validar campos obligatorios para contratos de alarmas
         if (string.IsNullOrWhiteSpace(contratoSeleccionado.DireccionInstalacionAlarma))
         {
@@ -2472,6 +2523,10 @@ else
         
         try
         {
+            var contratoOriginal = contratoSeleccionado.Id > 0
+                ? contratos.FirstOrDefault(c => c.Id == contratoSeleccionado.Id)
+                : null;
+
             // Obtener datos del cliente seleccionado
             if (contratoSeleccionado.IdCliente.HasValue)
             {
@@ -2493,12 +2548,8 @@ else
             }
 
             // Versión previa del contrato para registrar los cambios en el histórico
-            var contratoOriginal = contratoSeleccionado.Id > 0
-                ? contratos.FirstOrDefault(c => c.Id == contratoSeleccionado.Id)
-                : null;
-
             bool exito = contratoSeleccionado.Id > 0
-                ? await ContratoService.ActualizarAsync(contratoSeleccionado)
+                ? await ContratoService.ActualizarAsync(contratoSeleccionado, omitirCalculoComision: !PuedeEditarCamposAdministrativos())
                 : await ContratoService.CrearAsync(contratoSeleccionado);
 
             if (exito)
@@ -2964,6 +3015,112 @@ else
         observacionesHistoricasModal.Clear();
     }
 
+    private void ToggleSeleccionContrato(int contratoId)
+    {
+        if (!contratosSeleccionados.Add(contratoId))
+        {
+            contratosSeleccionados.Remove(contratoId);
+        }
+    }
+
+    private void SeleccionarTodosContratosVisibles(ChangeEventArgs e)
+    {
+        if (e.Value is not bool seleccionado)
+        {
+            return;
+        }
+
+        foreach (var contrato in contratosFiltrados)
+        {
+            if (seleccionado)
+            {
+                contratosSeleccionados.Add(contrato.Id);
+            }
+            else
+            {
+                contratosSeleccionados.Remove(contrato.Id);
+            }
+        }
+    }
+
+    private void MostrarModalCambioEstadoMasivo()
+    {
+        nuevoEstadoMasivo = string.Empty;
+        fechaActivacionMasivo = null;
+        mostrarModalCambioEstadoMasivo = true;
+    }
+
+    private void CerrarModalCambioEstadoMasivo()
+    {
+        mostrarModalCambioEstadoMasivo = false;
+        nuevoEstadoMasivo = string.Empty;
+        fechaActivacionMasivo = null;
+    }
+
+    private async Task AplicarCambioEstadoMasivo()
+    {
+        if (!AuthService.PuedeGestionarContratos || string.IsNullOrEmpty(nuevoEstadoMasivo) || !contratosSeleccionados.Any())
+        {
+            return;
+        }
+
+        guardando = true;
+        try
+        {
+            var actualizados = 0;
+            var errores = 0;
+            foreach (var contratoId in contratosSeleccionados)
+            {
+                try
+                {
+                    var contrato = await ContratoService.ObtenerPorIdAsync(contratoId);
+                    if (contrato is null)
+                    {
+                        continue;
+                    }
+
+                    contrato.Estado = nuevoEstadoMasivo;
+                    contrato.FechaModificacion = DateTime.Now;
+                    if (nuevoEstadoMasivo == "Activo" && fechaActivacionMasivo.HasValue)
+                    {
+                        contrato.FechaActivo = fechaActivacionMasivo.Value;
+                    }
+
+                    await ContratoService.ActualizarAsync(contrato);
+                    actualizados++;
+                }
+                catch
+                {
+                    errores++;
+                }
+            }
+
+            if (actualizados == 0)
+            {
+                mensajeError = "No se pudo actualizar ningún contrato";
+                return;
+            }
+
+            mensajeExito = $"Se actualizaron {actualizados} contratos al estado '{nuevoEstadoMasivo}'";
+            if (errores > 0)
+            {
+                mensajeExito += $" ({errores} con errores)";
+            }
+
+            contratosSeleccionados.Clear();
+            await CargarDatos();
+            CerrarModalCambioEstadoMasivo();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al actualizar contratos: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
     private async Task CargarConteoObservaciones()
     {
         try
@@ -2985,7 +3142,36 @@ else
 
     private bool PuedeEditar()
     {
-        return AuthService.PuedeGestionarContratos || AuthService.EsComercializadora;
+        return AuthService.EstaAutenticado && AuthService.PuedeVerContratos;
+    }
+
+    private bool PuedeEditarCamposAdministrativos() => AuthService.PuedeGestionarContratos;
+
+    private bool PuedeGestionarEdicion() => AuthService.PuedeGestionarContratos || AuthService.EsComercializadora;
+
+    private void RestaurarCamposAdministrativos(Contrato original)
+    {
+        if (contratoSeleccionado == null) return;
+        contratoSeleccionado.Estado = original.Estado;
+        contratoSeleccionado.IdContratoExterno = original.IdContratoExterno;
+        contratoSeleccionado.UsuarioComercialId = original.UsuarioComercialId;
+        contratoSeleccionado.Comercial = original.Comercial;
+        contratoSeleccionado.CargadoEnPlataforma = original.CargadoEnPlataforma;
+        contratoSeleccionado.Comision = original.Comision;
+    }
+
+    private bool AplicarRestriccionesEdicion()
+    {
+        if (contratoSeleccionado == null || PuedeEditarCamposAdministrativos()) return contratoSeleccionado != null;
+        var original = contratos.FirstOrDefault(contrato => contrato.Id == contratoSeleccionado.Id);
+        if (original == null)
+        {
+            mensajeError = "No se pudo verificar el contrato original para aplicar tus permisos.";
+            return false;
+        }
+
+        RestaurarCamposAdministrativos(original);
+        return true;
     }
 
     private string ObtenerColorEstado(string estado)

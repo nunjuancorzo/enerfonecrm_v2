@@ -126,12 +126,14 @@ public class FirmaService
         await RegistrarEventoAsync(solicitud.Id, esReenvio ? "EmailReenviado" : "SolicitudCreada", null, "OK", null);
         var url = ConstruirUrl(token);
         var nombre = WebUtility.HtmlEncode(solicitud.NombreDestinatario ?? "cliente");
-        var fecha = solicitud.FechaCaducidadUtc.ToLocalTime().ToString("dd/MM/yyyy");
-        var cuerpo = $"<p>Hola {nombre},</p><p>Tiene disponible la documentacion correspondiente a su contratacion.</p><p><a href=\"{WebUtility.HtmlEncode(url)}\">Consultar y firmar documentacion</a></p><p>Este enlace es personal y valido hasta el {fecha}.</p>";
-        var emailResult = await _emailService.EnviarEmailSimpleAsync(
+        var emailResult = await _emailService.EnviarEmailFirmaAsync(
             solicitud.EmailDestinatario,
             "Documentacion pendiente de firma",
-            cuerpo);
+            solicitud.NombreDestinatario ?? "cliente",
+            "Tienes disponible la documentación correspondiente a tu contratación.",
+            "Consultar y firmar documentación",
+            url,
+            solicitud.FechaCaducidadUtc);
         await RegistrarEventoAsync(solicitud.Id, "EmailEnviado", null, emailResult.exito ? "OK" : "ERROR", emailResult.mensaje);
 
         if (!emailResult.exito)
@@ -362,7 +364,14 @@ public class FirmaService
         };
         context.SolicitudesFirmaColaboradores.Add(solicitud);
         await context.SaveChangesAsync();
-        var email = await _emailService.EnviarEmailSimpleAsync(usuario.Email, "Contrato de colaboracion pendiente de firma", $"<p>Hola {WebUtility.HtmlEncode(solicitud.NombreDestinatario)},</p><p>Puede consultar y firmar su contrato de colaboracion aqui:</p><p><a href=\"{WebUtility.HtmlEncode(url)}\">Consultar y firmar contrato</a></p>");
+        var email = await _emailService.EnviarEmailFirmaAsync(
+            usuario.Email,
+            "Contrato de colaboración pendiente de firma",
+            solicitud.NombreDestinatario ?? "colaborador",
+            "Ponemos a tu disposición el contrato de colaboración mercantil para que puedas revisarlo y firmarlo de forma segura.",
+            "Consultar y firmar contrato",
+            url,
+            solicitud.FechaCaducidadUtc);
         return email.exito ? new(true, "Contrato enviado a firma.", url) : new(false, email.mensaje);
     }
 

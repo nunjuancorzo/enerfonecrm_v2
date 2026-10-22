@@ -42,12 +42,14 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
     .fila-ficha,
     .table > tbody > tr.fila-ficha > * {
+         --crm-sidebar-text: #ffffff;
         transition: none;
     }
 
     .fila-ficha:hover {
         transform: none;
     }
+         color: var(--crm-sidebar-text);
 }
 
 /* Estilos para el menú de navegación */
@@ -354,4 +356,1241 @@ h1:focus {
 .bg-pink {
     background-color: #e91e63 !important;
     color: #fff !important;
+}
+
+:root {
+    --crm-accent: #1d4ed8;
+    --crm-accent-rgb: 29, 78, 216;
+    --crm-sidebar: #172b4d;
+    --crm-canvas: #eff6ff;
+    --crm-surface: #ffffff;
+    --crm-text: #171717;
+    --crm-muted: #5d6268;
+    --crm-border: #e4e5e7;
+    --crm-on-accent: #ffffff;
+    --bs-primary: var(--crm-accent);
+    --bs-primary-rgb: var(--crm-accent-rgb);
+}
+
+[data-theme="azul"] {
+    --crm-accent: #1d4ed8;
+    --crm-accent-rgb: 29, 78, 216;
+    --crm-sidebar: #172b4d;
+    --crm-canvas: #eff6ff;
+    --crm-on-accent: #ffffff;
+}
+
+[data-theme="bosque"] {
+    --crm-accent: #166534;
+    --crm-accent-rgb: 22, 101, 52;
+    --crm-sidebar: #17372c;
+    --crm-canvas: #f0fdf4;
+    --crm-on-accent: #ffffff;
+}
+
+[data-theme="indigo"] {
+    --crm-accent: #5b21b6;
+    --crm-accent-rgb: 91, 33, 182;
+    --crm-sidebar: #2c2248;
+    --crm-canvas: #f5f3ff;
+    --crm-on-accent: #ffffff;
+}
+
+[data-theme="petroleo"] {
+    --crm-accent: #0e6a75;
+    --crm-accent-rgb: 14, 106, 117;
+    --crm-sidebar: #173a3d;
+    --crm-canvas: #ecfeff;
+    --crm-on-accent: #ffffff;
+}
+
+[data-theme="grafito"] {
+    --crm-accent: #374151;
+    --crm-accent-rgb: 55, 65, 81;
+    --crm-sidebar: #1f2329;
+    --crm-canvas: #f3f4f6;
+    --crm-on-accent: #ffffff;
+}
+
+[data-theme="granate"] {
+    --crm-accent: #9f2344;
+    --crm-accent-rgb: 159, 35, 68;
+    --crm-sidebar: #4a1f2f;
+    --crm-canvas: #fff1f3;
+    --crm-on-accent: #ffffff;
+}
+
+html,
+body {
+    background: var(--crm-canvas);
+    color: var(--crm-text);
+    font-family: "Aptos", "Segoe UI", sans-serif;
+}
+
+[data-theme] {
+    --bs-primary: var(--crm-accent);
+    --bs-primary-rgb: var(--crm-accent-rgb);
+}
+
+.main-content {
+    background: var(--crm-canvas);
+}
+
+.app-empty-shell {
+    background: var(--crm-canvas);
+    color: var(--crm-text);
+    min-height: 100vh;
+}
+
+.content-wrapper {
+    max-width: 1600px;
+    padding: 1.35rem 1.6rem;
+}
+
+.app-sidebar {
+    background: var(--crm-sidebar) !important;
+    border: 0 !important;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+}
+
+@media (min-width: 992px) {
+    .app-shell {
+        flex-direction: row !important;
+    }
+
+    .app-shell > .app-sidebar {
+        align-self: stretch;
+        display: flex !important;
+        flex: 0 0 236px !important;
+        flex-direction: column !important;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-y: auto;
+        padding: 0.75rem !important;
+        position: sticky;
+        top: 0;
+        width: 236px !important;
+    }
+
+    .app-shell > .app-sidebar > .container-fluid {
+        align-items: stretch !important;
+        display: flex !important;
+        flex: 1;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        padding: 0 !important;
+    }
+
+    .app-shell > .app-sidebar .navbar-collapse {
+        align-items: stretch !important;
+        display: flex !important;
+        flex: 1;
+        flex-basis: auto;
+        flex-direction: column !important;
+        width: 100%;
+    }
+
+    .app-shell > .app-sidebar .navbar-nav {
+        align-items: stretch !important;
+        flex-direction: column !important;
+        margin: 0 !important;
+        width: 100%;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .app-shell {
+        flex-direction: column !important;
+    }
+
+    .app-shell > .app-sidebar {
+        position: sticky;
+        top: 0;
+        width: 100%;
+    }
+}
+
+.app-sidebar .crm-sidebar-nav,
+.app-sidebar .crm-sidebar-nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.app-sidebar .crm-sidebar-nav > li {
+    width: 100%;
+}
+
+.app-sidebar .crm-nav-group > summary {
+    align-items: center;
+    border-radius: 0.35rem;
+    color: color-mix(in srgb, var(--crm-sidebar-text) 84%, transparent);
+    cursor: pointer;
+    display: flex;
+    font-size: 0.88rem;
+    gap: 0.6rem;
+    list-style: none;
+    min-height: 42px;
+    padding: 0.55rem 0.7rem;
+}
+
+.app-sidebar .crm-nav-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.app-sidebar .crm-nav-group > summary::after {
+    border-bottom: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    content: "";
+    height: 0.4rem;
+    margin-left: auto;
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform 120ms ease;
+    width: 0.4rem;
+}
+
+.app-sidebar .crm-nav-group[open] > summary::after {
+    transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.app-sidebar .crm-nav-group > summary:hover,
+.app-sidebar .crm-nav-group > summary:focus-visible {
+    background: color-mix(in srgb, var(--crm-sidebar-text) 12%, transparent);
+    color: var(--crm-sidebar-text);
+}
+
+.app-sidebar .crm-nav-group ul {
+    padding: 0.15rem 0 0.35rem 0.6rem;
+}
+
+@media (min-width: 992px) {
+    .app-shell > .app-sidebar {
+        align-self: stretch;
+        height: 100vh !important;
+        height: 100dvh !important;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow: visible !important;
+    }
+
+    .app-sidebar .crm-nav-group {
+        position: relative;
+    }
+
+    .app-sidebar .crm-nav-group > ul {
+        background: var(--crm-sidebar);
+        border: 1px solid color-mix(in srgb, var(--crm-sidebar-text) 18%, transparent);
+        border-radius: 0.35rem;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+        display: none;
+        left: calc(100% + 0.45rem);
+        max-height: calc(100vh - 1.5rem);
+        overflow-y: auto;
+        padding: 0.45rem;
+        position: absolute;
+        top: 0;
+        width: 232px;
+        z-index: 1060;
+    }
+
+    .app-sidebar .crm-nav-group[open] > ul {
+        display: block;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .app-sidebar .crm-nav-group[open] > ul {
+        display: block;
+        padding-left: 0.75rem;
+    }
+}
+
+.app-sidebar .crm-nav-group .nav-link {
+    color: color-mix(in srgb, var(--crm-sidebar-text) 78%, transparent) !important;
+    font-size: 0.84rem;
+    min-height: 38px;
+    padding: 0.45rem 0.65rem !important;
+    white-space: normal;
+}
+
+.app-sidebar .crm-nav-group .nav-link.active {
+    background: color-mix(in srgb, var(--crm-accent) 22%, var(--crm-sidebar)) !important;
+    color: var(--crm-sidebar-text) !important;
+    box-shadow: inset 3px 0 0 var(--crm-accent);
+}
+
+.app-sidebar .crm-nav-group .nav-link .bi,
+.app-sidebar .nav-link .bi {
+    flex: 0 0 1.2rem;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.app-sidebar .crm-nav-caption {
+    color: color-mix(in srgb, var(--crm-sidebar-text) 48%, transparent);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.45rem 0.65rem 0.2rem;
+    text-transform: uppercase;
+}
+
+.app-sidebar .crm-factiox-logo {
+    display: block;
+    height: 88px;
+    margin: 0.3rem auto;
+    max-width: 176px;
+    object-fit: contain;
+}
+
+@media (min-width: 992px) {
+    .app-sidebar .crm-user-menu {
+        position: relative;
+    }
+
+    .app-sidebar .crm-user-menu > .dropdown-menu {
+        bottom: 0 !important;
+        left: calc(100% + 0.45rem) !important;
+        right: auto !important;
+        top: auto !important;
+        transform: none !important;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .app-sidebar .crm-user-menu > .dropdown-menu {
+        left: 0 !important;
+        position: static !important;
+        right: auto !important;
+        transform: none !important;
+        width: 100%;
+    }
+}
+
+.app-sidebar .navbar-brand {
+    align-items: center;
+    color: var(--crm-sidebar-text);
+    display: flex;
+    font-size: 1rem;
+    font-weight: 700;
+    justify-content: center;
+    margin: 0 0 0.5rem;
+    min-height: 64px;
+    padding: 0.2rem;
+    width: 100%;
+}
+
+.app-sidebar .crm-sidebar-nav > li > .nav-link,
+.app-sidebar .crm-nav-group > summary {
+    font-size: 1rem;
+    min-height: 46px;
+}
+
+.navbar-brand img.crm-company-logo {
+    display: block;
+    flex: 0 0 auto;
+    height: 60px !important;
+    max-height: 60px;
+    max-width: 240px;
+    object-fit: contain;
+    width: auto !important;
+}
+
+.app-sidebar .navbar-brand img.crm-company-logo {
+    border-radius: 10px;
+}
+
+.app-sidebar .navbar-nav .nav-link {
+    color: color-mix(in srgb, var(--crm-sidebar-text) 82%, transparent) !important;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.app-sidebar .navbar-nav .nav-link:hover,
+.app-sidebar .navbar-nav .nav-link:focus-visible {
+    background: color-mix(in srgb, var(--crm-sidebar-text) 12%, transparent) !important;
+    color: var(--crm-sidebar-text) !important;
+    transform: none !important;
+}
+
+.app-sidebar .navbar-nav .nav-link.active {
+    background: var(--crm-accent) !important;
+    color: var(--crm-on-accent) !important;
+    font-weight: 700;
+}
+
+.app-sidebar .dropdown-menu {
+    background: color-mix(in srgb, var(--crm-sidebar) 92%, #ffffff) !important;
+    border: 0 !important;
+    border-radius: 0.35rem;
+    box-shadow: none !important;
+}
+
+.app-sidebar .dropdown-item {
+    color: color-mix(in srgb, var(--crm-sidebar-text) 86%, transparent) !important;
+    font-size: 0.84rem;
+    padding: 0.5rem 0.65rem;
+    white-space: normal;
+}
+
+.app-sidebar .dropdown-item:hover,
+.app-sidebar .dropdown-item:focus-visible,
+.app-sidebar .dropdown-item:active {
+    background: color-mix(in srgb, var(--crm-sidebar-text) 12%, transparent) !important;
+    color: var(--crm-sidebar-text) !important;
+}
+
+.app-sidebar .dropdown-divider {
+    border-color: color-mix(in srgb, var(--crm-sidebar-text) 18%, transparent) !important;
+}
+
+[data-theme] a:not(.dropdown-item),
+[data-theme] .btn-link {
+    color: var(--crm-accent);
+}
+
+[data-theme] {
+    --bs-primary: var(--crm-accent);
+    --bs-primary-rgb: var(--crm-accent-rgb);
+    --bs-link-color: var(--crm-accent);
+}
+
+[data-theme] .btn-primary {
+    --bs-btn-color: var(--crm-on-accent);
+    --bs-btn-bg: var(--crm-accent);
+    --bs-btn-border-color: var(--crm-accent);
+    --bs-btn-hover-color: var(--crm-on-accent);
+    --bs-btn-hover-bg: color-mix(in srgb, var(--crm-accent) 88%, #000000);
+    --bs-btn-hover-border-color: color-mix(in srgb, var(--crm-accent) 82%, #000000);
+    --bs-btn-active-color: var(--crm-on-accent);
+    --bs-btn-active-bg: color-mix(in srgb, var(--crm-accent) 82%, #000000);
+    --bs-btn-active-border-color: color-mix(in srgb, var(--crm-accent) 78%, #000000);
+    font-weight: 650;
+}
+
+[data-theme] .btn-outline-primary {
+    --bs-btn-color: var(--crm-accent);
+    --bs-btn-border-color: var(--crm-accent);
+    --bs-btn-hover-color: var(--crm-on-accent);
+    --bs-btn-hover-bg: var(--crm-accent);
+    --bs-btn-hover-border-color: var(--crm-accent);
+}
+
+[data-theme] .contract-page .btn-success,
+[data-theme] .contract-page .btn-info,
+[data-theme] .contract-page .btn-warning {
+    --bs-btn-color: var(--crm-on-accent);
+    --bs-btn-bg: var(--crm-accent);
+    --bs-btn-border-color: var(--crm-accent);
+    --bs-btn-hover-color: var(--crm-on-accent);
+    --bs-btn-hover-bg: color-mix(in srgb, var(--crm-accent) 88%, #000000);
+    --bs-btn-hover-border-color: color-mix(in srgb, var(--crm-accent) 82%, #000000);
+    --bs-btn-active-color: var(--crm-on-accent);
+    --bs-btn-active-bg: color-mix(in srgb, var(--crm-accent) 82%, #000000);
+    --bs-btn-active-border-color: color-mix(in srgb, var(--crm-accent) 78%, #000000);
+}
+
+[data-theme] .contract-page .btn-primary {
+    background-color: var(--crm-accent);
+    border-color: var(--crm-accent);
+    color: var(--crm-on-accent);
+}
+
+[data-theme] .contract-page .btn-primary:hover {
+    background-color: color-mix(in srgb, var(--crm-accent) 88%, #000000);
+    border-color: color-mix(in srgb, var(--crm-accent) 82%, #000000);
+    color: var(--crm-on-accent);
+}
+
+[data-theme] .contract-page .btn-outline-success,
+[data-theme] .contract-page .btn-outline-info,
+[data-theme] .contract-page .btn-outline-warning {
+    --bs-btn-color: var(--crm-accent);
+    --bs-btn-border-color: var(--crm-accent);
+    --bs-btn-hover-color: var(--crm-on-accent);
+    --bs-btn-hover-bg: var(--crm-accent);
+    --bs-btn-hover-border-color: var(--crm-accent);
+}
+
+[data-theme] .contract-page .btn-secondary,
+[data-theme] .contract-page .btn-outline-secondary {
+    --bs-btn-color: var(--crm-text);
+    --bs-btn-bg: var(--crm-surface);
+    --bs-btn-border-color: var(--crm-border);
+    --bs-btn-hover-color: var(--crm-accent);
+    --bs-btn-hover-bg: color-mix(in srgb, var(--crm-accent) 8%, var(--crm-surface));
+    --bs-btn-hover-border-color: var(--crm-accent);
+    --bs-btn-active-color: var(--crm-accent);
+    --bs-btn-active-bg: color-mix(in srgb, var(--crm-accent) 12%, var(--crm-surface));
+    --bs-btn-active-border-color: var(--crm-accent);
+}
+
+[data-theme] .text-primary {
+    color: var(--crm-accent) !important;
+}
+
+[data-theme] .border-primary {
+    border-color: var(--crm-accent) !important;
+}
+
+[data-theme] .alert-primary {
+    --bs-alert-color: var(--crm-text);
+    --bs-alert-bg: color-mix(in srgb, var(--crm-accent) 12%, #ffffff);
+    --bs-alert-border-color: color-mix(in srgb, var(--crm-accent) 28%, #ffffff);
+}
+
+[data-theme] .form-control:focus,
+[data-theme] .form-select:focus,
+[data-theme] .form-check-input:focus {
+    border-color: rgba(var(--crm-accent-rgb), 0.65);
+    box-shadow: 0 0 0 0.2rem rgba(var(--crm-accent-rgb), 0.18);
+}
+
+[data-theme] .card {
+    border-color: var(--crm-border);
+    border-radius: 0.4rem;
+    box-shadow: 0 1px 3px rgba(20, 27, 38, 0.06) !important;
+}
+
+[data-theme] .card-header.bg-white {
+    background: var(--crm-surface) !important;
+}
+
+[data-theme] .card-header[style*="background-color"],
+[data-theme] .card-header.bg-primary {
+    background: color-mix(in srgb, var(--crm-accent) 10%, #ffffff) !important;
+    color: var(--crm-text) !important;
+}
+
+[data-theme] .card-header.bg-primary {
+    border-bottom: 2px solid var(--crm-accent);
+}
+
+[data-theme] .border-primary {
+    border-color: rgba(var(--crm-accent-rgb), 0.38) !important;
+}
+
+[data-theme] .table {
+    --bs-table-bg: var(--crm-surface);
+    --bs-table-color: var(--crm-text);
+    border-color: var(--crm-border);
+    font-size: 0.9rem;
+}
+
+[data-theme] .table thead th {
+    background: #f4f5f6;
+    border-bottom: 1px solid #d9dcdf;
+    color: #4c535b;
+    font-size: 0.78rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+[data-theme] .table > :not(caption) > * > * {
+    padding: 0.58rem 0.7rem;
+}
+
+[data-theme] .table > tbody > tr.fila-ficha:hover > * {
+    box-shadow: inset 0 0 0 9999px rgba(var(--crm-accent-rgb), 0.07);
+}
+
+[data-theme] .table > tbody > tr.fila-ficha:hover > :first-child::before {
+    background: var(--crm-accent);
+}
+
+[data-theme] .contract-list-wrap {
+    border-radius: 0.35rem;
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+[data-theme] .contract-page .contract-service-icon.is-active {
+    color: var(--crm-accent) !important;
+}
+
+[data-theme] .contract-page .contract-service-icon.is-inactive {
+    color: #d1d5db !important;
+}
+
+[data-theme] .contract-page .contract-commission-badge {
+    background: var(--crm-canvas) !important;
+    border: 1px solid var(--crm-border);
+    color: var(--crm-accent) !important;
+}
+
+[data-theme] .contract-page-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+[data-theme] .contract-page-title {
+    align-items: center;
+    display: flex;
+    font-size: 1.5rem;
+    font-weight: 700;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+[data-theme] .contract-page-title::after {
+    background: var(--crm-accent);
+    border-radius: 50%;
+    content: "";
+    height: 0.45rem;
+    width: 0.45rem;
+}
+
+[data-theme] .contract-type-tabs {
+    border: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.65rem !important;
+}
+
+[data-theme] .contract-type-tabs .nav-link {
+    align-items: center;
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: 0.5rem;
+    color: var(--crm-muted);
+    display: inline-flex;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-height: 32px;
+    padding: 0.35rem 1rem;
+}
+
+[data-theme] .contract-type-tabs .nav-link:hover,
+[data-theme] .contract-type-tabs .nav-link:focus-visible {
+    border-color: var(--crm-accent);
+    color: var(--crm-accent);
+}
+
+[data-theme] .contract-type-tabs .nav-link.active {
+    background: var(--crm-accent);
+    border-color: var(--crm-accent);
+    color: var(--crm-on-accent);
+}
+
+[data-theme] .contract-page {
+    padding-top: 0.75rem !important;
+}
+
+[data-theme] .content-wrapper:has(.contract-page) {
+    padding-top: 0.5rem;
+}
+
+[data-theme] .contract-filter-card {
+    margin-bottom: 0.65rem !important;
+}
+
+[data-theme] .contract-filter-card > .card-header {
+    padding: 0.45rem 1rem !important;
+}
+
+[data-theme] .contract-filter-card > .card-body {
+    padding: 0.7rem 1rem !important;
+}
+
+[data-theme] .contract-filter-card .row.g-3 {
+    --bs-gutter-y: 0.5rem;
+}
+
+[data-theme] .contract-filter-card .row.mb-3 {
+    margin-bottom: 0.5rem !important;
+}
+
+[data-theme] .contract-filter-card .form-label {
+    font-size: 0.82rem;
+    margin-bottom: 0.2rem;
+}
+
+[data-theme] .contract-filter-card .form-control,
+[data-theme] .contract-filter-card .form-select,
+[data-theme] .contract-filter-card .btn {
+    height: 34px;
+    min-height: 34px;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.88rem;
+    line-height: 1.2;
+}
+
+@media (max-width: 575.98px) {
+    [data-theme] .contract-page-heading {
+        align-items: flex-start;
+    }
+
+    [data-theme] .contract-page-actions {
+        align-self: center;
+    }
+}
+
+[data-theme] .contract-list-table {
+    min-width: 0;
+    table-layout: fixed;
+    width: 100%;
+}
+
+[data-theme] .contract-list-table thead th:not(.contract-actions-header):not(.contract-select-header):not(.contract-signed-header):not(.contract-comercializadora-header) {
+    overflow-wrap: anywhere;
+    white-space: normal;
+    width: auto !important;
+}
+
+[data-theme] .contract-list-table .contract-select-header,
+[data-theme] .contract-list-table .contract-select-cell {
+    max-width: 36px !important;
+    min-width: 36px !important;
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+    width: 36px !important;
+}
+
+[data-theme] .contract-list-table .contract-signed-header,
+[data-theme] .contract-list-table .contract-signed-cell {
+    max-width: 36px !important;
+    min-width: 36px !important;
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+    width: 36px !important;
+}
+
+[data-theme] .contract-list-table .contract-comercializadora-header,
+[data-theme] .contract-list-table .contract-comercializadora-cell {
+    min-width: 160px !important;
+    width: 160px !important;
+}
+
+[data-theme] .contract-list-table .contract-comercializadora-header {
+    overflow-wrap: normal;
+    white-space: nowrap;
+}
+
+[data-theme] .contract-list-table col.contract-select-column,
+[data-theme] .contract-list-table col.contract-signed-column {
+    width: 36px;
+}
+
+[data-theme] .contract-list-table col.contract-comercializadora-column {
+    width: 160px;
+}
+
+[data-theme] .contract-list-table col.contract-actions-column {
+    width: 105px;
+}
+
+[data-theme] .contract-list-table th.contract-actions-header,
+[data-theme] .contract-list-table th:last-child,
+[data-theme] .contract-list-table td:last-child {
+    min-width: 105px;
+    white-space: nowrap;
+}
+
+[data-theme] .contract-list-table th.contract-actions-header,
+[data-theme] .contract-list-table th:last-child,
+[data-theme] .contract-list-table td:last-child {
+    width: 105px !important;
+}
+
+[data-theme] .contract-list-table tbody td:not(:last-child):not([data-label="Comercializadora"]):not([data-label="Operadora"]):not([data-label="Empresa"]) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-theme] .contract-list-table tbody td[data-label="Estado"] {
+    text-align: center;
+}
+
+[data-theme] .contract-commercial-cell {
+    align-items: center;
+    display: flex;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+[data-theme] .contract-commercial-cell > small {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+[data-theme] .contract-commercial-cell > .bi {
+    cursor: pointer;
+    flex: 0 0 auto;
+    font-size: 0.85rem;
+}
+
+[data-theme] .contract-list-table tbody td[data-label="Comercializadora"],
+[data-theme] .contract-list-table tbody td[data-label="Operadora"],
+[data-theme] .contract-list-table tbody td[data-label="Empresa"] {
+    overflow: visible;
+    text-align: center;
+    text-overflow: clip;
+    white-space: normal;
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
+}
+
+[data-theme] .contract-list-table td img {
+    max-width: 100%;
+    height: auto;
+}
+
+[data-theme] .contract-list-table .badge {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 991.98px) {
+    [data-theme] .contract-list-table,
+    [data-theme] .contract-list-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    [data-theme] .contract-list-table thead {
+        display: none;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha {
+        background: var(--crm-surface);
+        border: 1px solid var(--crm-border);
+        border-radius: 0.4rem;
+        display: grid;
+        gap: 0.35rem 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-bottom: 0.75rem;
+        padding: 0.65rem;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td {
+        border: 0;
+        display: block;
+        min-width: 0;
+        overflow: visible;
+        padding: 0.3rem 0.25rem;
+        text-align: left !important;
+        white-space: normal !important;
+        width: auto !important;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td[data-label="Estado"] {
+        text-align: center !important;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td[data-label="Comercializadora"],
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td[data-label="Operadora"],
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td[data-label="Empresa"] {
+        text-align: center !important;
+        padding-left: 0.65rem !important;
+        padding-right: 0.65rem !important;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td::before {
+        color: var(--crm-muted);
+        content: attr(data-label);
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 650;
+        margin-bottom: 0.15rem;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td[data-label=""]::before {
+        display: none;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td:last-child {
+        align-items: center;
+        background: transparent !important;
+        box-shadow: none;
+        display: flex;
+        gap: 0.35rem;
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+        min-width: 0;
+        width: auto !important;
+    }
+
+    [data-theme] .contract-list-table tbody tr.fila-ficha > td:last-child::before {
+        margin-right: auto;
+    }
+
+    [data-theme] .contract-list-table tbody tr:not(.fila-ficha) {
+        display: block;
+    }
+
+    [data-theme] .contract-list-table tbody tr:not(.fila-ficha) > td {
+        display: block;
+        width: 100%;
+    }
+}
+
+@media (max-width: 575.98px) {
+    [data-theme] .contract-page .pagination {
+        flex-wrap: wrap;
+    }
+
+    [data-theme] .contract-page .d-flex.justify-content-between.align-items-center {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+[data-theme] .page-link {
+    color: var(--crm-accent);
+}
+
+[data-theme] .page-item.active .page-link {
+    background-color: var(--crm-accent);
+    border-color: var(--crm-accent);
+    color: var(--crm-on-accent);
+}
+[data-theme] .modal-content {
+    background: var(--crm-surface);
+    border-color: var(--crm-border);
+    color: var(--crm-text);
+}
+[data-theme] .modal-header:not(.bg-danger) {
+    background: var(--crm-accent) !important;
+    border-color: color-mix(in srgb, var(--crm-accent) 82%, #000000) !important;
+    color: var(--crm-on-accent) !important;
+}
+[data-theme] .modal-header.bg-light {
+    background: var(--crm-surface) !important;
+    border-bottom-color: var(--crm-border) !important;
+    color: var(--crm-text) !important;
+}
+[data-theme] .modal-body[style*="background-color"] {
+    background: var(--crm-canvas) !important;
+    color: var(--crm-text);
+}
+[data-theme] .modal-footer {
+    border-top-color: var(--crm-border);
+}
+[data-theme] .modal .btn-primary,
+[data-theme] .modal .btn-warning,
+[data-theme] .modal .btn-info {
+    --bs-btn-color: var(--crm-on-accent);
+    --bs-btn-bg: var(--crm-accent);
+    --bs-btn-border-color: var(--crm-accent);
+    --bs-btn-hover-color: var(--crm-on-accent);
+    --bs-btn-hover-bg: color-mix(in srgb, var(--crm-accent) 88%, #000000);
+    --bs-btn-hover-border-color: color-mix(in srgb, var(--crm-accent) 82%, #000000);
+    --bs-btn-active-color: var(--crm-on-accent);
+    --bs-btn-active-bg: color-mix(in srgb, var(--crm-accent) 82%, #000000);
+    --bs-btn-active-border-color: color-mix(in srgb, var(--crm-accent) 78%, #000000);
+    color: var(--crm-on-accent) !important;
+}
+[data-theme] .modal .bg-primary {
+    background-color: var(--crm-accent) !important;
+    color: var(--crm-on-accent) !important;
+}
+
+.app-footer {
+    background: var(--crm-sidebar) !important;
+    border-top-color: var(--crm-accent) !important;
+}
+
+.appearance-panel {
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: 0.45rem;
+    padding: 1rem;
+}
+
+.appearance-option {
+    align-items: flex-start;
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: 0.4rem;
+    color: var(--crm-text);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 76px;
+    padding: 0.6rem;
+    text-align: left;
+    width: 100%;
+}
+
+.appearance-option:hover,
+.appearance-option.selected {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 2px rgba(var(--crm-accent-rgb), 0.16);
+}
+
+.appearance-swatches {
+    display: flex;
+    gap: 0.25rem;
+    width: 100%;
+}
+
+.appearance-swatches span {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.18rem;
+    height: 16px;
+    flex: 1;
+}
+
+.appearance-option-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.appearance-preview {
+    border: 1px solid var(--crm-border);
+    border-radius: 0.4rem;
+    display: flex;
+    height: 100%;
+    min-height: 110px;
+    overflow: hidden;
+}
+
+.appearance-preview-sidebar {
+    display: flex;
+    flex: 0 0 23%;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.65rem 0.45rem;
+}
+
+.appearance-preview-sidebar span {
+    background: rgba(255, 255, 255, 0.68);
+    border-radius: 0.15rem;
+    height: 5px;
+    width: 100%;
+}
+
+.appearance-preview-content {
+    flex: 1;
+    padding: 0.65rem;
+}
+
+.page[data-theme] .home-comparator-banner {
+    background: var(--crm-sidebar) !important;
+    border: 1px solid var(--crm-accent) !important;
+    border-bottom: 4px solid var(--crm-accent) !important;
+    color: var(--crm-sidebar-text);
+}
+
+.page[data-theme] .home-comparator-copy,
+.page[data-theme] .home-comparator-copy h5,
+.page[data-theme] .home-comparator-copy p {
+    color: var(--crm-sidebar-text) !important;
+}
+
+.page[data-theme] .home-comparator-icon {
+    background: rgba(var(--crm-accent-rgb), 0.18);
+    color: var(--crm-accent);
+}
+
+.page[data-theme] .home-comparator-button {
+    background: var(--crm-canvas);
+    border-color: var(--crm-canvas);
+    color: var(--crm-sidebar);
+}
+
+.dashboard-page {
+    margin-inline: auto;
+    max-width: 1800px;
+    padding: 1.5rem clamp(1rem, 2vw, 2rem);
+}
+
+.dashboard-page .card {
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border) !important;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 4px rgba(20, 27, 38, 0.06) !important;
+    color: var(--crm-text);
+}
+
+.dashboard-page .card-header {
+    background: transparent !important;
+    border-bottom: 1px solid var(--crm-border) !important;
+    color: var(--crm-text);
+}
+
+.dashboard-page > .row.g-4.mb-4 .card-body > .d-flex > div:last-child {
+    background: color-mix(in srgb, var(--crm-accent) 11%, var(--crm-surface)) !important;
+    border-radius: 0.5rem;
+    color: var(--crm-accent);
+    flex: 0 0 3.25rem;
+    height: 3.25rem;
+    width: 3.25rem;
+}
+
+.dashboard-page > .row.g-4.mb-4 .card-body > .d-flex > div:last-child i {
+    color: var(--crm-accent) !important;
+}
+
+.dashboard-page > .row.g-4.mb-4 .card-body > .d-flex > div:first-child h3 {
+    font-size: 1.75rem;
+    line-height: 1.15;
+}
+
+.dashboard-page .dashboard-map {
+    border: 1px solid var(--crm-border);
+    border-radius: 0.5rem;
+    height: clamp(300px, 48vh, 500px);
+    overflow: hidden;
+}
+
+.dashboard-page .dashboard-province-progress {
+    background: color-mix(in srgb, var(--crm-border) 60%, var(--crm-surface));
+    height: 0.55rem;
+}
+
+.dashboard-page .progress-bar {
+    transition: width 180ms ease;
+}
+
+@media (max-width: 575.98px) {
+    .dashboard-page {
+        padding: 1rem 0.75rem;
+    }
+
+    .dashboard-page .dashboard-map {
+        height: 320px;
+    }
+}
+
+.appearance-preview-content strong {
+    font-size: 0.75rem;
+}
+
+.appearance-preview-row {
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.25rem;
+    height: 20px;
+    margin-top: 0.45rem;
+}
+
+@media (max-width: 991.98px) {
+    .content-wrapper {
+        padding: 0.9rem;
+    }
+
+    .app-sidebar .navbar-collapse {
+        background: var(--crm-sidebar);
+        border-top: 1px solid rgba(255, 255, 255, 0.14);
+        margin-top: 0.5rem;
+        max-height: calc(100vh - 72px);
+        max-height: calc(100dvh - 72px);
+        overflow-y: auto;
+        padding: 0.5rem 0.25rem;
+    }
+
+    .app-sidebar .navbar-nav .nav-link {
+        min-height: 44px;
+    }
+
+    .app-sidebar .navbar-nav .dropdown-menu {
+        background: rgba(255, 255, 255, 0.06) !important;
+        margin-left: 0.55rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+.login-page {
+    align-items: center;
+    background: var(--crm-canvas);
+    display: grid;
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+.login-card {
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 28px rgba(20, 27, 38, 0.1);
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+    margin: 0 auto;
+    max-width: 980px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.login-brand {
+    align-items: center;
+    background: var(--crm-sidebar);
+    display: flex;
+    justify-content: center;
+    min-height: 580px;
+    padding: 2.25rem;
+}
+
+.login-brand-logo {
+    max-height: 320px;
+    object-fit: contain;
+    width: 100%;
+}
+
+.login-form {
+    align-self: center;
+    justify-self: center;
+    max-width: 450px;
+    padding: 2.5rem;
+    width: 100%;
+}
+
+.login-form .form-label {
+    color: var(--crm-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.login-form .btn-primary {
+    background: var(--crm-accent);
+    border-color: var(--crm-accent);
+    color: var(--crm-on-accent);
+    font-weight: 700;
+}
+
+.login-form .btn-primary:hover {
+    filter: brightness(0.95);
+}
+
+@media (max-width: 700px) {
+    .login-page {
+        padding: 0.75rem;
+    }
+
+    .login-card {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 480px;
+    }
+
+    .login-brand {
+        min-height: 150px;
+        padding: 1.25rem;
+    }
+
+    .login-brand-logo {
+        max-height: 130px;
+        max-width: 260px;
+    }
+
+    .login-form {
+        padding: 1.35rem;
+    }
 }

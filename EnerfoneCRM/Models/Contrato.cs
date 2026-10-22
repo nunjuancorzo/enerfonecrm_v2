@@ -583,6 +583,10 @@ namespace EnerfoneCRM.Models
         public byte[]? Factura { get; set; }
 
         // Campos Fibra Segunda Residencia (Telefonía)
+        [Column("telefono_segunda_residencia")]
+        [MaxLength(50)]
+        public string? TelefonoSegundaResidencia { get; set; }
+
         [Column("direccion_segunda_residencia")]
         [MaxLength(500)]
         public string? DireccionSegundaResidencia { get; set; }
@@ -664,6 +668,57 @@ namespace EnerfoneCRM.Models
 
         [Column("alta_nueva_linea15_tel")]
         public bool AltaNuevaLinea15Tel { get; set; } = false;
+
+        [Column("nueva_icc_principal")]
+        public bool NuevaIccPrincipal { get; set; } = false;
+
+        [Column("nueva_icc_principal_2")]
+        public bool NuevaIccPrincipal2 { get; set; } = false;
+
+        [Column("nueva_icc_linea1_tel")]
+        public bool NuevaIccLinea1Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea2_tel")]
+        public bool NuevaIccLinea2Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea3_tel")]
+        public bool NuevaIccLinea3Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea4_tel")]
+        public bool NuevaIccLinea4Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea5_tel")]
+        public bool NuevaIccLinea5Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea6_tel")]
+        public bool NuevaIccLinea6Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea7_tel")]
+        public bool NuevaIccLinea7Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea8_tel")]
+        public bool NuevaIccLinea8Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea9_tel")]
+        public bool NuevaIccLinea9Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea10_tel")]
+        public bool NuevaIccLinea10Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea11_tel")]
+        public bool NuevaIccLinea11Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea12_tel")]
+        public bool NuevaIccLinea12Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea13_tel")]
+        public bool NuevaIccLinea13Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea14_tel")]
+        public bool NuevaIccLinea14Tel { get; set; } = false;
+
+        [Column("nueva_icc_linea15_tel")]
+        public bool NuevaIccLinea15Tel { get; set; } = false;
 
         // PDF del contrato
         [Column("pdf_contrato_url")]

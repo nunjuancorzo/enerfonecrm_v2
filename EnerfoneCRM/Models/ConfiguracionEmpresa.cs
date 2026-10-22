@@ -57,6 +57,45 @@ public class ConfiguracionEmpresa
     [Column("fecha_actualizacion")]
     public DateTime? FechaActualizacion { get; set; }
 
+    [Column("tema_visual")]
+    [StringLength(30)]
+    public string TemaVisual { get; set; } = "azul";
+
+    [Column("tema_color_acento")]
+    [StringLength(7)]
+    public string? TemaColorAcento { get; set; }
+
+    [Column("tema_color_barra")]
+    [StringLength(7)]
+    public string? TemaColorBarra { get; set; }
+
+    [Column("tema_color_fondo")]
+    [StringLength(7)]
+    public string? TemaColorFondo { get; set; }
+
+    [Column("tema_visual_anterior")]
+    [StringLength(30)]
+    public string? TemaVisualAnterior { get; set; }
+
+    [Column("tema_anterior_color_acento")]
+    [StringLength(7)]
+    public string? TemaAnteriorColorAcento { get; set; }
+
+    [Column("tema_anterior_color_barra")]
+    [StringLength(7)]
+    public string? TemaAnteriorColorBarra { get; set; }
+
+    [Column("tema_anterior_color_fondo")]
+    [StringLength(7)]
+    public string? TemaAnteriorColorFondo { get; set; }
+
+    [Column("tema_actualizado_por")]
+    [StringLength(255)]
+    public string? TemaActualizadoPor { get; set; }
+
+    [Column("tema_actualizado_en")]
+    public DateTime? TemaActualizadoEn { get; set; }
+
     // Configuración SMTP para envío de emails
     [Column("smtp_servidor")]
     [StringLength(255)]

@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Mail;
+using System.Net.Mime;
+using System.Text;
 using EnerfoneCRM.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,7 +54,10 @@ public class EmailService
         string cuerpoHtml,
         byte[] adjuntoPdf,
         string nombreAdjunto,
-        string tipoMime = "application/pdf")
+        string tipoMime = "application/pdf",
+        byte[]? imagenInline = null,
+        string? tipoMimeImagenInline = null,
+        string idContenidoImagenInline = "logo-empresa")
     {
         try
         {
@@ -82,6 +87,18 @@ public class EmailService
             message.Subject = asunto;
             message.Body = cuerpoHtml;
             message.IsBodyHtml = true;
+
+            if (imagenInline is { Length: > 0 } && !string.IsNullOrWhiteSpace(tipoMimeImagenInline))
+            {
+                var vistaHtml = AlternateView.CreateAlternateViewFromString(cuerpoHtml, Encoding.UTF8, MediaTypeNames.Text.Html);
+                var recurso = new LinkedResource(new MemoryStream(imagenInline, writable: false), tipoMimeImagenInline)
+                {
+                    ContentId = idContenidoImagenInline,
+                    TransferEncoding = TransferEncoding.Base64
+                };
+                vistaHtml.LinkedResources.Add(recurso);
+                message.AlternateViews.Add(vistaHtml);
+            }
 
             // Adjuntar el PDF
             if (adjuntoPdf != null && adjuntoPdf.Length > 0)
@@ -117,6 +134,48 @@ public class EmailService
         string cuerpoHtml)
     {
         return await EnviarEmailConAdjuntoAsync(destinatario, asunto, cuerpoHtml, Array.Empty<byte>(), string.Empty);
+    }
+
+    public async Task<(bool exito, string mensaje)> EnviarEmailFirmaAsync(
+        string destinatario,
+        string asunto,
+        string nombreDestinatario,
+        string descripcion,
+        string textoAccion,
+        string url,
+        DateTime fechaCaducidadUtc)
+    {
+        try
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            var configuracion = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            if (configuracion == null)
+                return (false, "No se encontró la configuración de la empresa.");
+
+            var correo = PlantillaEmailFirma.Crear(
+                configuracion,
+                asunto,
+                nombreDestinatario,
+                descripcion,
+                textoAccion,
+                url,
+                fechaCaducidadUtc);
+
+            return await EnviarEmailConAdjuntoAsync(
+                destinatario,
+                asunto,
+                correo.Html,
+                Array.Empty<byte>(),
+                string.Empty,
+                "application/pdf",
+                correo.Logo?.Contenido,
+                correo.Logo?.TipoMime,
+                correo.Logo?.IdContenido ?? "logo-empresa");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error al preparar el email de firma: {ex.Message}");
+        }
     }
 
     public async Task<(bool exito, string mensaje)> EnviarEmailConAdjuntosMultiplesAsync(

@@ -200,6 +200,10 @@
                                                             </div>
                                                         }
                                                     }
+                                                    @if (nuevoCliente.TipoCliente != "Pyme")
+                                                    {
+                                                        <ImportarDni Modelo="nuevoCliente" OnDatosImportados="StateHasChanged" />
+                                                    }
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-bold">Email</label>
                                                         <InputText @bind-Value="nuevoCliente.Email" class="form-control" type="email" placeholder="correo@ejemplo.com" />

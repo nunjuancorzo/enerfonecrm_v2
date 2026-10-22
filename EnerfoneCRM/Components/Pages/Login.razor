@@ -4,28 +4,27 @@
 @using EnerfoneCRM.Services
 @inject AuthService AuthService
 @inject ConfiguracionService ConfiguracionService
+@inject AparienciaService AparienciaService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
 <PageTitle>Enerfone CRM</PageTitle>
 
-<div class="container">
-    <div class="row justify-content-center mt-5">
-        <div class="col-md-6 col-lg-4">
-            <div class="card shadow">
-                <div class="card-body p-4">
-                    <div class="text-center mb-1">
-                        @if (!string.IsNullOrEmpty(logoUrl))
-                        {
-                            <img src="@logoUrl" alt="Login" style="width: 280px; height: 280px; object-fit: contain;" />
-                        }
-                        else
-                        {
-                            <img src="CorCRM_FIN.png" alt="Logo CorCRM" style="width: 280px; height: 280px; object-fit: contain;" />
-                        }
-                    </div>
+<main class="login-page" data-theme="@AparienciaService.PaletaActual" style="@AparienciaService.VariablesCss">
+    <section class="login-card">
+        <div class="login-brand">
+            @if (!string.IsNullOrEmpty(logoUrl))
+            {
+                <img id="login-brand-logo" src="@logoUrl" alt="Logo de la empresa" class="login-brand-logo" />
+            }
+            else
+            {
+                <img id="login-brand-logo" src="CorCRM_FIN.png" alt="Logo CorCRM" class="login-brand-logo" />
+            }
+        </div>
 
-                    <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
+        <div class="login-form">
+            <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
                         <DataAnnotationsValidator />
 
                         @if (sesionExpirada)
@@ -76,12 +75,10 @@
                         <button type="button" class="btn btn-outline-secondary w-100" @onclick='() => Navigation.NavigateTo("/registro")'>
                             <i class="bi bi-person-plus me-2"></i>Registrarse
                         </button>
-                    </EditForm>
-                </div>
-            </div>
+            </EditForm>
         </div>
-    </div>
-</div>
+    </section>
+</main>
 
 @code {
     private LoginModel loginModel = new();
@@ -135,10 +132,16 @@
         {
             var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
             logoUrl = configuracion?.LogoUrl;
+            AparienciaService.Aplicar(
+                configuracion?.TemaVisual,
+                configuracion?.TemaColorAcento,
+                configuracion?.TemaColorBarra,
+                configuracion?.TemaColorFondo);
         }
         catch (Exception)
         {
             logoUrl = null;
+            AparienciaService.Aplicar(AparienciaService.PaletaPredeterminada);
         }
     }
 
@@ -194,9 +197,9 @@
 }
 
 <style>
-    .login-logo {
-        width: 200px;
-        height: 200px;
+    .login-brand-logo {
+        width: min(100%, 360px);
+        max-height: 320px;
         object-fit: contain;
     }
 </style>

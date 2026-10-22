@@ -1,0 +1,126 @@
+@using Microsoft.JSInterop
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
+
+<div class="row g-2 align-items-center mb-3">
+    <div class="col-md-2">
+        <span class="form-label fw-bold"><i class="bi bi-file-earmark-pdf me-1"></i>Adjuntar contrato</span>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(PdfContratoUrl))
+    {
+        <div class="col-auto">
+            <a href="@PdfContratoUrl" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver contrato PDF">
+                <i class="bi bi-eye me-1"></i>Ver contrato
+            </a>
+        </div>
+        @if (PuedeEditar)
+        {
+            <div class="col-auto">
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="EliminarPdf" disabled="@cargando" title="Eliminar contrato PDF">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-auto small text-muted">No hay contrato adjunto</div>
+    }
+    @if (PuedeEditar)
+    {
+        <div class="col-md-6">
+            <InputFile OnChange="CargarPdf" class="form-control form-control-sm" accept=".pdf" disabled="@cargando" />
+        </div>
+    }
+    <div class="col-12">
+        <small class="text-muted">PDF, máximo 10 MB.</small>
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <span class="small ms-2 @(error ? "text-danger" : "text-success")">@mensaje</span>
+        }
+    </div>
+</div>
+
+@code {
+    private const long MaxFileSize = 10 * 1024 * 1024;
+    private bool cargando;
+    private bool error;
+    private string mensaje = string.Empty;
+
+    [Parameter] public string? PdfContratoUrl { get; set; }
+    [Parameter] public EventCallback<string?> PdfContratoUrlChanged { get; set; }
+    [Parameter] public bool PuedeEditar { get; set; }
+
+    private async Task CargarPdf(InputFileChangeEventArgs e)
+    {
+        var archivo = e.File;
+        if (archivo.Size > MaxFileSize)
+        {
+            MostrarMensaje("El archivo PDF no debe superar los 10 MB.", true);
+            return;
+        }
+
+        if (!archivo.Name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            MostrarMensaje("Solo se permiten archivos PDF.", true);
+            return;
+        }
+
+        cargando = true;
+        mensaje = string.Empty;
+        try
+        {
+            using var stream = new MemoryStream();
+            await archivo.OpenReadStream(MaxFileSize).CopyToAsync(stream);
+            var uploadsPath = Path.Combine(ObtenerStoragePath(), "uploads", "contratos");
+            Directory.CreateDirectory(uploadsPath);
+            var nombreUnico = $"{Guid.NewGuid()}.pdf";
+            await File.WriteAllBytesAsync(Path.Combine(uploadsPath, nombreUnico), stream.ToArray());
+            await PdfContratoUrlChanged.InvokeAsync($"/storage/uploads/contratos/{nombreUnico}");
+            MostrarMensaje("Contrato adjuntado correctamente.", false);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje($"Error al adjuntar el PDF: {ex.Message}", true);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task EliminarPdf()
+    {
+        if (string.IsNullOrWhiteSpace(PdfContratoUrl) ||
+            !await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar el PDF del contrato?"))
+        {
+            return;
+        }
+
+        try
+        {
+            var directorio = Path.GetFullPath(Path.Combine(ObtenerStoragePath(), "uploads", "contratos"));
+            var ruta = Path.GetFullPath(Path.Combine(directorio, Path.GetFileName(PdfContratoUrl)));
+            if (ruta.StartsWith(directorio + Path.DirectorySeparatorChar, StringComparison.Ordinal) && File.Exists(ruta))
+            {
+                File.Delete(ruta);
+            }
+
+            await PdfContratoUrlChanged.InvokeAsync(null);
+            MostrarMensaje("Contrato adjunto eliminado.", false);
+        }
+        catch (Exception ex)
+        {
+            MostrarMensaje($"Error al eliminar el PDF: {ex.Message}", true);
+        }
+    }
+
+    private string ObtenerStoragePath() =>
+        Configuration.GetValue<string>("StoragePath") ?? Path.Combine(Directory.GetCurrentDirectory(), "storage");
+
+    private void MostrarMensaje(string texto, bool esError)
+    {
+        mensaje = texto;
+        error = esError;
+    }
+}

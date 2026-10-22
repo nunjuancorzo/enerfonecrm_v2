@@ -1,0 +1,105 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject ImportacionDniService ImportacionDniService
+
+<div class="col-12">
+    <div class="border rounded p-3 bg-white">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h6 class="mb-1"><i class="bi bi-person-vcard me-2"></i>Leer DNI/NIE</h6>
+                <small class="text-muted">El análisis se realiza localmente. Revisa los datos antes de guardar.</small>
+            </div>
+            <InputFile class="form-control" style="max-width: 360px" OnChange="LeerDocumentoAsync" accept=".pdf,.png,.jpg,.jpeg,.webp" disabled="@procesando" />
+        </div>
+        @if (procesando)
+        {
+            <div class="mt-3" role="status"><span class="spinner-border spinner-border-sm me-2"></span>Leyendo documento localmente...</div>
+        }
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <div class="alert @(error || datosLeidos?.CorregidoPorOcr == true ? "alert-warning" : "alert-success") mt-3 mb-0" role="status">
+                @if (datosLeidos != null)
+                {
+                    <strong>@datosLeidos.TipoDocumento @datosLeidos.Documento</strong>
+                    @if (!string.IsNullOrWhiteSpace(datosLeidos.NombreCompleto))
+                    {
+                        <span> · @datosLeidos.NombreCompleto</span>
+                    }
+                    <div>@mensaje</div>
+                }
+                else
+                {
+                    @mensaje
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Cliente Modelo { get; set; } = default!;
+    [Parameter] public EventCallback OnDatosImportados { get; set; }
+
+    private bool procesando;
+    private bool error;
+    private string mensaje = string.Empty;
+    private DatosDocumentoIdentidad? datosLeidos;
+
+    private async Task LeerDocumentoAsync(InputFileChangeEventArgs args)
+    {
+        if (procesando) return;
+
+        procesando = true;
+        error = false;
+        mensaje = string.Empty;
+        datosLeidos = null;
+
+        try
+        {
+            var archivo = args.File;
+            if (archivo.Size <= 0 || archivo.Size > 10 * 1024 * 1024)
+            {
+                error = true;
+                mensaje = "El documento está vacío o supera el límite de 10 MB.";
+                return;
+            }
+
+            await using var stream = archivo.OpenReadStream(10 * 1024 * 1024);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            var resultado = await ImportacionDniService.LeerAsync(buffer.ToArray(), archivo.Name);
+            if (!resultado.Exito || resultado.Datos == null)
+            {
+                error = true;
+                mensaje = resultado.Mensaje;
+                return;
+            }
+
+            datosLeidos = resultado.Datos;
+            Modelo.TipoDocumentoIdentidad = datosLeidos.TipoDocumento;
+            Modelo.DniCif = datosLeidos.Documento;
+            if (!string.IsNullOrWhiteSpace(datosLeidos.NombreCompleto))
+                Modelo.Nombre = datosLeidos.NombreCompleto;
+            if (!string.IsNullOrWhiteSpace(datosLeidos.Apellidos))
+                Modelo.Apellidos = datosLeidos.Apellidos;
+            if (!string.IsNullOrWhiteSpace(datosLeidos.Nacionalidad))
+                Modelo.Nacionalidad = datosLeidos.Nacionalidad;
+            if (!string.IsNullOrWhiteSpace(datosLeidos.Direccion))
+                Modelo.Direccion = datosLeidos.Direccion;
+            if (!string.IsNullOrWhiteSpace(datosLeidos.CodigoPostal))
+                Modelo.CodigoPostal = datosLeidos.CodigoPostal;
+
+            mensaje = resultado.Mensaje;
+            await OnDatosImportados.InvokeAsync();
+        }
+        catch (Exception)
+        {
+            error = true;
+            mensaje = "No se ha podido leer el documento. Comprueba el formato, la calidad de la imagen y que Tesseract esté disponible.";
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+}

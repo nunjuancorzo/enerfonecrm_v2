@@ -87,9 +87,9 @@ else
                         <div class="col-md-2">
                             <input type="text" class="form-control form-control-sm" placeholder="Buscar por email..." @bind="filtroEmail" @bind:event="oninput" @onkeyup="AplicarFiltros" />
                         </div>
-                        <div class="col-md-3 text-end">
-                            <div class="btn-group me-2">
-                                <button type="button" class="btn btn-success btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!clientesFiltrados.Any())">
+                        <div class="col-12 col-md-3 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                            <div class="btn-group flex-shrink-0">
+                                <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle text-nowrap" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!clientesFiltrados.Any())">
                                     <i class="bi bi-download me-2"></i>Exportar
                                 </button>
                                 <ul class="dropdown-menu">
@@ -97,7 +97,7 @@ else
                                     <li><a class="dropdown-item" @onclick="ExportarClientesAExcel" style="cursor: pointer;"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel (XLSX)</a></li>
                                 </ul>
                             </div>
-                            <button class="btn btn-primary btn-sm" @onclick="MostrarModalCrear">
+                            <button type="button" class="btn btn-primary btn-sm text-nowrap" @onclick="MostrarModalCrear">
                                 <i class="bi bi-plus-circle me-2"></i>Nuevo Cliente
                             </button>
                         </div>
@@ -357,6 +357,10 @@ else
                                                 <ValidationMessage For="() => clienteSeleccionado.Nacionalidad" class="text-danger" />
                                             </div>
                                         }
+                                    }
+                                    @if (esNuevo && clienteSeleccionado.TipoCliente != "Pyme")
+                                    {
+                                        <ImportarDni Modelo="clienteSeleccionado" OnDatosImportados="StateHasChanged" />
                                     }
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">Email</label>

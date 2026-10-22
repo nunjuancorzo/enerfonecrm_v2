@@ -41,6 +41,16 @@ public class ConfiguracionService
                 existente.Web = configuracion.Web;
                 existente.LogoUrl = configuracion.LogoUrl;
                 existente.FechaActualizacion = DateTime.Now;
+                existente.TemaVisual = configuracion.TemaVisual;
+                existente.TemaColorAcento = configuracion.TemaColorAcento;
+                existente.TemaColorBarra = configuracion.TemaColorBarra;
+                existente.TemaColorFondo = configuracion.TemaColorFondo;
+                existente.TemaVisualAnterior = configuracion.TemaVisualAnterior;
+                existente.TemaAnteriorColorAcento = configuracion.TemaAnteriorColorAcento;
+                existente.TemaAnteriorColorBarra = configuracion.TemaAnteriorColorBarra;
+                existente.TemaAnteriorColorFondo = configuracion.TemaAnteriorColorFondo;
+                existente.TemaActualizadoPor = configuracion.TemaActualizadoPor;
+                existente.TemaActualizadoEn = configuracion.TemaActualizadoEn;
                 
                 // Configuración SMTP
                 existente.SmtpServidor = configuracion.SmtpServidor;
@@ -70,6 +80,50 @@ public class ConfiguracionService
         catch (Exception ex)
         {
             return (false, $"Error al guardar configuración: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool exito, string mensaje)> GuardarPaletaAsync(PaletaVisual paleta, string usuario)
+    {
+        if (!AparienciaService.EsPaletaValida(paleta.Id) ||
+            paleta.Id == AparienciaService.PaletaPersonalizada &&
+            (!AparienciaService.EsColorValido(paleta.Acento) ||
+             !AparienciaService.EsColorValido(paleta.BarraLateral) ||
+             !AparienciaService.EsColorValido(paleta.Fondo)))
+            return (false, "La paleta seleccionada no es válida.");
+
+        try
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            var configuracion = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            if (configuracion == null)
+                return (false, "Primero debe guardarse la configuración de empresa.");
+
+            var anterior = AparienciaService.Resolver(
+                configuracion.TemaVisual,
+                configuracion.TemaColorAcento,
+                configuracion.TemaColorBarra,
+                configuracion.TemaColorFondo);
+            configuracion.TemaVisualAnterior = anterior.Id;
+            configuracion.TemaAnteriorColorAcento = anterior.Acento;
+            configuracion.TemaAnteriorColorBarra = anterior.BarraLateral;
+            configuracion.TemaAnteriorColorFondo = anterior.Fondo;
+            configuracion.TemaVisual = paleta.Id;
+            if (paleta.Id == AparienciaService.PaletaPersonalizada)
+            {
+                configuracion.TemaColorAcento = paleta.Acento;
+                configuracion.TemaColorBarra = paleta.BarraLateral;
+                configuracion.TemaColorFondo = paleta.Fondo;
+            }
+            configuracion.TemaActualizadoPor = usuario;
+            configuracion.TemaActualizadoEn = DateTime.Now;
+            configuracion.FechaActualizacion = DateTime.Now;
+            await context.SaveChangesAsync();
+            return (true, "Apariencia aplicada a la empresa.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error al guardar la apariencia: {ex.Message}");
         }
     }
 }

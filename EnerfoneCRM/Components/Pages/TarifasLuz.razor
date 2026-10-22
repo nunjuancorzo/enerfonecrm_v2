@@ -263,8 +263,6 @@ else
                                             }
                                         </th>
                                         <th>Peaje</th>
-                                        <th>P1</th>
-                                        <th>E1</th>
                                         <th style="cursor: pointer;" @onclick='() => OrdenarPor("Comision")'>
                                             Comisión
                                             @if (columnaOrden == "Comision")
@@ -282,7 +280,7 @@ else
                                     @if (tarifas == null || !tarifas.Any())
                                     {
                                         <tr>
-                                            <td colspan="11" class="text-center text-muted py-4">
+                                            <td colspan="9" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay tarifas registradas</p>
                                             </td>
@@ -297,8 +295,6 @@ else
                                                 <td><span class="badge @ObtenerColorTipoCliente(tarifa.TipoCliente)">@tarifa.TipoCliente</span></td>
                                                 <td>@tarifa.Nombre</td>
                                                 <td><small>@(tarifa.Peaje ?? "-")</small></td>
-                                                <td><small>@(tarifa.Potencia1 ?? "-")</small></td>
-                                                <td><small>@(tarifa.Energia1 ?? "-")</small></td>
                                                 <td><span class="badge bg-success">@tarifa.Comision.ToString("N2")€</span></td>
                                                 <td><small>@(tarifa.Permanencia ?? "-")</small></td>
                                                 <td>
