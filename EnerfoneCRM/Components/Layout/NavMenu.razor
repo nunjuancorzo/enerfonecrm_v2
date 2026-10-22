@@ -11,16 +11,149 @@
 @implements IDisposable
 @rendermode InteractiveServer
 
-<nav class="navbar navbar-expand-lg navbar-dark shadow-sm sticky-top" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); min-height: 80px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); z-index: 1030;">
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top app-sidebar">
+    <div class="container-fluid px-3">
+        <a class="navbar-brand" href="home">
+            @if (!string.IsNullOrEmpty(logoUrl))
+            {
+                <img src="@logoUrl" alt="Logo" class="crm-company-logo" />
+            }
+            else
+            {
+                <img src="CorCRM_FIN.png" alt="Logo CorCRM" class="crm-company-logo" />
+            }
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSidebar" aria-controls="navbarSidebar" aria-expanded="false" aria-label="Abrir menú">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSidebar">
+            @if (cargado && AuthService.EstaAutenticado)
+            {
+                <ul class="navbar-nav crm-sidebar-nav">
+                    <li><a class="nav-link @ClaseRuta("home")" href="home"><i class="bi bi-house-heart-fill"></i>Inicio</a></li>
+                    @if (AuthService.PuedeVerContratos)
+                    {
+                        <li>
+                            <details class="crm-nav-group" open="@(grupoPrincipalAbierto == "contrataciones")">
+                                <summary @onclick='() => AlternarGrupoPrincipal("contrataciones")' @onclick:preventDefault="true"><i class="bi bi-folder2-open"></i>Contrataciones</summary>
+                                <ul>
+                                    <li><a class="nav-link @ClaseRuta("nuevo-contrato")" href="nuevo-contrato"><i class="bi bi-file-earmark-plus"></i>Nuevo contrato</a></li>
+                                    @if (!AuthService.EsProveedor && AuthService.PuedeVerClientes)
+                                    {
+                                        <li><a class="nav-link @ClaseRuta("clientes")" href="clientes"><i class="bi bi-person-vcard-fill"></i>Clientes</a></li>
+                                    }
+                                    <li><a class="nav-link @ClaseRuta(RutaContratos)" href="@RutaContratos"><i class="bi bi-file-earmark-text"></i>Contratos</a></li>
+                                </ul>
+                            </details>
+                        </li>
+                    }
+                    @if (AuthService.PuedeVerTarifas)
+                    {
+                        <li>
+                            <details class="crm-nav-group" open="@(grupoPrincipalAbierto == "tarifas")">
+                                <summary @onclick='() => AlternarGrupoPrincipal("tarifas")' @onclick:preventDefault="true"><i class="bi bi-receipt-cutoff"></i>Tarifas</summary>
+                                <ul>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/luz")" href="tarifas/luz"><i class="bi bi-lightning-charge-fill"></i>Luz</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/gas")" href="tarifas/gas"><i class="bi bi-fire"></i>Gas</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/telefonia")" href="tarifas/telefonia"><i class="bi bi-telephone-fill"></i>Telefonía</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/alarmas")" href="tarifas/alarmas"><i class="bi bi-shield-check"></i>Alarmas</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/servicios")" href="tarifas/servicios"><i class="bi bi-gear-fill"></i>Servicios Luz</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/servicios-gas")" href="tarifas/servicios-gas"><i class="bi bi-gear-fill"></i>Servicios Gas</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/comercializadoras")" href="tarifas/comercializadoras"><i class="bi bi-building"></i>Comercializadoras</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/operadoras")" href="tarifas/operadoras"><i class="bi bi-broadcast"></i>Operadoras</a></li>
+                                    <li><a class="nav-link @ClaseRuta("tarifas/empresas-alarmas")" href="tarifas/empresas-alarmas"><i class="bi bi-shield-fill-check"></i>Empresas Alarmas</a></li>
+                                </ul>
+                            </details>
+                        </li>
+                    }
+                    <li>
+                        <details class="crm-nav-group" open="@(grupoPrincipalAbierto == "gestiones")">
+                            <summary @onclick='() => AlternarGrupoPrincipal("gestiones")' @onclick:preventDefault="true"><i class="bi bi-briefcase"></i>Gestiones</summary>
+                            <ul>
+                                @if (AuthService.PuedeVerLiquidaciones)
+                                {
+                                    <li><a class="nav-link @ClaseRuta("liquidaciones")" href="liquidaciones"><i class="bi bi-cash-coin"></i>Liquidaciones</a></li>
+                                }
+                                @if (AuthService.PuedeVerOfertas)
+                                {
+                                    <li><a class="nav-link @ClaseRuta("ofertas")" href="ofertas"><i class="bi bi-tag"></i>Ofertas</a></li>
+                                }
+                                <li><a class="nav-link @ClaseRuta("noticias")" href="noticias"><i class="bi bi-megaphone"></i>Noticias</a></li>
+                                <li><a class="nav-link @ClaseRuta("proximamente")" href="proximamente"><i class="bi bi-arrow-repeat"></i>Renovaciones</a></li>
+                                <li><a class="nav-link @ClaseRuta("repositorio")" href="repositorio"><i class="bi bi-folder-fill"></i>Repositorio</a></li>
+                                @if (AuthService.PuedeVerSips)
+                                {
+                                    <li><a class="nav-link @ClaseRuta("sips")" href="sips"><i class="bi bi-credit-card"></i>SIPS</a></li>
+                                }
+                            </ul>
+                        </details>
+                    </li>
+                    @if (AuthService.EsAdministrador || AuthService.EsBackoffice)
+                    {
+                        <li>
+                            <details class="crm-nav-group" open="@(grupoPrincipalAbierto == "ajustes")">
+                                <summary @onclick='() => AlternarGrupoPrincipal("ajustes")' @onclick:preventDefault="true"><i class="bi bi-sliders"></i>Ajustes</summary>
+                                <ul>
+                                    @if (AuthService.EsAdministrador)
+                                    {
+                                        <li><a class="nav-link @ClaseRuta("usuarios")" href="usuarios"><i class="bi bi-people-fill"></i>Gestión Usuarios</a></li>
+                                    }
+                                    <li><a class="nav-link @ClaseRuta("tareas")" href="tareas"><i class="bi bi-list-check"></i>Tareas</a></li>
+                                    <li><a class="nav-link @ClaseRuta("inicio-rapido")" href="inicio-rapido"><i class="bi bi-lightning-charge-fill"></i>Inicio Rápido</a></li>
+                                    <li><a class="nav-link @ClaseRuta("configuracion-empresa")" href="configuracion-empresa"><i class="bi bi-building"></i>Datos de Empresa</a></li>
+                                </ul>
+                            </details>
+                        </li>
+                        <li><a class="nav-link" href="https://factiox.es" target="_blank" rel="noopener noreferrer"><img src="/Logo_Factiox_FIN2.png" alt="Factiox" class="crm-factiox-logo" /></a></li>
+                    }
+                    else
+                    {
+                        <li><a class="nav-link @ClaseRuta("tareas")" href="tareas"><i class="bi bi-list-check"></i>Tareas</a></li>
+                    }
+                </ul>
+                <div class="crm-sidebar-footer">
+                    @if (AuthService.EsAdministrador)
+                    {
+                        <a href="optime" class="btn-sidebar-tool"><i class="bi bi-calendar-event"></i>Optime</a>
+                    }
+                    @if (AuthService.PuedeVerContratos)
+                    {
+                        <button @onclick="MostrarAvisosModificaciones" class="btn-sidebar-tool" title="Avisos de modificaciones">
+                            <i class="bi bi-bell-fill"></i><span>Avisos</span>
+                            @if (hayModificacionesNoVistas) { <span class="badge bg-danger ms-auto">!</span> }
+                        </button>
+                    }
+                    @if (AuthService.PuedeVerIncidencias)
+                    {
+                        <a href="incidencias" class="btn-sidebar-tool"><i class="bi bi-exclamation-triangle-fill"></i>Incidencias</a>
+                    }
+                    <div class="dropdown dropend crm-user-menu">
+                        <button class="btn-sidebar-user dropdown-toggle" type="button" id="userMenuSidebar" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-person-circle"></i>
+                            <span class="crm-user-label"><strong>@AuthService.UsuarioActual?.NombreUsuario</strong><small>@AuthService.UsuarioActual?.Rol</small></span>
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="userMenuSidebar">
+                            <li><a class="dropdown-item" href="/mi-perfil"><i class="bi bi-person-circle"></i>Mi Perfil</a></li>
+                            <li><a class="dropdown-item" href="/cambiar-password"><i class="bi bi-key"></i>Cambiar Contraseña</a></li>
+                        </ul>
+                    </div>
+                    <button class="btn-sidebar-tool" @onclick="Logout"><i class="bi bi-box-arrow-right"></i>Salir</button>
+                </div>
+            }
+        </div>
+    </div>
+</nav>
+
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm sticky-top d-none" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); min-height: 80px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); z-index: 1030;">
     <div class="container-fluid px-4">
         <a class="navbar-brand d-flex align-items-center" href="home">
             @if (!string.IsNullOrEmpty(logoUrl))
             {
-                <img src="@logoUrl" alt="Logo" style="height: 60px; width: auto; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
+                <img src="@logoUrl" alt="Logo" class="crm-company-logo" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
             }
             else
             {
-                <img src="CorCRM_FIN.png" alt="Logo CorCRM" style="height: 60px; width: auto; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
+                <img src="CorCRM_FIN.png" alt="Logo CorCRM" class="crm-company-logo" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
             }
         </a>
         
@@ -264,52 +397,51 @@
                     }
                     else
                     {
-                        <div class="list-group">
-                            @foreach (var contrato in contratosModificados)
+                        var gruposAvisos = ObtenerGruposContratosModificados().ToList();
+                        var grupoAvisosActivo = gruposAvisos.First(grupo => grupo.Tipo == tipoAvisoSeleccionado);
+                        <div class="nav nav-tabs mb-3" role="tablist" aria-label="Tipo de contrato modificado">
+                            @foreach (var grupo in gruposAvisos)
                             {
-                                <button class="list-group-item list-group-item-action" @onclick="async () => await IrAContrato(contrato)">
-                                    <div class="d-flex w-100 justify-content-between align-items-center">
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex align-items-center mb-1">
-                                                @{
-                                                    var tipoLower = contrato.Tipo?.ToLower() ?? "";
-                                                }
-                                                @if (tipoLower == "energia" || tipoLower == "energía")
-                                                {
-                                                    <i class="bi bi-lightning-charge-fill text-warning me-2" style="font-size: 1.2rem;"></i>
-                                                }
-                                                else if (tipoLower == "telefonia" || tipoLower == "telefonía")
-                                                {
-                                                    <i class="bi bi-telephone-fill text-primary me-2" style="font-size: 1.2rem;"></i>
-                                                }
-                                                else if (tipoLower == "alarma" || tipoLower == "alarmas")
-                                                {
-                                                    <i class="bi bi-shield-check text-danger me-2" style="font-size: 1.2rem;"></i>
-                                                }
-                                                <h6 class="mb-0">
-                                                    <strong>Contrato #@contrato.Id</strong> - @contrato.NombreCliente
-                                                </h6>
-                                            </div>
-                                            <p class="mb-1 text-muted" style="font-size: 0.9rem;">
-                                                <strong>Estado:</strong> @contrato.Estado | 
-                                                <strong>Comercial:</strong> @contrato.Comercial
-                                            </p>
-                                            @if (!string.IsNullOrEmpty(contrato.Direccion))
-                                            {
-                                                <p class="mb-0 text-muted" style="font-size: 0.85rem;">
-                                                    <i class="bi bi-geo-alt me-1"></i>@contrato.Direccion
-                                                </p>
-                                            }
-                                        </div>
-                                        <div class="text-end ms-3">
-                                            <small class="text-muted d-block">
-                                                <i class="bi bi-clock me-1"></i>
-                                                @contrato.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")
-                                            </small>
-                                            <span class="badge bg-primary mt-1">Ver contrato</span>
-                                        </div>
-                                    </div>
+                                var seleccionado = grupo.Tipo == tipoAvisoSeleccionado;
+                                <button type="button" class="nav-link @(seleccionado ? "active" : string.Empty)" role="tab" aria-controls="@($"avisos-panel-{grupo.Tipo}")" aria-selected="@seleccionado" @onclick="() => tipoAvisoSeleccionado = grupo.Tipo">
+                                    <i class="bi bi-@grupo.Icono text-@grupo.Color me-1" aria-hidden="true"></i>
+                                    @grupo.Nombre <span class="badge bg-secondary ms-1">@grupo.Contratos.Count</span>
                                 </button>
+                            }
+                        </div>
+                        <div id="@($"avisos-panel-{grupoAvisosActivo.Tipo}")" role="tabpanel" aria-label="@grupoAvisosActivo.Nombre">
+                            @if (!grupoAvisosActivo.Contratos.Any())
+                            {
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle me-2"></i>No hay contratos modificados de @grupoAvisosActivo.Nombre.ToLowerInvariant().
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="list-group">
+                                    @foreach (var contrato in grupoAvisosActivo.Contratos)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action" @onclick="async () => await IrAContrato(contrato)">
+                                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="bi bi-@grupoAvisosActivo.Icono text-@grupoAvisosActivo.Color me-2" aria-hidden="true"></i>
+                                                        <h6 class="mb-0"><strong>Contrato #@contrato.Id</strong> - @contrato.NombreCliente</h6>
+                                                    </div>
+                                                    <p class="mb-1 text-muted" style="font-size: 0.9rem;"><strong>Estado:</strong> @contrato.Estado | <strong>Comercial:</strong> @contrato.Comercial</p>
+                                                    @if (!string.IsNullOrEmpty(contrato.Direccion))
+                                                    {
+                                                        <p class="mb-0 text-muted" style="font-size: 0.85rem;"><i class="bi bi-geo-alt me-1"></i>@contrato.Direccion</p>
+                                                    }
+                                                </div>
+                                                <div class="text-end ms-3">
+                                                    <small class="text-muted d-block"><i class="bi bi-clock me-1"></i>@contrato.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")</small>
+                                                    <span class="badge bg-primary mt-1">Ver contrato</span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    }
+                                </div>
                             }
                         </div>
                     }
@@ -415,13 +547,74 @@
     private bool mostrarModalAvisos = false;
     private bool cargandoModificaciones = false;
     private bool hayModificacionesNoVistas = false;
+    private string tipoAvisoSeleccionado = "energia";
+    private string? grupoPrincipalAbierto;
     private List<Contrato> contratosModificados = new();
     private const string STORAGE_KEY = "contratos_vistos_v2";
+    private string RutaContratos => !AuthService.EsProveedor || AuthService.EsProveedorEnergia
+        ? "contratos/energia"
+        : AuthService.EsProveedorTelefonia
+            ? "contratos/telefonia"
+            : AuthService.EsProveedorAlarmas
+                ? "contratos/alarmas"
+                : "contratos/energia";
+
+    private string ClaseRuta(string ruta)
+    {
+        var rutaActual = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+        return string.Equals(rutaActual, ruta, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    }
+
+    private void AlternarGrupoPrincipal(string grupo)
+    {
+        if (grupoPrincipalAbierto == grupo)
+        {
+            grupoPrincipalAbierto = null;
+            return;
+        }
+
+        grupoPrincipalAbierto = grupo;
+    }
+
+    private IEnumerable<(string Tipo, string Nombre, string Icono, string Color, List<Contrato> Contratos)> ObtenerGruposContratosModificados()
+    {
+        var categorias = new[]
+        {
+            (Tipo: "energia", Nombre: "Energía", Icono: "lightning-charge-fill", Color: "warning"),
+            (Tipo: "telefonia", Nombre: "Telefonía", Icono: "telephone-fill", Color: "primary"),
+            (Tipo: "alarma", Nombre: "Alarmas", Icono: "shield-check", Color: "danger")
+        };
+
+        return categorias.Select(categoria =>
+        {
+            var contratos = contratosModificados
+                .Where(contrato => NormalizarTipoContrato(contrato.Tipo) == categoria.Tipo)
+                .OrderByDescending(contrato => contrato.FechaModificacion)
+                .ToList();
+            return (categoria.Tipo, categoria.Nombre, categoria.Icono, categoria.Color, Contratos: contratos);
+        });
+    }
+
+    private static string NormalizarTipoContrato(string? tipo) => tipo?.Trim().ToLowerInvariant() switch
+    {
+        "energia" or "energía" => "energia",
+        "telefonia" or "telefonía" => "telefonia",
+        "alarma" or "alarmas" => "alarma",
+        _ => string.Empty
+    };
+
     private System.Timers.Timer? verificacionTimer;
 
     protected override void OnInitialized()
     {
         AuthService.OnAuthStateChanged += StateHasChanged;
+        Navigation.LocationChanged += AlCambiarUbicacion;
+    }
+
+    private void AlCambiarUbicacion(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
+    {
+        grupoPrincipalAbierto = null;
+        _ = InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -615,6 +808,7 @@
     public void Dispose()
     {
         AuthService.OnAuthStateChanged -= StateHasChanged;
+        Navigation.LocationChanged -= AlCambiarUbicacion;
         
         if (verificacionTimer != null)
         {

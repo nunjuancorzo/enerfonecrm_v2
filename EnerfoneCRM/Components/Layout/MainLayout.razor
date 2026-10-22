@@ -2,10 +2,12 @@
 @using EnerfoneCRM.Services
 @inject EnerfoneCRM.Services.EnvironmentService EnvService
 @inject EnerfoneCRM.Services.AuthService AuthService
+@inject ConfiguracionService ConfiguracionService
+@inject AparienciaService AparienciaService
 @inject NavigationManager NavigationManager
 @implements IDisposable
 
-<div class="page">
+<div class="page app-shell" data-theme="@AparienciaService.PaletaActual" style="@AparienciaService.VariablesCss">
     <NavMenu />
 
     <main class="main-content">
@@ -23,6 +25,24 @@
 </div>
 
 @code {
+    protected override async Task OnInitializedAsync()
+    {
+        AparienciaService.OnChange += ActualizarApariencia;
+        try
+        {
+            var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+            AparienciaService.Aplicar(
+                configuracion?.TemaVisual,
+                configuracion?.TemaColorAcento,
+                configuracion?.TemaColorBarra,
+                configuracion?.TemaColorFondo);
+        }
+        catch
+        {
+            AparienciaService.Aplicar(AparienciaService.PaletaPredeterminada);
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -35,6 +55,8 @@
 
     public void Dispose()
     {
-        // Limpieza si es necesaria
+        AparienciaService.OnChange -= ActualizarApariencia;
     }
+
+    private void ActualizarApariencia() => _ = InvokeAsync(StateHasChanged);
 }

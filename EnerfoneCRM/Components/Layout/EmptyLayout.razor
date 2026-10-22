@@ -1,3 +1,27 @@
 @inherits LayoutComponentBase
+@using EnerfoneCRM.Services
+@inject ConfiguracionService ConfiguracionService
+@inject AparienciaService AparienciaService
 
-@Body
+<div class="app-empty-shell" data-theme="@AparienciaService.PaletaActual" style="@AparienciaService.VariablesCss">
+	@Body
+</div>
+
+@code {
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+			AparienciaService.Aplicar(
+				configuracion?.TemaVisual,
+				configuracion?.TemaColorAcento,
+				configuracion?.TemaColorBarra,
+				configuracion?.TemaColorFondo);
+		}
+		catch
+		{
+			AparienciaService.Aplicar(AparienciaService.PaletaPredeterminada);
+		}
+	}
+}

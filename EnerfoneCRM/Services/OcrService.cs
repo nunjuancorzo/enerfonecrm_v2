@@ -23,6 +23,9 @@ public class OcrService
     public Task<ResultadoOcr> ProcesarLocalAsync(byte[] archivoBytes, string nombreArchivo) =>
         ProcesarConTesseractAsync(archivoBytes, nombreArchivo, null);
 
+    public Task<ResultadoOcr> ProcesarDocumentoIdentidadLocalAsync(byte[] archivoBytes, string nombreArchivo) =>
+        ProcesarConTesseractAsync(archivoBytes, nombreArchivo, null, new[] { 6, 11, 3 });
+
     public class ResultadoOcr
     {
         public bool Exito { get; set; }
@@ -299,8 +302,9 @@ public class OcrService
         }
     }
 
-    private async Task<ResultadoOcr> ProcesarConTesseractAsync(byte[] archivoBytes, string nombreArchivo, PlantillaPreCarga? plantilla)
+    private async Task<ResultadoOcr> ProcesarConTesseractAsync(byte[] archivoBytes, string nombreArchivo, PlantillaPreCarga? plantilla, int[]? modosSegmentacion = null)
     {
+        modosSegmentacion ??= new[] { 3 };
         using var plazo = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         var imagenesTemporales = new List<string>();
         try
@@ -361,8 +365,11 @@ public class OcrService
                     foreach (var imagenPath in imagenes)
                     {
                         Console.WriteLine($"[OCR] Procesando imagen: {imagenPath}");
-                        var texto = await EjecutarTesseractAsync(imagenPath, archivoSalida, plazo.Token);
-                        textoCompleto.AppendLine(texto);
+                        foreach (var modoSegmentacion in modosSegmentacion)
+                        {
+                            var texto = await EjecutarTesseractAsync(imagenPath, archivoSalida, modoSegmentacion, plazo.Token);
+                            textoCompleto.AppendLine(texto);
+                        }
                         File.Delete(imagenPath);
                     }
 
@@ -386,7 +393,10 @@ public class OcrService
                 {
                     Console.WriteLine($"[OCR] Procesando imagen directamente con Tesseract...");
                     // Procesar imagen directamente
-                    var texto = await EjecutarTesseractAsync(archivoTemporal, archivoSalida, plazo.Token);
+                    var textoCompleto = new StringBuilder();
+                    foreach (var modoSegmentacion in modosSegmentacion)
+                        textoCompleto.AppendLine(await EjecutarTesseractAsync(archivoTemporal, archivoSalida, modoSegmentacion, plazo.Token));
+                    var texto = textoCompleto.ToString();
                     Console.WriteLine($"[OCR] Texto extraído ({texto.Length} caracteres)");
                     
                     var datos = ExtraerDatosDeTesseractText(texto);
@@ -516,7 +526,7 @@ public class OcrService
         return imagenes;
     }
 
-    private async Task<string> EjecutarTesseractAsync(string imagenPath, string archivoSalida, CancellationToken cancellationToken)
+    private async Task<string> EjecutarTesseractAsync(string imagenPath, string archivoSalida, int modoSegmentacion, CancellationToken cancellationToken)
     {
         try
         {
@@ -526,7 +536,7 @@ public class OcrService
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = tesseractPath,
-                    Arguments = $"\"{imagenPath}\" \"{archivoSalida}\" -l spa --psm 3",
+                    Arguments = $"\"{imagenPath}\" \"{archivoSalida}\" -l spa --psm {modoSegmentacion}",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,

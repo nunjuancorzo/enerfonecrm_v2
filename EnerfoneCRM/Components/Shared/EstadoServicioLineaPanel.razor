@@ -1,0 +1,39 @@
+@using EnerfoneCRM.Models
+
+<div class="row g-2 mt-2">
+    <div class="col-md-6">
+        <label class="form-label form-label-sm fw-bold">Estado de @Etiqueta</label>
+        <InputSelect @bind-Value="Estado.Estado" class="form-select form-select-sm" disabled="@(!PuedeEditar)">
+            <option value="">-- Seleccionar --</option>
+            @if (EsFibra)
+            {
+                <option value="Pte Cita">Pte Cita</option>
+                <option value="Pte Instalación">Pte Instalación</option>
+                <option value="Instalado">Instalado</option>
+            }
+            else
+            {
+                <option value="Pte recibir SIM">Pte recibir SIM</option>
+                <option value="Pte activación">Pte activación</option>
+                <option value="Activado">Activado</option>
+            }
+        </InputSelect>
+    </div>
+    @if (Estado.Estado == EstadoFinal)
+    {
+        <div class="col-md-6">
+            <label class="form-label form-label-sm fw-bold">Fecha de instalación <span class="text-danger">*</span></label>
+            <InputDate Type="InputDateType.Date" @bind-Value="Estado.FechaInstalacion" class="form-control form-control-sm" disabled="@(!PuedeEditar)" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public EstadoServicioContrato Estado { get; set; } = new();
+    [Parameter] public string Etiqueta { get; set; } = "servicio";
+    [Parameter] public bool EsFibra { get; set; }
+    [Parameter] public bool PuedeEditar { get; set; }
+
+    private string EstadoFinal => EsFibra ? "Instalado" : "Activado";
+
+}

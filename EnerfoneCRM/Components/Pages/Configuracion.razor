@@ -4,6 +4,7 @@
 @using EnerfoneCRM.Services
 @inject AuthService AuthService
 @inject ConfiguracionService ConfiguracionService
+@inject AparienciaService AparienciaService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -70,6 +71,103 @@ else
         }
         else
         {
+            @if (AuthService.EsAdministrador)
+            {
+                <div class="row mb-4">
+                    <div class="col-lg-10 mx-auto">
+                        <section class="appearance-panel" aria-labelledby="appearance-title">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                                <div>
+                                    <h5 id="appearance-title" class="mb-1"><i class="bi bi-palette me-2"></i>Apariencia</h5>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(configuracion.TemaActualizadoPor) || configuracion.TemaActualizadoEn.HasValue)
+                                {
+                                    <small class="text-muted">
+                                        Último cambio: @(configuracion.TemaActualizadoPor ?? "-")
+                                        @(configuracion.TemaActualizadoEn?.ToString("dd/MM/yyyy HH:mm") ?? "")
+                                    </small>
+                                }
+                            </div>
+
+                            <div class="row g-3 align-items-stretch">
+                                <div class="col-lg-8">
+                                    <div class="row row-cols-2 row-cols-md-4 g-2">
+                                        @foreach (var paleta in PaletasDisponibles)
+                                        {
+                                            <div class="col">
+                                                <button type="button"
+                                                        class="appearance-option @(paletaSeleccionada == paleta.Id ? "selected" : "")"
+                                                        aria-pressed="@(paletaSeleccionada == paleta.Id)"
+                                                        @onclick="() => PrevisualizarPaleta(paleta.Id)">
+                                                    <span class="appearance-swatches" aria-hidden="true">
+                                                        <span style="background-color:@paleta.Acento"></span>
+                                                        <span style="background-color:@paleta.BarraLateral"></span>
+                                                        <span style="background-color:@paleta.Fondo"></span>
+                                                    </span>
+                                                    <span class="appearance-option-name">@paleta.Nombre</span>
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                @if (paletaSeleccionada == AparienciaService.PaletaPersonalizada)
+                                {
+                                    <div class="col-12">
+                                        <div class="row g-2 align-items-end appearance-custom-colors">
+                                            <div class="col-sm-4">
+                                                <label class="form-label small fw-semibold" for="customAccent">Acento principal</label>
+                                                <input id="customAccent" type="color" class="form-control form-control-color" @bind="colorAcento" @bind:after="PrevisualizarColoresPersonalizados" />
+                                            </div>
+                                            <div class="col-sm-4">
+                                                <label class="form-label small fw-semibold" for="customSidebar">Barra lateral</label>
+                                                <input id="customSidebar" type="color" class="form-control form-control-color" @bind="colorBarra" @bind:after="PrevisualizarColoresPersonalizados" />
+                                            </div>
+                                            <div class="col-sm-4">
+                                                <label class="form-label small fw-semibold" for="customCanvas">Fondo de página</label>
+                                                <input id="customCanvas" type="color" class="form-control form-control-color" @bind="colorFondo" @bind:after="PrevisualizarColoresPersonalizados" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                <div class="col-lg-4">
+                                    <div class="appearance-preview" aria-label="Vista previa de la paleta seleccionada">
+                                        <div class="appearance-preview-sidebar" style="background-color:@PaletaSeleccionada.BarraLateral">
+                                            <span></span><span></span><span></span>
+                                        </div>
+                                        <div class="appearance-preview-content" style="background-color:@PaletaSeleccionada.Fondo">
+                                            <strong>Vista previa</strong>
+                                            <div class="appearance-preview-row"></div>
+                                            <button type="button" class="btn btn-sm mt-2" style="background-color:@PaletaSeleccionada.Acento;color:@PaletaSeleccionada.TextoAccion;border-color:@PaletaSeleccionada.Acento">Acción principal</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                                <button type="button" class="btn btn-primary" @onclick="AplicarPaletaAsync" disabled="@(guardandoPaleta || paletaSeleccionada == paletaAplicada)">
+                                    @if (guardandoPaleta)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    <i class="bi bi-check2 me-1"></i>Aplicar a la empresa
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelarPrevisualizacion" disabled="@guardandoPaleta">
+                                    Cancelar
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" @onclick="RestaurarPaletaAnteriorAsync" disabled="@guardandoPaleta">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar anterior
+                                </button>
+                                <span class="small text-muted ms-lg-auto">Paleta activa: @NombrePaleta(paletaAplicada)</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(mensajeApariencia))
+                            {
+                                <div class="small mt-2 @(errorApariencia ? "text-danger" : "text-success")" role="status">@mensajeApariencia</div>
+                            }
+                        </section>
+                    </div>
+                </div>
+            }
+
             <div class="row">
                 <div class="col-lg-8 mx-auto">
                     <div class="card shadow-sm">
@@ -313,6 +411,21 @@ else
     private string mensajeError = string.Empty;
     private ConfiguracionEmpresa configuracion = new();
     private string nombreArchivoSeleccionado = string.Empty;
+    private string paletaAplicada = AparienciaService.PaletaPredeterminada;
+    private string paletaSeleccionada = AparienciaService.PaletaPredeterminada;
+    private string colorAcento = AparienciaService.ObtenerBasePersonalizada().Acento;
+    private string colorBarra = AparienciaService.ObtenerBasePersonalizada().BarraLateral;
+    private string colorFondo = AparienciaService.ObtenerBasePersonalizada().Fondo;
+    private bool guardandoPaleta;
+    private bool errorApariencia;
+    private string mensajeApariencia = string.Empty;
+    private IReadOnlyList<PaletaVisual> PaletasDisponibles => AparienciaService.Paletas
+        .Append(AparienciaService.CrearPersonalizada(colorAcento, colorBarra, colorFondo))
+        .ToArray();
+    private PaletaVisual PaletaSeleccionada => AparienciaService.Resolver(paletaSeleccionada, colorAcento, colorBarra, colorFondo);
+    private bool HayCambiosDePaleta => paletaSeleccionada != configuracion.TemaVisual ||
+        paletaSeleccionada == AparienciaService.PaletaPersonalizada &&
+        (colorAcento != configuracion.TemaColorAcento || colorBarra != configuracion.TemaColorBarra || colorFondo != configuracion.TemaColorFondo);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -349,6 +462,16 @@ else
             {
                 configuracion = config;
             }
+
+            paletaAplicada = AparienciaService.EsPaletaValida(configuracion.TemaVisual)
+                ? configuracion.TemaVisual
+                : AparienciaService.PaletaPredeterminada;
+            paletaSeleccionada = paletaAplicada;
+            var paletaPersonalizadaBase = AparienciaService.ObtenerBasePersonalizada();
+            colorAcento = AparienciaService.EsColorValido(configuracion.TemaColorAcento) ? configuracion.TemaColorAcento! : paletaPersonalizadaBase.Acento;
+            colorBarra = AparienciaService.EsColorValido(configuracion.TemaColorBarra) ? configuracion.TemaColorBarra! : paletaPersonalizadaBase.BarraLateral;
+            colorFondo = AparienciaService.EsColorValido(configuracion.TemaColorFondo) ? configuracion.TemaColorFondo! : paletaPersonalizadaBase.Fondo;
+            AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
         }
         catch (Exception ex)
         {
@@ -389,6 +512,112 @@ else
             StateHasChanged();
         }
     }
+
+    private void PrevisualizarPaleta(string paleta)
+    {
+        if (!AuthService.EsAdministrador || !AparienciaService.EsPaletaValida(paleta))
+            return;
+
+        paletaSeleccionada = paleta;
+        mensajeApariencia = string.Empty;
+        AplicarPrevisualizacion();
+    }
+
+    private void PrevisualizarColoresPersonalizados()
+    {
+        if (paletaSeleccionada == AparienciaService.PaletaPersonalizada)
+            AplicarPrevisualizacion();
+    }
+
+    private void AplicarPrevisualizacion() =>
+        AparienciaService.Aplicar(paletaSeleccionada, colorAcento, colorBarra, colorFondo);
+
+    private void CancelarPrevisualizacion()
+    {
+        paletaSeleccionada = paletaAplicada;
+        mensajeApariencia = string.Empty;
+        AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
+    }
+
+    private async Task AplicarPaletaAsync()
+    {
+        if (!AuthService.EsAdministrador || guardandoPaleta || !HayCambiosDePaleta)
+            return;
+
+        guardandoPaleta = true;
+        errorApariencia = false;
+        mensajeApariencia = string.Empty;
+        try
+        {
+            var paletaAnterior = AparienciaService.Resolver(
+                configuracion.TemaVisual,
+                configuracion.TemaColorAcento,
+                configuracion.TemaColorBarra,
+                configuracion.TemaColorFondo);
+            var nuevaPaleta = PaletaSeleccionada;
+            var resultado = await ConfiguracionService.GuardarPaletaAsync(
+                nuevaPaleta,
+                AuthService.UsuarioActual?.NombreUsuario ?? "Administrador");
+            if (resultado.exito)
+            {
+                paletaAplicada = paletaSeleccionada;
+                configuracion.TemaVisualAnterior = paletaAnterior.Id;
+                configuracion.TemaAnteriorColorAcento = paletaAnterior.Acento;
+                configuracion.TemaAnteriorColorBarra = paletaAnterior.BarraLateral;
+                configuracion.TemaAnteriorColorFondo = paletaAnterior.Fondo;
+                configuracion.TemaVisual = nuevaPaleta.Id;
+                if (nuevaPaleta.Id == AparienciaService.PaletaPersonalizada)
+                {
+                    configuracion.TemaColorAcento = nuevaPaleta.Acento;
+                    configuracion.TemaColorBarra = nuevaPaleta.BarraLateral;
+                    configuracion.TemaColorFondo = nuevaPaleta.Fondo;
+                }
+                configuracion.TemaActualizadoPor = AuthService.UsuarioActual?.NombreUsuario;
+                configuracion.TemaActualizadoEn = DateTime.Now;
+                AparienciaService.Aplicar(nuevaPaleta.Id, nuevaPaleta.Acento, nuevaPaleta.BarraLateral, nuevaPaleta.Fondo);
+                mensajeApariencia = resultado.mensaje;
+            }
+            else
+            {
+                errorApariencia = true;
+                paletaSeleccionada = paletaAplicada;
+                AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
+                mensajeApariencia = resultado.mensaje;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorApariencia = true;
+            paletaSeleccionada = paletaAplicada;
+            AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
+            mensajeApariencia = $"Error al aplicar la apariencia: {ex.Message}";
+        }
+        finally
+        {
+            guardandoPaleta = false;
+        }
+    }
+
+    private async Task RestaurarPaletaAnteriorAsync()
+    {
+        var anterior = AparienciaService.Resolver(
+            configuracion.TemaVisualAnterior,
+            configuracion.TemaAnteriorColorAcento,
+            configuracion.TemaAnteriorColorBarra,
+            configuracion.TemaAnteriorColorFondo);
+        paletaSeleccionada = anterior.Id;
+        colorAcento = anterior.Acento;
+        colorBarra = anterior.BarraLateral;
+        colorFondo = anterior.Fondo;
+        AplicarPrevisualizacion();
+        if (HayCambiosDePaleta)
+            await AplicarPaletaAsync();
+        else
+            mensajeApariencia = "La paleta ya está aplicada.";
+    }
+
+    private string NombrePaleta(string id) =>
+        AparienciaService.Paletas.FirstOrDefault(paleta => paleta.Id == id)?.Nombre ?? id;
 
     private void Cancelar()
     {

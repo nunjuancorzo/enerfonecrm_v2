@@ -12,6 +12,7 @@
 @inject ComisionService ComisionService
 @inject UsuarioService UsuarioService
 @inject CodigoPostalService CodigoPostalService
+@inject EstadoServicioContratoService EstadoServicioContratoService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -194,6 +195,10 @@
                                                                 <ValidationMessage For="@(() => nuevoCliente.Nacionalidad)" />
                                                             </div>
                                                         }
+                                                    }
+                                                    @if (nuevoCliente.TipoCliente != "Pyme")
+                                                    {
+                                                        <ImportarDni Modelo="nuevoCliente" OnDatosImportados="StateHasChanged" />
                                                     }
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-bold">Email</label>
@@ -594,6 +599,13 @@
                                                             {
                                                                 <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
                                                             }
+                                                            @if (nuevoContrato.TipoLineaMovilPrincipal == "Prepago")
+                                                            {
+                                                                <div class="form-check mt-2">
+                                                                    <InputCheckbox @bind-Value="nuevoContrato.NuevaIccPrincipal" class="form-check-input" id="nuevaIccPrincipalWizard" />
+                                                                    <label class="form-check-label small" for="nuevaIccPrincipalWizard">Nueva ICC</label>
+                                                                </div>
+                                                            }
                                                         </div>
                                                     }
                                                 </div>
@@ -641,6 +653,13 @@
                                                                 @if (!string.IsNullOrEmpty(nuevoContrato.CodigoIccPrincipal2) && nuevoContrato.CodigoIccPrincipal2.Length != 19)
                                                                 {
                                                                     <small class="text-danger">El código ICC debe tener exactamente 19 dígitos</small>
+                                                                }
+                                                                @if (nuevoContrato.TipoLineaMovilPrincipal2 == "Prepago")
+                                                                {
+                                                                    <div class="form-check mt-2">
+                                                                        <InputCheckbox @bind-Value="nuevoContrato.NuevaIccPrincipal2" class="form-check-input" id="nuevaIccPrincipal2Wizard" />
+                                                                        <label class="form-check-label small" for="nuevaIccPrincipal2Wizard">Nueva ICC</label>
+                                                                    </div>
                                                                 }
                                                             </div>
                                                         }
@@ -745,6 +764,13 @@
                                                                                     {
                                                                                         <small class="text-danger d-block">Debe tener 19 dígitos</small>
                                                                                     }
+                                                                                    @if (ObtenerTipoLinea(lineaIndex) == "Prepago")
+                                                                                    {
+                                                                                        <div class="form-check mt-2">
+                                                                                            <input type="checkbox" class="form-check-input" id="nuevaIccLineaWizard@lineaIndex" checked="@ObtenerNuevaIcc(lineaIndex)" @onchange="@(e => ActualizarNuevaIcc(lineaIndex, (bool)(e.Value ?? false)))" />
+                                                                                            <label class="form-check-label small" for="nuevaIccLineaWizard@lineaIndex">Nueva ICC</label>
+                                                                                        </div>
+                                                                                    }
                                                                                 </div>
                                                                             }
                                                                         </div>
@@ -795,6 +821,14 @@
                                                                 {
                                                                     <small class="text-muted">Seleccione la tarifa específica para la fibra de segunda residencia</small>
                                                                 }
+                                                            </div>
+
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-bold">Teléfono de segunda residencia</label>
+                                                                <InputText @bind-Value="nuevoContrato.TelefonoSegundaResidencia" class="form-control" placeholder="Número de teléfono" />
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <EstadoServicioLineaPanel Estado="@estadoFibraSegundaResidencia" Etiqueta="fibra de segunda residencia" EsFibra="true" PuedeEditar="true" />
                                                             </div>
 
                                                             <div class="col-12 mt-3">
@@ -1013,6 +1047,7 @@
     private List<Usuario> usuariosProveedorTelefonia = new();
     private int numeroLineasActivas = 0;
     private bool tieneFibraSegundaResidencia = false;
+    private EstadoServicioContrato estadoFibraSegundaResidencia = new() { ClaveLinea = "fibra_segunda_residencia" };
 
     // Archivos adjuntos
     private Dictionary<string, List<(string nombreArchivo, byte[] contenido)>> archivosPendientesCliente = new();
@@ -1037,6 +1072,7 @@
         usarDireccionCliente = false;
         numeroLineasActivas = 0;
         tieneFibraSegundaResidencia = false;
+        estadoFibraSegundaResidencia = new EstadoServicioContrato { ClaveLinea = "fibra_segunda_residencia" };
         archivosPendientesCliente.Clear();
         
         // Cargar datos iniciales
@@ -1174,7 +1210,7 @@
         {
             var todasLasTarifas = await TarifaTelefoniaService.ObtenerPorEmpresaAsync(operadoraSeleccionada.Nombre);
             tarifasMovilSolo = todasLasTarifas
-                .Where(t => t.Tipo == "Movil")
+                .Where(t => t.Tipo == "MovilAdicional" && t.Activa)
                 .ToList();
         }
         catch (Exception ex)
@@ -1423,11 +1459,24 @@
                 return;
             }
 
+            if (tieneFibraSegundaResidencia && estadoFibraSegundaResidencia.Estado == "Instalado" && !estadoFibraSegundaResidencia.FechaInstalacion.HasValue)
+            {
+                mensajeError = "Indica la fecha de instalación de la fibra de segunda residencia antes de marcarla como instalada.";
+                return;
+            }
+
             var exito = await ContratoService.CrearAsync(nuevoContrato);
             if (!exito)
             {
                 mensajeError = "Error al guardar el contrato";
                 return;
+            }
+
+            if (tieneFibraSegundaResidencia &&
+                (!string.IsNullOrWhiteSpace(estadoFibraSegundaResidencia.Estado) || estadoFibraSegundaResidencia.FechaInstalacion.HasValue))
+            {
+                estadoFibraSegundaResidencia.ContratoId = nuevoContrato.Id;
+                await EstadoServicioContratoService.GuardarAsync(nuevoContrato.Id, new[] { estadoFibraSegundaResidencia });
             }
 
             // Guardar facturas pendientes si existen
@@ -1533,6 +1582,7 @@
             ActualizarTarifaLinea(lineaIndex, string.Empty);
             ActualizarTipoLinea(lineaIndex, string.Empty);
             ActualizarCodigoIcc(lineaIndex, string.Empty);
+            ActualizarNuevaIcc(lineaIndex, false);
             
             // Si es la última línea activa, decrementar el contador
             if (lineaIndex == numeroLineasActivas)
@@ -1725,6 +1775,29 @@
             case 3: nuevoContrato.CodigoIccLinea3Tel = valor; break;
             case 4: nuevoContrato.CodigoIccLinea4Tel = valor; break;
             case 5: nuevoContrato.CodigoIccLinea5Tel = valor; break;
+        }
+    }
+
+    private bool ObtenerNuevaIcc(int index) => index switch
+    {
+        1 => nuevoContrato?.NuevaIccLinea1Tel ?? false,
+        2 => nuevoContrato?.NuevaIccLinea2Tel ?? false,
+        3 => nuevoContrato?.NuevaIccLinea3Tel ?? false,
+        4 => nuevoContrato?.NuevaIccLinea4Tel ?? false,
+        5 => nuevoContrato?.NuevaIccLinea5Tel ?? false,
+        _ => false
+    };
+
+    private void ActualizarNuevaIcc(int index, bool valor)
+    {
+        if (nuevoContrato == null) return;
+        switch (index)
+        {
+            case 1: nuevoContrato.NuevaIccLinea1Tel = valor; break;
+            case 2: nuevoContrato.NuevaIccLinea2Tel = valor; break;
+            case 3: nuevoContrato.NuevaIccLinea3Tel = valor; break;
+            case 4: nuevoContrato.NuevaIccLinea4Tel = valor; break;
+            case 5: nuevoContrato.NuevaIccLinea5Tel = valor; break;
         }
     }
 

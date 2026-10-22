@@ -75,23 +75,14 @@ else
     }
     else
     {
-        <div class="container-fluid p-4" style="max-width: 2200px;">
-            <div class="row mb-4">
-                <div class="col-md-12">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-0">
-                                <i class="bi bi-lightning-charge-fill me-2 text-warning"></i>
-                                Contratos de Energía
-                            </h2>
-                            <p class="text-muted mb-0">Gestión de contratos de electricidad y gas</p>
-                        </div>
-                        <button class="btn btn-outline-success" @onclick="IrALogActivaciones">
-                            <i class="bi bi-clock-history me-2"></i>Activaciones
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div class="container-fluid p-4 contract-page" style="max-width: 2200px;">
+            <ContratoTabs>
+                <Acciones>
+                    <button class="btn btn-outline-success" @onclick="IrALogActivaciones">
+                        <i class="bi bi-clock-history me-2"></i>Activaciones
+                    </button>
+                </Acciones>
+            </ContratoTabs>
 
             @if (!string.IsNullOrEmpty(mensajeExito))
             {
@@ -101,7 +92,7 @@ else
                 </div>
             }
 
-            <div class="card shadow-sm mb-3">
+            <div class="card shadow-sm mb-3 contract-filter-card">
                 <div class="card-header bg-white py-3">
                     <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h6>
                 </div>
@@ -336,11 +327,23 @@ else
                     }
                     else
                     {
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                        <div class="table-responsive contract-list-wrap">
+                            <table class="table table-hover mb-0 contract-list-table">
+                                <colgroup>
+                                    <col class="contract-select-column" />
+                                    <col />
+                                    <col />
+                                    <col class="contract-signed-column" />
+                                    <col />
+                                    <col />
+                                    <col class="contract-comercializadora-column" />
+                                    <col />
+                                    <col />
+                                    <col class="contract-actions-column" />
+                                </colgroup>
                                 <thead class="table-light">
                                     <tr style="font-size: 0.875rem;">
-                                        <th style="width: 40px;">
+                                        <th class="contract-select-header" style="width: 36px;">
                                             <input type="checkbox" class="form-check-input" 
                                                    @onchange="SeleccionarTodosContratosVisibles" 
                                                    checked="@(contratosFiltrados.Any() && contratosFiltrados.All(c => contratosSeleccionados.Contains(c.Id)))" />
@@ -352,13 +355,6 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 75px;" @onclick='() => OrdenarPor("FechaModificacion")'>
-                                            F. Modif.
-                                            @if (columnaOrden == "FechaModificacion")
-                                            {
-                                                <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
-                                            }
-                                        </th>
                                         <th style="cursor: pointer; width: 95px;" @onclick='() => OrdenarPor("Estado")'>
                                             Estado
                                             @if (columnaOrden == "Estado")
@@ -366,10 +362,7 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="width: 40px; text-align: center;" title="Cargado en plataforma externa">
-                                            <i class="bi bi-cloud-check"></i>
-                                        </th>
-                                        <th style="width: 55px; text-align: center;">Firmado</th>
+                                        <th class="contract-signed-header" style="width: 36px; text-align: center;" aria-label="Firmado" title="Firmado"></th>
                                         <th style="width: 45px; text-align: center;"></th>
                                         <th style="width: 85px; cursor: pointer;" @onclick='() => OrdenarPor("Comercial")'>
                                             Comercial
@@ -378,7 +371,7 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th style="cursor: pointer; width: 120px;" @onclick='() => OrdenarPor("EnComercializadora")'>
+                                        <th class="contract-comercializadora-header" style="cursor: pointer; width: 160px;" @onclick='() => OrdenarPor("EnComercializadora")'>
                                             Comercializadora
                                             @if (columnaOrden == "EnComercializadora")
                                             {
@@ -399,14 +392,14 @@ else
                                                 <i class="bi bi-@(ordenAscendente ? "arrow-up" : "arrow-down")"></i>
                                             }
                                         </th>
-                                        <th class="text-end" style="width: 85px;">Acciones</th>
+                                        <th class="text-end contract-actions-header" style="width: 105px;">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @if (contratosFiltrados == null || !contratosFiltrados.Any())
                                     {
                                         <tr>
-                                            <td colspan="12" class="text-center text-muted py-4">
+                                            <td colspan="10" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="mb-0 mt-2">No hay contratos registrados</p>
                                             </td>
@@ -421,39 +414,32 @@ else
                                             <tr class="fila-ficha" @ondblclick="() => MostrarModalEditar(contrato)" style="font-size: 0.875rem;"
                                                 @onmouseenter="(e) => MostrarInfoFila(e, contrato)"
                                                 @onmouseleave="OcultarInfoFila">
-                                                <td @ondblclick:stopPropagation="true">
+                                                <td data-label="Seleccionar" class="contract-select-cell" @ondblclick:stopPropagation="true">
                                                     <input type="checkbox" class="form-check-input" 
                                                            @onchange="() => ToggleSeleccionContrato(contrato.Id)" 
                                                            checked="@contratosSeleccionados.Contains(contrato.Id)" />
                                                 </td>
-                                                <td><small class="@textoClass">@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
-                                                <td><small class="@textoClass">@contrato.FechaModificacion?.ToString("dd/MM/yy")</small></td>
-                                                <td>
+                                                <td data-label="F. creación"><small class="@textoClass">@contrato.FechaCreacion?.ToString("dd/MM/yy")</small></td>
+                                                <td data-label="Estado">
                                                     <span class="badge @ObtenerColorEstado(contrato.Estado)" style="font-size: 0.75rem;">@contrato.Estado</span>
-                                                    @if (conteoObservacionesPorContrato.ContainsKey(contrato.Id) && conteoObservacionesPorContrato[contrato.Id] > 0)
-                                                    {
-                                                        <i class="bi bi-chat-left-text-fill text-primary ms-1" 
-                                                           style="cursor: pointer; font-size: 0.85rem;" 
-                                                           @onclick="() => MostrarHistoricoObservaciones(contrato.Id)"
-                                                           @ondblclick:stopPropagation="true"
-                                                           title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
-                                                    }
                                                 </td>
-                                                <td style="text-align: center;">
-                                                    @if (contrato.CargadoEnPlataforma)
-                                                    {
-                                                        <i class="bi bi-cloud-check-fill text-success" style="font-size: 1.2rem;" title="Ya cargado en plataforma externa"></i>
-                                                    }
-                                                </td>
-                                                <td style="text-align: center; white-space: nowrap;">
+                                                <td data-label="" class="contract-signed-cell" style="text-align: center; white-space: nowrap;">
                                                     <i class="bi bi-pencil-fill @(contratosFirmados.Contains(contrato.Id) ? "text-primary" : "text-secondary opacity-50")" title="@(contratosFirmados.Contains(contrato.Id) ? "Contrato firmado" : "Contrato no firmado")"></i>
                                                 </td>
-                                                <td style="text-align: center; white-space: nowrap;">
-                                                    <i class="bi bi-lightning-charge-fill @(string.IsNullOrEmpty(contrato.EnCups) ? "text-secondary opacity-25" : "text-warning")" title="Luz"></i>
-                                                    <i class="bi bi-fire ms-1 @(string.IsNullOrEmpty(contrato.EnCupsGas) ? "text-secondary opacity-25" : "text-danger")" title="Gas"></i>
+                                                <td data-label="Servicios" style="text-align: center; white-space: nowrap;">
+                                                    <i class="bi bi-lightning-charge-fill contract-service-icon @(string.IsNullOrEmpty(contrato.EnCups) ? "is-inactive" : "is-active")" title="Luz"></i>
+                                                    <i class="bi bi-fire ms-1 contract-service-icon @(string.IsNullOrEmpty(contrato.EnCupsGas) ? "is-inactive" : "is-active")" title="Gas"></i>
                                                 </td>
-                                                <td><small class="@textoClass">@contrato.Comercial</small></td>
-                                                <td>
+                                                <td data-label="Comercial">
+                                                    <div class="contract-commercial-cell">
+                                                        <small class="@textoClass">@contrato.Comercial</small>
+                                                        @if (conteoObservacionesPorContrato.ContainsKey(contrato.Id) && conteoObservacionesPorContrato[contrato.Id] > 0)
+                                                        {
+                                                            <i class="bi bi-chat-left-text-fill text-primary" @onclick="() => MostrarHistoricoObservaciones(contrato.Id)" @ondblclick:stopPropagation="true" title="Ver histórico de observaciones (@conteoObservacionesPorContrato[contrato.Id])"></i>
+                                                        }
+                                                    </div>
+                                                </td>
+                                                <td data-label="Comercializadora" class="contract-comercializadora-cell">
                                                     @{
                                                         var logoUrl = ObtenerLogoComercializadora(contrato.EnComercializadora);
                                                         if (!string.IsNullOrEmpty(logoUrl))
@@ -468,16 +454,16 @@ else
                                                         }
                                                     }
                                                 </td>
-                                                <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass">@contrato.NombreCliente</small></td>
+                                                <td data-label="Cliente" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><small class="@textoClass">@contrato.NombreCliente</small></td>
                                                 @if (PuedeMostrarComision(contrato.Estado))
                                                 {
-                                                    <td><span class="badge bg-warning text-dark" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
+                                                    <td data-label="Comisión"><span class="badge contract-commission-badge" style="font-size: 0.75rem;">@contrato.Comision?.ToString("N0")€</span></td>
                                                 }
                                                 else if (AuthService.UsuarioActual?.Rol == "Colaborador")
                                                 {
-                                                    <td><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
+                                                    <td data-label="Comisión"><span class="badge bg-secondary" style="font-size: 0.75rem;">-</span></td>
                                                 }
-                                                <td class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
+                                                <td data-label="Acciones" class="text-end" style="white-space: nowrap;" @ondblclick:stopPropagation="true">
                                                     <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => MostrarModalEditar(contrato)" title="Editar">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
@@ -638,7 +624,6 @@ else
                                 </div>
                             </div>
                             <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
-                                <FirmaContratoPanel ContratoId="contratoSeleccionado.Id" />
                                 @if (!string.IsNullOrEmpty(mensajeError))
                                 {
                                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -650,35 +635,53 @@ else
                                 <!-- RESUMEN DEL CONTRATO -->
                                 <div class="card shadow-sm mb-3">
                                     <div class="card-body bg-light">
-                                        <div class="row align-items-center">
-                                            <div class="col-md-2">
-                                                <small class="text-muted">ID Contrato</small>
-                                                <div class="fw-bold">#@contratoSeleccionado.Id</div>
-                                            </div>
-                                            <div class="col-md-2">
+                                        <div class="row g-3 align-items-center">
+                                            <div class="col-sm-6 col-xl">
                                                 <small class="text-muted">Estado</small>
-                                                <div><span class="badge bg-primary">@contratoSeleccionado.Estado</span></div>
+                                                <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select form-select-sm" disabled="@(!PuedeEditarCamposAdministrativos())">
+                                                    <option value="">-- Seleccionar Estado --</option>
+                                                    @foreach (var estado in estadosDisponibles)
+                                                    {
+                                                        <option value="@estado">@estado</option>
+                                                    }
+                                                </InputSelect>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-sm-6 col-xl">
                                                 <small class="text-muted">Fecha Creación</small>
                                                 <div class="fw-bold">@contratoSeleccionado.FechaCreacion?.ToString("dd/MM/yyyy HH:mm")</div>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-sm-6 col-xl">
                                                 <small class="text-muted">Última Modificación</small>
                                                 <div class="fw-bold">@(contratoSeleccionado.FechaModificacion?.ToString("dd/MM/yyyy HH:mm") ?? "-")</div>
                                             </div>
-                                            <div class="col-md-2">
+                                            <div class="col-sm-6 col-xl">
                                                 <small class="text-muted">Comercial</small>
                                                 <div class="fw-bold text-truncate" title="@contratoSeleccionado.Comercial">@contratoSeleccionado.Comercial</div>
                                             </div>
+                                            @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
+                                            {
+                                                <div class="col-sm-6 col-xl">
+                                                    <small class="text-muted">Comisión (€)</small>
+                                                    <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control form-control-sm" disabled="@(AuthService.UsuarioActual?.Rol != "Administrador" && AuthService.UsuarioActual?.Rol != "Backoffice")" />
+                                                </div>
+                                            }
                                         </div>
                                     </div>
                                 </div>
 
                                 <hr class="my-3" />
 
+                                <div class="nav nav-tabs mb-3" role="tablist" aria-label="Secciones del contrato de energía">
+                                    <button type="button" id="energy-edit-tab-client" class="nav-link @(pestanaEdicionEnergia == 0 ? "active" : string.Empty)" role="tab" aria-controls="energy-edit-panel-client" aria-selected="@(pestanaEdicionEnergia == 0)" @onclick="() => pestanaEdicionEnergia = 0">General</button>
+                                    <button type="button" id="energy-edit-tab-service" class="nav-link @(pestanaEdicionEnergia == 1 ? "active" : string.Empty)" role="tab" aria-controls="energy-edit-panel-service" aria-selected="@(pestanaEdicionEnergia == 1)" @onclick="() => pestanaEdicionEnergia = 1">Servicio</button>
+                                    <button type="button" id="energy-edit-tab-commercial" class="nav-link @(pestanaEdicionEnergia == 2 ? "active" : string.Empty)" role="tab" aria-controls="energy-edit-panel-commercial" aria-selected="@(pestanaEdicionEnergia == 2)" @onclick="() => pestanaEdicionEnergia = 2">Comercial</button>
+                                    <button type="button" id="energy-edit-tab-address" class="nav-link @(pestanaEdicionEnergia == 3 ? "active" : string.Empty)" role="tab" aria-controls="energy-edit-panel-address" aria-selected="@(pestanaEdicionEnergia == 3)" @onclick="() => pestanaEdicionEnergia = 3">Dirección</button>
+                                    <button type="button" id="energy-edit-tab-documents" class="nav-link @(pestanaEdicionEnergia == 4 ? "active" : string.Empty)" role="tab" aria-controls="energy-edit-panel-documents" aria-selected="@(pestanaEdicionEnergia == 4)" @onclick="() => pestanaEdicionEnergia = 4">Documentación</button>
+                                    <button type="button" id="energy-edit-tab-history" class="nav-link @(pestanaEdicionEnergia == 5 ? "active" : string.Empty)" role="tab" aria-controls="energy-edit-panel-history" aria-selected="@(pestanaEdicionEnergia == 5)" @onclick="() => pestanaEdicionEnergia = 5">Historial</button>
+                                </div>
+
                                 <!-- PRIMERA PARTE: DATOS DEL CLIENTE -->
-                                <div class="card shadow-sm mb-3">
+                                <div id="energy-edit-panel-client" class="card shadow-sm mb-3" role="tabpanel" aria-labelledby="energy-edit-tab-client" hidden="@(pestanaEdicionEnergia != 0)">
                                     <div class="card-header" style="background-color: #cce5ff; color: #004085;">
                                         <h6 class="mb-0"><i class="bi bi-person me-2"></i>1. Datos del Cliente</h6>
                                     </div>
@@ -846,32 +849,15 @@ else
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-bold">Fecha Alta</label>
-                                                @if (AuthService.EsAdminOBackoffice)
-                                                {
-                                                    <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" />
-                                                }
-                                                else
-                                                {
-                                                    <input type="text" class="form-control" value="@contratoSeleccionado.FechaAlta?.ToString("dd/MM/yyyy")" readonly />
-                                                }
+                                                <input type="date" class="form-control" @bind="contratoSeleccionado.FechaAlta" disabled="@(!PuedeEditarCampo())" />
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-bold">ID Contrato Externo</label>
-                                                <InputText @bind-Value="contratoSeleccionado.IdContratoExterno" class="form-control" placeholder="ID comercializadora" disabled="@(!PuedeEditarCampo())" />
+                                                <InputText @bind-Value="contratoSeleccionado.IdContratoExterno" class="form-control" placeholder="ID comercializadora" disabled="@(!PuedeEditarCamposAdministrativos())" />
                                             </div>
                                         </div>
 
                                         <div class="row mb-0">
-                                            <div class="col-md-6">
-                                                <label class="form-label fw-bold">Estado Contrato</label>
-                                                <InputSelect @bind-Value="contratoSeleccionado.Estado" @bind-Value:after="OnEstadoChanged" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones())">
-                                                    <option value="">-- Seleccionar Estado --</option>
-                                                    @foreach (var estado in estadosDisponibles)
-                                                    {
-                                                        <option value="@estado">@estado</option>
-                                                    }
-                                                </InputSelect>
-                                            </div>
                                             <div class="col-md-6">
                                                 <label class="form-label fw-bold">¿Qué quiere contratar?</label>
                                                 <select @bind="tipoContratacion" @bind:after="OnTipoContratacionChanged" class="form-select" disabled="@(!PuedeEditarCampo())">
@@ -885,7 +871,7 @@ else
                                         <div class="row mt-3">
                                             <div class="col-md-6">
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="cargadoEnPlataforma" @bind="contratoSeleccionado.CargadoEnPlataforma" disabled="@(!PuedeEditarCampo())">
+                                                    <input class="form-check-input" type="checkbox" id="cargadoEnPlataforma" @bind="contratoSeleccionado.CargadoEnPlataforma" disabled="@(!PuedeEditarCamposAdministrativos())">
                                                     <label class="form-check-label" for="cargadoEnPlataforma">
                                                         <i class="bi bi-cloud-check me-1"></i><strong>Ya está cargado en la plataforma de la comercializadora</strong>
                                                     </label>
@@ -903,7 +889,7 @@ else
                                                            class="form-control" 
                                                            @bind="fechaActivacion" 
                                                            @bind:event="oninput"
-                                                           disabled="@(!PuedeEditarEstadoYObservaciones())" />
+                                                           disabled="@(!PuedeEditarCampo())" />
                                                     @if (mostrarErrorFechaActivo)
                                                     {
                                                         <div class="text-danger small mt-1">La fecha de activación es obligatoria</div>
@@ -915,21 +901,25 @@ else
                                                               rows="2" 
                                                               @bind="observacionesActivacion" 
                                                               placeholder="Añade observaciones sobre la activación..."
-                                                              disabled="@(!PuedeEditarEstadoYObservaciones())"></textarea>
+                                                              disabled="@(!PuedeEditarCampo())"></textarea>
                                                 </div>
                                             </div>
                                         }
                                     </div>
                                 </div>
 
-                                <hr class="my-3" />
-
                                 <!-- SEGUNDA PARTE: DATOS DE SUMINISTRO -->
-                                <div class="card shadow-sm mb-3">
+                                <div id="energy-edit-panel-service" class="card shadow-sm mb-3" role="tabpanel" aria-labelledby="energy-edit-tab-service" hidden="@(pestanaEdicionEnergia != 1)">
                                     <div class="card-header" style="background-color: #d1ecf1; color: #0c5460;">
-                                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>2. Datos de Suministro</h6>
+                                        <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>2. Configuración del Servicio</h6>
                                     </div>
                                     <div class="card-body">
+                                        <div class="row g-2 align-items-center mb-3">
+                                            <div class="col-md-2"><strong>ID Contrato</strong></div>
+                                            <div class="col-auto"><span class="badge bg-secondary">#@contratoSeleccionado.Id</span></div>
+                                        </div>
+                                        <ContratoPdfAdjunto @bind-PdfContratoUrl="contratoSeleccionado.PdfContratoUrl"
+                                                            PuedeEditar="PuedeEditarCampo()" />
                                         <div class="row mb-3">
                                             <!-- Columna LUZ -->
                                             <div class="col-md-6">
@@ -1025,7 +1015,7 @@ else
 
                                                         <div class="mb-0">
                                                             <label class="form-label fw-bold">Estado Servicio Luz</label>
-                                                            <InputSelect @bind-Value="contratoSeleccionado.EstadoServicio" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones() || tipoContratacion == "Gas")">
+                                                            <InputSelect @bind-Value="contratoSeleccionado.EstadoServicio" class="form-select" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Gas")">
                                                                 <option value="">-- Seleccionar Estado --</option>
                                                                 @foreach (var estado in estadosDisponibles)
                                                                 {
@@ -1096,7 +1086,7 @@ else
 
                                                         <div class="mb-0">
                                                             <label class="form-label fw-bold">Estado Servicio Gas</label>
-                                                            <InputSelect @bind-Value="contratoSeleccionado.EstadoServicioGas" class="form-select" disabled="@(!PuedeEditarEstadoYObservaciones() || tipoContratacion == "Luz")">
+                                                            <InputSelect @bind-Value="contratoSeleccionado.EstadoServicioGas" class="form-select" disabled="@(!PuedeEditarCampo() || tipoContratacion == "Luz")">
                                                                 <option value="">-- Seleccionar Estado --</option>
                                                                 @foreach (var estado in estadosDisponibles)
                                                                 {
@@ -1112,12 +1102,10 @@ else
                                     </div>
                                 </div>
 
-                                <hr class="my-3" />
-
                                 <!-- TERCERA PARTE: COMERCIALIZADORA, USUARIO Y COMISIÓN -->
-                                <div class="card shadow-sm mb-3">
+                                <div id="energy-edit-panel-commercial" class="card shadow-sm mb-3" role="tabpanel" aria-labelledby="energy-edit-tab-commercial" hidden="@(pestanaEdicionEnergia != 2)">
             <div class="card-header" style="background-color: #d4edda; color: #155724;">
-                                                <h6 class="mb-0"><i class="bi bi-building me-2"></i>3. Comercializadora, Usuario y Comisión</h6>
+                                                <h6 class="mb-0"><i class="bi bi-building me-2"></i>3. Comercializadora y Usuario</h6>
                                             </div>
                                             <div class="card-body">
                                                 <div class="row mb-0">
@@ -1137,7 +1125,7 @@ else
                                                         </div>
                                                         @if (contratoSeleccionado.Id > 0 && PuedeMostrarComision(contratoSeleccionado.Estado))
                                                         {
-                                                            <div class="mb-0">
+                                                            <div class="mb-3">
                                                                 <label class="form-label fw-bold">Comisión (€)</label>
                                                                 <InputNumber @bind-Value="contratoSeleccionado.Comision" class="form-control" disabled="@(AuthService.UsuarioActual?.Rol != "Administrador" && AuthService.UsuarioActual?.Rol != "Backoffice")" />
                                                                 @if (AuthService.UsuarioActual?.Rol == "Administrador" || AuthService.UsuarioActual?.Rol == "Backoffice")
@@ -1156,7 +1144,7 @@ else
                                                         <label class="form-label fw-bold">Usuario</label>
                                                         <div class="d-flex align-items-center gap-2">
                                                             <div class="flex-grow-1">
-                                                                <select @onchange="OnUsuarioComercialChanged" class="form-select" disabled="@(!PuedeEditarCampo())">
+                                                                <select @onchange="OnUsuarioComercialChanged" class="form-select" disabled="@(!PuedeEditarCamposAdministrativos())">
                                                                     <option value="">Seleccionar comercial...</option>
                                                                     @foreach (var usuario in todosLosUsuarios.OrderBy(u => u.NombreUsuario))
                                                                     {
@@ -1219,10 +1207,8 @@ else
                                     </div>
                                 </div>
 
-                                <hr class="my-3" />
-
                                 <!-- CUARTA PARTE: DIRECCIÓN DE SUMINISTRO -->
-                                <div class="card shadow-sm mb-3">
+                                <div id="energy-edit-panel-address" class="card shadow-sm mb-3" role="tabpanel" aria-labelledby="energy-edit-tab-address" hidden="@(pestanaEdicionEnergia != 3)">
                                     <div class="card-header" style="background-color: #ffeeba; color: #856404;">
                                         <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>4. Dirección de Suministro</h6>
                                     </div>
@@ -1309,14 +1295,13 @@ else
                                     </div>
                                 </div>
 
-                                <hr class="my-3" />
-
                                 <!-- QUINTA PARTE: DOCUMENTACIÓN -->
-                                <div class="card shadow-sm mb-3">
+                                <div id="energy-edit-panel-documents" class="card shadow-sm mb-3" role="tabpanel" aria-labelledby="energy-edit-tab-documents" hidden="@(pestanaEdicionEnergia != 4)">
                                     <div class="card-header" style="background-color: #e2e3e5; color: #383d41;">
                                         <h6 class="mb-0"><i class="bi bi-folder2 me-2"></i>5. Documentación</h6>
                                     </div>
                                     <div class="card-body">
+                                        <FirmaContratoPanel ContratoId="contratoSeleccionado.Id" />
                                         @* Sección de Archivos del Cliente (Solo lectura) *@
                                         @if (contratoSeleccionado.IdCliente.HasValue && contratoSeleccionado.IdCliente.Value > 0)
                                         {
@@ -1361,50 +1346,9 @@ else
                                         }
                                             </div>
 
-                                            <hr class="my-4" />
+                                            <hr class="my-3" />
                                         }
 
-                                        @* Sección de Contrato PDF *@
-                                        <h6 class="mb-3">
-                                            <i class="bi bi-file-pdf me-2"></i>Contrato PDF
-                                        </h6>
-                                        <div class="row mb-3">
-                                            <div class="col-12">
-                                        @if (!string.IsNullOrEmpty(contratoSeleccionado.PdfContratoUrl))
-                                        {
-                                            <div class="alert alert-success d-flex justify-content-between align-items-center">
-                                                <div>
-                                                    <i class="bi bi-file-pdf-fill me-2"></i>
-                                                    <span>Contrato PDF cargado</span>
-                                                </div>
-                                                <div>
-                                                    <a href="@contratoSeleccionado.PdfContratoUrl" target="_blank" class="btn btn-sm btn-outline-primary me-2" title="Ver PDF">
-                                                        <i class="bi bi-eye"></i> Ver
-                                                    </a>
-                                                    @if (PuedeEditarCampo())
-                                                    {
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="EliminarPdfContrato" title="Eliminar PDF">
-                                                            <i class="bi bi-trash"></i> Eliminar
-                                                        </button>
-                                                    }
-                                                </div>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <p class="text-muted fst-italic">No hay contrato PDF cargado</p>
-                                        }
-
-                                        @if (PuedeEditarCampo())
-                                        {
-                                                <label class="form-label fw-bold">Cargar Contrato PDF</label>
-                                                <InputFile OnChange="CargarPdfContrato" class="form-control" accept=".pdf" id="inputPdfContrato" />
-                                                <small class="text-muted">Formato permitido: PDF (máx. 10MB)</small>
-                                            }
-                                            </div>
-                                        </div>
-
-                                        <!-- Facturas del Contrato -->
                                         <hr class="my-4" />
                                         <h6 class="mb-3"><i class="bi bi-receipt me-2"></i>Facturas del Contrato</h6>
                                         <div class="row mb-3">
@@ -1430,7 +1374,7 @@ else
                                                                     <button type="button" class="btn btn-sm btn-outline-primary me-1" @onclick="async () => await DescargarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Descargar">
                                                                         <i class="bi bi-download"></i>
                                                                     </button>
-                                                                    @if (PuedeEditar() && !AuthService.EsUsuario)
+                                                                    @if (PuedeGestionarEdicion() && !AuthService.EsUsuario)
                                                                     {
                                                                         <button type="button" class="btn btn-sm btn-outline-danger" @onclick="async () => await EliminarFactura(factura.Id)" @onclick:preventDefault="true" @onclick:stopPropagation="true" title="Eliminar">
                                                                             <i class="bi bi-trash"></i>
@@ -1494,8 +1438,11 @@ else
                                     </div>
                                 }
 
-                                <hr />
-
+                                </div>
+                                </div>
+                                <div id="energy-edit-panel-history" class="card shadow-sm mb-3" role="tabpanel" aria-labelledby="energy-edit-tab-history" hidden="@(pestanaEdicionEnergia != 5)">
+                                    <div class="card-header"><h6 class="mb-0">Historial</h6></div>
+                                    <div class="card-body">
                                 <!-- Histórico de Observaciones -->
                                 <div class="row mb-3">
                                     <div class="col-md-6">
@@ -1531,7 +1478,7 @@ else
                                                                         <i class="bi bi-clock me-1"></i>
                                                                         @obs.FechaHora.ToString("dd/MM/yyyy HH:mm")
                                                                     </small>
-                                                                    @if (PuedeEditar() && AuthService.UsuarioActual?.NombreUsuario == obs.Usuario)
+                                                                    @if (PuedeGestionarEdicion() && AuthService.UsuarioActual?.NombreUsuario == obs.Usuario)
                                                                     {
                                                                         <button type="button" class="btn btn-sm btn-outline-danger p-0 px-1" @onclick="() => EliminarObservacion(obs.Id)" title="Eliminar">
                                                                             <i class="bi bi-trash" style="font-size: 0.8rem;"></i>
@@ -1963,6 +1910,7 @@ else
     private Contrato? contratoAEliminar;
     private bool cargando = true;
     private bool cargandoSesion = true;
+    private int? contratoPendienteAbrir;
     private bool mostrarModal = false;
     private bool mostrarModalEliminar = false;
     private bool mostrarModalObservaciones = false;
@@ -2067,9 +2015,9 @@ else
     
     // Checkbox para usar dirección del cliente en edición
     private bool usarDireccionClienteEdicion = false;
+    private int pestanaEdicionEnergia;
     private DateTime? fechaActivacionMasivo = null;
     private string tipoContratacion = "Luz";
-    
     // Activación de contratos
     private bool mostrarCampoFechaActivo = false;
     private bool mostrarErrorFechaActivo = false;
@@ -2094,9 +2042,7 @@ else
         
         if (!string.IsNullOrEmpty(idStr) && int.TryParse(idStr, out int contratoId))
         {
-            // Guardar el ID para abrirlo después de cargar los datos
-            await Task.Delay(100); // Pequeño delay para asegurar que el componente está listo
-            _ = AbrirContratoDesdeUrl(contratoId);
+            contratoPendienteAbrir = contratoId;
         }
         
         // Si se pasó el parámetro crear=true, abrir el wizard después de cargar
@@ -2165,6 +2111,11 @@ else
             if (AuthService.EstaAutenticado)
             {
                 await CargarDatosIniciales();
+                if (contratoPendienteAbrir is int contratoId)
+                {
+                    contratoPendienteAbrir = null;
+                    await AbrirContratoDesdeUrl(contratoId);
+                }
             }
 
             StateHasChanged();
@@ -3298,6 +3249,7 @@ else
         // Cargar histórico de cambios
         await CargarCambiosHistoricos();
         
+        pestanaEdicionEnergia = 0;
         mostrarModal = true;
         StateHasChanged();
     }
@@ -3661,6 +3613,17 @@ else
 
         try
         {
+            var contratoOriginal = contratos.FirstOrDefault(c => c.Id == contratoSeleccionado.Id);
+            if (!PuedeEditarCamposAdministrativos())
+            {
+                if (contratoOriginal == null)
+                {
+                    mensajeError = "No se pudo verificar el contrato original para aplicar tus permisos.";
+                    return;
+                }
+                RestaurarCamposAdministrativos(contratoOriginal);
+            }
+
             // Actualizar datos del cliente en el contrato
             if (contratoSeleccionado.IdCliente.HasValue)
             {
@@ -3688,9 +3651,9 @@ else
             }
 
             // Versión previa del contrato para registrar los cambios en el histórico
-            var contratoOriginal = contratos.FirstOrDefault(c => c.Id == contratoSeleccionado.Id);
-
-            var resultado = await ContratoService.ActualizarAsync(contratoSeleccionado);
+            var resultado = await ContratoService.ActualizarAsync(
+                contratoSeleccionado,
+                omitirCalculoComision: !PuedeEditarCamposAdministrativos());
             if (resultado)
             {
                 if (contratoOriginal != null)
@@ -3776,6 +3739,7 @@ else
             }
             else
             {
+                if (!AplicarRestriccionesEdicion()) return;
                 mensajeError = "Error al actualizar el contrato";
             }
         }
@@ -3885,24 +3849,37 @@ else
         }
     }
 
-    private bool PuedeEditar()
+    private bool PuedeEditar() => AuthService.EstaAutenticado && AuthService.PuedeVerContratos;
+
+    private bool PuedeEditarCampo() => PuedeEditar();
+
+    private bool PuedeEditarCamposAdministrativos() => AuthService.PuedeGestionarContratos;
+
+    private bool PuedeGestionarEdicion() => AuthService.PuedeGestionarContratos || AuthService.EsComercializadora;
+
+    private void RestaurarCamposAdministrativos(Contrato original)
     {
-        return AuthService.PuedeGestionarContratos || AuthService.EsComercializadora;
+        if (contratoSeleccionado == null) return;
+        contratoSeleccionado.Estado = original.Estado;
+        contratoSeleccionado.IdContratoExterno = original.IdContratoExterno;
+        contratoSeleccionado.UsuarioComercialId = original.UsuarioComercialId;
+        contratoSeleccionado.Comercial = original.Comercial;
+        contratoSeleccionado.CargadoEnPlataforma = original.CargadoEnPlataforma;
+        contratoSeleccionado.Comision = original.Comision;
     }
 
-    private bool PuedeEditarCampo()
+    private bool AplicarRestriccionesEdicion()
     {
-        // Comercializadora solo puede editar Estado, Observaciones estado y Estado servicio
-        if (AuthService.EsProveedor)
+        if (contratoSeleccionado == null || PuedeEditarCamposAdministrativos()) return contratoSeleccionado != null;
+        var original = contratos.FirstOrDefault(contrato => contrato.Id == contratoSeleccionado.Id);
+        if (original == null)
         {
+            mensajeError = "No se pudo verificar el contrato original para aplicar tus permisos.";
             return false;
         }
-        // Usuario solo puede adjuntar facturas, no editar campos
-        if (AuthService.UsuarioActual?.Rol == "Usuario")
-        {
-            return false;
-        }
-        return PuedeEditar();
+
+        RestaurarCamposAdministrativos(original);
+        return true;
     }
 
     private Usuario? ObtenerUsuarioComercial()
@@ -3967,16 +3944,6 @@ else
             mensajeCopiado = "No se pudo copiar. Selecciona y copia manualmente.";
             StateHasChanged();
         }
-    }
-
-    private bool PuedeEditarEstadoYObservaciones()
-    {
-        // Usuario no puede editar estos campos
-        if (AuthService.UsuarioActual?.Rol == "Usuario")
-        {
-            return false;
-        }
-        return PuedeEditar();
     }
 
     private void IrALogActivaciones()
@@ -4504,127 +4471,6 @@ else
         {
             // Error silencioso para no interrumpir la carga de contratos
             Console.WriteLine($"Error al cargar conteo de observaciones: {ex.Message}");
-        }
-    }
-
-    // Métodos para gestión de PDF del contrato
-    private async Task CargarPdfContrato(InputFileChangeEventArgs e)
-    {
-        if (contratoSeleccionado == null) return;
-
-        try
-        {
-            var archivo = e.File;
-            
-            // Validar tamaño (máximo 10MB)
-            if (archivo.Size > 10 * 1024 * 1024)
-            {
-                mensajeError = "El archivo PDF no debe superar los 10MB";
-                return;
-            }
-
-            // Validar formato PDF
-            if (!archivo.Name.ToLower().EndsWith(".pdf"))
-            {
-                mensajeError = "Solo se permiten archivos PDF";
-                return;
-            }
-
-            // Leer el archivo
-            using var ms = new MemoryStream();
-            await archivo.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
-            var contenido = ms.ToArray();
-
-            // Guardar el archivo en el servidor
-            var resultado = await GuardarPdfContratoAsync(archivo.Name, contenido);
-            
-            if (resultado.exito)
-            {
-                contratoSeleccionado.PdfContratoUrl = resultado.rutaArchivo;
-                mensajeExito = "PDF del contrato cargado correctamente";
-                StateHasChanged();
-            }
-            else
-            {
-                mensajeError = resultado.mensaje;
-            }
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error al cargar el PDF: {ex.Message}";
-        }
-    }
-
-    private async Task<(bool exito, string mensaje, string rutaArchivo)> GuardarPdfContratoAsync(string nombreArchivo, byte[] contenido)
-    {
-        try
-        {
-            // Obtener ruta base de configuración
-            var storagePath = Configuration.GetValue<string>("StoragePath");
-            if (string.IsNullOrEmpty(storagePath))
-            {
-                storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
-            }
-            
-            // Crear directorio si no existe
-            var uploadsPath = Path.Combine(storagePath, "uploads", "contratos");
-            if (!Directory.Exists(uploadsPath))
-            {
-                Directory.CreateDirectory(uploadsPath);
-            }
-
-            // Generar nombre único para el archivo
-            var extension = Path.GetExtension(nombreArchivo);
-            var nombreUnico = $"{Guid.NewGuid()}{extension}";
-            var rutaCompleta = Path.Combine(uploadsPath, nombreUnico);
-
-            // Guardar archivo
-            await File.WriteAllBytesAsync(rutaCompleta, contenido);
-
-            // Retornar la ruta relativa para guardar en la BD
-            var rutaRelativa = $"/storage/uploads/contratos/{nombreUnico}";
-            
-            return (true, "PDF guardado correctamente", rutaRelativa);
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Error al guardar el PDF: {ex.Message}", string.Empty);
-        }
-    }
-
-    private async Task EliminarPdfContrato()
-    {
-        if (contratoSeleccionado == null || string.IsNullOrEmpty(contratoSeleccionado.PdfContratoUrl))
-            return;
-
-        if (!await JS.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar el PDF del contrato?"))
-            return;
-
-        try
-        {
-            // Obtener ruta base de configuración
-            var storagePath = Configuration.GetValue<string>("StoragePath");
-            if (string.IsNullOrEmpty(storagePath))
-            {
-                storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
-            }
-            
-            // Eliminar archivo físico del servidor
-            var rutaRelativa = contratoSeleccionado.PdfContratoUrl.Replace("/storage/", "");
-            var rutaCompleta = Path.Combine(storagePath, rutaRelativa);
-            if (File.Exists(rutaCompleta))
-            {
-                File.Delete(rutaCompleta);
-            }
-
-            // Limpiar la URL en el objeto
-            contratoSeleccionado.PdfContratoUrl = null;
-            mensajeExito = "PDF del contrato eliminado correctamente";
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error al eliminar el PDF: {ex.Message}";
         }
     }
 

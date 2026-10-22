@@ -2,17 +2,24 @@
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    min-height: 100dvh;
+    min-width: 0;
+    width: 100%;
 }
 
 .main-content {
     flex: 1;
     background-color: #f8f9fa;
+    min-width: 0;
 }
 
 .content-wrapper {
+    box-sizing: border-box;
+    min-width: 0;
     padding: 2rem;
     max-width: 1400px;
     margin: 0 auto;
+    width: 100%;
 }
 
 @media (max-width: 991.98px) {
@@ -24,6 +31,31 @@
 @media (min-width: 1200px) {
     .content-wrapper {
         padding: 2.5rem;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .page ::deep .main-content,
+    .page ::deep .content-wrapper {
+        max-width: 100%;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .page ::deep .content-wrapper .row > * {
+        min-width: 0;
+    }
+
+    .page ::deep .content-wrapper .table-responsive {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .page ::deep .content-wrapper img,
+    .page ::deep .content-wrapper canvas,
+    .page ::deep .content-wrapper iframe,
+    .page ::deep .content-wrapper video {
+        max-width: 100%;
     }
 }
 
@@ -47,3 +79,61 @@
         right: 0.75rem;
         top: 0.5rem;
     }
+
+@media (min-width: 992px) {
+    .page ::deep .app-sidebar .crm-sidebar-footer {
+        border-top: 1px solid color-mix(in srgb, var(--crm-sidebar-text) 18%, transparent);
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        margin-top: auto;
+        padding-top: 0.75rem;
+    }
+
+    .page ::deep .app-sidebar .btn-sidebar-tool,
+    .page ::deep .app-sidebar .btn-sidebar-user {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        border-radius: 0.35rem;
+        color: color-mix(in srgb, var(--crm-sidebar-text) 84%, transparent);
+        display: flex;
+        gap: 0.6rem;
+        justify-content: flex-start;
+        font-size: 0.78rem;
+        min-height: 34px;
+        padding: 0.35rem 0.65rem;
+        text-align: left;
+        text-decoration: none;
+        width: 100%;
+    }
+
+    .page ::deep .app-sidebar .btn-sidebar-tool:hover,
+    .page ::deep .app-sidebar .btn-sidebar-user:hover {
+        background: color-mix(in srgb, var(--crm-sidebar-text) 12%, transparent);
+        color: var(--crm-sidebar-text);
+    }
+
+    .page ::deep .app-sidebar .crm-user-label {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .page ::deep .app-sidebar .crm-user-label strong,
+    .page ::deep .app-sidebar .crm-user-label small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .page ::deep .app-sidebar .crm-sidebar-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        padding: 0.5rem 0;
+    }
+}

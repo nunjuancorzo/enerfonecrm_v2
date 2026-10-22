@@ -4,7 +4,6 @@
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Components.Layout
 @using Microsoft.JSInterop
-@using System.Text.Json
 @inject AuthService AuthService
 @inject ClienteService ClienteService
 @inject ContratoService ContratoService
@@ -16,22 +15,28 @@
 
 <PageTitle>Enerfone CRM</PageTitle>
 
-@if (cargandoSesion)
+@if (cargandoSesion || cargandoDashboard)
 {
     <div class="text-center mt-5">
         <div class="spinner-border" role="status">
             <span class="visually-hidden">Cargando...</span>
         </div>
-        <p>Verificando sesión...</p>
+        <p>@(cargandoSesion ? "Verificando sesión..." : "Cargando dashboard...")</p>
     </div>
 }
 else if (AuthService.EstaAutenticado)
 {
-    <div class="container-fluid mt-4">
+    <div class="container-fluid dashboard-page">
         <!-- Encabezado con saludo -->
         <div class="row mb-4">
             <div class="col-12">
                 <h2 class="fw-bold">Bienvenido, @AuthService.UsuarioActual?.NombreUsuario</h2>
+                @if (!string.IsNullOrEmpty(errorCargaDashboard))
+                {
+                    <div class="alert alert-warning mt-3 mb-0" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>@errorCargaDashboard
+                    </div>
+                }
             </div>
         </div>
 
@@ -40,22 +45,22 @@ else if (AuthService.EstaAutenticado)
         {
             <div class="row mb-4">
                 <div class="col-12">
-                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%) !important;">
+                    <div class="card home-comparator-banner">
                         <div class="card-body py-4">
                             <div class="row align-items-center">
                                 <div class="col-md-8">
-                                    <div class="d-flex align-items-center">
-                                        <div class="rounded-3 p-3 me-3" style="background: rgba(255, 255, 255, 0.25);">
-                                            <i class="bi bi-lightning-charge-fill fs-2" style="color: white;"></i>
+                                        <div class="d-flex align-items-center">
+                                        <div class="rounded-3 p-3 me-3 home-comparator-icon">
+                                            <i class="bi bi-lightning-charge-fill fs-2"></i>
                                         </div>
-                                        <div style="color: white;">
-                                            <h5 class="mb-1 fw-bold" style="color: white;">Comparador de Tarifas de Energía</h5>
-                                            <p class="mb-0 small" style="color: rgba(255, 255, 255, 0.85);">Encuentra la mejor tarifa para tus clientes en segundos</p>
+                                        <div class="home-comparator-copy">
+                                            <h5 class="mb-1 fw-bold">Comparador de Tarifas de Energía</h5>
+                                            <p class="mb-0 small">Encuentra la mejor tarifa para tus clientes en segundos</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                                    <a href="/comparador/energia" class="btn btn-light btn-lg fw-bold" style="color: #ea580c;">
+                                    <a href="/comparador/energia" class="btn btn-light btn-lg fw-bold home-comparator-button">
                                         <i class="bi bi-search me-2"></i>Comparar Tarifas
                                     </a>
                                 </div>
@@ -114,7 +119,7 @@ else if (AuthService.EstaAutenticado)
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-muted mb-1 small">Comisión Total</p>
+                                <p class="text-muted mb-1 small">Comisión facturable</p>
                                 <h3 class="fw-bold mb-0">@comisionTotal.ToString("N2") €</h3>
                                 <small class="text-muted"><i class="bi bi-cash-coin"></i> Suma de comisiones</small>
                             </div>
@@ -131,9 +136,9 @@ else if (AuthService.EstaAutenticado)
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="text-muted mb-1 small">Contratos Pendientes</p>
+                                <p class="text-muted mb-1 small">Pendientes de carga</p>
                                 <h3 class="fw-bold mb-0">@contratosPendientes</h3>
-                                <small class="text-info"><i class="bi bi-clock"></i> Requieren atención</small>
+                                <small class="text-info"><i class="bi bi-clock"></i> Pendientes de carga</small>
                             </div>
                             <div class="bg-danger bg-opacity-10 rounded-3 p-3 d-flex align-items-center justify-content-center">
                                 <i class="bi bi-exclamation-triangle-fill fs-3 text-danger"></i>
@@ -162,7 +167,7 @@ else if (AuthService.EstaAutenticado)
                                     <h4 class="fw-bold mt-2">@contratosEnergia</h4>
                                     <p class="text-muted small mb-0">Energía</p>
                                     <div class="progress mt-2" style="height: 8px;">
-                                        <div class="progress-bar bg-warning" style="width: @(contratosActivos > 0 ? (contratosEnergia * 100 / contratosActivos) : 0)%"></div>
+                                        <div class="progress-bar bg-warning" role="progressbar" aria-label="Energía" aria-valuenow="@Porcentaje(contratosEnergia, totalContratos)" aria-valuemin="0" aria-valuemax="100" style="width: @Porcentaje(contratosEnergia, totalContratos)%"></div>
                                     </div>
                                 </div>
                             </div>
@@ -174,7 +179,7 @@ else if (AuthService.EstaAutenticado)
                                     <h4 class="fw-bold mt-2">@contratosTelefonia</h4>
                                     <p class="text-muted small mb-0">Telefonía</p>
                                     <div class="progress mt-2" style="height: 8px;">
-                                        <div class="progress-bar bg-primary" style="width: @(contratosActivos > 0 ? (contratosTelefonia * 100 / contratosActivos) : 0)%"></div>
+                                        <div class="progress-bar bg-primary" role="progressbar" aria-label="Telefonía" aria-valuenow="@Porcentaje(contratosTelefonia, totalContratos)" aria-valuemin="0" aria-valuemax="100" style="width: @Porcentaje(contratosTelefonia, totalContratos)%"></div>
                                     </div>
                                 </div>
                             </div>
@@ -186,7 +191,7 @@ else if (AuthService.EstaAutenticado)
                                     <h4 class="fw-bold mt-2">@contratosAlarmas</h4>
                                     <p class="text-muted small mb-0">Alarmas</p>
                                     <div class="progress mt-2" style="height: 8px;">
-                                        <div class="progress-bar bg-danger" style="width: @(contratosActivos > 0 ? (contratosAlarmas * 100 / contratosActivos) : 0)%"></div>
+                                        <div class="progress-bar bg-danger" role="progressbar" aria-label="Alarmas" aria-valuenow="@Porcentaje(contratosAlarmas, totalContratos)" aria-valuemin="0" aria-valuemax="100" style="width: @Porcentaje(contratosAlarmas, totalContratos)%"></div>
                                     </div>
                                 </div>
                             </div>
@@ -195,7 +200,7 @@ else if (AuthService.EstaAutenticado)
                         <hr class="my-4" />
 
                         <div class="row">
-                            <div class="col-6">
+                                    <div class="col-12 col-md-6">
                                 <h6 class="text-muted mb-3">Actividad Reciente</h6>
                                 @if (actividadesRecientes.Any())
                                 {
@@ -220,7 +225,7 @@ else if (AuthService.EstaAutenticado)
                                     </p>
                                 }
                             </div>
-                            <div class="col-6">
+                            <div class="col-12 col-md-6">
                                 <h6 class="text-muted mb-3">Top Comercializadoras</h6>
                                 @if (topComercializadoras.Any())
                                 {
@@ -262,7 +267,7 @@ else if (AuthService.EstaAutenticado)
                             @foreach (var tarea in tareasPendientes)
                             {
                                 <div class="d-flex align-items-start mb-3 pb-3 border-bottom">
-                                    <input type="checkbox" class="form-check-input me-3 mt-1" disabled />
+                                    <i class="bi bi-circle-fill text-@(tarea.Prioridad == "Alta" ? "danger" : tarea.Prioridad == "Media" ? "warning" : "info") me-3 mt-1" aria-hidden="true"></i>
                                     <div class="flex-grow-1">
                                         <p class="mb-1 small fw-bold">@tarea.Descripcion</p>
                                         @if (!string.IsNullOrEmpty(tarea.NombreUsuarioAsignado))
@@ -326,12 +331,16 @@ else if (AuthService.EstaAutenticado)
                         </div>
                     </div>
                     <div class="card-body">
-                        @if (contratosPorProvincia.Any())
+                                @if (!string.IsNullOrEmpty(mapaError))
+                                {
+                                    <div class="alert alert-warning" role="alert">@mapaError</div>
+                                }
+                                @if (contratosPorProvincia.Any())
                         {
                             <div class="row">
                                 <div class="col-md-9">
                                     <!-- Mapa interactivo -->
-                                    <div id="mapaContratos" style="height: 500px; border-radius: 8px; border: 1px solid #dee2e6;"></div>
+                                    <div id="mapaContratos" class="dashboard-map"></div>
                                     <div class="mt-2">
                                         <small class="text-muted">
                                             <i class="bi bi-info-circle me-1"></i>
@@ -351,9 +360,10 @@ else if (AuthService.EstaAutenticado)
                                                 <span class="small fw-bold">@top.Nombre</span>
                                                 <span class="small text-muted">@top.Total</span>
                                             </div>
-                                            <div class="progress" style="height: 8px;">
-                                                <div class="progress-bar bg-info" role="progressbar" style="width: 100%" 
-                                                     title="Energía: @top.Energia | Telefonía: @top.Telefonia | Alarmas: @top.Alarmas"></div>
+                                            <div class="progress dashboard-province-progress" role="img" aria-label="@top.Nombre: @top.Energia Energía, @top.Telefonia Telefonía, @top.Alarmas Alarmas">
+                                                <div class="progress-bar bg-warning" style="width: @Porcentaje(top.Energia, top.Total)%" title="Energía: @top.Energia"></div>
+                                                <div class="progress-bar bg-primary" style="width: @Porcentaje(top.Telefonia, top.Total)%" title="Telefonía: @top.Telefonia"></div>
+                                                <div class="progress-bar bg-danger" style="width: @Porcentaje(top.Alarmas, top.Total)%" title="Alarmas: @top.Alarmas"></div>
                                             </div>
                                         </div>
                                     }
@@ -385,13 +395,17 @@ else if (AuthService.EstaAutenticado)
 
 @code {
     private bool cargandoSesion = true;
+    private bool cargandoDashboard = true;
     private MensajeBienvenida? mensajeActual;
+    private string? errorCargaDashboard;
+    private string? mapaError;
 
     // Datos reales del dashboard
     private int totalClientes = 0;
     private int contratosActivos = 0;
     private decimal comisionTotal = 0;
     private int contratosPendientes = 0;
+    private int totalContratos = 0;
     private int contratosEnergia = 0;
     private int contratosTelefonia = 0;
     private int contratosAlarmas = 0;
@@ -418,9 +432,10 @@ else if (AuthService.EstaAutenticado)
             }
             else
             {
-                cargandoSesion = false;
                 await CargarDatosDashboard();
                 await CargarMensajeBienvenida();
+                cargandoSesion = false;
+                cargandoDashboard = false;
                 StateHasChanged();
                 
                 // Renderizar mapa después de cargar los datos
@@ -466,6 +481,7 @@ else if (AuthService.EstaAutenticado)
 
     private async Task CargarDatosDashboard()
     {
+        errorCargaDashboard = null;
         try
         {
             var rol = AuthService.UsuarioActual?.Rol;
@@ -492,7 +508,8 @@ else if (AuthService.EstaAutenticado)
             // Cargar todos los contratos con filtrado por rol
             var contratos = await ContratoService.ObtenerTodosPorTipoAsync("", rol, nombreUsuario, usuarioId);
 
-            contratosActivos = contratos.Count(c => c.Estado == "Activo" || c.Estado == "Act/Facturable" || c.Estado == "Liquidado");
+            contratosActivos = contratos.Count(c => c.Estado == "Activo" || c.Estado == "Act/Facturable");
+            totalContratos = contratos.Count;
             contratosEnergia = contratos.Count(c => c.Tipo == "energia");
             contratosTelefonia = contratos.Count(c => c.Tipo == "telefonia");
             contratosAlarmas = contratos.Count(c => c.Tipo == "alarma");
@@ -583,6 +600,7 @@ else if (AuthService.EstaAutenticado)
         }
         catch (Exception ex)
         {
+            errorCargaDashboard = "No se pudieron cargar todos los datos del dashboard. Actualiza la página para volver a intentarlo.";
             Console.WriteLine($"Error al cargar dashboard: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
             if (ex.InnerException != null)
@@ -592,6 +610,9 @@ else if (AuthService.EstaAutenticado)
             }
         }
     }
+
+    private static int Porcentaje(int cantidad, int total) =>
+        total > 0 ? (int)Math.Round(cantidad * 100d / total) : 0;
 
     private string ObtenerTiempoTranscurrido(DateTime? fecha)
     {
@@ -685,6 +706,7 @@ else if (AuthService.EstaAutenticado)
 
     private async Task RenderizarMapa()
     {
+        mapaError = null;
         try
         {
             Console.WriteLine($"[MAPA] Total contratos para mapa: {contratosParaMapa.Count}");
@@ -714,9 +736,7 @@ else if (AuthService.EstaAutenticado)
                     Console.WriteLine($"[MAPA] - {c.tipo} | Dirección: {c.direccion} | CP: {c.codigoPostal} | Localidad: {c.localidad} | Provincia: {c.provincia} | Cliente: {c.cliente}");
                 }
                 
-                // Convertir a JSON y luego pasar
-                var jsonContratos = JsonSerializer.Serialize(contratosParaJS);
-                await JSRuntime.InvokeVoidAsync("eval", $"window.mapaContratos.agregarMarcadoresIndividuales({jsonContratos})");
+                await JSRuntime.InvokeVoidAsync("mapaContratos.agregarMarcadoresIndividuales", contratosParaJS);
             }
             else
             {
@@ -725,8 +745,10 @@ else if (AuthService.EstaAutenticado)
         }
         catch (Exception ex)
         {
+            mapaError = "No se pudo cargar el mapa. El resto del dashboard sigue disponible.";
             Console.WriteLine($"Error al renderizar mapa: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            await InvokeAsync(StateHasChanged);
         }
     }
 

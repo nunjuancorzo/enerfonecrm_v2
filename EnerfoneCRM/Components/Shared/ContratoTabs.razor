@@ -1,0 +1,49 @@
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+
+<div class="contract-page-heading">
+    <div>
+        <h2 class="contract-page-title">Contratos</h2>
+    </div>
+    @if (Acciones is not null)
+    {
+        <div class="contract-page-actions">@Acciones</div>
+    }
+</div>
+
+@if (AuthService.PuedeVerContratos)
+{
+    <nav aria-label="Tipo de contrato">
+    <ul class="nav contract-type-tabs mb-4">
+        @if (!AuthService.EsProveedor || AuthService.EsProveedorEnergia)
+        {
+            <li class="nav-item" role="presentation">
+                <NavLink href="contratos/energia" class="nav-link" Match="NavLinkMatch.All">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>Energía
+                </NavLink>
+            </li>
+        }
+        @if (!AuthService.EsProveedor || AuthService.EsProveedorTelefonia)
+        {
+            <li class="nav-item" role="presentation">
+                <NavLink href="contratos/telefonia" class="nav-link" Match="NavLinkMatch.All">
+                    <i class="bi bi-phone me-1"></i>Telefonía
+                </NavLink>
+            </li>
+        }
+        @if (!AuthService.EsProveedor || AuthService.EsProveedorAlarmas)
+        {
+            <li class="nav-item" role="presentation">
+                <NavLink href="contratos/alarmas" class="nav-link" Match="NavLinkMatch.All">
+                    <i class="bi bi-shield-check me-1"></i>Alarmas
+                </NavLink>
+            </li>
+        }
+    </ul>
+    </nav>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? Acciones { get; set; }
+}
