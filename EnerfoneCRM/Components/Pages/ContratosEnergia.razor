@@ -3377,6 +3377,7 @@ else
         mostrarErrorFechaActivo = false;
         observacionesActivacion = string.Empty;
         estadoAnterior = string.Empty;
+        mensajeError = string.Empty;
     }
 
     private void OnEstadoChanged()
@@ -3569,11 +3570,7 @@ else
             return;
         }
         
-        if (string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa))
-        {
-            mensajeError = "La tarifa es obligatoria";
-            return;
-        }
+        if (!ValidarTarifaObligatoria()) return;
 
         // Validar fecha de activación si el estado es "Activo"
         if (contratoSeleccionado.Estado == "Activo")
@@ -3751,6 +3748,23 @@ else
         {
             guardando = false;
         }
+    }
+
+    private bool ValidarTarifaObligatoria()
+    {
+        if (contratoSeleccionado == null) return false;
+
+        bool requiereTarifaLuz = tipoContratacion is "Luz" or "Luz y Gas";
+        bool requiereTarifaGas = tipoContratacion is "Gas" or "Luz y Gas";
+
+        if ((requiereTarifaLuz && string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifa)) ||
+            (requiereTarifaGas && string.IsNullOrWhiteSpace(contratoSeleccionado.EnTarifaGas)))
+        {
+            mensajeError = "La tarifa es obligatoria";
+            return false;
+        }
+
+        return true;
     }
 
     private async Task GuardarContratoConObservacion()

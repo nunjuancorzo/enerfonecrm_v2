@@ -46,17 +46,62 @@ public class ContratosEnergiaPopupTests
         Assert.Contains("Tarifa gas de prueba", contenido);
     }
 
+    [Theory]
+    [InlineData("Gas", null, "Tarifa gas", true)]
+    [InlineData("Gas", "Tarifa luz", null, false)]
+    [InlineData("Luz", "Tarifa luz", null, true)]
+    [InlineData("Luz y Gas", "Tarifa luz", "Tarifa gas", true)]
+    [InlineData("Luz y Gas", "Tarifa luz", null, false)]
+    public void ValidarTarifaSegunTipoDeContratacion(
+        string tipo,
+        string? tarifaLuz,
+        string? tarifaGas,
+        bool valido)
+    {
+        var pagina = new ContratosEnergia();
+        SetField(pagina, "contratoSeleccionado", new Contrato
+        {
+            EnTarifa = tarifaLuz,
+            EnTarifaGas = tarifaGas
+        });
+        SetField(pagina, "tipoContratacion", tipo);
+
+        var metodo = typeof(ContratosEnergia).GetMethod(
+            "ValidarTarifaObligatoria",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var resultado = (bool)metodo.Invoke(pagina, null)!;
+
+        Assert.Equal(valido, resultado);
+        Assert.Equal(valido ? string.Empty : "La tarifa es obligatoria", GetField<string>(pagina, "mensajeError"));
+    }
+
+    [Fact]
+    public void CerrarModalLimpiaElMensajeDeError()
+    {
+        var pagina = new ContratosEnergia();
+        SetField(pagina, "mensajeError", "La tarifa es obligatoria");
+
+        typeof(ContratosEnergia).GetMethod("CerrarModal", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(pagina, null);
+
+        Assert.Equal(string.Empty, GetField<string>(pagina, "mensajeError"));
+    }
+
     [Fact]
     public void FooterMuestraVersionActualizada()
     {
         var contenido = Renderizar(new Footer());
-        Assert.Contains("Versión 20261015", contenido);
-        Assert.DoesNotContain("Versión 20261009", contenido);
+        Assert.Contains("Versión 20261103", contenido);
+        Assert.DoesNotContain("Versión 20261021", contenido);
     }
 
     private static void SetField(object instancia, string nombre, object valor) =>
         instancia.GetType().GetField(nombre, BindingFlags.Instance | BindingFlags.NonPublic)!
             .SetValue(instancia, valor);
+
+    private static T GetField<T>(object instancia, string nombre) =>
+        (T)instancia.GetType().GetField(nombre, BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(instancia)!;
 
     // Inspección del renderizado sin inicializar servicios ni acceder a la base de datos.
 #pragma warning disable BL0006
