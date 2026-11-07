@@ -13,7 +13,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
-<PageTitle>Comparador de Tarifas de Energía - Enerfone CRM</PageTitle>
+<PageTitle>Comparador de Tarifas de Energía - Voltia Solutions</PageTitle>
 
 @if (cargandoSesion)
 {
@@ -69,7 +69,10 @@ else
 
             @if (!resultadosCalculados)
             {
-                <div class="mb-3"><ImportarFactura OnAplicar="AplicarFacturaImportadaAsync" /></div>
+                @if (pasoActual == 1)
+                {
+                    <div class="mb-3"><ImportarFactura OnAplicar="AplicarFacturaImportadaAsync" /></div>
+                }
                 <!-- Wizard de comparativa -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-body p-5">
@@ -632,6 +635,7 @@ else
                 <!-- Resultados de la comparativa -->
                 <div class="card shadow-sm" id="resultados-comparativa">
                     <div class="card-body p-4">
+                        <ExplicarComparativa Datos="DatosExplicacion" />
                         <!-- Pestañas: Coste factura / Filtro comercial -->
                         <ul class="nav nav-tabs mb-4">
                             <li class="nav-item">
@@ -668,6 +672,11 @@ else
 
                             @if (comercializadoras.Any())
                             {
+                                <div class="d-flex justify-content-end mb-3">
+                                    <button class="btn btn-primary" disabled="@(!ofertasSeleccionadas.Any())" @onclick="GenerarDocumentos">
+                                        <i class="bi bi-file-text me-2"></i>Generar documentos (@ofertasSeleccionadas.Count)
+                                    </button>
+                                </div>
                                 @if (presentacion == "simple")
                                 {
                                     @* PRESENTACIÓN SIMPLE *@
@@ -2643,5 +2652,18 @@ else
         public decimal PrecioEnergiaLlano { get; set; }
         public decimal PrecioEnergiaValle { get; set; }
         public decimal TerminoFijoDiario { get; set; }
+    }
+
+    private ComparativaIA DatosExplicacion
+    {
+        get
+        {
+            var elegidas = comercializadoras.Where((oferta, indice) => ofertasSeleccionadas.Contains(indice + 1)).ToList();
+            if (elegidas.Count == 0) elegidas = comercializadoras.Take(3).ToList();
+            return new ComparativaIA(tipoSuministro, tarifaActual, ObtenerDiasFacturacion(), totalFacturaActual ?? 0,
+                comercializadoras.FirstOrDefault()?.CosteActual ?? 0, porcentajeIVA,
+                elegidas.Take(5).Select(oferta => new OfertaComparativaIA(oferta.Empresa, oferta.NombreTarifa,
+                    oferta.CosteMensual, oferta.AhorroMensual, oferta.AhorroAnual, oferta.CostePotencia, oferta.CosteEnergia)).ToList());
+        }
     }
 }

@@ -9,9 +9,10 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject IConfiguration Configuration
+@inject EmpresaContext EmpresaContext
 @rendermode InteractiveServer
 
-<PageTitle>Noticias - Enerfone CRM</PageTitle>
+<PageTitle>Noticias - Voltia Solutions</PageTitle>
 
 @if (cargandoSesion)
 {
@@ -615,13 +616,7 @@ else
 
     private async Task<string> GuardarImagenAsync(IBrowserFile archivo)
     {
-        // Obtener ruta base de configuración
-        string? storagePath = Configuration.GetValue("StoragePath", (string?)null);
-        if (string.IsNullOrEmpty(storagePath))
-        {
-            // En desarrollo, usar carpeta storage dentro del proyecto
-            storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
-        }
+        var storagePath = EmpresaContext.RutaStorage(Configuration);
         
         // Crear directorio si no existe
         var uploadsPath = Path.Combine(storagePath, "uploads", "mensajes");
@@ -641,7 +636,7 @@ else
         await stream.CopyToAsync(fileStream);
 
         // Retornar la ruta para acceso web
-        return $"/storage/uploads/mensajes/{nombreArchivo}";
+        return EmpresaContext.UrlStorage(Configuration, $"uploads/mensajes/{nombreArchivo}");
     }
 
     private async Task CambiarEstado(int id, bool nuevoEstado)

@@ -67,7 +67,10 @@ namespace EnerfoneCRM.Services
                 var monthlyQuota = TryGetInt("Sips:MonthlyQuota");
                 var negativeCacheHours = TryGetInt("Sips:NegativeCacheHours") ?? 24;
 
-                var memKey = $"sips:{cupsNormalizado}";
+                await using var empresaContext = _dbContextProvider.CreateDbContext();
+                if (empresaContext.EmpresaId <= 0)
+                    throw new UnauthorizedAccessException("Debe seleccionar una empresa.");
+                var memKey = $"sips:{empresaContext.EmpresaId}:{esGas}:{cupsNormalizado}";
 
                 // 1) Cache en memoria
                 if (!forzarApi && _memoryCache.TryGetValue<SipsConsultaResult>(memKey, out var cached) && cached.Respuesta != null)
@@ -76,7 +79,7 @@ namespace EnerfoneCRM.Services
                 }
 
                 // 2) Lock por CUPS para evitar llamadas duplicadas simultáneas
-                var sem = _cupsLocks.GetOrAdd(cupsNormalizado, _ => new SemaphoreSlim(1, 1));
+                var sem = _cupsLocks.GetOrAdd(memKey, _ => new SemaphoreSlim(1, 1));
                 await sem.WaitAsync();
                 try
                 {

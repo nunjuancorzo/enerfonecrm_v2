@@ -1,0 +1,115 @@
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject ConsentimientoVoltiService ConsentimientoEmpresa
+@implements IDisposable
+
+@if (cargando || guardando)
+{
+    <div class="small text-muted mb-2" role="status">Comprobando autorizacion de IA...</div>
+}
+else if (!autorizada)
+{
+    @if (ConsentimientoEmpresa.PuedeAutorizar)
+    {
+        <div class="form-check mb-3">
+            <input id="@controlId" type="checkbox" class="form-check-input" @onchange="Autorizar" disabled="@Deshabilitado" />
+            <label for="@controlId" class="form-check-label small">Autorizar Google Gemini para esta empresa: Volti, facturas, DNI y explicaciones de comparativas</label>
+        </div>
+    }
+    else
+    {
+        <p class="small text-muted">Un administrador debe autorizar el uso de Google Gemini para esta empresa.</p>
+    }
+}
+else if (MostrarRevocacion && ConsentimientoEmpresa.PuedeAutorizar)
+{
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <small class="text-muted">IA autorizada para esta empresa</small>
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" @onclick="Revocar" disabled="@Deshabilitado"
+                title="Retirar autorizacion de IA de la empresa" aria-label="Retirar autorizacion de IA de la empresa"><i class="bi bi-shield-x"></i></button>
+    </div>
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger py-2 small" role="alert">@error</div>
+}
+
+@code {
+    [Parameter] public EventCallback<bool> OnAutorizacion { get; set; }
+    [Parameter] public bool MostrarRevocacion { get; set; }
+    [Parameter] public bool Deshabilitado { get; set; }
+    private readonly string controlId = $"gemini-empresa-autorizacion-{Guid.NewGuid():N}";
+    private bool autorizada;
+    private bool cargando = true;
+    private bool guardando;
+    private bool dispuesta;
+    private int version;
+    private string? error;
+
+    protected override void OnInitialized()
+    {
+        AuthService.OnAuthStateChanged += Actualizar;
+        ConsentimientoEmpresa.AutorizacionCambiada += Actualizar;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await AuthService.CargarSesionAsync();
+        await Refrescar();
+    }
+
+    private void Actualizar()
+    {
+        if (!dispuesta) _ = InvokeAsync(Refrescar);
+    }
+
+    private async Task Refrescar()
+    {
+        if (dispuesta) return;
+        var solicitud = ++version;
+        var empresaId = AuthService.EmpresaId;
+        var usuarioId = AuthService.UsuarioActual?.Id;
+        cargando = true;
+        var actual = await ConsentimientoEmpresa.EstaAutorizadaAsync();
+        if (dispuesta || solicitud != version || empresaId != AuthService.EmpresaId || usuarioId != AuthService.UsuarioActual?.Id) return;
+        autorizada = actual;
+        cargando = false;
+        await OnAutorizacion.InvokeAsync(actual);
+        if (!dispuesta) StateHasChanged();
+    }
+
+    private async Task Autorizar(ChangeEventArgs args)
+    {
+        if (args.Value is not true || guardando || Deshabilitado) return;
+        await Guardar(true);
+    }
+
+    private async Task Revocar()
+    {
+        if (guardando || Deshabilitado) return;
+        await Guardar(false);
+    }
+
+    private async Task Guardar(bool activa)
+    {
+        guardando = true;
+        error = null;
+        try
+        {
+            if (activa) await ConsentimientoEmpresa.AutorizarAsync();
+            else await ConsentimientoEmpresa.RevocarAsync();
+            await Refrescar();
+        }
+        catch (UnauthorizedAccessException excepcion) { error = excepcion.Message; }
+        catch { error = "No se pudo guardar la autorizacion de IA de la empresa."; }
+        finally { guardando = false; }
+    }
+
+    public void Dispose()
+    {
+        dispuesta = true;
+        AuthService.OnAuthStateChanged -= Actualizar;
+        ConsentimientoEmpresa.AutorizacionCambiada -= Actualizar;
+    }
+}

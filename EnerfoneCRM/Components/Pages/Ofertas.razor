@@ -9,6 +9,8 @@
 @inject DbContextProvider DbContextProvider
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject EmpresaContext EmpresaContext
+@inject IConfiguration Configuration
 @rendermode InteractiveServer
 
 <PageTitle>Solicitudes de Ofertas - CRM</PageTitle>
@@ -945,7 +947,7 @@ else
             var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
             var extension = Path.GetExtension(archivo.Name);
             var nombreArchivo = $"{timestamp}_{Path.GetFileNameWithoutExtension(archivo.Name)}{extension}";
-            var storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+            var storagePath = EmpresaContext.RutaStorage(Configuration);
             var rutaCarpeta = Path.Combine(storagePath, "ofertas", carpeta);
             
             Directory.CreateDirectory(rutaCarpeta);
@@ -1193,14 +1195,14 @@ else
             {
                 try
                 {
-                    var storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
+                    var storagePath = EmpresaContext.RutaStorage(Configuration);
                     var carpetaRespuestas = Path.Combine(storagePath, "ofertas", "respuestas");
                     if (!Directory.Exists(carpetaRespuestas))
                     {
                         Directory.CreateDirectory(carpetaRespuestas);
                     }
 
-                    var nombreArchivo = $"respuesta_{solicitudEditar.Id}_{DateTime.Now:yyyyMMddHHmmss}_{archivoRespuesta.Name}";
+                    var nombreArchivo = $"respuesta_{solicitudEditar.Id}_{DateTime.Now:yyyyMMddHHmmss}_{Path.GetFileName(archivoRespuesta.Name)}";
                     var rutaCompleta = Path.Combine(carpetaRespuestas, nombreArchivo);
 
                     await File.WriteAllBytesAsync(rutaCompleta, archivoRespuestaContenido);

@@ -1,0 +1,121 @@
+@page "/ajustes/solicitar-usuario"
+@layout Layout.MainLayout
+@using System.Net
+@using EnerfoneCRM.Components.Pages.Usuarios
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject UsuarioService UsuarioService
+@inject EmailService EmailService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Solicitar usuario - Voltia Solutions</PageTitle>
+
+@if (cargandoSesion)
+{
+    <div class="text-center mt-5"><span class="spinner-border" role="status"></span></div>
+}
+else if (!AuthService.EstaAutenticado || !AuthService.EsAdministrador || AuthService.EsSuperAdmin || AuthService.EmpresaId <= 0)
+{
+    <div class="container mt-4"><div class="alert alert-danger">Esta opción está disponible únicamente para el administrador de una empresa.</div></div>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-person-plus me-2"></i>Solicitar usuario</h2>
+                <p class="text-muted mb-0">La cuenta quedará inactiva hasta que superadmin la active.</p>
+            </div>
+            <button type="button" class="btn btn-primary" @onclick="AbrirFormulario">
+                <i class="bi bi-person-plus me-2"></i>Nueva solicitud
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(mensajeExito))
+        {
+            <div class="alert alert-success" role="status">@mensajeExito</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(mensajeError))
+        {
+            <div class="alert alert-warning" role="alert">@mensajeError</div>
+        }
+    </div>
+
+    @if (mostrarFormulario)
+    {
+        <ModalCrearUsuario ModoSolicitud="true" OnGuardar="EnviarSolicitudAsync" OnCancelar="CerrarFormulario" />
+    }
+}
+
+@code {
+    private bool cargandoSesion = true;
+    private bool mostrarFormulario;
+    private string mensajeExito = string.Empty;
+    private string mensajeError = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthService.CargarSesionAsync();
+        cargandoSesion = false;
+    }
+
+    private void AbrirFormulario()
+    {
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+        mostrarFormulario = true;
+    }
+
+    private void CerrarFormulario() => mostrarFormulario = false;
+
+    private async Task EnviarSolicitudAsync((Usuario usuario, string password, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds) datos)
+    {
+        mostrarFormulario = false;
+        mensajeExito = string.Empty;
+        mensajeError = string.Empty;
+
+        if (datos.usuario == null || AuthService.UsuarioActual == null)
+        {
+            mensajeError = "No se pudo leer la ficha del usuario. Revisa los datos e inténtalo de nuevo.";
+            return;
+        }
+
+        var (creada, mensaje) = await UsuarioService.SolicitarAltaAsync(
+            datos.usuario,
+            datos.password,
+            AuthService.UsuarioActual.Id,
+            datos.comercializadorasIds,
+            datos.operadorasIds,
+            datos.empresasAlarmasIds);
+        if (!creada)
+        {
+            mensajeError = mensaje;
+            return;
+        }
+
+        var (emailSuperAdmin, empresaNombre) = await UsuarioService.ObtenerDatosAvisoSuperAdminAsync(AuthService.EmpresaId);
+        mensajeExito = $"Solicitud registrada para {datos.usuario.NombreUsuario}. La cuenta está inactiva.";
+        if (string.IsNullOrWhiteSpace(emailSuperAdmin) || string.IsNullOrWhiteSpace(empresaNombre))
+        {
+            mensajeError = "No se pudo notificar a superadmin: falta su correo o no se pudo identificar la empresa.";
+            return;
+        }
+
+        var usuarioNombre = WebUtility.HtmlEncode(datos.usuario.NombreUsuario);
+        var nombreCompleto = WebUtility.HtmlEncode($"{datos.usuario.Nombre} {datos.usuario.Apellidos}".Trim());
+        var rol = WebUtility.HtmlEncode(datos.usuario.Rol);
+        var empresa = WebUtility.HtmlEncode(empresaNombre);
+        var urlUsuarios = new Uri(new Uri(Navigation.BaseUri), "usuarios").AbsoluteUri;
+        var cuerpo = $"<p>El administrador de <strong>{empresa}</strong> ha solicitado un usuario.</p>" +
+            $"<p><strong>Usuario:</strong> {usuarioNombre}<br><strong>Nombre:</strong> {nombreCompleto}<br><strong>Rol:</strong> {rol}</p>" +
+            $"<p>La cuenta se ha creado desactivada. Revisa su ficha y actívala desde <a href=\"{WebUtility.HtmlEncode(urlUsuarios)}\">Gestión de usuarios</a>.</p>";
+        var (enviado, detalle) = await EmailService.EnviarEmailSimpleAsync(
+            emailSuperAdmin,
+            $"Solicitud de alta de usuario - {empresaNombre}",
+            cuerpo);
+        if (!enviado)
+            mensajeError = $"El usuario quedó creado e inactivo, pero no se pudo enviar el aviso a superadmin: {detalle}";
+    }
+}

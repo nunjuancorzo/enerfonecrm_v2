@@ -1,4 +1,4 @@
-# 🚀 INSTRUCCIONES DE DESPLIEGUE - CorCRM
+# 🚀 INSTRUCCIONES DE DESPLIEGUE - Voltia Solutions
 
 **Fecha**: 3 de junio de 2026  
 **Versión**: 20260603  
@@ -8,7 +8,7 @@
 
 ## 📦 CARPETAS PUBLICADAS
 
-### ✅ **ENERFONE CRM**
+### ✅ **VOLTIA SOLUTIONS (ENERFONE)**
 - **Carpeta local**: `./publicado` (442 MB)
 - **Servidor destino**: `C:\enerfonecrm`
 - **URL**: https://enerfonecrm.com

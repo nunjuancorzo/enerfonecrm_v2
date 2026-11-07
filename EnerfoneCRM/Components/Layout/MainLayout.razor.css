@@ -9,7 +9,7 @@
 
 .main-content {
     flex: 1;
-    background-color: #f8f9fa;
+    background-color: var(--crm-canvas);
     min-width: 0;
 }
 
@@ -123,6 +123,7 @@
 
     .page ::deep .app-sidebar .crm-user-label strong,
     .page ::deep .app-sidebar .crm-user-label small {
+        color: var(--crm-sidebar-text) !important;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

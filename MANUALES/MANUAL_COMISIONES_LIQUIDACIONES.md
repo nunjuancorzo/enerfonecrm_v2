@@ -1,4 +1,4 @@
-# 📊 Manual de Comisiones y Liquidaciones - CorCRM
+# 📊 Manual de Comisiones y Liquidaciones - Voltia Solutions
 
 ## 🎯 Índice
 
@@ -13,7 +13,7 @@
 
 ## 📖 Introducción
 
-El sistema de **Comisiones y Liquidaciones** de CorCRM gestiona automáticamente el reparto de comisiones entre los diferentes niveles jerárquicos comerciales.
+El sistema de **Comisiones y Liquidaciones** de Voltia Solutions gestiona automáticamente el reparto de comisiones entre los diferentes niveles jerárquicos comerciales.
 
 ### Definiciones
 
@@ -246,4 +246,4 @@ Sí. Cada combinación usuario+proveedor puede tener su configuración, siempre 
 
 **Versión del Manual**: 2.0  
 **Fecha**: 30 de abril de 2026  
-**Sistema**: CorCRM v20260507
+**Sistema**: Voltia Solutions

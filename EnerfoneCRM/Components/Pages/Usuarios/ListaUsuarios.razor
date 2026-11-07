@@ -12,7 +12,7 @@
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<PageTitle>Enerfone CRM</PageTitle>
+<PageTitle>Voltia Solutions</PageTitle>
 
 @if (cargandoSesion)
 {
@@ -28,16 +28,20 @@ else if (!AuthService.EstaAutenticado)
         <p>Redirigiendo al login...</p>
     </div>
 }
-else if (!AuthService.EsAdministrador)
+else if (!AuthService.EsSuperAdmin)
 {
     <div class="container mt-5">
         <div class="alert alert-danger" role="alert">
             <h4 class="alert-heading">Acceso Denegado</h4>
-            <p>No tienes permisos para acceder a esta sección. Solo los administradores pueden gestionar usuarios.</p>
+            <p>Solo superadmin puede gestionar usuarios.</p>
             <hr>
             <a href="/" class="btn btn-primary">Volver al Inicio</a>
         </div>
     </div>
+}
+else if (AuthService.EmpresaId <= 0)
+{
+    <div class="container mt-5"><a href="/empresas" class="btn btn-primary">Seleccionar empresa</a></div>
 }
 else
 {
@@ -444,7 +448,7 @@ else
                 return;
             }
             
-            if (!AuthService.EsAdministrador)
+            if (!AuthService.EsSuperAdmin || AuthService.EmpresaId <= 0)
             {
                 cargandoSesion = false;
                 StateHasChanged();
@@ -685,11 +689,11 @@ else
                 <body>
                     <div class='container'>
                         <div class='header'>
-                            <h2>Credenciales de Acceso - Enerfone CRM</h2>
+                            <h2>Credenciales de Acceso - Voltia Solutions</h2>
                         </div>
                         <div class='content'>
                             <p>Hola <strong>{nombreCompleto}</strong>,</p>
-                            <p>A continuaci&oacute;n encontrar&aacute;s tus credenciales de acceso al sistema Enerfone CRM:</p>
+                            <p>A continuaci&oacute;n encontrar&aacute;s tus credenciales de acceso al sistema Voltia Solutions:</p>
                             
                             <div class='credentials'>
                                 <div class='credential-item'>
@@ -719,7 +723,7 @@ else
                         </div>
                         <div class='footer'>
                             <p>Este es un mensaje autom&aacute;tico. Por favor, no respondas a este correo.</p>
-                            <p>&copy; {DateTime.Now.Year} Enerfone CRM - Sistema de Gesti&oacute;n</p>
+                            <p>&copy; {DateTime.Now.Year} Voltia Solutions - Sistema de Gesti&oacute;n</p>
                         </div>
                     </div>
                 </body>
@@ -728,7 +732,7 @@ else
 
             var (exito, mensaje) = await EmailService.EnviarEmailSimpleAsync(
                 usuario.Email,
-                "Credenciales de Acceso - Enerfone CRM",
+                "Credenciales de Acceso - Voltia Solutions",
                 cuerpoHtml
             );
 

@@ -7,7 +7,7 @@
 @inject NavigationManager NavigationManager
 @implements IDisposable
 
-<div class="page app-shell" data-theme="@AparienciaService.PaletaActual" style="@AparienciaService.VariablesCss">
+<div class="page app-shell">
     <NavMenu />
 
     <main class="main-content">
@@ -16,6 +16,7 @@
         </article>
         <Footer />
     </main>
+    <VoltiChat />
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -28,6 +29,10 @@
     protected override async Task OnInitializedAsync()
     {
         AparienciaService.OnChange += ActualizarApariencia;
+    }
+
+    private async Task CargarAparienciaEmpresaAsync()
+    {
         try
         {
             var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
@@ -49,6 +54,7 @@
         {
             // Cargar sesión solo UNA VEZ cuando la app se carga
             await AuthService.CargarSesionAsync();
+            await CargarAparienciaEmpresaAsync();
             StateHasChanged();
         }
     }

@@ -2,11 +2,12 @@
 @using EnerfoneCRM.Services
 @inject AuthService AuthService
 @inject EnvironmentService EnvironmentService
+@inject ContratoService ContratoService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<PageTitle>Inicio Rápido - CorCRM</PageTitle>
+<PageTitle>Inicio Rápido - Voltia Solutions</PageTitle>
 
 @if (!AuthService.EsAdminOBackoffice)
 {
@@ -300,6 +301,19 @@ else
         startInfo.StandardErrorEncoding = System.Text.Encoding.UTF8;
     }
 
+    private void ConfigurarContextoEmpresaProcesoPython(System.Diagnostics.ProcessStartInfo startInfo)
+    {
+        if (!AuthService.EstaAutenticado || !AuthService.EsAdminOBackoffice || AuthService.EmpresaId <= 0)
+            throw new UnauthorizedAccessException("Selecciona una empresa válida antes de importar o exportar datos.");
+
+        startInfo.EnvironmentVariables["CRM_EMPRESA_ID"] = AuthService.EmpresaId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        startInfo.EnvironmentVariables["CRM_DB_HOST"] = EnvironmentService.GetDatabaseHost();
+        startInfo.EnvironmentVariables["CRM_DB_PORT"] = EnvironmentService.GetDatabasePort().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        startInfo.EnvironmentVariables["CRM_DB_NAME"] = EnvironmentService.GetDatabaseName();
+        startInfo.EnvironmentVariables["CRM_DB_USER"] = EnvironmentService.GetDatabaseUser();
+        startInfo.EnvironmentVariables["CRM_DB_PASSWORD"] = EnvironmentService.GetDatabasePassword();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !verificacionRealizada)
@@ -429,6 +443,7 @@ else
                     CreateNoWindow = true
                 }
             };
+            ConfigurarContextoEmpresaProcesoPython(proceso.StartInfo);
 
             proceso.Start();
             string salida = await proceso.StandardOutput.ReadToEndAsync();
@@ -452,6 +467,8 @@ else
                     : "El script terminó con errores. Revisa los logs del servidor.";
                 return;
             }
+
+            ContratoService.NotificarContratosActualizados();
 
             if (string.IsNullOrWhiteSpace(salida))
             {
@@ -595,6 +612,7 @@ else
                     CreateNoWindow = true
                 }
             };
+            ConfigurarContextoEmpresaProcesoPython(proceso.StartInfo);
 
             proceso.Start();
             string salida = await proceso.StandardOutput.ReadToEndAsync();
@@ -688,18 +706,13 @@ else
                 throw new Exception($"No se encontró el script exportar_servicios.py");
             }
 
-            // Obtener nombre de base de datos según entorno
-            var databaseName = EnvironmentService.GetDatabaseName();
-            var dbUser = EnvironmentService.GetDatabaseUser();
-            var dbPassword = EnvironmentService.GetDatabasePassword();
-
             // Ejecutar script de Python
             var proceso = new System.Diagnostics.Process
             {
                 StartInfo = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = ObtenerRutaPython(),
-                    Arguments = $"exportar_servicios.py \"{databaseName}\" \"{dbUser}\" \"{dbPassword}\"",
+                    Arguments = "exportar_servicios.py",
                     WorkingDirectory = directorioTrabajo,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -707,6 +720,7 @@ else
                     CreateNoWindow = true
                 }
             };
+            ConfigurarContextoEmpresaProcesoPython(proceso.StartInfo);
 
             proceso.Start();
             string salida = await proceso.StandardOutput.ReadToEndAsync();

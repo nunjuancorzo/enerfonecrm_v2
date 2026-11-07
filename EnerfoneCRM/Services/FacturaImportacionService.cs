@@ -9,7 +9,7 @@ namespace EnerfoneCRM.Services;
 
 public class FacturaImportacionService
 {
-    public const int MaximoBytes = 10 * 1024 * 1024;
+    public const int MaximoBytes = 50 * 1024 * 1024;
     public const int MaximoPaginas = 20;
     private const string Numero = @"[-+]?\d+(?:[.,]\d+)*";
     private const string Fecha = @"(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{4}|\d{4}-\d{2}-\d{2}|\d{1,2}\s+de\s+[a-z]+\s+de\s+\d{4})";
@@ -21,7 +21,7 @@ public class FacturaImportacionService
     public async Task<FacturaImportada> ExtraerAsync(byte[] archivo, string nombre, bool permitirProveedorExterno = false)
     {
         if (archivo.Length == 0 || archivo.Length > MaximoBytes)
-            throw new ArgumentException("El archivo está vacío o supera los 10 MB.");
+            throw new ArgumentException("El archivo está vacío o supera los 50 MB.");
         var mime = OcrService.ObtenerTipoDocumento(archivo);
         var esPdf = mime == "application/pdf";
         var nombreSeguro = mime switch { "application/pdf" => "factura.pdf", "image/png" => "factura.png", "image/webp" => "factura.webp", _ => "factura.jpg" };
@@ -212,7 +212,7 @@ public class FacturaImportacionService
         return errores;
     }
 
-    public static void Revisar(FacturaImportada factura)
+    public static void Revisar(FacturaImportada factura, bool avisarDatosNoDetectados = true)
     {
         foreach (var campo in factura.Campos.Where(campo => campo.Seleccionado && !string.IsNullOrWhiteSpace(campo.Valor)))
         {
@@ -228,7 +228,7 @@ public class FacturaImportacionService
             var consumos = factura.Campos.Where(campo => campo.Clave.StartsWith("consumo_p") && campo.Seleccionado && TryNumero(campo.Valor, out _)).ToList();
             if (consumos.Count > 0 && Math.Abs(consumos.Sum(campo => { TryNumero(campo.Valor, out var consumo); return consumo; }) - total) > 0.1m)
                 Avisar(factura, "Los consumos por periodo no suman el consumo total. Revisa que sean de la misma factura.");
-            if (consumos.Count == 0) Avisar(factura, "Solo se conoce el consumo total; no se repartirá entre periodos eléctricos automáticamente.");
+            if (avisarDatosNoDetectados && consumos.Count == 0) Avisar(factura, "Solo se conoce el consumo total; no se repartirá entre periodos eléctricos automáticamente.");
         }
         if (string.Equals(factura.Obtener("tipo_suministro"), "Mixto", StringComparison.OrdinalIgnoreCase))
         {
@@ -237,8 +237,9 @@ public class FacturaImportacionService
             campoTotal.Seleccionado = false;
             factura.Campos.First(campo => campo.Clave == "consumo_total").Seleccionado = false;
         }
-        foreach (var clave in new[] { "fecha_inicio", "fecha_fin", "total_factura" })
-            if (string.IsNullOrWhiteSpace(factura.Obtener(clave))) Avisar(factura, $"No se ha identificado {factura.Campos.First(campo => campo.Clave == clave).Etiqueta.ToLowerInvariant()}.");
+        if (avisarDatosNoDetectados)
+            foreach (var clave in new[] { "fecha_inicio", "fecha_fin", "total_factura" })
+                if (string.IsNullOrWhiteSpace(factura.Obtener(clave))) Avisar(factura, $"No se ha identificado {factura.Campos.First(campo => campo.Clave == clave).Etiqueta.ToLowerInvariant()}.");
     }
 
     public static bool EsNumerico(string clave) => clave != "cups" && !clave.StartsWith("fecha_") && clave != "tipo_suministro" &&

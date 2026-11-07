@@ -90,7 +90,7 @@ tesseract --list-langs | grep spa
 
 ---
 
-## ⚙️ Configuración en CorCRM
+## ⚙️ Configuración en Voltia Solutions
 
 ### Opción 1: Tesseract como Proveedor Principal (Recomendado para comenzar)
 

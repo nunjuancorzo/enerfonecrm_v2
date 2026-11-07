@@ -162,7 +162,7 @@ SELECT DISTINCT provincia FROM codigos_postales ORDER BY provincia;
 
 ## ✅ Listo para Usar
 
-Una vez importado, el sistema CorCRM podrá:
+Una vez importado, Voltia Solutions podrá:
 
 - ✨ Autocompletar códigos postales en formularios de clientes
 - ✨ Autocompletar ciudad y provincia al seleccionar un CP

@@ -440,7 +440,7 @@ UPDATE configuracion_empresa SET
     smtp_password = 'tu_password_app',
     smtp_usar_ssl = TRUE,
     smtp_email_desde = 'tu_email@gmail.com',
-    smtp_nombre_desde = 'Enerfone CRM';
+    smtp_nombre_desde = 'Voltia Solutions';
 ```
 
 ---
@@ -741,4 +741,4 @@ Para soporte técnico o reportar bugs:
 
 **Versión**: 1.0.0  
 **Fecha**: 10 de junio de 2026  
-**Autor**: CorCRM Development Team
+**Autor**: Voltia Solutions Development Team

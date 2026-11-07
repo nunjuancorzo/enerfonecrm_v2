@@ -1,0 +1,74 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@using System.Text.Json
+@inject ExplicacionComparativaService ExplicacionService
+@implements IDisposable
+
+<section class="border-bottom pb-3 mb-4">
+    <AutorizacionGeminiEmpresa OnAutorizacion="CambiarAutorizacion" Deshabilitado="procesando" />
+    <button class="btn btn-outline-primary" @onclick="Explicar" disabled="@(procesando || !consentimiento || Datos.Ofertas.Count == 0)">
+        <i class="bi bi-stars me-2"></i>Explicar comparativa
+    </button>
+    @if (procesando)
+    {
+        <span class="ms-3" role="status"><span class="spinner-border spinner-border-sm me-2"></span>Preparando explicacion...</span>
+    }
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger mt-3" role="alert">@error</div>
+    }
+    @if (!string.IsNullOrEmpty(respuesta))
+    {
+        <p class="mt-3 mb-0" style="white-space: pre-wrap; overflow-wrap: anywhere;">@respuesta</p>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public ComparativaIA Datos { get; set; } = default!;
+    private string firma = string.Empty;
+    private string? respuesta;
+    private string? error;
+    private bool consentimiento;
+    private bool procesando;
+    private CancellationTokenSource? cancelacion;
+
+    protected override void OnParametersSet()
+    {
+        var nuevaFirma = JsonSerializer.Serialize(Datos);
+        if (nuevaFirma == firma) return;
+        cancelacion?.Cancel();
+        firma = nuevaFirma;
+        respuesta = null;
+        error = null;
+    }
+
+    private void CambiarAutorizacion(bool autorizada)
+    {
+        consentimiento = autorizada;
+        if (!autorizada) cancelacion?.Cancel();
+    }
+
+    private async Task Explicar()
+    {
+        if (procesando || !consentimiento) return;
+        procesando = true;
+        error = null;
+        var firmaSolicitud = firma;
+        using var plazo = new CancellationTokenSource();
+        cancelacion = plazo;
+        try
+        {
+            var texto = await ExplicacionService.ExplicarAsync(Datos, consentimiento, plazo.Token);
+            if (firma == firmaSolicitud) respuesta = texto;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception excepcion) when (excepcion is InvalidOperationException or UnauthorizedAccessException or ArgumentException)
+        {
+            error = excepcion.Message;
+        }
+        catch { error = "No se pudo preparar la explicacion. Intentalo de nuevo."; }
+        finally { cancelacion = null; procesando = false; }
+    }
+
+    public void Dispose() => cancelacion?.Cancel();
+}

@@ -4,12 +4,15 @@ namespace EnerfoneCRM.Services;
 
 public class IncidenciaImagenService
 {
-    private readonly string carpeta;
+    private readonly IConfiguration _configuration;
+    private readonly EmpresaContext _empresa;
+    private string carpeta => Path.Combine(_empresa.RutaStorage(_configuration), "incidencias");
+    public string UrlImagen(string nombre) => _empresa.UrlStorage(_configuration, $"incidencias/{Uri.EscapeDataString(nombre)}");
 
-    public IncidenciaImagenService(IConfiguration configuracion)
+    public IncidenciaImagenService(IConfiguration configuracion, EmpresaContext empresa)
     {
-        var storage = configuracion.GetValue<string>("StoragePath");
-        carpeta = Path.Combine(string.IsNullOrWhiteSpace(storage) ? Path.Combine(Directory.GetCurrentDirectory(), "storage") : storage, "incidencias");
+        _configuration = configuracion;
+        _empresa = empresa;
     }
 
     public async Task<string> GuardarAsync(ImagenIncidenciaAdjunta imagen)

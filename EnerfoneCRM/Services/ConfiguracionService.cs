@@ -7,10 +7,12 @@ namespace EnerfoneCRM.Services;
 public class ConfiguracionService
 {
     private readonly DbContextProvider _dbContextProvider;
+    private readonly AuthService _authService;
 
-    public ConfiguracionService(DbContextProvider dbContextProvider)
+    public ConfiguracionService(DbContextProvider dbContextProvider, AuthService authService)
     {
         _dbContextProvider = dbContextProvider;
+        _authService = authService;
     }
 
     public async Task<ConfiguracionEmpresa?> ObtenerConfiguracionAsync()
@@ -83,8 +85,51 @@ public class ConfiguracionService
         }
     }
 
+    public async Task<(bool exito, string mensaje)> GuardarDatosEmpresaAsync(ConfiguracionEmpresa configuracion)
+    {
+        if (!_authService.EstaAutenticado || !_authService.EsAdministrador || _authService.EsSuperAdmin || _authService.EmpresaId <= 0)
+            return (false, "Solo el administrador de la empresa puede modificar sus datos generales.");
+
+        try
+        {
+            await using var context = _dbContextProvider.CreateDbContext();
+            var existente = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            if (existente == null)
+            {
+                existente = new ConfiguracionEmpresa();
+                context.ConfiguracionesEmpresa.Add(existente);
+            }
+
+            existente.NombreEmpresa = configuracion.NombreEmpresa;
+            existente.Cif = configuracion.Cif;
+            existente.Direccion = configuracion.Direccion;
+            existente.CodigoPostal = configuracion.CodigoPostal;
+            existente.Ciudad = configuracion.Ciudad;
+            existente.Provincia = configuracion.Provincia;
+            existente.Pais = configuracion.Pais;
+            existente.Telefono = configuracion.Telefono;
+            existente.Email = configuracion.Email;
+            existente.Web = configuracion.Web;
+            existente.LogoUrl = configuracion.LogoUrl;
+            existente.FechaActualizacion = DateTime.Now;
+
+            context.PermitirEdicionDatosEmpresa = true;
+            await context.SaveChangesAsync();
+            return (true, "Datos de empresa guardados correctamente.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error al guardar los datos de empresa: {ex.Message}");
+        }
+    }
+
     public async Task<(bool exito, string mensaje)> GuardarPaletaAsync(PaletaVisual paleta, string usuario)
     {
+        if (!_authService.EstaAutenticado ||
+            (!_authService.EsAdministrador && !_authService.EsSuperAdmin) ||
+            _authService.EmpresaId <= 0)
+            return (false, "Solo el administrador de una empresa seleccionada puede cambiar la paleta.");
+
         if (!AparienciaService.EsPaletaValida(paleta.Id) ||
             paleta.Id == AparienciaService.PaletaPersonalizada &&
             (!AparienciaService.EsColorValido(paleta.Acento) ||
@@ -118,6 +163,7 @@ public class ConfiguracionService
             configuracion.TemaActualizadoPor = usuario;
             configuracion.TemaActualizadoEn = DateTime.Now;
             configuracion.FechaActualizacion = DateTime.Now;
+            context.PermitirEdicionPaletaEmpresa = true;
             await context.SaveChangesAsync();
             return (true, "Apariencia aplicada a la empresa.");
         }

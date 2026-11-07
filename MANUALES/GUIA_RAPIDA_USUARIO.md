@@ -1,4 +1,4 @@
-# 📘 Guía Rápida de Usuario - Enerfone CRM
+# 📘 Guía Rápida de Usuario - Voltia Solutions
 
 > Una guía simple y visual para empezar a usar el sistema rápidamente
 
@@ -340,7 +340,7 @@ Menú de usuario → "Cerrar Sesión"
 
 **Versión**: 1.0  
 **Fecha**: Febrero 2026  
-**CRM**: Enerfone CRM v2
+**CRM**: Voltia Solutions
 
 ---
 

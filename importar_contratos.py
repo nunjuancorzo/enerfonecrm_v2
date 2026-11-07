@@ -23,6 +23,15 @@ from mysql.connector import Error
 def obtener_config_bd():
     """Lee la configuración de la base de datos desde appsettings.Production.json"""
     try:
+        if all(os.environ.get(key) is not None for key in ("CRM_DB_HOST", "CRM_DB_NAME", "CRM_DB_USER", "CRM_DB_PASSWORD")):
+            return {
+                'host': os.environ['CRM_DB_HOST'],
+                'port': int(os.environ.get('CRM_DB_PORT', '3306')),
+                'database': os.environ['CRM_DB_NAME'],
+                'user': os.environ['CRM_DB_USER'],
+                'password': os.environ['CRM_DB_PASSWORD']
+            }
+
         config_file = 'appsettings.Production.json'
         if not os.path.exists(config_file):
             print(f"[ERROR] Error: No se encuentra {config_file} en el directorio actual")
@@ -43,6 +52,7 @@ def obtener_config_bd():
         user_match = re.search(r'User=([^;]+)', connection_string)
         password_match = re.search(r'Password=([^;]+)', connection_string)
         host_match = re.search(r'Server=([^;]+)', connection_string)
+        port_match = re.search(r'Port=([^;]+)', connection_string)
         
         if not db_match:
             print(f"[ERROR] Error: No se pudo extraer el nombre de la base de datos")
@@ -50,6 +60,7 @@ def obtener_config_bd():
         
         return {
             'host': host_match.group(1) if host_match else 'localhost',
+            'port': int(port_match.group(1)) if port_match else 3306,
             'database': db_match.group(1),
             'user': user_match.group(1) if user_match else 'root',
             'password': password_match.group(1) if password_match else ''
@@ -70,6 +81,13 @@ archivo_excel_arg = sys.argv[2]
 
 # Configuración de la base de datos (automática)
 DB_CONFIG = obtener_config_bd()
+try:
+    EMPRESA_ID = int(os.environ.get('CRM_EMPRESA_ID', '0'))
+except ValueError:
+    EMPRESA_ID = 0
+if EMPRESA_ID <= 0:
+    print("[ERROR] No se recibió una empresa activa para importar contratos")
+    sys.exit(1)
 
 def limpiar_valor(valor):
     """Limpia valores None, NaN o vacíos"""
@@ -120,14 +138,14 @@ def obtener_id_cliente_por_dni(cursor, dni_cif):
     """Obtiene el ID del cliente a partir de su DNI/CIF"""
     if not dni_cif:
         return None
-    cursor.execute("SELECT id FROM clientes_simple WHERE dni_cif = %s", (dni_cif,))
+    cursor.execute("SELECT id FROM clientes_simple WHERE dni_cif = %s AND id_empresa = %s", (dni_cif, EMPRESA_ID))
     resultado = cursor.fetchone()
     cursor.fetchall()  # Consumir cualquier resultado restante
     return resultado[0] if resultado else None
 
 def verificar_cliente_existe(cursor, id_cliente):
     """Verifica si un cliente existe en la base de datos"""
-    cursor.execute("SELECT COUNT(*) FROM clientes_simple WHERE id = %s", (id_cliente,))
+    cursor.execute("SELECT COUNT(*) FROM clientes_simple WHERE id = %s AND id_empresa = %s", (id_cliente, EMPRESA_ID))
     return cursor.fetchone()[0] > 0
 
 def importar_contratos_energia(archivo_excel):
@@ -170,6 +188,7 @@ def importar_contratos_energia(archivo_excel):
                 
                 # Preparar datos
                 datos = {
+                    'empresa_id': EMPRESA_ID,
                     'tipo': 'Energía',
                     'id_cliente': id_cliente,
                     'estado': limpiar_valor(row.get('Estado')) or 'Pendiente',
@@ -193,12 +212,12 @@ def importar_contratos_energia(archivo_excel):
                 # SQL de inserción
                 sql = """
                     INSERT INTO contratos (
-                        tipo, idCliente, estado, comercial, fecha_alta, fecha_creacion,
+                        id_empresa, tipo, idCliente, estado, comercial, fecha_alta, fecha_creacion,
                         estadoServicio, en_Comercializadora, en_Tarifa, en_CUPS, en_CUPSGas,
                         en_Servicios, en_IBAN, tipoOperacion, potencia_contratada_p1,
                         consumo_ultimos_12_meses, comision, observaciones_estado
                     ) VALUES (
-                        %(tipo)s, %(id_cliente)s, %(estado)s, %(comercial)s, %(fecha_alta)s,
+                        %(empresa_id)s, %(tipo)s, %(id_cliente)s, %(estado)s, %(comercial)s, %(fecha_alta)s,
                         %(fecha_creacion)s, %(estado_servicio)s, %(en_comercializadora)s,
                         %(en_tarifa)s, %(en_cups)s, %(en_cups_gas)s, %(en_servicios)s,
                         %(en_iban)s, %(tipo_operacion)s, %(potencia_contratada)s,
@@ -286,6 +305,7 @@ def importar_contratos_telefonia(archivo_excel):
                 
                 # Preparar datos básicos
                 datos = {
+                    'empresa_id': EMPRESA_ID,
                     'tipo': 'Telefonía',
                     'id_cliente': id_cliente,
                     'estado': limpiar_valor(row.get('Estado')) or 'Pendiente',
@@ -315,12 +335,12 @@ def importar_contratos_telefonia(archivo_excel):
                             datos[f'codigo_icc_linea{num}_tel'] = linea['icc']
                 
                 # Construir SQL dinámicamente
-                campos = ['tipo', 'idCliente', 'estado', 'comercial', 'fecha_alta', 'fecha_creacion',
+                campos = ['id_empresa', 'tipo', 'idCliente', 'estado', 'comercial', 'fecha_alta', 'fecha_creacion',
                          'operadora_tel', 'Tarifa_tel', 'TipoTarifa_tel', 'fijo_tel',
                          'LineaMovilPrincipal', 'tipo_linea_movil_principal', 'codigo_icc_principal',
                          'numero_lineas_tel', 'iban', 'comision', 'observaciones_estado']
                 
-                placeholders = ['%(tipo)s', '%(id_cliente)s', '%(estado)s', '%(comercial)s',
+                placeholders = ['%(empresa_id)s', '%(tipo)s', '%(id_cliente)s', '%(estado)s', '%(comercial)s',
                               '%(fecha_alta)s', '%(fecha_creacion)s', '%(operadora_tel)s',
                               '%(tarifa_tel)s', '%(tipo_tarifa_tel)s', '%(fijo_tel)s',
                               '%(linea_movil_principal)s', '%(tipo_linea_movil_principal)s',
@@ -400,6 +420,7 @@ def importar_contratos_alarmas(archivo_excel):
                 
                 # Preparar datos
                 datos = {
+                    'empresa_id': EMPRESA_ID,
                     'tipo': 'Alarmas',
                     'id_cliente': id_cliente,
                     'estado': limpiar_valor(row.get('Estado')) or 'Pendiente',
@@ -428,14 +449,14 @@ def importar_contratos_alarmas(archivo_excel):
                 # SQL de inserción
                 sql = """
                     INSERT INTO contratos (
-                        tipo, idCliente, estado, comercial, fecha_alta, fecha_creacion,
+                        id_empresa, tipo, idCliente, estado, comercial, fecha_alta, fecha_creacion,
                         tipo_alarma, subtipo_inmueble, empresa_alarma, kit_alarma,
                         opcionales_alarma, campana_alarma, tiene_contrato_anterior,
                         compania_anterior, direccion_instalacion_alarma, numero_instalacion,
                         piso_instalacion, codigo_postal_instalacion, provincia_instalacion,
                         localidad_instalacion, iban, comision, observaciones_alarma
                     ) VALUES (
-                        %(tipo)s, %(id_cliente)s, %(estado)s, %(comercial)s, %(fecha_alta)s,
+                        %(empresa_id)s, %(tipo)s, %(id_cliente)s, %(estado)s, %(comercial)s, %(fecha_alta)s,
                         %(fecha_creacion)s, %(tipo_alarma)s, %(subtipo_inmueble)s,
                         %(empresa_alarma)s, %(kit_alarma)s, %(opcionales_alarma)s,
                         %(campana_alarma)s, %(tiene_contrato_anterior)s, %(compania_anterior)s,

@@ -7,7 +7,7 @@
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
-<PageTitle>Accesos - Enerfone CRM</PageTitle>
+<PageTitle>Accesos - Voltia Solutions</PageTitle>
 
 @if (cargandoSesion)
 {
@@ -23,7 +23,7 @@ else if (!AuthService.EstaAutenticado)
         <p>Redirigiendo al login...</p>
     </div>
 }
-else if (!AuthService.EsAdministrador)
+else if (!AuthService.EsSuperAdmin)
 {
     <div class="container mt-5">
         <div class="alert alert-danger" role="alert">
@@ -170,7 +170,7 @@ else
                 return;
             }
 
-            if (!AuthService.EsAdministrador)
+            if (!AuthService.EsSuperAdmin)
             {
                 cargandoSesion = false;
                 StateHasChanged();

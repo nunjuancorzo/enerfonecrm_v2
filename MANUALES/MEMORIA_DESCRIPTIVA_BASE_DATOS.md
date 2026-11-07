@@ -1,5 +1,5 @@
 # MEMORIA DESCRIPTIVA DE LA BASE DE DATOS
-## CorCRM - Sistema de Gestión de Relaciones con Clientes
+## Voltia Solutions - Sistema de Gestión de Relaciones con Clientes
 
 **Versión**: 2.0  
 **Fecha**: 1 de junio de 2026  
@@ -1306,5 +1306,5 @@ mysqlbinlog mysql-bin.000001 | mysql -u usuario -p EnerfoneCRM
 ---
 
 **Documento generado**: 1 de junio de 2026  
-**Autor**: Equipo de Desarrollo CorCRM  
+**Autor**: Equipo de Desarrollo Voltia Solutions
 **Confidencialidad**: Documento interno

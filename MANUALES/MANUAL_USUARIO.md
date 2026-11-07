@@ -1,4 +1,4 @@
-# Manual de Usuario - Enerfone CRM
+# Manual de Usuario - Voltia Solutions
 
 ## Índice
 1. [Introducción](#introducción)
@@ -15,7 +15,7 @@
 
 ## Introducción
 
-Enerfone CRM es una aplicación web diseñada para la gestión integral de clientes y contratos en los sectores de energía, telefonía y alarmas. La aplicación permite registrar clientes, crear diferentes tipos de contratos, hacer seguimiento del estado de los mismos, gestionar documentación adjunta y mantener un histórico completo de observaciones.
+Voltia Solutions es una aplicación web diseñada para la gestión integral de clientes y contratos en los sectores de energía, telefonía y alarmas. La aplicación permite registrar clientes, crear diferentes tipos de contratos, hacer seguimiento del estado de los mismos, gestionar documentación adjunta y mantener un histórico completo de observaciones.
 
 ---
 

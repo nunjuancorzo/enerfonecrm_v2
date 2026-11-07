@@ -6,9 +6,10 @@
 @inject ConfiguracionService ConfiguracionService
 @inject AparienciaService AparienciaService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
-<PageTitle>Enerfone CRM</PageTitle>
+<PageTitle>Voltia Solutions</PageTitle>
 
 @if (cargandoSesion)
 {
@@ -24,12 +25,12 @@ else if (!AuthService.EstaAutenticado)
         <p>Redirigiendo al login...</p>
     </div>
 }
-else if (!AuthService.EsAdministrador && !AuthService.EsBackoffice)
+else if (!AuthService.EsSuperAdmin && !AuthService.EsAdministrador)
 {
     <div class="container mt-5">
         <div class="alert alert-danger" role="alert">
             <h4 class="alert-heading">Acceso Denegado</h4>
-            <p>No tienes permisos para acceder a esta sección. Solo los administradores y usuarios con permisos pueden gestionar la configuración.</p>
+            <p>No tienes permisos para gestionar la configuración de empresa.</p>
             <hr>
             <a href="/" class="btn btn-primary">Volver al Inicio</a>
         </div>
@@ -71,7 +72,7 @@ else
         }
         else
         {
-            @if (AuthService.EsAdministrador)
+            @if (PuedeGestionarPaleta)
             {
                 <div class="row mb-4">
                     <div class="col-lg-10 mx-auto">
@@ -180,8 +181,7 @@ else
                                 <div class="row mb-3">
                                     <div class="col-md-8">
                                         <label class="form-label">Nombre de la Empresa *</label>
-                                        <InputText class="form-control" @bind-Value="configuracion.NombreEmpresa" />
-                                        <ValidationMessage For="@(() => configuracion.NombreEmpresa)" />
+                                        <InputText @bind-Value="configuracion.NombreEmpresa" class="form-control" maxlength="500" />
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">CIF/NIF</label>
@@ -237,6 +237,8 @@ else
                                     <InputText class="form-control" @bind-Value="configuracion.Web" placeholder="https://www.ejemplo.com" />
                                 </div>
 
+                                @if (AuthService.EsSuperAdmin)
+                                {
                                 <hr class="my-4" />
 
                                 <h5 class="mb-3"><i class="bi bi-envelope-at me-2"></i>Configuración de Email SMTP</h5>
@@ -338,6 +340,7 @@ else
                                         </label>
                                     </div>
                                 </div>
+                                }
 
                                 <hr class="my-4" />
 
@@ -419,6 +422,7 @@ else
     private bool guardandoPaleta;
     private bool errorApariencia;
     private string mensajeApariencia = string.Empty;
+    private bool PuedeGestionarPaleta => AuthService.EmpresaId > 0 && (AuthService.EsAdministrador || AuthService.EsSuperAdmin);
     private IReadOnlyList<PaletaVisual> PaletasDisponibles => AparienciaService.Paletas
         .Append(AparienciaService.CrearPersonalizada(colorAcento, colorBarra, colorFondo))
         .ToArray();
@@ -439,7 +443,7 @@ else
                 return;
             }
             
-            if (!AuthService.EsAdministrador && !AuthService.EsBackoffice)
+            if (!AuthService.EsSuperAdmin && !AuthService.EsAdministrador)
             {
                 cargandoSesion = false;
                 StateHasChanged();
@@ -472,6 +476,7 @@ else
             colorBarra = AparienciaService.EsColorValido(configuracion.TemaColorBarra) ? configuracion.TemaColorBarra! : paletaPersonalizadaBase.BarraLateral;
             colorFondo = AparienciaService.EsColorValido(configuracion.TemaColorFondo) ? configuracion.TemaColorFondo! : paletaPersonalizadaBase.Fondo;
             AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
+            await AplicarAparienciaEnDocumentoAsync();
         }
         catch (Exception ex)
         {
@@ -491,7 +496,9 @@ else
 
         try
         {
-            var (exito, mensaje) = await ConfiguracionService.GuardarConfiguracionAsync(configuracion);
+            var (exito, mensaje) = AuthService.EsSuperAdmin
+                ? await ConfiguracionService.GuardarConfiguracionAsync(configuracion)
+                : await ConfiguracionService.GuardarDatosEmpresaAsync(configuracion);
             
             if (exito)
             {
@@ -513,35 +520,39 @@ else
         }
     }
 
-    private void PrevisualizarPaleta(string paleta)
+    private async Task PrevisualizarPaleta(string paleta)
     {
-        if (!AuthService.EsAdministrador || !AparienciaService.EsPaletaValida(paleta))
+        if (!PuedeGestionarPaleta || !AparienciaService.EsPaletaValida(paleta))
             return;
 
         paletaSeleccionada = paleta;
         mensajeApariencia = string.Empty;
-        AplicarPrevisualizacion();
+        await AplicarPrevisualizacionAsync();
     }
 
-    private void PrevisualizarColoresPersonalizados()
+    private async Task PrevisualizarColoresPersonalizados()
     {
         if (paletaSeleccionada == AparienciaService.PaletaPersonalizada)
-            AplicarPrevisualizacion();
+            await AplicarPrevisualizacionAsync();
     }
 
-    private void AplicarPrevisualizacion() =>
+    private async Task AplicarPrevisualizacionAsync()
+    {
         AparienciaService.Aplicar(paletaSeleccionada, colorAcento, colorBarra, colorFondo);
+        await AplicarAparienciaEnDocumentoAsync(false);
+    }
 
-    private void CancelarPrevisualizacion()
+    private async Task CancelarPrevisualizacion()
     {
         paletaSeleccionada = paletaAplicada;
         mensajeApariencia = string.Empty;
         AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
+        await AplicarAparienciaEnDocumentoAsync();
     }
 
     private async Task AplicarPaletaAsync()
     {
-        if (!AuthService.EsAdministrador || guardandoPaleta || !HayCambiosDePaleta)
+        if (!PuedeGestionarPaleta || guardandoPaleta || !HayCambiosDePaleta)
             return;
 
         guardandoPaleta = true;
@@ -575,6 +586,7 @@ else
                 configuracion.TemaActualizadoPor = AuthService.UsuarioActual?.NombreUsuario;
                 configuracion.TemaActualizadoEn = DateTime.Now;
                 AparienciaService.Aplicar(nuevaPaleta.Id, nuevaPaleta.Acento, nuevaPaleta.BarraLateral, nuevaPaleta.Fondo);
+                await AplicarAparienciaEnDocumentoAsync();
                 mensajeApariencia = resultado.mensaje;
             }
             else
@@ -582,6 +594,7 @@ else
                 errorApariencia = true;
                 paletaSeleccionada = paletaAplicada;
                 AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
+                await AplicarAparienciaEnDocumentoAsync();
                 mensajeApariencia = resultado.mensaje;
             }
         }
@@ -590,6 +603,7 @@ else
             errorApariencia = true;
             paletaSeleccionada = paletaAplicada;
             AparienciaService.Aplicar(paletaAplicada, configuracion.TemaColorAcento, configuracion.TemaColorBarra, configuracion.TemaColorFondo);
+            await AplicarAparienciaEnDocumentoAsync();
             mensajeApariencia = $"Error al aplicar la apariencia: {ex.Message}";
         }
         finally
@@ -609,7 +623,7 @@ else
         colorAcento = anterior.Acento;
         colorBarra = anterior.BarraLateral;
         colorFondo = anterior.Fondo;
-        AplicarPrevisualizacion();
+        await AplicarPrevisualizacionAsync();
         if (HayCambiosDePaleta)
             await AplicarPaletaAsync();
         else
@@ -618,6 +632,11 @@ else
 
     private string NombrePaleta(string id) =>
         AparienciaService.Paletas.FirstOrDefault(paleta => paleta.Id == id)?.Nombre ?? id;
+
+    private ValueTask AplicarAparienciaEnDocumentoAsync(bool persistir = true) =>
+        AuthService.EsSuperAdmin
+            ? JS.InvokeVoidAsync("voltiaApariencia.establecerModo", "superadmin")
+            : JS.InvokeVoidAsync("voltiaApariencia.aplicar", PaletaSeleccionada, AuthService.EmpresaId, persistir);
 
     private void Cancelar()
     {

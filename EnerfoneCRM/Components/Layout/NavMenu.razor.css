@@ -189,6 +189,18 @@ a.dropdown-item:active:focus,
     color: #9E9E9E !important;
 }
 
+.app-sidebar .dropdown-menu .dropdown-item,
+.app-sidebar .dropdown-menu .dropdown-item .bi {
+    color: var(--crm-sidebar-text) !important;
+}
+
+.app-sidebar .dropdown-menu .dropdown-item:hover,
+.app-sidebar .dropdown-menu .dropdown-item:focus-visible,
+.app-sidebar .dropdown-menu .dropdown-item:active {
+    background: color-mix(in srgb, var(--crm-sidebar-text) 12%, transparent) !important;
+    color: var(--crm-sidebar-text) !important;
+}
+
 /* Colores de iconos en submenús */
 .dropdown-submenu .dropdown-menu .dropdown-item .bi-lightning-charge-fill {
     color: #FFC107 !important;

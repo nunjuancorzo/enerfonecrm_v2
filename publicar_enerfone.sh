@@ -1,12 +1,12 @@
 #!/bin/bash
 # ==============================================================================
-# Script de publicación para ENERFONE CRM (versión Bash para macOS)
+# Script de publicación de Voltia Solutions para el entorno Enerfone (macOS)
 # Destino: C:\enerfonecrm
 # Base de datos: enerfone_pre
 # ==============================================================================
 
 echo "========================================"
-echo "PUBLICACIÓN ENERFONE CRM"
+echo "PUBLICACIÓN VOLTIA SOLUTIONS - ENERFONE"
 echo "========================================"
 echo ""
 
@@ -58,7 +58,7 @@ cat > "$PUBLISH_PATH/web.config" << 'EOF'
       </aspNetCore>
       <security>
         <requestFiltering>
-          <requestLimits maxAllowedContentLength="10485760" />
+          <requestLimits maxAllowedContentLength="52428800" />
         </requestFiltering>
       </security>
     </system.webServer>

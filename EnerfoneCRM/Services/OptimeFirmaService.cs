@@ -235,6 +235,7 @@ public class OptimeFirmaService
     public async Task<OptimeFirma?> ObtenerPorTokenAsync(string token)
     {
         if (string.IsNullOrWhiteSpace(token) || token.Length > 256) return null;
+        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<OptimeFirma>(token)) return null;
 
         await using var context = _dbContextProvider.CreateDbContext();
         var hash = _tokenService.Hash(token);
@@ -270,6 +271,7 @@ public class OptimeFirmaService
         if (string.IsNullOrWhiteSpace(token) || token.Length > 256)
             return new(false, "El enlace no es válido o ha caducado.");
 
+        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<OptimeFirma>(token)) return new(false, "El enlace no es valido.");
         await using var context = _dbContextProvider.CreateDbContext();
         var hash = _tokenService.Hash(token);
         var firma = await context.OptimeFirmas.FirstOrDefaultAsync(f => f.TokenHash == hash);

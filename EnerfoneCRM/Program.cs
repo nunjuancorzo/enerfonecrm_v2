@@ -5,11 +5,14 @@ using Microsoft.EntityFrameworkCore;
 using Blazored.SessionStorage;
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Agregar HttpContextAccessor para acceder al hostname
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection();
 
 // Configurar MySQL con selección dinámica de base de datos
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
@@ -46,13 +49,25 @@ builder.Services.AddScoped<ApplicationDbContext>(serviceProvider =>
     var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
     optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
     
-    return new ApplicationDbContext(optionsBuilder.Options);
+    var empresa = serviceProvider.GetRequiredService<EmpresaContext>();
+    var context = new ApplicationDbContext(optionsBuilder.Options, empresa.EmpresaId, empresa.EsSuperAdmin);
+    serviceProvider.GetRequiredService<DbContextProvider>().RegistrarEventos(context);
+    return context;
 });
 
 // Servicios
 builder.Services.AddBlazoredSessionStorage();
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<GeminiService>();
+builder.Services.AddScoped<GeminiConfiguracionService>();
+builder.Services.AddScoped<GeminiFacturaService>();
+builder.Services.AddScoped<GeminiDniService>();
+builder.Services.AddScoped<ExplicacionComparativaService>();
+builder.Services.AddScoped<VoltiService>();
+builder.Services.AddScoped<ConsentimientoVoltiService>();
+builder.Services.AddScoped<EmpresaContext>();
+builder.Services.AddScoped<EmpresaService>();
 builder.Services.AddScoped<DbContextProvider>();
 builder.Services.AddScoped<EnvironmentService>();
 builder.Services.AddScoped<LogAccesoService>();
@@ -100,7 +115,7 @@ builder.Services.AddScoped<FacturaImportacionService>();
 builder.Services.AddScoped<PlantillaPreCargaService>();
 builder.Services.AddScoped<HistoricoComparativaService>();
 builder.Services.AddScoped<CodigoPostalService>();
-builder.Services.AddSingleton<RepositorioService>();
+builder.Services.AddScoped<RepositorioService>();
 
 // Integración externa de incidencias (INTEGRACION.md)
 builder.Services.AddHttpClient<RevolappsIncidenciasService>();
@@ -142,6 +157,41 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.Use(async (httpContext, next) =>
+{
+    if (!httpContext.Request.Path.StartsWithSegments("/storage"))
+    {
+        await next();
+        return;
+    }
+    try
+    {
+        var token = httpContext.Request.Cookies["crm_empresa_session"];
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+        var protector = httpContext.RequestServices.GetRequiredService<IDataProtectionProvider>().CreateProtector("EnerfoneCRM.SesionEmpresas.v1");
+        var sesion = JsonSerializer.Deserialize<AuthService.SesionProtegida>(protector.Unprotect(Uri.UnescapeDataString(token)));
+        if (sesion == null || sesion.CaducidadUtc <= DateTime.UtcNow || sesion.EmpresaId <= 0) throw new UnauthorizedAccessException();
+        var segmentos = httpContext.Request.Path.Value!.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var empresaId = builder.Configuration.GetValue("Empresas:EmpresaDatosExistentesId", 1);
+        if (segmentos.Length > 1 && segmentos[1] == "empresas")
+        {
+            if (segmentos.Length < 4 || !int.TryParse(segmentos[2], out empresaId)) throw new UnauthorizedAccessException();
+        }
+        if (empresaId != sesion.EmpresaId) throw new UnauthorizedAccessException();
+        var provider = httpContext.RequestServices.GetRequiredService<DbContextProvider>();
+        await using var context = provider.CreateAuthenticationDbContext();
+        if (!await context.Empresas.AnyAsync(empresa => empresa.Id == empresaId && empresa.Activa)) throw new UnauthorizedAccessException();
+        if (sesion.UsuarioId != -1 && !await context.Usuarios.AnyAsync(usuario => usuario.Id == sesion.UsuarioId && usuario.EmpresaId == empresaId && usuario.Activo))
+            throw new UnauthorizedAccessException();
+        httpContext.Response.Headers.CacheControl = "private, no-store";
+    }
+    catch
+    {
+        httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+    await next();
+});
 app.UseStaticFiles();
 
 // Configurar archivos estáticos desde almacenamiento externo

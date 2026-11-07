@@ -12,9 +12,9 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
-<PageTitle>Edición Masiva de Usuarios - CorCRM</PageTitle>
+<PageTitle>Edición Masiva de Usuarios - Voltia Solutions</PageTitle>
 
-@if (AuthService.UsuarioActual?.Rol != "Administrador")
+@if (!AuthService.EsSuperAdmin || AuthService.EmpresaId <= 0)
 {
     <div class="container mt-5">
         <div class="alert alert-danger">
@@ -328,15 +328,18 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarUsuarios();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            await AuthService.CargarSesionAsync();
+            if (!AuthService.EsSuperAdmin || AuthService.EmpresaId <= 0) return;
+            await CargarUsuarios();
             dotnetReference = DotNetObjectReference.Create(this);
             await JSRuntime.InvokeVoidAsync("initializeBulkPaste", "usuariosTable", dotnetReference);
+            StateHasChanged();
         }
     }
     
