@@ -12,7 +12,7 @@ public class ConfiguracionEmpresa
 
     [Column("nombre_empresa")]
     [Required]
-    [StringLength(255)]
+    [StringLength(500)]
     public string NombreEmpresa { get; set; } = string.Empty;
 
     [Column("cif")]

@@ -11,7 +11,12 @@ namespace EnerfoneCRM.Services
         public ContratoService(DbContextProvider dbContextProvider)
         {
             _dbContextProvider = dbContextProvider;
+            _dbContextProvider.ContratosActualizados += NotificarContratosActualizados;
         }
+
+        public event Action? ContratosActualizados;
+
+        public void NotificarContratosActualizados() => ContratosActualizados?.Invoke();
 
         public async Task<List<Contrato>> ObtenerTodosPorTipoAsync(string tipo, string? rolUsuario = null, string? nombreUsuario = null, int? usuarioId = null)
         {
@@ -27,6 +32,7 @@ namespace EnerfoneCRM.Services
             var sql = @"
                 SELECT 
                     c.id, 
+                    c.id_empresa,
                     COALESCE(c.id_contrato_externo, '') as id_contrato_externo,
                     COALESCE(c.tipo, '') as tipo,
                     COALESCE(c.estado, '') as estado,
@@ -223,7 +229,7 @@ namespace EnerfoneCRM.Services
                     COALESCE(c.tarifa_fibra_segunda_residencia, '') as tarifa_fibra_segunda_residencia,
                     COALESCE(c.cargado_en_plataforma, 0) as cargado_en_plataforma
                 FROM contratos c
-                LEFT JOIN usuarios u_comercial ON c.usuario_comercial_id = u_comercial.idusuarios";
+                LEFT JOIN usuarios u_comercial ON c.usuario_comercial_id = u_comercial.idusuarios AND c.id_empresa = u_comercial.id_empresa";
             
             var whereConditions = new List<string>();
             var parameters = new List<object>();

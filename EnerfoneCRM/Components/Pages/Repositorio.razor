@@ -176,7 +176,7 @@
                                                 <td>
                                                     @if (esImagen)
                                                     {
-                                                        var rutaCompleta = Path.Combine(directorioBase, rutaActual, archivo.Nombre);
+                                                        var rutaCompleta = RepositorioService.ResolverRuta(rutaActual, archivo.Nombre);
                                                         if (File.Exists(rutaCompleta))
                                                         {
                                                             var bytes = File.ReadAllBytes(rutaCompleta);
@@ -405,22 +405,6 @@
 
     protected override void OnInitialized()
     {
-        // Obtener ruta base de configuración
-        var storagePath = Configuration.GetValue<string>("StoragePath");
-        if (string.IsNullOrEmpty(storagePath))
-        {
-            // En desarrollo, usar carpeta storage dentro del proyecto
-            storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
-        }
-        
-        // Directorio base para el repositorio
-        directorioBase = Path.Combine(storagePath, "repositorio");
-        
-        // Crear directorio si no existe
-        if (!Directory.Exists(directorioBase))
-        {
-            Directory.CreateDirectory(directorioBase);
-        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -434,6 +418,14 @@
                 Navigation.NavigateTo("/login");
                 return;
             }
+
+            if (AuthService.EmpresaId <= 0)
+            {
+                Navigation.NavigateTo("/empresas");
+                return;
+            }
+            directorioBase = RepositorioService.DirectorioEmpresa;
+            Directory.CreateDirectory(directorioBase);
 
             // Establecer ruta actual desde el parámetro de URL
             rutaActual = string.IsNullOrEmpty(RutaCarpeta) ? "" : RutaCarpeta.Replace("/", Path.DirectorySeparatorChar.ToString());
@@ -452,7 +444,7 @@
 
         try
         {
-            var rutaCompleta = Path.Combine(directorioBase, rutaActual);
+            var rutaCompleta = RepositorioService.ResolverRuta(rutaActual);
 
             if (Directory.Exists(rutaCompleta))
             {
@@ -596,7 +588,7 @@
 
         try
         {
-            var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreNuevaCarpeta);
+            var rutaCompleta = RepositorioService.ResolverRuta(rutaActual, nombreNuevaCarpeta);
             Directory.CreateDirectory(rutaCompleta);
             
             CerrarModalNuevaCarpeta();
@@ -640,7 +632,7 @@
         {
             foreach (var archivo in archivosSeleccionados)
             {
-                var rutaCompleta = Path.Combine(directorioBase, rutaActual, archivo.Name);
+                var rutaCompleta = RepositorioService.ResolverRuta(rutaActual, archivo.Name);
                 
                 using var stream = archivo.OpenReadStream(maxAllowedSize: 52428800); // 50MB máximo
                 using var fileStream = File.Create(rutaCompleta);
@@ -667,7 +659,7 @@
     {
         try
         {
-            var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            var rutaCompleta = RepositorioService.ResolverRuta(rutaActual, nombreArchivo);
             
             if (!File.Exists(rutaCompleta))
             {
@@ -715,7 +707,7 @@
         {
             try
             {
-                var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreCarpeta);
+                var rutaCompleta = RepositorioService.ResolverRuta(rutaActual, nombreCarpeta);
                 Directory.Delete(rutaCompleta, true);
                 await CargarContenido();
                 await JSRuntime.InvokeVoidAsync("alert", "Carpeta eliminada exitosamente");
@@ -735,7 +727,7 @@
         {
             try
             {
-                var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+                var rutaCompleta = RepositorioService.ResolverRuta(rutaActual, nombreArchivo);
                 File.Delete(rutaCompleta);
                 
                 // Eliminar archivo .meta si existe
@@ -837,7 +829,7 @@
     {
         try
         {
-            var rutaCompleta = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            var rutaCompleta = RepositorioService.ResolverRuta(rutaActual, nombreArchivo);
             
             if (!File.Exists(rutaCompleta))
             {
@@ -876,7 +868,7 @@
     {
         try
         {
-            var rutaArchivo = Path.Combine(directorioBase, rutaActual, archivoParaEditar);
+            var rutaArchivo = RepositorioService.ResolverRuta(rutaActual, archivoParaEditar);
             var rutaMeta = rutaArchivo + ".meta";
             
             if (string.IsNullOrWhiteSpace(descripcionEditando))
@@ -910,7 +902,7 @@
             if (string.IsNullOrWhiteSpace(descripcion))
                 return;
 
-            var rutaArchivo = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            var rutaArchivo = RepositorioService.ResolverRuta(rutaActual, nombreArchivo);
             var rutaMeta = rutaArchivo + ".meta";
             
             // Guardar la descripción en un archivo .meta
@@ -926,7 +918,7 @@
     {
         try
         {
-            var rutaArchivo = Path.Combine(directorioBase, rutaActual, nombreArchivo);
+            var rutaArchivo = RepositorioService.ResolverRuta(rutaActual, nombreArchivo);
             var rutaMeta = rutaArchivo + ".meta";
             
             if (File.Exists(rutaMeta))

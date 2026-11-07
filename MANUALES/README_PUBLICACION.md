@@ -4,7 +4,7 @@
 
 Este proyecto tiene **dos instancias de producción** independientes:
 
-### 1. Enerfone CRM
+### 1. Voltia Solutions (Enerfone)
 - **URL**: https://enerfonecrm.com
 - **Base de datos**: `enerfone_pre`
 - **Ruta servidor**: `C:\enerfonecrm`

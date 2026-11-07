@@ -1,0 +1,158 @@
+@using EnerfoneCRM.Models
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject VoltiService VoltiService
+@inject IJSRuntime JS
+@implements IDisposable
+@rendermode InteractiveServer
+
+@if (AuthService.EstaAutenticado)
+{
+    <button class="volti-launcher" @onclick="AlternarChat" title="Abrir Volti" aria-label="Abrir Volti" aria-controls="volti-panel" aria-expanded="@abierto">
+        <img src="/volti-launcher.jpeg" alt="" />
+    </button>
+    @if (abierto)
+    {
+        <aside id="volti-panel" class="volti-panel" role="dialog" aria-label="Volti">
+            <header class="volti-header">
+                <img src="/volti-launcher.jpeg" alt="Volti" class="volti-title-logo" />
+                <button class="volti-icon ms-auto" @onclick="Limpiar" title="Vaciar conversacion" aria-label="Vaciar conversacion"><i class="bi bi-trash"></i></button>
+                <button class="volti-icon" @onclick="() => abierto = false" title="Cerrar Volti" aria-label="Cerrar Volti"><i class="bi bi-x-lg"></i></button>
+            </header>
+            <div id="@conversacionId" class="volti-conversation" role="log" aria-live="polite" aria-relevant="additions">
+                @if (mensajes.Count == 0)
+                {
+                    <p class="volti-greeting">Hola, soy Volti.</p>
+                }
+                @foreach (var mensaje in mensajes)
+                {
+                    <div class="volti-message @(mensaje.Usuario ? "volti-user" : "volti-answer")">
+                        <small class="volti-author">@(mensaje.Usuario ? "Tu" : "Volti")</small>
+                        <p>@mensaje.Texto</p>
+                        @if (mensaje.Referencias != null)
+                        {
+                            <ul class="volti-references">
+                                @foreach (var referencia in mensaje.Referencias)
+                                {
+                                    <li><a href="@referencia.Ruta">@referencia.Etiqueta</a></li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                }
+                @if (procesando)
+                {
+                    <div role="status" class="volti-thinking"><span class="spinner-border spinner-border-sm me-2"></span>Consultando...</div>
+                }
+            </div>
+            <footer class="volti-compose">
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="alert alert-danger py-2 small" role="alert">@error</div>
+                }
+                <AutorizacionGeminiEmpresa OnAutorizacion="CambiarAutorizacion" Deshabilitado="procesando" MostrarRevocacion="true" />
+                <form class="volti-input-row" @onsubmit="Enviar" @onsubmit:preventDefault>
+                    <input class="form-control" aria-label="Consulta para Volti" placeholder="Escribe tu consulta..." maxlength="1500" @bind="pregunta" @bind:event="oninput" disabled="@procesando" />
+                    @if (procesando)
+                    {
+                        <button type="button" class="btn btn-outline-secondary volti-send" @onclick="Cancelar" title="Cancelar consulta" aria-label="Cancelar consulta"><i class="bi bi-stop-fill"></i></button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="btn btn-primary volti-send" disabled="@(!consentimiento || string.IsNullOrWhiteSpace(pregunta))" title="Enviar consulta" aria-label="Enviar consulta"><i class="bi bi-send"></i></button>
+                    }
+                </form>
+            </footer>
+        </aside>
+    }
+}
+
+@code {
+    private sealed record Mensaje(bool Usuario, string Texto, IReadOnlyList<ReferenciaVolti>? Referencias = null);
+    private readonly List<Mensaje> mensajes = new();
+    private readonly string conversacionId = $"volti-conversacion-{Guid.NewGuid():N}";
+    private string pregunta = string.Empty;
+    private string? error;
+    private bool abierto;
+    private bool consentimiento;
+    private bool procesando;
+    private bool desplazar;
+    private int empresaId;
+    private int? usuarioId;
+    private CancellationTokenSource? cancelacion;
+
+    protected override void OnInitialized() => AuthService.OnAuthStateChanged += ActualizarSesion;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await AuthService.CargarSesionAsync();
+            empresaId = AuthService.EmpresaId;
+            usuarioId = AuthService.UsuarioActual?.Id;
+            StateHasChanged();
+        }
+        if (abierto && desplazar)
+        {
+            desplazar = false;
+            try
+            {
+                await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/volti-chat.js");
+                await module.InvokeVoidAsync("desplazar", conversacionId);
+            }
+            catch (JSException) { }
+        }
+    }
+
+    private void ActualizarSesion() => _ = InvokeAsync(() =>
+    {
+        if (empresaId != AuthService.EmpresaId || usuarioId != AuthService.UsuarioActual?.Id)
+        {
+            Limpiar();
+            consentimiento = false;
+            abierto = false;
+        }
+        empresaId = AuthService.EmpresaId;
+        usuarioId = AuthService.UsuarioActual?.Id;
+        StateHasChanged();
+    });
+
+    private void AlternarChat() => abierto = !abierto;
+
+    private void CambiarAutorizacion(bool autorizada)
+    {
+        consentimiento = autorizada;
+        if (!autorizada) Limpiar();
+    }
+
+    private async Task Enviar()
+    {
+        if (procesando || !consentimiento || string.IsNullOrWhiteSpace(pregunta)) return;
+        var consulta = pregunta.Trim();
+        var anteriores = mensajes.Where(mensaje => mensaje.Usuario).TakeLast(4).Select(mensaje => mensaje.Texto).ToList();
+        pregunta = string.Empty;
+        error = null;
+        mensajes.Add(new Mensaje(true, consulta));
+        if (mensajes.Count > 40) mensajes.RemoveRange(0, mensajes.Count - 40);
+        procesando = true;
+        desplazar = true;
+        using var plazo = new CancellationTokenSource();
+        cancelacion = plazo;
+        try
+        {
+            var resultado = await VoltiService.ConsultarAsync(consulta, anteriores, consentimiento, plazo.Token);
+            if (!plazo.IsCancellationRequested) mensajes.Add(new Mensaje(false, resultado.Texto, resultado.Referencias));
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception excepcion) when (excepcion is UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            error = excepcion.Message;
+        }
+        catch { error = "No he podido completar la consulta. Intentalo de nuevo."; }
+        finally { cancelacion = null; procesando = false; desplazar = true; }
+    }
+
+    private void Cancelar() => cancelacion?.Cancel();
+    private void Limpiar() { Cancelar(); mensajes.Clear(); pregunta = string.Empty; error = null; }
+    public void Dispose() { AuthService.OnAuthStateChanged -= ActualizarSesion; Cancelar(); }
+}

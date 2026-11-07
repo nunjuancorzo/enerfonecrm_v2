@@ -1,0 +1,60 @@
+.volti-launcher {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1050;
+    display: block;
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+}
+.volti-launcher img { display: block; width: 100%; height: 100%; border-radius: 8px; object-fit: contain; }
+.volti-launcher:focus-visible { outline: 3px solid #2451cf; outline-offset: 3px; }
+.volti-title-logo { display: block; width: 48px; height: 48px; border-radius: 8px; object-fit: contain; }
+.volti-symbol { color: #ffd348; }
+.volti-panel {
+    position: fixed;
+    right: 20px;
+    bottom: 80px;
+    z-index: 1051;
+    display: flex;
+    flex-direction: column;
+    width: 420px;
+    max-width: calc(100vw - 32px);
+    height: min(620px, calc(100dvh - 108px));
+    border: 1px solid #c8cdd7;
+    border-radius: 6px;
+    background: #fff;
+    color: #25282d;
+    box-shadow: 0 6px 30px #0003;
+    overflow: hidden;
+}
+.volti-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #f4f6fa; border-bottom: 1px solid #e0e3e9; }
+.volti-symbol { font-size: 22px; text-shadow: 0 0 1px #6b5700; }
+.volti-icon { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; }
+.volti-icon:hover { background: #e0e5ef; }
+.volti-conversation { flex: 1; min-height: 0; padding: 16px; overflow-y: auto; }
+.volti-message { padding: 12px 0; border-bottom: 1px solid #eceef2; overflow-wrap: anywhere; }
+.volti-message p { margin: 4px 0 0; white-space: pre-wrap; }
+.volti-author { color: #6b7280; font-weight: 600; }
+.volti-user { padding: 10px 12px; margin-bottom: 8px; border-radius: 4px; background: #edf2fc; }
+.volti-greeting { color: #5e6571; }
+.volti-thinking { padding: 12px 0; color: #6b7280; }
+.volti-references { margin: 10px 0 0; padding-left: 18px; font-size: 13px; }
+.volti-compose { padding: 14px 16px; border-top: 1px solid #e0e3e9; }
+.volti-input-row { display: flex; gap: 8px; }
+.volti-input-row input { min-width: 0; }
+.volti-send { width: 40px; height: 40px; flex-shrink: 0; padding: 0; }
+@media (max-width: 575px) {
+    .volti-launcher { right: 16px; bottom: 16px; }
+    .volti-panel { right: 16px; bottom: 76px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .volti-panel { animation: volti-open 140ms ease-out; }
+    @keyframes volti-open { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+}

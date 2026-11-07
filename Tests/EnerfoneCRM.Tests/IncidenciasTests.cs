@@ -42,7 +42,9 @@ public class IncidenciasTests
     {
         var carpeta = Path.Combine(Path.GetTempPath(), "incidencia-test-" + Guid.NewGuid().ToString("N"));
         var configuracion = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["StoragePath"] = carpeta }).Build();
-        var servicio = new IncidenciaImagenService(configuracion);
+        var empresa = new EmpresaContext();
+        empresa.Establecer(1);
+        var servicio = new IncidenciaImagenService(configuracion, empresa);
         try
         {
             var imagen = ImagenIncidenciaAdjunta.Crear(CrearPng(32), "../captura.png");

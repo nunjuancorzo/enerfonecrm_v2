@@ -20,6 +20,15 @@ from datetime import datetime
 def obtener_config_bd():
     """Lee la configuración de la base de datos desde appsettings.*.json"""
     try:
+        if all(os.environ.get(key) is not None for key in ("CRM_DB_HOST", "CRM_DB_NAME", "CRM_DB_USER", "CRM_DB_PASSWORD")):
+            return {
+                'host': os.environ['CRM_DB_HOST'],
+                'port': int(os.environ.get('CRM_DB_PORT', '3306')),
+                'database': os.environ['CRM_DB_NAME'],
+                'user': os.environ['CRM_DB_USER'],
+                'password': os.environ['CRM_DB_PASSWORD']
+            }
+
         # Buscar archivos de configuración en orden de prioridad
         # PRODUCCION PRIMERO para que funcione correctamente en servidores
         config_files = [
@@ -57,6 +66,7 @@ def obtener_config_bd():
         user_match = re.search(r'User=([^;]+)', connection_string)
         password_match = re.search(r'Password=([^;]+)', connection_string)
         host_match = re.search(r'Server=([^;]+)', connection_string)
+        port_match = re.search(r'Port=([^;]+)', connection_string)
         
         if not db_match:
             return None
@@ -70,6 +80,7 @@ def obtener_config_bd():
         
         return {
             'host': db_host,
+            'port': int(port_match.group(1)) if port_match else 3306,
             'database': database_name,
             'user': db_user,
             'password': db_password
@@ -78,13 +89,29 @@ def obtener_config_bd():
         print(f"[ERROR] Error al leer configuracion: {str(e)}")
         return None
 
-# Intentar obtener configuración desde archivo o usar parámetros
-if len(sys.argv) >= 2:
+# La exportación de servicios requiere siempre el ámbito de empresa.
+try:
+    EMPRESA_ID = int(os.environ.get('CRM_EMPRESA_ID', '0'))
+except ValueError:
+    EMPRESA_ID = 0
+if EMPRESA_ID <= 0:
+    print("[ERROR] No se recibió una empresa activa para exportar servicios")
+    sys.exit(1)
+
+# Intentar obtener configuración desde variables de entorno, archivo o parámetros
+if all(os.environ.get(key) is not None for key in ("CRM_DB_HOST", "CRM_DB_NAME", "CRM_DB_USER", "CRM_DB_PASSWORD")):
+    database_name = os.environ['CRM_DB_NAME']
+    db_user = os.environ['CRM_DB_USER']
+    db_password = os.environ['CRM_DB_PASSWORD']
+    db_host = os.environ['CRM_DB_HOST']
+    db_port = int(os.environ.get('CRM_DB_PORT', '3306'))
+elif len(sys.argv) >= 2:
     # Usar parámetros de línea de comandos
     database_name = sys.argv[1]
     db_user = sys.argv[2] if len(sys.argv) > 2 else 'root'
     db_password = sys.argv[3] if len(sys.argv) > 3 else 'A76262136.r'
     db_host = 'localhost'
+    db_port = 3306
     print(f"[PARAMS] Usando parametros de linea de comandos")
 else:
     # Intentar leer desde archivo de configuración
@@ -94,6 +121,7 @@ else:
         db_user = config['user']
         db_password = config['password']
         db_host = config['host']
+        db_port = config.get('port', 3306)
     else:
         print("Uso: python3 exportar_servicios.py [nombre_bd] [db_user] [db_password]")
         sys.exit(1)
@@ -101,6 +129,7 @@ else:
 # Configuración de la base de datos
 DB_CONFIG = {
     'host': db_host,
+    'port': db_port,
     'database': database_name,
     'user': db_user,
     'password': db_password
@@ -118,10 +147,11 @@ def exportar_servicios():
         SELECT 
             id, tipo, nombreServicio, precio, empresa
         FROM servicios
+        WHERE id_empresa = %s
         ORDER BY id
         """
         
-        cursor.execute(sql)
+        cursor.execute(sql, (EMPRESA_ID,))
         servicios = cursor.fetchall()
         
         print(f"[OK] Se encontraron {len(servicios)} servicios")

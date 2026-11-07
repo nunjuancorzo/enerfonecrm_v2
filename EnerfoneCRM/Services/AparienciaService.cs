@@ -10,6 +10,7 @@ public sealed record PaletaVisual(
     public string AcentoRgb => AparienciaService.ConvertirAcentoRgb(Acento);
     public string TextoAccion => AparienciaService.ObtenerTextoContraste(Acento);
     public string TextoBarra => AparienciaService.ObtenerTextoContraste(BarraLateral);
+    public string TextoFondo => AparienciaService.ObtenerTextoContraste(Fondo);
 }
 
 public class AparienciaService
@@ -30,7 +31,7 @@ public class AparienciaService
 
     public PaletaVisual PaletaActualVisual { get; private set; } = Paletas[0];
     public string PaletaActual => PaletaActualVisual.Id;
-    public string VariablesCss => $"--crm-accent:{PaletaActualVisual.Acento};--crm-accent-rgb:{PaletaActualVisual.AcentoRgb};--crm-sidebar:{PaletaActualVisual.BarraLateral};--crm-sidebar-text:{PaletaActualVisual.TextoBarra};--crm-canvas:{PaletaActualVisual.Fondo};--crm-on-accent:{PaletaActualVisual.TextoAccion}";
+    public string VariablesCss => $"--crm-accent:{PaletaActualVisual.Acento};--crm-accent-rgb:{PaletaActualVisual.AcentoRgb};--crm-sidebar:{PaletaActualVisual.BarraLateral};--crm-sidebar-text:{PaletaActualVisual.TextoBarra};--crm-canvas:{PaletaActualVisual.Fondo};--crm-on-canvas:{PaletaActualVisual.TextoFondo};--crm-on-accent:{PaletaActualVisual.TextoAccion}";
     public event Action? OnChange;
 
     public static bool EsPaletaValida(string? id) => id == PaletaPersonalizada || Paletas.Any(paleta => paleta.Id == id);

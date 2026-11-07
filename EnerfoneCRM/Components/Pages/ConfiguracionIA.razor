@@ -1,0 +1,119 @@
+@page "/ajustes/ia"
+@layout Layout.MainLayout
+@using EnerfoneCRM.Services
+@inject AuthService AuthService
+@inject GeminiConfiguracionService ConfiguracionGemini
+@inject GeminiService Gemini
+@rendermode InteractiveServer
+
+<PageTitle>Inteligencia artificial - Voltia Solutions</PageTitle>
+<div class="container-fluid p-4">
+    @if (cargando)
+    {
+        <div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div>
+    }
+    else if (!AuthService.EsSuperAdmin)
+    {
+        <div class="alert alert-danger">Solo superadmin puede configurar Gemini.</div>
+    }
+    else
+    {
+        <h2><i class="bi bi-stars me-2"></i>Inteligencia artificial</h2>
+        <p class="text-muted">Gemini: @(ConfiguracionGemini.Configurado ? "Configurado" : "Sin configurar")</p>
+        @if (!string.IsNullOrEmpty(error)) { <div class="alert alert-danger" role="alert">@error</div> }
+        @if (!string.IsNullOrEmpty(mensaje)) { <div class="alert alert-success" role="status">@mensaje</div> }
+        <form class="row g-3" @onsubmit="Guardar" @onsubmit:preventDefault>
+            <div class="col-12 col-lg-6">
+                <label for="gemini-clave" class="form-label">Clave de API de Gemini</label>
+                <input id="gemini-clave" type="password" autocomplete="new-password" class="form-control" maxlength="512" @bind="clave" disabled="@guardando" />
+            </div>
+            <div class="col-12 col-lg-6">
+                <label for="gemini-modelo" class="form-label">Modelo</label>
+                <input id="gemini-modelo" class="form-control" maxlength="100" list="gemini-modelos" @bind="modelo" disabled="@guardando" />
+                <datalist id="gemini-modelos">
+                    @foreach (var disponible in modelosDisponibles) { <option value="@disponible"></option> }
+                </datalist>
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@(guardando || string.IsNullOrWhiteSpace(clave) && !ConfiguracionGemini.Configurado)"><i class="bi bi-save me-2"></i>Guardar</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="Probar" disabled="@(guardando || !ConfiguracionGemini.Configurado)"><i class="bi bi-plug me-2"></i>Probar conexion</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="CargarModelos" disabled="@(guardando || !ConfiguracionGemini.Configurado)"><i class="bi bi-arrow-clockwise me-2"></i>Consultar modelos</button>
+            </div>
+        </form>
+        @if (modelosDisponibles.Count > 0)
+        {
+            <div class="mt-3">
+                <label for="gemini-modelo-disponible" class="form-label">Modelos disponibles para esta clave</label>
+                <select id="gemini-modelo-disponible" class="form-select" @bind="modelo">
+                    @foreach (var disponible in modelosDisponibles) { <option value="@disponible">@disponible</option> }
+                </select>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private bool cargando = true;
+    private bool guardando;
+    private string clave = string.Empty;
+    private string modelo = string.Empty;
+    private string? error;
+    private string? mensaje;
+    private IReadOnlyList<string> modelosDisponibles = Array.Empty<string>();
+
+    private async Task CargarModelos()
+    {
+        if (!AuthService.EsSuperAdmin || guardando) return;
+        guardando = true;
+        error = null;
+        mensaje = null;
+        try
+        {
+            modelosDisponibles = await Gemini.ObtenerModelosAsync();
+            if (modelosDisponibles.Count == 0) error = "Google no devolvio modelos compatibles con generateContent para esta clave.";
+        }
+        catch (InvalidOperationException excepcion) { error = excepcion.Message; }
+        catch { error = "No se pudo consultar la lista de modelos de Gemini."; }
+        finally { guardando = false; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await AuthService.CargarSesionAsync();
+        if (AuthService.EsSuperAdmin) modelo = ConfiguracionGemini.Modelo;
+        cargando = false;
+        StateHasChanged();
+    }
+
+    private async Task Guardar()
+    {
+        guardando = true;
+        error = null;
+        mensaje = null;
+        try
+        {
+            await ConfiguracionGemini.GuardarAsync(clave, modelo);
+            mensaje = "Configuracion guardada.";
+        }
+        catch (Exception excepcion) when (excepcion is ArgumentException or UnauthorizedAccessException) { error = excepcion.Message; }
+        catch { error = "No se pudo guardar la configuracion privada en el servidor."; }
+        finally { clave = string.Empty; guardando = false; }
+    }
+
+    private async Task Probar()
+    {
+        if (!AuthService.EsSuperAdmin || guardando) return;
+        guardando = true;
+        error = null;
+        mensaje = null;
+        try
+        {
+            await Gemini.GenerarAsync("Responde solo OK.", "Comprobacion de conexion sin datos del CRM.");
+            mensaje = "Conexion con Gemini correcta.";
+        }
+        catch (InvalidOperationException excepcion) { error = excepcion.Message; }
+        catch { error = "No se pudo comprobar la conexion con Gemini."; }
+        finally { guardando = false; }
+    }
+}

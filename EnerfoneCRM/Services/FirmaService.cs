@@ -387,6 +387,7 @@ public class FirmaService
 
     public async Task<SolicitudFirmaColaborador?> ObtenerSolicitudColaboradorAsync(string token)
     {
+        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<SolicitudFirmaColaborador>(token)) return null;
         await using var context = _dbContextProvider.CreateDbContext();
         var solicitud = await context.SolicitudesFirmaColaboradores.FirstOrDefaultAsync(s => s.TokenHash == _tokenService.Hash(token));
         if (solicitud == null || solicitud.Estado is EstadoSolicitudFirma.Cancelado or EstadoSolicitudFirma.Caducado) return null;
@@ -438,6 +439,7 @@ public class FirmaService
 
     public async Task<ResultadoFirma> CompletarFirmaColaboradorAsync(string token, byte[] firma, string? ipPublicaCliente = null)
     {
+        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<SolicitudFirmaColaborador>(token)) return new(false, "El enlace no es valido.");
         await using var context = _dbContextProvider.CreateDbContext();
         var solicitud = await context.SolicitudesFirmaColaboradores.FirstOrDefaultAsync(s => s.TokenHash == _tokenService.Hash(token));
         if (solicitud == null || solicitud.Estado != EstadoSolicitudFirma.Enviado || solicitud.FechaCaducidadUtc <= DateTime.UtcNow) return new(false, "El enlace no es valido o ha caducado.");
@@ -476,6 +478,7 @@ public class FirmaService
             return null;
         }
 
+        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<SolicitudFirma>(token)) return null;
         await using var context = _dbContextProvider.CreateDbContext();
         var hash = _tokenService.Hash(token);
         var solicitud = await context.SolicitudesFirma.FirstOrDefaultAsync(s => s.TokenHash == hash);

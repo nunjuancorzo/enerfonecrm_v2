@@ -24,6 +24,15 @@ from mysql.connector import Error
 def obtener_config_bd():
     """Lee la configuracion de la base de datos desde appsettings.*.json"""
     try:
+        if all(os.environ.get(key) is not None for key in ("CRM_DB_HOST", "CRM_DB_NAME", "CRM_DB_USER", "CRM_DB_PASSWORD")):
+            return {
+                'host': os.environ['CRM_DB_HOST'],
+                'port': int(os.environ.get('CRM_DB_PORT', '3306')),
+                'database': os.environ['CRM_DB_NAME'],
+                'user': os.environ['CRM_DB_USER'],
+                'password': os.environ['CRM_DB_PASSWORD']
+            }
+
         # Buscar archivos de configuracion en orden de prioridad
         # PRODUCCION PRIMERO para que funcione correctamente en servidores
         config_files = [
@@ -66,6 +75,7 @@ def obtener_config_bd():
         user_match = re.search(r'User=([^;]+)', connection_string)
         password_match = re.search(r'Password=([^;]+)', connection_string)
         host_match = re.search(r'Server=([^;]+)', connection_string)
+        port_match = re.search(r'Port=([^;]+)', connection_string)
         
         if not db_match:
             print(f"[ERROR] Error: No se pudo extraer el nombre de la base de datos")
@@ -80,6 +90,7 @@ def obtener_config_bd():
         
         return {
             'host': db_host,
+            'port': int(port_match.group(1)) if port_match else 3306,
             'database': database_name,
             'user': db_user,
             'password': db_password
@@ -100,6 +111,13 @@ if len(sys.argv) < 3:
 
 # Obtener configuracion automaticamente
 DB_CONFIG = obtener_config_bd()
+try:
+    EMPRESA_ID = int(os.environ.get('CRM_EMPRESA_ID', '0'))
+except ValueError:
+    EMPRESA_ID = 0
+if EMPRESA_ID <= 0:
+    print("[ERROR] No se recibió una empresa activa para importar tarifas o servicios")
+    sys.exit(1)
 
 def limpiar_valor(valor):
     """Limpia valores None, NaN o vacios"""
@@ -206,6 +224,7 @@ def importar_tarifas_energia(archivo_excel):
                 
                 # Preparar datos
                 datos = {
+                    'empresa_id': EMPRESA_ID,
                     'empresa': empresa,
                     'tipo': tipo,
                     'nombre': nombre,
@@ -236,14 +255,14 @@ def importar_tarifas_energia(archivo_excel):
                 # SQL de insercion
                 sql = """
                     INSERT INTO tarifasenergia (
-                        empresa, tipo, nombre, potencia1, energia1, precio,
+                        id_empresa, empresa, tipo, nombre, potencia1, energia1, precio,
                         potencia2, potencia3, potencia4, potencia5, potencia6,
                         energia2, energia3, energia4, energia5, energia6,
                         comision, precioNew, termino_fijo_diario,
                         precio_potencia_p1, precio_potencia_p2, precio_potencia_p3,
                         precio_energia_p1, precio_energia_p2, precio_energia_p3
                     ) VALUES (
-                        %(empresa)s, %(tipo)s, %(nombre)s, %(potencia1)s, %(energia1)s, %(precio)s,
+                        %(empresa_id)s, %(empresa)s, %(tipo)s, %(nombre)s, %(potencia1)s, %(energia1)s, %(precio)s,
                         %(potencia2)s, %(potencia3)s, %(potencia4)s, %(potencia5)s, %(potencia6)s,
                         %(energia2)s, %(energia3)s, %(energia4)s, %(energia5)s, %(energia6)s,
                         %(comision)s, %(precio_new)s, %(termino_fijo_diario)s,
@@ -329,6 +348,7 @@ def importar_tarifas_telefonia(archivo_excel):
                 
                 # Preparar datos
                 datos = {
+                    'empresa_id': EMPRESA_ID,
                     'compania': compania,
                     'tipo': tipo,
                     'fibra': limpiar_valor(row.get('Fibra')),
@@ -343,10 +363,10 @@ def importar_tarifas_telefonia(archivo_excel):
                 # SQL de insercion
                 sql = """
                     INSERT INTO tarifastelefonia (
-                        compania, tipo, fibra, gbmovil, precio, comision,
+                        id_empresa, compania, tipo, fibra, gbmovil, precio, comision,
                         precioNew, comisionNew, TV
                     ) VALUES (
-                        %(compania)s, %(tipo)s, %(fibra)s, %(gb_movil)s, %(precio)s,
+                        %(empresa_id)s, %(compania)s, %(tipo)s, %(fibra)s, %(gb_movil)s, %(precio)s,
                         %(comision)s, %(precio_new)s, %(comision_new)s, %(tv)s
                     )
                 """
@@ -444,6 +464,7 @@ def importar_tarifas_alarmas(archivo_excel):
                 
                 # Preparar datos
                 datos = {
+                    'empresa_id': EMPRESA_ID,
                     'tipo': tipo,
                     'tipo_inmueble': tipo_inmueble,
                     'nombre_tarifa': nombre_tarifa,
@@ -458,10 +479,10 @@ def importar_tarifas_alarmas(archivo_excel):
                 # SQL de insercion
                 sql = """
                     INSERT INTO tarifas_alarmas (
-                        tipo, tipo_inmueble, nombre_tarifa, cuota_mensual, permanencia,
+                        id_empresa, tipo, tipo_inmueble, nombre_tarifa, cuota_mensual, permanencia,
                         empresa, comision, descripcion, activa
                     ) VALUES (
-                        %(tipo)s, %(tipo_inmueble)s, %(nombre_tarifa)s, %(cuota_mensual)s,
+                        %(empresa_id)s, %(tipo)s, %(tipo_inmueble)s, %(nombre_tarifa)s, %(cuota_mensual)s,
                         %(permanencia)s, %(empresa)s, %(comision)s, %(descripcion)s, %(activa)s
                     )
                 """
@@ -490,6 +511,11 @@ def importar_tarifas_alarmas(archivo_excel):
 def importar_servicios(archivo_excel):
     """Importa servicios desde un archivo Excel. Si tiene columna ID, actualiza; si no, inserta"""
     result = {'importados': 0, 'actualizados': 0, 'errores': 0, 'errores_detalle': []}
+
+    if EMPRESA_ID <= 0:
+        result['errores'] = 1
+        result['errores_detalle'].append("No se recibió una empresa activa para importar servicios")
+        return result
     
     try:
         print(f"Leyendo archivo: {archivo_excel}")
@@ -565,6 +591,7 @@ def importar_servicios(archivo_excel):
                 
                 # Preparar datos
                 datos = {
+                    'empresa_id': EMPRESA_ID,
                     'tipo': tipo,
                     'nombre_servicio': nombre_servicio,
                     'precio': precio,
@@ -574,7 +601,7 @@ def importar_servicios(archivo_excel):
                 # Decidir si INSERT o UPDATE
                 if tiene_columna_id and servicio_id:
                     # Verificar primero si el ID existe
-                    cursor.execute("SELECT id FROM servicios WHERE id = %s", (servicio_id,))
+                    cursor.execute("SELECT id FROM servicios WHERE id = %s AND id_empresa = %s", (servicio_id, EMPRESA_ID))
                     existe = cursor.fetchone()
                     
                     if not existe:
@@ -592,7 +619,7 @@ def importar_servicios(archivo_excel):
                             nombreServicio = %(nombre_servicio)s, 
                             precio = %(precio)s,
                             empresa = %(empresa)s
-                        WHERE id = %(id)s
+                        WHERE id = %(id)s AND id_empresa = %(empresa_id)s
                     """
                     cursor.execute(sql, datos)
                     result['actualizados'] += 1
@@ -600,8 +627,8 @@ def importar_servicios(archivo_excel):
                 else:
                     # Insertar nuevo servicio
                     sql = """
-                        INSERT INTO servicios (tipo, nombreServicio, precio, empresa)
-                        VALUES (%(tipo)s, %(nombre_servicio)s, %(precio)s, %(empresa)s)
+                        INSERT INTO servicios (id_empresa, tipo, nombreServicio, precio, empresa)
+                        VALUES (%(empresa_id)s, %(tipo)s, %(nombre_servicio)s, %(precio)s, %(empresa)s)
                     """
                     cursor.execute(sql, datos)
                     result['importados'] += 1

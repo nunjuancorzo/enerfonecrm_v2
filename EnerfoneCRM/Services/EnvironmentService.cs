@@ -19,6 +19,25 @@ namespace EnerfoneCRM.Services
             return "Producción";
         }
 
+        public string GetDatabaseHost() => GetConnectionValue("Server") ?? "localhost";
+
+        public int GetDatabasePort() => int.TryParse(GetConnectionValue("Port"), out var port) ? port : 3306;
+
+        private string? GetConnectionValue(string name)
+        {
+            var connectionString = _configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrWhiteSpace(connectionString)) return null;
+
+            foreach (var segment in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var separator = segment.IndexOf('=');
+                if (separator <= 0 || !string.Equals(segment[..separator].Trim(), name, StringComparison.OrdinalIgnoreCase)) continue;
+                return segment[(separator + 1)..].Trim();
+            }
+
+            return null;
+        }
+
         public string GetDatabaseName()
         {
             // Leer de la cadena de conexión

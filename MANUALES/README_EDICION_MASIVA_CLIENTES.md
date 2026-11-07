@@ -264,4 +264,4 @@ Si encuentras problemas o tienes sugerencias:
 
 **Fecha de implementación**: 2026-06-23  
 **Versión**: 1.0  
-**Autor**: CorCRM Development Team
+**Autor**: Voltia Solutions Development Team

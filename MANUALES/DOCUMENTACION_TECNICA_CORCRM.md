@@ -1,4 +1,4 @@
-# DOCUMENTACIÓN TÉCNICA - CorCRM
+# DOCUMENTACIÓN TÉCNICA - Voltia Solutions
 ## Sistema de Gestión de Relaciones con Clientes para Sector Energético y Telecomunicaciones
 
 **Versión**: 2.0  
@@ -24,7 +24,7 @@
 
 ## 1. RESUMEN EJECUTIVO
 
-**CorCRM** es un sistema integral de gestión de relaciones con clientes (CRM) especializado en el sector energético y de telecomunicaciones, que incorpora funcionalidades avanzadas de:
+**Voltia Solutions** es un sistema integral de gestión de relaciones con clientes (CRM) especializado en el sector energético y de telecomunicaciones, que incorpora funcionalidades avanzadas de:
 
 - **Gestión multiservicio** (electricidad, gas, telefonía, alarmas, fotovoltaica)
 - **Sistema de comisiones jerárquicas multinivel** con cálculo automático
@@ -41,7 +41,7 @@
 
 ### 2.1. Propósito
 
-CorCRM es una solución empresarial diseñada para gestionar integralmente el ciclo completo de ventas, comisiones y liquidaciones en empresas comercializadoras de servicios energéticos y de telecomunicaciones, con especial énfasis en la gestión jerárquica de equipos comerciales.
+Voltia Solutions es una solución empresarial diseñada para gestionar integralmente el ciclo completo de ventas, comisiones y liquidaciones en empresas comercializadoras de servicios energéticos y de telecomunicaciones, con especial énfasis en la gestión jerárquica de equipos comerciales.
 
 ### 2.2. Alcance Funcional
 
@@ -2715,7 +2715,7 @@ public async Task<IActionResult> DescargarArchivo(int id)
 
 ## CONCLUSIÓN
 
-**CorCRM** es un sistema integral de gestión de relaciones con clientes especializado en el sector energético y de telecomunicaciones que incorpora innovaciones técnicas significativas en:
+**Voltia Solutions** es un sistema integral de gestión de relaciones con clientes especializado en el sector energético y de telecomunicaciones que incorpora innovaciones técnicas significativas en:
 
 1. **Distribución jerárquica automatizada de comisiones** con configuración personalizada
 2. **Sistema de cache inteligente** para optimización de consultas a APIs externas
@@ -2735,5 +2735,5 @@ El sistema se diferencia de soluciones existentes por su enfoque integral en mú
 
 **Fecha de Documento**: 1 de junio de 2026  
 **Versión**: 1.0  
-**Autor**: Equipo de Desarrollo CorCRM  
+**Autor**: Equipo de Desarrollo Voltia Solutions
 **Confidencialidad**: CONFIDENCIAL - Para fines de registro de patente

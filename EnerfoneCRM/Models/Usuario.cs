@@ -10,6 +10,9 @@ public class Usuario
     [Column("idusuarios")]
     public int Id { get; set; }
 
+    [Column("id_empresa")]
+    public int EmpresaId { get; set; }
+
     [Column("username")]
     [StringLength(45)]
     public string NombreUsuario { get; set; } = string.Empty;

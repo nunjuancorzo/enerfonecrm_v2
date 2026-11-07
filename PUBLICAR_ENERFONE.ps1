@@ -1,11 +1,11 @@
 # ==============================================================================
-# Script de publicación para ENERFONE CRM
+# Script de publicación de Voltia Solutions para el entorno Enerfone
 # Destino: C:\enerfonecrm
 # Base de datos: enerfone_pre
 # ==============================================================================
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "PUBLICACIÓN ENERFONE CRM" -ForegroundColor Cyan
+Write-Host "PUBLICACIÓN VOLTIA SOLUTIONS - ENERFONE" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

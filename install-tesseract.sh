@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Script de instalación de Tesseract OCR para CorCRM
+# Script de instalación de Tesseract OCR para Voltia Solutions
 # Soporte: Ubuntu/Debian, macOS, CentOS/RHEL
 
 set -e
 
 echo "========================================"
 echo "  Instalador de Tesseract OCR"
-echo "  Para CorCRM - Módulo de Comparativas"
+echo "  Para Voltia Solutions - Módulo de Comparativas"
 echo "========================================"
 echo ""
 
@@ -124,7 +124,7 @@ echo "========================================"
 echo "  Configuración en Base de Datos"
 echo "========================================"
 echo ""
-echo "Para usar Tesseract en CorCRM, ejecuta:"
+echo "Para usar Tesseract en Voltia Solutions, ejecuta:"
 echo ""
 echo "UPDATE configuracion_empresa SET"
 echo "    ocr_proveedor = 'tesseract',"

@@ -8,19 +8,17 @@
 @inject NavigationManager Navigation
 @inject ContratoService ContratoService
 @inject ISessionStorageService SessionStorage
+@inject IJSRuntime JS
+@inject AparienciaService AparienciaService
 @implements IDisposable
 @rendermode InteractiveServer
 
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top app-sidebar">
     <div class="container-fluid px-3">
         <a class="navbar-brand" href="home">
-            @if (!string.IsNullOrEmpty(logoUrl))
+            @if (cargado && AuthService.EstaAutenticado)
             {
-                <img src="@logoUrl" alt="Logo" class="crm-company-logo" />
-            }
-            else
-            {
-                <img src="CorCRM_FIN.png" alt="Logo CorCRM" class="crm-company-logo" />
+                <img src="@LogoMenuUrl" alt="@(AuthService.EsSuperAdmin ? "Logo Voltia Solutions" : "Logo de la empresa")" class="crm-company-logo" />
             }
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSidebar" aria-controls="navbarSidebar" aria-expanded="false" aria-label="Abrir menú">
@@ -29,6 +27,7 @@
         <div class="collapse navbar-collapse" id="navbarSidebar">
             @if (cargado && AuthService.EstaAutenticado)
             {
+                <EnerfoneCRM.Components.EmpresaSelector />
                 <ul class="navbar-nav crm-sidebar-nav">
                     <li><a class="nav-link @ClaseRuta("home")" href="home"><i class="bi bi-house-heart-fill"></i>Inicio</a></li>
                     @if (AuthService.PuedeVerContratos)
@@ -94,13 +93,22 @@
                             <details class="crm-nav-group" open="@(grupoPrincipalAbierto == "ajustes")">
                                 <summary @onclick='() => AlternarGrupoPrincipal("ajustes")' @onclick:preventDefault="true"><i class="bi bi-sliders"></i>Ajustes</summary>
                                 <ul>
-                                    @if (AuthService.EsAdministrador)
+                                    @if (AuthService.EsSuperAdmin)
                                     {
                                         <li><a class="nav-link @ClaseRuta("usuarios")" href="usuarios"><i class="bi bi-people-fill"></i>Gestión Usuarios</a></li>
+                                        <li><a class="nav-link @ClaseRuta("empresas")" href="empresas"><i class="bi bi-buildings"></i>Gestión Empresas</a></li>
+                                        <li><a class="nav-link @ClaseRuta("ajustes/ia")" href="ajustes/ia"><i class="bi bi-stars"></i>Inteligencia artificial</a></li>
+                                    }
+                                    @if (AuthService.EsAdministrador && !AuthService.EsSuperAdmin)
+                                    {
+                                        <li><a class="nav-link @ClaseRuta("ajustes/solicitar-usuario")" href="ajustes/solicitar-usuario"><i class="bi bi-person-plus"></i>Solicitar usuario</a></li>
                                     }
                                     <li><a class="nav-link @ClaseRuta("tareas")" href="tareas"><i class="bi bi-list-check"></i>Tareas</a></li>
                                     <li><a class="nav-link @ClaseRuta("inicio-rapido")" href="inicio-rapido"><i class="bi bi-lightning-charge-fill"></i>Inicio Rápido</a></li>
-                                    <li><a class="nav-link @ClaseRuta("configuracion-empresa")" href="configuracion-empresa"><i class="bi bi-building"></i>Datos de Empresa</a></li>
+                                    @if (AuthService.EsSuperAdmin || AuthService.EsAdministrador)
+                                    {
+                                        <li><a class="nav-link @ClaseRuta("configuracion-empresa")" href="configuracion-empresa"><i class="bi bi-building"></i>Datos de Empresa</a></li>
+                                    }
                                 </ul>
                             </details>
                         </li>
@@ -118,8 +126,8 @@
                     }
                     @if (AuthService.PuedeVerContratos)
                     {
-                        <button @onclick="MostrarAvisosModificaciones" class="btn-sidebar-tool" title="Avisos de modificaciones">
-                            <i class="bi bi-bell-fill"></i><span>Avisos</span>
+                        <button @onclick="MostrarAvisosModificaciones" class="btn-sidebar-tool" title="Notificaciones de modificaciones">
+                            <i class="bi bi-bell-fill"></i><span>Notificaciones</span>
                             @if (hayModificacionesNoVistas) { <span class="badge bg-danger ms-auto">!</span> }
                         </button>
                     }
@@ -147,13 +155,9 @@
 <nav class="navbar navbar-expand-lg navbar-dark shadow-sm sticky-top d-none" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%); min-height: 80px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); z-index: 1030;">
     <div class="container-fluid px-4">
         <a class="navbar-brand d-flex align-items-center" href="home">
-            @if (!string.IsNullOrEmpty(logoUrl))
+            @if (cargado && AuthService.EstaAutenticado)
             {
-                <img src="@logoUrl" alt="Logo" class="crm-company-logo" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
-            }
-            else
-            {
-                <img src="CorCRM_FIN.png" alt="Logo CorCRM" class="crm-company-logo" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
+                <img src="@LogoMenuUrl" alt="@(AuthService.EsSuperAdmin ? "Logo Voltia Solutions" : "Logo de la empresa")" class="crm-company-logo" style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));" />
             }
         </a>
         
@@ -273,15 +277,20 @@
                                         <i class="bi bi-person-badge-fill me-2" style="color: #42A5F5;"></i>Usuarios
                                     </a>
                                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownUsuarios">
-                                        @if (AuthService.EsAdministrador)
+                                        @if (AuthService.EsSuperAdmin)
                                         {
                                             <li><a class="dropdown-item" href="usuarios"><i class="bi bi-people-fill text-primary me-2"></i>Gestión Usuarios</a></li>
+                                            <li><a class="dropdown-item" href="empresas"><i class="bi bi-buildings me-2"></i>Gestión Empresas</a></li>
+                                            <li><a class="dropdown-item" href="ajustes/ia"><i class="bi bi-stars me-2"></i>Inteligencia artificial</a></li>
                                         }
                                         <li><a class="dropdown-item" href="tareas"><i class="bi bi-list-check text-success me-2"></i>Tareas</a></li>
                                     </ul>
                                 </li>
                                 <li><a class="dropdown-item" href="inicio-rapido"><i class="bi bi-lightning-charge-fill me-2 text-warning"></i>Inicio Rápido</a></li>
-                                <li><a class="dropdown-item" href="configuracion-empresa"><i class="bi bi-building me-2"></i>Datos de Empresa</a></li>
+                                @if (AuthService.EsSuperAdmin || AuthService.EsAdministrador)
+                                {
+                                    <li><a class="dropdown-item" href="configuracion-empresa"><i class="bi bi-building me-2"></i>Datos de Empresa</a></li>
+                                }
                                 @* <li><a class="dropdown-item" href="configuracion-comisiones"><i class="bi bi-percent me-2 text-success"></i>Configuración de Comisiones</a></li> *@
                             </ul>
                         </li>
@@ -306,10 +315,9 @@
                     }
                     @if (AuthService.PuedeVerContratos)
                     {
-                        <button @onclick="MostrarAvisosModificaciones" class="me-3 btn-avisos-contratos" style="display: flex; align-items: center; justify-content: center; gap: 3px; width: 80px; height: 50px; border: 2px solid #9E9E9E; border-radius: 8px; background: transparent; text-decoration: none; transition: all 0.3s ease; position: relative; cursor: pointer; padding: 0;" title="Avisos de Modificaciones">
-                            <i class="bi bi-bell-fill" style="font-size: 0.85rem; color: #FFD54F; margin: 0; padding: 0; line-height: 1;"></i>
-                            <i class="bi bi-bell-fill" style="font-size: 0.85rem; color: #4FC3F7; margin: 0; padding: 0; line-height: 1;"></i>
-                            <i class="bi bi-bell-fill" style="font-size: 0.85rem; color: #EF5350; margin: 0; padding: 0; line-height: 1;"></i>
+                        <button @onclick="MostrarAvisosModificaciones" class="me-3 btn-avisos-contratos" style="display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 150px; height: 50px; border: 2px solid #9E9E9E; border-radius: 8px; background: transparent; color: white; text-decoration: none; transition: all 0.3s ease; position: relative; cursor: pointer; padding: 0 12px;" title="Notificaciones de modificaciones">
+                            <i class="bi bi-bell-fill" style="font-size: 1rem; color: #FFD54F;"></i>
+                            <span>Notificaciones</span>
                             @if (hayModificacionesNoVistas)
                             {
                                 <span class="badge bg-danger" style="position: absolute; top: -5px; right: -5px; font-size: 0.6rem; padding: 3px 5px;">!</span>
@@ -374,11 +382,15 @@
                 <div class="modal-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: white;">
                     <h5 class="modal-title">
                         <i class="bi bi-bell-fill text-warning me-2"></i>
-                        Contratos Modificados Recientemente
+                        Notificaciones de contratos
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalAvisos"></button>
                 </div>
                 <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(errorAvisos))
+                    {
+                        <div class="alert alert-danger" role="alert">@errorAvisos</div>
+                    }
                     @if (cargandoModificaciones)
                     {
                         <div class="text-center py-5">
@@ -410,6 +422,18 @@
                             }
                         </div>
                         <div id="@($"avisos-panel-{grupoAvisosActivo.Tipo}")" role="tabpanel" aria-label="@grupoAvisosActivo.Nombre">
+                            <div class="d-flex justify-content-end mb-3">
+                                <button type="button" class="btn btn-outline-primary btn-sm" disabled="@marcandoTodosAvisos" @onclick="async () => await MarcarTipoComoVistoAsync(grupoAvisosActivo.Tipo)">
+                                    @if (marcandoTodosAvisos)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span><span>Marcando...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-check2-all me-1"></i><span>Marcar todos como vistos</span>
+                                    }
+                                </button>
+                            </div>
                             @if (!grupoAvisosActivo.Contratos.Any())
                             {
                                 <div class="alert alert-info mb-0">
@@ -421,7 +445,7 @@
                                 <div class="list-group">
                                     @foreach (var contrato in grupoAvisosActivo.Contratos)
                                     {
-                                        <button type="button" class="list-group-item list-group-item-action" @onclick="async () => await IrAContrato(contrato)">
+                                        <div @key="contrato.Id" class="list-group-item">
                                             <div class="d-flex w-100 justify-content-between align-items-center">
                                                 <div class="flex-grow-1">
                                                     <div class="d-flex align-items-center mb-1">
@@ -434,12 +458,16 @@
                                                         <p class="mb-0 text-muted" style="font-size: 0.85rem;"><i class="bi bi-geo-alt me-1"></i>@contrato.Direccion</p>
                                                     }
                                                 </div>
-                                                <div class="text-end ms-3">
+                                                <div class="text-end ms-3 d-flex flex-column align-items-end gap-2">
                                                     <small class="text-muted d-block"><i class="bi bi-clock me-1"></i>@contrato.FechaModificacion?.ToString("dd/MM/yyyy HH:mm")</small>
-                                                    <span class="badge bg-primary mt-1">Ver contrato</span>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="async () => await IrAContrato(contrato)">Ver contrato</button>
+                                                    <div class="form-check">
+                                                        <input id="@($"contrato-visto-{contrato.Id}")" class="form-check-input" type="checkbox" aria-label="Marcar contrato @contrato.Id como visto" @onchange="args => MarcarContratoVistoAsync(contrato, args)" />
+                                                        <label class="form-check-label" for="@($"contrato-visto-{contrato.Id}")">Visto</label>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </button>
+                                        </div>
                                     }
                                 </div>
                             }
@@ -543,14 +571,19 @@
 
 @code {
     private bool cargado = false;
+    private bool reaplicarPaletaTrasNavegacion;
     private string? logoUrl;
+    private string LogoMenuUrl => AuthService.EsSuperAdmin || string.IsNullOrWhiteSpace(logoUrl) ? "VoltiaSolutions.jpeg?v=3" : logoUrl;
     private bool mostrarModalAvisos = false;
     private bool cargandoModificaciones = false;
+    private bool marcandoTodosAvisos = false;
     private bool hayModificacionesNoVistas = false;
+    private string? errorAvisos;
     private string tipoAvisoSeleccionado = "energia";
     private string? grupoPrincipalAbierto;
     private List<Contrato> contratosModificados = new();
     private const string STORAGE_KEY = "contratos_vistos_v2";
+    private readonly SemaphoreSlim contratosVistosLock = new(1, 1);
     private string RutaContratos => !AuthService.EsProveedor || AuthService.EsProveedorEnergia
         ? "contratos/energia"
         : AuthService.EsProveedorTelefonia
@@ -608,12 +641,22 @@
     protected override void OnInitialized()
     {
         AuthService.OnAuthStateChanged += StateHasChanged;
+        ContratoService.ContratosActualizados += AlActualizarContratos;
         Navigation.LocationChanged += AlCambiarUbicacion;
     }
+
+    private void AlActualizarContratos() => _ = InvokeAsync(async () =>
+    {
+        await VerificarModificacionesNoVistas();
+        if (mostrarModalAvisos)
+            await MostrarAvisosModificaciones();
+        StateHasChanged();
+    });
 
     private void AlCambiarUbicacion(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
     {
         grupoPrincipalAbierto = null;
+        reaplicarPaletaTrasNavegacion = true;
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -624,6 +667,7 @@
             Console.WriteLine("[NavMenu] Iniciando componente NavMenu");
             await AuthService.CargarSesionAsync();
             await CargarLogoAsync();
+            await CargarAparienciaAsync();
             await VerificarModificacionesNoVistas();
             
             // Iniciar timer para verificar cada 30 segundos
@@ -643,6 +687,11 @@
             cargado = true;
             StateHasChanged();
         }
+        else if (reaplicarPaletaTrasNavegacion)
+        {
+            reaplicarPaletaTrasNavegacion = false;
+            await JS.InvokeVoidAsync("voltiaApariencia.inicializar");
+        }
     }
 
     private async Task OnTimerElapsed()
@@ -657,6 +706,10 @@
 
     private async Task CargarLogoAsync()
     {
+        logoUrl = null;
+        if (!AuthService.EstaAutenticado || AuthService.EmpresaId <= 0 || AuthService.EsSuperAdmin)
+            return;
+
         try
         {
             var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
@@ -665,6 +718,38 @@
         catch (Exception)
         {
             logoUrl = null;
+        }
+    }
+
+    private async Task CargarAparienciaAsync()
+    {
+        if (!AuthService.EstaAutenticado)
+            return;
+
+        if (AuthService.EsSuperAdmin)
+        {
+            AparienciaService.Aplicar(AparienciaService.PaletaPredeterminada);
+            await JS.InvokeVoidAsync("voltiaApariencia.establecerModo", "superadmin");
+            return;
+        }
+
+        if (AuthService.EmpresaId <= 0)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("voltiaApariencia.establecerModo", "empresa");
+            var configuracion = await ConfiguracionService.ObtenerConfiguracionAsync();
+            AparienciaService.Aplicar(
+                configuracion?.TemaVisual,
+                configuracion?.TemaColorAcento,
+                configuracion?.TemaColorBarra,
+                configuracion?.TemaColorFondo);
+            await JS.InvokeVoidAsync("voltiaApariencia.aplicar", AparienciaService.PaletaActualVisual, AuthService.EmpresaId, true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NavMenu] No se pudo aplicar la apariencia de la empresa: {ex.Message}");
         }
     }
 
@@ -683,13 +768,21 @@
                 var todosContratos = contratosEnergia.Concat(contratosTelefonia).Concat(contratosAlarmas)
                     .Where(c => c.FechaModificacion.HasValue)
                     .OrderByDescending(c => c.FechaModificacion)
-                    .Take(20)
                     .ToList();
 
                 Console.WriteLine($"[NavMenu] Total contratos con FechaModificacion: {todosContratos.Count}");
                 
                 // Obtener contratos vistos con sus fechas de modificación
-                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                Dictionary<int, DateTime> contratosVistos;
+                await contratosVistosLock.WaitAsync();
+                try
+                {
+                    contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                }
+                finally
+                {
+                    contratosVistosLock.Release();
+                }
                 
                 Console.WriteLine($"[NavMenu] Contratos vistos en storage: {contratosVistos.Count}");
                 
@@ -720,12 +813,22 @@
             var contratosTelefonia = await ContratoService.ObtenerTodosPorTipoAsync("telefonia", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
             var contratosAlarmas = await ContratoService.ObtenerTodosPorTipoAsync("alarma", AuthService.UsuarioActual?.Rol, AuthService.UsuarioActual?.NombreUsuario, AuthService.UsuarioActual?.Id);
             
-            var todosContratos = contratosEnergia.Concat(contratosTelefonia).Concat(contratosAlarmas);
-            contratosModificados = todosContratos
-                .Where(c => c.FechaModificacion.HasValue)
-                .OrderByDescending(c => c.FechaModificacion)
-                .Take(20)
-                .ToList();
+            var todosContratos = contratosEnergia.Concat(contratosTelefonia).Concat(contratosAlarmas).ToList();
+            await contratosVistosLock.WaitAsync();
+            try
+            {
+                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                contratosModificados = todosContratos
+                    .Where(contrato => contrato.FechaModificacion.HasValue)
+                    .Where(contrato => !contratosVistos.TryGetValue(contrato.Id, out var fechaVista) || fechaVista < contrato.FechaModificacion!.Value)
+                    .OrderByDescending(contrato => contrato.FechaModificacion)
+                    .Take(20)
+                    .ToList();
+            }
+            finally
+            {
+                contratosVistosLock.Release();
+            }
 
             Console.WriteLine($"[NavMenu] Modal abierto - Contratos modificados a mostrar: {contratosModificados.Count}");
             foreach (var c in contratosModificados)
@@ -733,19 +836,7 @@
                 Console.WriteLine($"[NavMenu] Contrato #{c.Id} - {c.NombreCliente} - Última modificación: {c.FechaModificacion}");
             }
 
-            // Marcar todos los contratos actuales como vistos con sus fechas
-            var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
-            foreach (var contrato in contratosModificados)
-            {
-                if (contrato.FechaModificacion.HasValue)
-                {
-                    contratosVistos[contrato.Id] = contrato.FechaModificacion.Value;
-                }
-            }
-            await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
-            
-            // Actualizar el indicador de no vistos
-            hayModificacionesNoVistas = false;
+            await VerificarModificacionesNoVistas();
         }
         catch (Exception)
         {
@@ -764,26 +855,87 @@
         StateHasChanged();
     }
 
-    private async Task IrAContrato(Contrato contrato)
+    private async Task MarcarContratoVistoAsync(Contrato contrato, ChangeEventArgs args)
     {
+        var marcado = args.Value is bool valor && valor || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (!marcado || !contrato.FechaModificacion.HasValue) return;
+
+        var actualizado = false;
+        await contratosVistosLock.WaitAsync();
         try
         {
-            // Marcar este contrato como visto antes de navegar
-            if (contrato.FechaModificacion.HasValue)
-            {
-                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
-                contratosVistos[contrato.Id] = contrato.FechaModificacion.Value;
-                await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
-                
-                // Verificar si quedan contratos sin ver
-                await VerificarModificacionesNoVistas();
-            }
+            var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+            contratosVistos[contrato.Id] = contrato.FechaModificacion.Value;
+            await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
+            contratosModificados.RemoveAll(item => item.Id == contrato.Id);
+            actualizado = true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al marcar contrato como visto: {ex.Message}");
+            Console.WriteLine($"Error al guardar el estado Visto del contrato: {ex.Message}");
         }
-        
+        finally
+        {
+            contratosVistosLock.Release();
+        }
+
+        if (actualizado)
+            await VerificarModificacionesNoVistas();
+        StateHasChanged();
+    }
+
+    private async Task MarcarTipoComoVistoAsync(string tipo)
+    {
+        if (marcandoTodosAvisos || !AuthService.PuedeVerContratos || AuthService.UsuarioActual == null) return;
+
+        marcandoTodosAvisos = true;
+        errorAvisos = null;
+        try
+        {
+            var empresaId = AuthService.EmpresaId;
+            var usuario = AuthService.UsuarioActual;
+            var contratos = await ContratoService.ObtenerTodosPorTipoAsync(tipo, usuario.Rol, usuario.NombreUsuario, usuario.Id);
+            if (AuthService.EmpresaId != empresaId || AuthService.UsuarioActual?.Id != usuario.Id)
+                throw new UnauthorizedAccessException("La sesión o empresa cambió durante la operación.");
+
+            var modificados = contratos.Where(contrato => contrato.FechaModificacion.HasValue).ToList();
+            await contratosVistosLock.WaitAsync();
+            try
+            {
+                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                foreach (var contrato in modificados)
+                {
+                    var fechaModificacion = contrato.FechaModificacion!.Value;
+                    if (!contratosVistos.TryGetValue(contrato.Id, out var fechaVista) || fechaVista < fechaModificacion)
+                        contratosVistos[contrato.Id] = fechaModificacion;
+                }
+
+                if (modificados.Count > 0)
+                    await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
+            }
+            finally
+            {
+                contratosVistosLock.Release();
+            }
+
+            var tipoNormalizado = NormalizarTipoContrato(tipo);
+            contratosModificados.RemoveAll(contrato => NormalizarTipoContrato(contrato.Tipo) == tipoNormalizado);
+            await VerificarModificacionesNoVistas();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al marcar todos los avisos de {tipo} como vistos: {ex.Message}");
+            errorAvisos = "No se pudieron marcar todos los contratos como vistos. Vuelve a intentarlo.";
+        }
+        finally
+        {
+            marcandoTodosAvisos = false;
+            StateHasChanged();
+        }
+    }
+
+    private Task IrAContrato(Contrato contrato)
+    {
         var tipo = contrato.Tipo?.ToLower() ?? "";
         if (tipo == "energia" || tipo == "energía")
         {
@@ -797,6 +949,7 @@
         {
             Navigation.NavigateTo($"/contratos/alarmas?id={contrato.Id}", true);
         }
+        return Task.CompletedTask;
     }
 
     private async Task Logout()
@@ -808,6 +961,7 @@
     public void Dispose()
     {
         AuthService.OnAuthStateChanged -= StateHasChanged;
+        ContratoService.ContratosActualizados -= AlActualizarContratos;
         Navigation.LocationChanged -= AlCambiarUbicacion;
         
         if (verificacionTimer != null)

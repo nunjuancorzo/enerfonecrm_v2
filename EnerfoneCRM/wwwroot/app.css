@@ -42,14 +42,12 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
     .fila-ficha,
     .table > tbody > tr.fila-ficha > * {
-         --crm-sidebar-text: #ffffff;
         transition: none;
     }
 
     .fila-ficha:hover {
         transform: none;
     }
-         color: var(--crm-sidebar-text);
 }
 
 /* Estilos para el menú de navegación */
@@ -362,11 +360,13 @@ h1:focus {
     --crm-accent: #1d4ed8;
     --crm-accent-rgb: 29, 78, 216;
     --crm-sidebar: #172b4d;
+    --crm-sidebar-text: #ffffff;
     --crm-canvas: #eff6ff;
     --crm-surface: #ffffff;
     --crm-text: #171717;
     --crm-muted: #5d6268;
     --crm-border: #e4e5e7;
+    --crm-on-canvas: #171717;
     --crm-on-accent: #ffffff;
     --bs-primary: var(--crm-accent);
     --bs-primary-rgb: var(--crm-accent-rgb);
@@ -376,6 +376,7 @@ h1:focus {
     --crm-accent: #1d4ed8;
     --crm-accent-rgb: 29, 78, 216;
     --crm-sidebar: #172b4d;
+    --crm-sidebar-text: #ffffff;
     --crm-canvas: #eff6ff;
     --crm-on-accent: #ffffff;
 }
@@ -384,6 +385,7 @@ h1:focus {
     --crm-accent: #166534;
     --crm-accent-rgb: 22, 101, 52;
     --crm-sidebar: #17372c;
+    --crm-sidebar-text: #ffffff;
     --crm-canvas: #f0fdf4;
     --crm-on-accent: #ffffff;
 }
@@ -392,6 +394,7 @@ h1:focus {
     --crm-accent: #5b21b6;
     --crm-accent-rgb: 91, 33, 182;
     --crm-sidebar: #2c2248;
+    --crm-sidebar-text: #ffffff;
     --crm-canvas: #f5f3ff;
     --crm-on-accent: #ffffff;
 }
@@ -400,6 +403,7 @@ h1:focus {
     --crm-accent: #0e6a75;
     --crm-accent-rgb: 14, 106, 117;
     --crm-sidebar: #173a3d;
+    --crm-sidebar-text: #ffffff;
     --crm-canvas: #ecfeff;
     --crm-on-accent: #ffffff;
 }
@@ -408,6 +412,7 @@ h1:focus {
     --crm-accent: #374151;
     --crm-accent-rgb: 55, 65, 81;
     --crm-sidebar: #1f2329;
+    --crm-sidebar-text: #ffffff;
     --crm-canvas: #f3f4f6;
     --crm-on-accent: #ffffff;
 }
@@ -416,6 +421,7 @@ h1:focus {
     --crm-accent: #9f2344;
     --crm-accent-rgb: 159, 35, 68;
     --crm-sidebar: #4a1f2f;
+    --crm-sidebar-text: #ffffff;
     --crm-canvas: #fff1f3;
     --crm-on-accent: #ffffff;
 }
@@ -451,6 +457,13 @@ body {
     background: var(--crm-sidebar) !important;
     border: 0 !important;
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08);
+}
+
+.app-sidebar .dropdown-toggle,
+.app-sidebar .text-white,
+.app-sidebar .btn-optime,
+.app-sidebar .btn-avisos-contratos {
+    color: var(--crm-sidebar-text) !important;
 }
 
 @media (min-width: 992px) {
@@ -688,6 +701,7 @@ body {
 }
 
 .navbar-brand img.crm-company-logo {
+    border-radius: 10px;
     display: block;
     flex: 0 0 auto;
     height: 60px !important;
@@ -695,10 +709,6 @@ body {
     max-width: 240px;
     object-fit: contain;
     width: auto !important;
-}
-
-.app-sidebar .navbar-brand img.crm-company-logo {
-    border-radius: 10px;
 }
 
 .app-sidebar .navbar-nav .nav-link {
@@ -1299,6 +1309,13 @@ body {
     border-top-color: var(--crm-accent) !important;
 }
 
+.app-footer,
+.app-footer h6,
+.app-footer a,
+.app-footer a:hover {
+    color: var(--crm-sidebar-text) !important;
+}
+
 .appearance-panel {
     background: var(--crm-surface);
     border: 1px solid var(--crm-border);
@@ -1394,9 +1411,9 @@ body {
 }
 
 .page[data-theme] .home-comparator-button {
-    background: var(--crm-canvas);
-    border-color: var(--crm-canvas);
-    color: var(--crm-sidebar);
+    background: var(--crm-accent) !important;
+    border-color: var(--crm-accent) !important;
+    color: var(--crm-on-accent) !important;
 }
 
 .dashboard-page {
@@ -1540,6 +1557,7 @@ body {
 }
 
 .login-brand-logo {
+    border-radius: 12px;
     max-height: 320px;
     object-fit: contain;
     width: 100%;

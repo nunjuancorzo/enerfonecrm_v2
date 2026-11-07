@@ -14,7 +14,7 @@
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title">
                         <i class="bi bi-person-plus me-2"></i>
-                        Crear Nuevo Usuario
+                        @(ModoSolicitud ? "Solicitar Nuevo Usuario" : "Crear Nuevo Usuario")
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="OnCancelar"></button>
                 </div>
@@ -24,7 +24,7 @@
                             Cancelar
                         </button>
                         <button type="submit" class="btn btn-success">
-                            <i class="bi bi-save me-2"></i>Crear
+                            <i class="bi bi-save me-2"></i>@(ModoSolicitud ? "Enviar solicitud" : "Crear")
                         </button>
                     </div>
                 </div>
@@ -101,7 +101,10 @@
                         <label class="form-label">Rol</label>
                         <InputSelect class="form-select" @bind-Value="model.Rol" @bind-Value:after="OnRolChanged">
                             <option value="">Seleccionar rol...</option>
-                            <option value="Administrador">Administrador</option>
+                            @if (!ModoSolicitud)
+                            {
+                                <option value="Administrador">Administrador</option>
+                            }
                             <option value="Backoffice">Backoffice</option>
                             <option value="Director comercial">Director comercial</option>
                             <option value="Jefe de ventas">Jefe de ventas</option>
@@ -221,6 +224,8 @@
                             <div class="form-text">Jefe de ventas que supervisará a este gestor</div>
                         </div>
 
+                        @if (!ModoSolicitud)
+                        {
                         <div class="mb-3">
                             <hr />
                             <h6 class="mb-3"><i class="bi bi-people me-2"></i>Colaboradores Asignados</h6>
@@ -253,10 +258,17 @@
                                 }
                             </div>
                         </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">La asignación de colaboradores se completará después de la activación.</div>
+                        }
                     }
 
                     @if (model.Rol == "Jefe de ventas")
                     {
+                        @if (!ModoSolicitud)
+                        {
                         <div class="mb-3">
                             <hr />
                             <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i>Gestores Asignados</h6>
@@ -322,6 +334,11 @@
                                 }
                             </div>
                         </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">La asignación de gestores y colaboradores se completará después de la activación.</div>
+                        }
                     }
 
                     @if (model.Rol != "Proveedor")
@@ -505,6 +522,7 @@
 @code {
     [Parameter] public EventCallback<(Usuario usuario, string password, List<int> comercializadorasIds, List<int> operadorasIds, List<int> empresasAlarmasIds, List<int> colaboradoresIds, List<int> gestoresIds)> OnGuardar { get; set; }
     [Parameter] public EventCallback OnCancelar { get; set; }
+    [Parameter] public bool ModoSolicitud { get; set; }
 
     private CrearUsuarioModel model = new();
     private string? comisionTexto;  // Campo auxiliar para permitir valores vacíos
@@ -814,7 +832,7 @@
         }
 
         // Validar que solo puede haber un administrador
-        if (model.Rol == "Administrador")
+        if (!ModoSolicitud && model.Rol == "Administrador")
         {
             var todosUsuarios = await UsuarioService.ObtenerTodosAsync();
             var existeAdministrador = todosUsuarios.Any(u => u.Rol == "Administrador");
@@ -892,7 +910,7 @@
             ArchivoCif = rutaCif,
             ArchivoPoder = rutaPoder,
             ArchivoContrato = rutaContrato,
-            Activo = true
+            Activo = !ModoSolicitud
         };
 
         await OnGuardar.InvokeAsync((usuario, model.Password, comercializadorasIds, operadorasIds, empresasAlarmasIds, colaboradoresSeleccionados.ToList(), gestoresSeleccionados.ToList()));

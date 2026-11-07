@@ -1,19 +1,28 @@
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
-@inject ImportacionDniService ImportacionDniService
+@inject GeminiDniService ServicioDni
+@inject GeminiService GeminiService
+@implements IDisposable
 
 <div class="col-12">
     <div class="border rounded p-3 bg-white">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h6 class="mb-1"><i class="bi bi-person-vcard me-2"></i>Leer DNI/NIE</h6>
-                <small class="text-muted">El análisis se realiza localmente. Revisa los datos antes de guardar.</small>
             </div>
-            <InputFile class="form-control" style="max-width: 360px" OnChange="LeerDocumentoAsync" accept=".pdf,.png,.jpg,.jpeg,.webp" disabled="@procesando" />
+        </div>
+        <AutorizacionGeminiEmpresa OnAutorizacion="CambiarAutorizacion" Deshabilitado="procesando" />
+        @if (!GeminiService.Disponible)
+        {
+            <div class="alert alert-warning mt-3 mb-0">Gemini no esta configurado. Contacta con superadmin.</div>
+        }
+        <div class="mt-3">
+            <label for="@archivoId" class="form-label">Documento PDF o imagen</label>
+            <InputFile id="@archivoId" class="form-control" OnChange="LeerDocumentoAsync" accept=".pdf,.png,.jpg,.jpeg,.webp" disabled="@(procesando || !consentimiento || !GeminiService.Disponible)" />
         </div>
         @if (procesando)
         {
-            <div class="mt-3" role="status"><span class="spinner-border spinner-border-sm me-2"></span>Leyendo documento localmente...</div>
+            <div class="mt-3" role="status"><span class="spinner-border spinner-border-sm me-2"></span>Leyendo documento...</div>
         }
         @if (!string.IsNullOrEmpty(mensaje))
         {
@@ -33,6 +42,33 @@
                 }
             </div>
         }
+        @if (datosLeidos != null && !procesando)
+        {
+            <div class="row g-3 mt-1">
+                @foreach (var campo in campos)
+                {
+                    <div class="col-12 col-md-6">
+                        <label class="form-label" for="@($"{revisionId}-{campo.Clave}")">@campo.Etiqueta</label>
+                        @if (campo.Clave == "TipoVia")
+                        {
+                            <select id="@($"{revisionId}-{campo.Clave}")" class="form-select" @bind="revision[campo.Clave]">
+                                <option value="">-- Seleccionar --</option>
+                                @foreach (var tipo in GeminiDniService.TiposVia) { <option value="@tipo">@tipo</option> }
+                            </select>
+                        }
+                        else
+                        {
+                            <input id="@($"{revisionId}-{campo.Clave}")" class="form-control" @bind="revision[campo.Clave]" maxlength="@campo.Maximo" />
+                        }
+                    </div>
+                }
+            </div>
+            <div class="form-check mt-3">
+                <input id="@revisionId" type="checkbox" class="form-check-input" @bind="confirmado" />
+                <label class="form-check-label" for="@revisionId">He revisado los datos del documento</label>
+            </div>
+            <button type="button" class="btn btn-primary mt-3" @onclick="Aplicar" disabled="@(!confirmado)"><i class="bi bi-check-lg me-2"></i>Aplicar al cliente</button>
+        }
     </div>
 </div>
 
@@ -42,32 +78,84 @@
 
     private bool procesando;
     private bool error;
+    private bool consentimiento;
+    private bool confirmado;
+    private readonly string archivoId = $"dni-archivo-{Guid.NewGuid():N}";
+    private readonly string revisionId = $"dni-revision-{Guid.NewGuid():N}";
+    private static readonly (string Clave, string Etiqueta, int Maximo)[] campos =
+    [
+        ("Documento", "DNI/NIE", 9), ("Nombre", "Nombre", 120), ("Apellidos", "Apellidos", 120),
+        ("Nacionalidad", "Nacionalidad", 120), ("TipoVia", "Tipo de vía", 50), ("Direccion", "Nombre de la calle", 500),
+        ("Numero", "Número", 20), ("Escalera", "Escalera", 10), ("Piso", "Piso", 10), ("Puerta", "Puerta", 10),
+        ("CodigoPostal", "Código postal", 5), ("Poblacion", "Localidad", 100), ("Provincia", "Provincia", 100),
+        ("Pais", "País", 100), ("Aclarador", "Aclarador", 255)
+    ];
+    private readonly Dictionary<string, string> revision = campos.ToDictionary(campo => campo.Clave, campo => string.Empty);
+    private Cliente? modeloAnterior;
+    private CancellationTokenSource? cancelacion;
     private string mensaje = string.Empty;
     private DatosDocumentoIdentidad? datosLeidos;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(modeloAnterior, Modelo)) return;
+        cancelacion?.Cancel();
+        modeloAnterior = Modelo;
+        Restablecer();
+    }
+
+    private void CambiarAutorizacion(bool autorizada)
+    {
+        consentimiento = autorizada;
+        if (!autorizada)
+        {
+            cancelacion?.Cancel();
+            Restablecer();
+        }
+    }
+
+    private void Restablecer()
+    {
+        datosLeidos = null;
+        mensaje = string.Empty;
+        error = false;
+        confirmado = false;
+    }
 
     private async Task LeerDocumentoAsync(InputFileChangeEventArgs args)
     {
         if (procesando) return;
+        if (!consentimiento || !GeminiService.Disponible)
+        {
+            error = true;
+            mensaje = "Configura Gemini y autoriza su uso para esta empresa antes de importar el documento.";
+            return;
+        }
 
         procesando = true;
         error = false;
         mensaje = string.Empty;
         datosLeidos = null;
+        confirmado = false;
+        var modeloSolicitud = Modelo;
+        using var plazo = new CancellationTokenSource();
+        cancelacion = plazo;
 
         try
         {
             var archivo = args.File;
-            if (archivo.Size <= 0 || archivo.Size > 10 * 1024 * 1024)
+            if (archivo.Size <= 0 || archivo.Size > 50 * 1024 * 1024)
             {
                 error = true;
-                mensaje = "El documento está vacío o supera el límite de 10 MB.";
+                mensaje = "El documento está vacío o supera el límite de 50 MB.";
                 return;
             }
 
-            await using var stream = archivo.OpenReadStream(10 * 1024 * 1024);
+            await using var stream = archivo.OpenReadStream(50 * 1024 * 1024);
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer);
-            var resultado = await ImportacionDniService.LeerAsync(buffer.ToArray(), archivo.Name);
+            var resultado = await ServicioDni.LeerAsync(buffer.ToArray(), consentimiento, plazo.Token);
+            if (!ReferenceEquals(modeloSolicitud, Modelo) || plazo.IsCancellationRequested) return;
             if (!resultado.Exito || resultado.Datos == null)
             {
                 error = true;
@@ -76,30 +164,65 @@
             }
 
             datosLeidos = resultado.Datos;
-            Modelo.TipoDocumentoIdentidad = datosLeidos.TipoDocumento;
-            Modelo.DniCif = datosLeidos.Documento;
-            if (!string.IsNullOrWhiteSpace(datosLeidos.NombreCompleto))
-                Modelo.Nombre = datosLeidos.NombreCompleto;
-            if (!string.IsNullOrWhiteSpace(datosLeidos.Apellidos))
-                Modelo.Apellidos = datosLeidos.Apellidos;
-            if (!string.IsNullOrWhiteSpace(datosLeidos.Nacionalidad))
-                Modelo.Nacionalidad = datosLeidos.Nacionalidad;
-            if (!string.IsNullOrWhiteSpace(datosLeidos.Direccion))
-                Modelo.Direccion = datosLeidos.Direccion;
-            if (!string.IsNullOrWhiteSpace(datosLeidos.CodigoPostal))
-                Modelo.CodigoPostal = datosLeidos.CodigoPostal;
-
+            revision["Documento"] = datosLeidos.Documento;
+            revision["Nombre"] = datosLeidos.Nombre ?? string.Empty;
+            revision["Apellidos"] = datosLeidos.Apellidos ?? string.Empty;
+            revision["Nacionalidad"] = datosLeidos.Nacionalidad ?? string.Empty;
+            revision["Direccion"] = datosLeidos.Direccion ?? string.Empty;
+            revision["CodigoPostal"] = datosLeidos.CodigoPostal ?? string.Empty;
+            revision["TipoVia"] = datosLeidos.TipoVia ?? string.Empty;
+            revision["Numero"] = datosLeidos.Numero ?? string.Empty;
+            revision["Escalera"] = datosLeidos.Escalera ?? string.Empty;
+            revision["Piso"] = datosLeidos.Piso ?? string.Empty;
+            revision["Puerta"] = datosLeidos.Puerta ?? string.Empty;
+            revision["Aclarador"] = datosLeidos.Aclarador ?? string.Empty;
+            revision["Poblacion"] = datosLeidos.Poblacion ?? string.Empty;
+            revision["Provincia"] = datosLeidos.Provincia ?? string.Empty;
+            revision["Pais"] = datosLeidos.Pais ?? string.Empty;
             mensaje = resultado.Mensaje;
-            await OnDatosImportados.InvokeAsync();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception excepcion) when (excepcion is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            error = true;
+            mensaje = excepcion.Message;
         }
         catch (Exception)
         {
             error = true;
-            mensaje = "No se ha podido leer el documento. Comprueba el formato, la calidad de la imagen y que Tesseract esté disponible.";
+            mensaje = "No se ha podido leer el documento. Comprueba su formato y la calidad de la imagen.";
         }
         finally
         {
             procesando = false;
+            cancelacion = null;
         }
     }
+
+    private async Task Aplicar()
+    {
+        if (datosLeidos == null || !confirmado || procesando) return;
+        var revisados = datosLeidos with
+        {
+            Documento = revision["Documento"], Nombre = revision["Nombre"], Apellidos = revision["Apellidos"],
+            Nacionalidad = revision["Nacionalidad"], Direccion = revision["Direccion"], CodigoPostal = revision["CodigoPostal"],
+            TipoVia = revision["TipoVia"], Numero = revision["Numero"], Escalera = revision["Escalera"], Piso = revision["Piso"],
+            Puerta = revision["Puerta"], Aclarador = revision["Aclarador"], Poblacion = revision["Poblacion"],
+            Provincia = revision["Provincia"], Pais = revision["Pais"]
+        };
+        try { GeminiDniService.AplicarAlCliente(Modelo, revisados); }
+        catch (ArgumentException excepcion)
+        {
+            error = true;
+            mensaje = excepcion.Message;
+            return;
+        }
+        mensaje = "Datos aplicados al formulario. El cliente todavia no se ha guardado.";
+        error = false;
+        datosLeidos = null;
+        confirmado = false;
+        await OnDatosImportados.InvokeAsync();
+    }
+
+    public void Dispose() => cancelacion?.Cancel();
 }

@@ -199,7 +199,7 @@ IIS necesita permisos específicos para ejecutar las aplicaciones .NET Core. Aqu
 # Abrir PowerShell como Administrador
 
 # ====================
-# ENERFONE CRM
+# VOLTIA SOLUTIONS - ENERFONE
 # ====================
 
 # Dar permisos completos a IIS_IUSRS (grupo de usuarios de IIS)

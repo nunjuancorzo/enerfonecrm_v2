@@ -279,5 +279,5 @@ Get-ChildItem C:\enerfonecrm\logs -Recurse | Sort-Object Length -Descending | Se
 ---
 
 **Fecha de aplicación**: 3 de junio de 2026  
-**Desarrollador**: Sistema CorCRM  
+**Desarrollador**: Sistema Voltia Solutions
 **Impacto**: POSITIVO - Liberación de espacio en disco y eliminación de logs innecesarios

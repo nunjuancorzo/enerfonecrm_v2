@@ -27,7 +27,7 @@ public static class PlantillaEmailFirma
             configuracion.TemaColorFondo);
         var logo = LeerLogo(configuracion.LogoUrl);
         var empresa = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(configuracion.NombreEmpresa)
-            ? "Enerfone CRM"
+            ? "Voltia Solutions"
             : configuracion.NombreEmpresa.Trim());
         var logoHtml = logo != null
           ? $"<img src=\"cid:{IdLogo}\" alt=\"{empresa}\" width=\"180\" style=\"display:block;width:180px;max-width:100%;height:auto;margin:0 auto;border:0;\">"

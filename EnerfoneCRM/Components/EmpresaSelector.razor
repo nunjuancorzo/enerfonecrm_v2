@@ -1,0 +1,66 @@
+@using EnerfoneCRM.Services
+@using EnerfoneCRM.Models
+@inject AuthService AuthService
+@inject EmpresaService EmpresaService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@implements IDisposable
+
+@if (AuthService.EsSuperAdmin)
+{
+    <div class="px-3 py-2">
+        <label for="empresa-actual" class="form-label text-white">Empresa</label>
+        <select id="empresa-actual" class="form-select form-select-sm" value="@AuthService.EmpresaId" @onchange="CambiarEmpresa">
+            <option value="0">Seleccionar empresa</option>
+            @foreach (var empresa in empresas.Where(empresa => empresa.Activa))
+            {
+                <option value="@empresa.Id">@empresa.Nombre</option>
+            }
+        </select>
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="text-danger" role="alert">@error</div>
+        }
+    </div>
+}
+
+@code {
+    private List<Empresa> empresas = new();
+    private string? error;
+
+    protected override void OnInitialized() => EmpresaService.EmpresasActualizadas += ActualizarEmpresas;
+
+    private async void ActualizarEmpresas()
+    {
+        await InvokeAsync(async () =>
+        {
+            try { empresas = await EmpresaService.ObtenerTodasAsync(); }
+            catch { error = "No se pudieron cargar las empresas."; }
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose() => EmpresaService.EmpresasActualizadas -= ActualizarEmpresas;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await AuthService.CargarSesionAsync();
+        if (!AuthService.EsSuperAdmin) return;
+        try { empresas = await EmpresaService.ObtenerTodasAsync(); }
+        catch { error = "No se pudieron cargar las empresas."; }
+        StateHasChanged();
+    }
+
+    private async Task CambiarEmpresa(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var empresaId) || empresaId <= 0) return;
+        try
+        {
+            await AuthService.SeleccionarEmpresaAsync(empresaId);
+            await JS.InvokeVoidAsync("voltiaApariencia.establecerModo", "superadmin");
+            Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+        }
+        catch (Exception ex) { error = ex.Message; }
+    }
+}

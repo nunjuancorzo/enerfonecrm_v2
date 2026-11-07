@@ -9,11 +9,13 @@ public class RevolappsIncidenciasService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly EmpresaContext _empresa;
 
-    public RevolappsIncidenciasService(HttpClient httpClient, IConfiguration configuration)
+    public RevolappsIncidenciasService(HttpClient httpClient, IConfiguration configuration, EmpresaContext empresa)
     {
         _httpClient = httpClient;
         _configuration = configuration;
+        _empresa = empresa;
     }
 
     public async Task<(bool exito, string mensaje, int? incidentId)> EnviarIncidenciaAsync(Incidencia incidencia, CancellationToken cancellationToken = default)
@@ -145,11 +147,7 @@ public class RevolappsIncidenciasService
 
     private string ObtenerRutaImagenIncidencia(string nombreImagen)
     {
-        var storagePath = _configuration.GetValue<string>("StoragePath");
-        if (string.IsNullOrEmpty(storagePath))
-        {
-            storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
-        }
+        var storagePath = _empresa.RutaStorage(_configuration);
 
         var safeName = Path.GetFileName(nombreImagen);
         return Path.Combine(storagePath, "incidencias", safeName);

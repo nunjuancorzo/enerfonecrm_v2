@@ -3,6 +3,9 @@ using EnerfoneCRM.Models;
 using Microsoft.EntityFrameworkCore;
 using Blazored.SessionStorage;
 using Blazored.LocalStorage;
+using Microsoft.AspNetCore.DataProtection;
+using System.Text.Json;
+using Microsoft.JSInterop;
 
 namespace EnerfoneCRM.Services;
 
@@ -12,6 +15,11 @@ public class AuthService
     private readonly ISessionStorageService _sessionStorage;
     private readonly ILocalStorageService _localStorage;
     private readonly LogAccesoService _logAccesoService;
+    private readonly EmpresaContext _empresaContext;
+    private readonly IDataProtector _sessionProtector;
+    private readonly IJSRuntime _jsRuntime;
+    private bool _recordarMe;
+    internal sealed record SesionProtegida(int UsuarioId, int EmpresaId, DateTime CaducidadUtc);
     private Usuario? _usuarioActual;
 
     // Usuario superadmin hardcodeado (sin registro en BD ni logs)
@@ -22,18 +30,25 @@ public class AuthService
         DbContextProvider dbContextProvider, 
         ISessionStorageService sessionStorage,
         ILocalStorageService localStorage,
-        LogAccesoService logAccesoService)
+        LogAccesoService logAccesoService,
+        EmpresaContext empresaContext,
+        IDataProtectionProvider dataProtectionProvider,
+        IJSRuntime jsRuntime)
     {
         _dbContextProvider = dbContextProvider;
         _sessionStorage = sessionStorage;
         _localStorage = localStorage;
         _logAccesoService = logAccesoService;
+        _empresaContext = empresaContext;
+        _sessionProtector = dataProtectionProvider.CreateProtector("EnerfoneCRM.SesionEmpresas.v1");
+        _jsRuntime = jsRuntime;
     }
 
     public Usuario? UsuarioActual => _usuarioActual;
     public bool EstaAutenticado => _usuarioActual != null;
     public bool EsAdministrador => _usuarioActual?.Rol == "Administrador";
-    public bool EsSuperAdmin => _usuarioActual?.NombreUsuario == SUPERADMIN_USERNAME;
+    public bool EsSuperAdmin => _usuarioActual?.Id == -1 && _usuarioActual.NombreUsuario == SUPERADMIN_USERNAME;
+    public int EmpresaId => _empresaContext.EmpresaId;
     public bool EsDirectorComercial => _usuarioActual?.Rol == "Director comercial";
     public bool EsJefeVentas => _usuarioActual?.Rol == "Jefe de ventas";
     public bool EsGestor => _usuarioActual?.Rol == "Gestor";
@@ -57,7 +72,7 @@ public class AuthService
     public bool PuedeVerSips => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerSips;
     public bool PuedeVerIncidencias => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerIncidencias;
     public bool PuedeVerOfertas => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerOfertas;
-    public bool PuedeVerUsuarios => _usuarioActual?.Rol != "Backoffice" || _usuarioActual.PuedeVerUsuarios;
+    public bool PuedeVerUsuarios => EsSuperAdmin;
 
     // Métodos de verificación de permisos de gestión (Administrador o Backoffice con permiso)
     // Backoffice con acceso a un módulo tiene los mismos permisos que Administrador en ese módulo
@@ -70,7 +85,7 @@ public class AuthService
     public bool PuedeGestionarOfertas => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerOfertas == true);
     
     // USUARIOS: Solo Administrador puede gestionarlos (seguridad)
-    public bool PuedeGestionarUsuarios => EsAdministrador;
+    public bool PuedeGestionarUsuarios => EsSuperAdmin;
 
     public event Action? OnAuthStateChanged;
 
@@ -86,19 +101,17 @@ public class AuthService
         try
         {
             // Primero intentar desde SessionStorage (sesión actual)
-            var usuarioId = await _sessionStorage.GetItemAsync<int?>("usuarioId");
-            
-            // Si no hay en sesión, intentar desde LocalStorage (recordarme)
-            if (!usuarioId.HasValue || usuarioId.Value <= 0)
+            var token = await _sessionStorage.GetItemAsync<string>("sesionProtegida");
+            if (string.IsNullOrEmpty(token))
             {
-                usuarioId = await _localStorage.GetItemAsync<int?>("usuarioId");
-                
-                // Si se encontró en localStorage, también guardarlo en sessionStorage
-                if (usuarioId.HasValue && usuarioId.Value > 0)
-                {
-                    await _sessionStorage.SetItemAsync("usuarioId", usuarioId.Value);
-                }
+                token = await _localStorage.GetItemAsync<string>("sesionProtegida");
+                _recordarMe = !string.IsNullOrEmpty(token);
             }
+            if (string.IsNullOrEmpty(token)) return false;
+            var sesion = JsonSerializer.Deserialize<SesionProtegida>(_sessionProtector.Unprotect(token));
+            if (sesion == null || sesion.CaducidadUtc <= DateTime.UtcNow) return false;
+            await GuardarCookieAsync(token, _recordarMe);
+            int? usuarioId = sesion.UsuarioId;
             
             if (usuarioId.HasValue)
             {
@@ -116,6 +129,17 @@ public class AuthService
                         Activo = true,
                         ExcluirLogAcceso = true
                     };
+                    _empresaContext.Establecer(0, true);
+                    await _jsRuntime.InvokeVoidAsync("voltiaApariencia.establecerModo", "superadmin");
+                    if (sesion.EmpresaId > 0)
+                    {
+                        await using var empresas = _dbContextProvider.CreateDbContext();
+                        if (await empresas.Empresas.AnyAsync(empresa => empresa.Id == sesion.EmpresaId && empresa.Activa))
+                        {
+                            _empresaContext.Establecer(sesion.EmpresaId, true);
+                            _usuarioActual.EmpresaId = sesion.EmpresaId;
+                        }
+                    }
                     Console.WriteLine($"[AUTH] SUPERADMIN restaurado de sesión - modo invisible");
                     NotificarCambioAutenticacion();
                     return true;
@@ -124,21 +148,27 @@ public class AuthService
                 // Usuario normal de BD
                 if (usuarioId.Value > 0)
                 {
-                    await using var context = _dbContextProvider.CreateDbContext();
+                    await using var context = _dbContextProvider.CreateAuthenticationDbContext();
                     _usuarioActual = await context.Usuarios.FindAsync(usuarioId.Value);
-                    if (_usuarioActual != null)
+                    if (_usuarioActual != null && _usuarioActual.Activo &&
+                        await context.Empresas.AnyAsync(empresa => empresa.Id == _usuarioActual.EmpresaId && empresa.Activa))
                     {
+                        _empresaContext.Establecer(_usuarioActual.EmpresaId);
+                        await _jsRuntime.InvokeVoidAsync("voltiaApariencia.establecerModo", "empresa");
                         await CargarTipoProveedorAsync(_usuarioActual, context);
                         Console.WriteLine($"[AUTH] Usuario restaurado de sesión: {_usuarioActual.NombreUsuario}");
                         NotificarCambioAutenticacion();
                         return true;
                     }
+                    _usuarioActual = null;
                 }
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[AUTH] Error al cargar sesión: {ex.Message}");
+            _usuarioActual = null;
+            _empresaContext.Establecer(0);
         }
         return false;
     }
@@ -164,13 +194,14 @@ public class AuthService
                     Activo = true,
                     ExcluirLogAcceso = true
                 };
+                _empresaContext.Establecer(0, true);
                 
                 Console.WriteLine($"[AUTH] SUPERADMIN autenticado - SIN registro en logs");
                 NotificarCambioAutenticacion();
                 return (true, "Login exitoso");
             }
 
-            await using var context = _dbContextProvider.CreateDbContext();
+            await using var context = _dbContextProvider.CreateAuthenticationDbContext();
             Console.WriteLine($"[AUTH] Intentando login para: {nombreUsuario}");
             
             var usuario = await context.Usuarios
@@ -183,8 +214,6 @@ public class AuthService
             }
 
             Console.WriteLine($"[AUTH] Usuario encontrado. Rol: {usuario.Rol}");
-            Console.WriteLine($"[AUTH] Password en BD: '{usuario.PasswordHash}'");
-            Console.WriteLine($"[AUTH] Password ingresado: '{password}'");
 
             // Verificar si el usuario está activo
             if (!usuario.Activo)
@@ -192,6 +221,9 @@ public class AuthService
                 Console.WriteLine($"[AUTH] Usuario inactivo: {nombreUsuario}");
                 return (false, "Tu cuenta está pendiente de activación. Contacta con el administrador.");
             }
+
+            if (!await context.Empresas.AnyAsync(empresa => empresa.Id == usuario.EmpresaId && empresa.Activa))
+                return (false, "La empresa de este usuario no esta activa.");
 
             // Comparación directa de contraseñas en texto plano
             if (usuario.PasswordHash != password)
@@ -202,6 +234,7 @@ public class AuthService
 
             await CargarTipoProveedorAsync(usuario, context);
             _usuarioActual = usuario;
+            _empresaContext.Establecer(usuario.EmpresaId);
             Console.WriteLine($"[AUTH] Login exitoso. Usuario autenticado: {_usuarioActual.NombreUsuario}");
             
             // Registrar el acceso en el log (solo si no está excluido)
@@ -245,24 +278,29 @@ public class AuthService
 
     public async Task GuardarSesionAsync(bool recordarMe = false)
     {
+        _recordarMe = recordarMe;
         try
         {
             if (_usuarioActual != null)
             {
+                await _jsRuntime.InvokeVoidAsync("voltiaApariencia.establecerModo", EsSuperAdmin ? "superadmin" : "empresa");
                 // Siempre guardar en SessionStorage
-                await _sessionStorage.SetItemAsync("usuarioId", _usuarioActual.Id);
+                var token = _sessionProtector.Protect(JsonSerializer.Serialize(new SesionProtegida(
+                    _usuarioActual.Id, EmpresaId, DateTime.UtcNow.Add(recordarMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(12)))));
+                await _sessionStorage.SetItemAsync("sesionProtegida", token);
+                await GuardarCookieAsync(token, recordarMe);
                 Console.WriteLine($"[AUTH] Sesión guardada en SessionStorage con ID: {_usuarioActual.Id}");
                 
                 // Si marcó "Recordarme", también guardar en LocalStorage
                 if (recordarMe)
                 {
-                    await _localStorage.SetItemAsync("usuarioId", _usuarioActual.Id);
+                    await _localStorage.SetItemAsync("sesionProtegida", token);
                     Console.WriteLine($"[AUTH] Sesión guardada en LocalStorage (Recordarme) con ID: {_usuarioActual.Id}");
                 }
                 else
                 {
                     // Si no marcó "Recordarme", limpiar LocalStorage por si acaso
-                    await _localStorage.RemoveItemAsync("usuarioId");
+                    await _localStorage.RemoveItemAsync("sesionProtegida");
                 }
             }
         }
@@ -275,10 +313,16 @@ public class AuthService
     public async Task Logout()
     {
         _usuarioActual = null;
+        _empresaContext.Establecer(0);
         try
         {
             await _sessionStorage.RemoveItemAsync("usuarioId");
             await _localStorage.RemoveItemAsync("usuarioId");
+            await _sessionStorage.RemoveItemAsync("sesionProtegida");
+            await _localStorage.RemoveItemAsync("sesionProtegida");
+            await using var module = await _jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/empresa-session.js");
+            await module.InvokeVoidAsync("eliminar");
+            await _jsRuntime.InvokeVoidAsync("voltiaApariencia.limpiar");
             // NO limpiar las credenciales guardadas (recordar_usuario y recordar_password)
             // para que persistan incluso después del logout
         }
@@ -293,5 +337,23 @@ public class AuthService
     private void NotificarCambioAutenticacion()
     {
         OnAuthStateChanged?.Invoke();
+    }
+
+    private async Task GuardarCookieAsync(string token, bool recordar)
+    {
+        await using var module = await _jsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/empresa-session.js");
+        await module.InvokeVoidAsync("guardar", token, recordar);
+    }
+
+    public async Task SeleccionarEmpresaAsync(int empresaId)
+    {
+        if (!EsSuperAdmin) throw new UnauthorizedAccessException("Solo superadmin puede seleccionar empresas.");
+        await using var context = _dbContextProvider.CreateDbContext();
+        if (!await context.Empresas.AnyAsync(empresa => empresa.Id == empresaId && empresa.Activa))
+            throw new InvalidOperationException("Empresa no disponible.");
+        _empresaContext.Establecer(empresaId, true);
+        _usuarioActual!.EmpresaId = empresaId;
+        await GuardarSesionAsync(_recordarMe);
+        NotificarCambioAutenticacion();
     }
 }

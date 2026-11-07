@@ -7,12 +7,27 @@ namespace EnerfoneCRM.Services
 {
     public class RepositorioService
     {
-        private readonly string directorioBase;
+        private readonly string _storagePath;
+        private readonly EmpresaContext _empresaContext;
+        private readonly int _empresaDatosExistentesId;
+        private string directorioBase => DirectorioEmpresa;
+        public string DirectorioEmpresa
+        {
+            get
+            {
+                if (_empresaContext.EmpresaId <= 0) throw new UnauthorizedAccessException("Debe seleccionar una empresa.");
+                return _empresaContext.EmpresaId == _empresaDatosExistentesId
+                    ? Path.Combine(_storagePath, "repositorio")
+                    : Path.Combine(_storagePath, "empresas", _empresaContext.EmpresaId.ToString(), "repositorio");
+            }
+        }
         private readonly IServiceProvider _serviceProvider;
 
-        public RepositorioService(IServiceProvider serviceProvider, IConfiguration configuration)
+        public RepositorioService(IServiceProvider serviceProvider, IConfiguration configuration, EmpresaContext empresaContext)
         {
             _serviceProvider = serviceProvider;
+            _empresaContext = empresaContext;
+            _empresaDatosExistentesId = configuration.GetValue("Empresas:EmpresaDatosExistentesId", 1);
             
             // Usar ruta configurable, con fallback a storage local en desarrollo
             var storagePath = configuration.GetValue<string>("StoragePath");
@@ -22,13 +37,23 @@ namespace EnerfoneCRM.Services
                 storagePath = Path.Combine(Directory.GetCurrentDirectory(), "storage");
             }
             
-            directorioBase = Path.Combine(storagePath, "repositorio");
-            
-            // Crear solo el directorio base si no existe
-            if (!Directory.Exists(directorioBase))
+            _storagePath = storagePath;
+        }
+
+        public string ResolverRuta(params string[] segmentos)
+        {
+            var raiz = Path.GetFullPath(DirectorioEmpresa);
+            var ruta = Path.GetFullPath(Path.Combine(new[] { raiz }.Concat(segmentos).ToArray()));
+            if (ruta != raiz && !ruta.StartsWith(raiz + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                throw new UnauthorizedAccessException("Ruta fuera del repositorio de la empresa.");
+            var actual = new DirectoryInfo(ruta);
+            while (actual != null && actual.FullName != raiz)
             {
-                Directory.CreateDirectory(directorioBase);
+                if ((actual.Exists && actual.LinkTarget != null) || (File.Exists(actual.FullName) && new FileInfo(actual.FullName).LinkTarget != null))
+                    throw new UnauthorizedAccessException("No se permiten enlaces simbolicos.");
+                actual = actual.Parent;
             }
+            return ruta;
         }
 
         public void CrearCarpetaComercializadora(string nombreComercializadora)
@@ -227,10 +252,9 @@ namespace EnerfoneCRM.Services
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
                 
                 // Sincronizar Comercializadoras
-                var comercializadoraService = scope.ServiceProvider.GetRequiredService<ComercializadoraService>();
+                var comercializadoraService = _serviceProvider.GetRequiredService<ComercializadoraService>();
                 var comercializadoras = await comercializadoraService.ObtenerTodasAsync();
                 foreach (var comercializadora in comercializadoras)
                 {
@@ -238,7 +262,7 @@ namespace EnerfoneCRM.Services
                 }
                 
                 // Sincronizar Operadoras
-                var operadoraService = scope.ServiceProvider.GetRequiredService<OperadoraService>();
+                var operadoraService = _serviceProvider.GetRequiredService<OperadoraService>();
                 var operadoras = await operadoraService.ObtenerTodasAsync();
                 foreach (var operadora in operadoras)
                 {
@@ -246,7 +270,7 @@ namespace EnerfoneCRM.Services
                 }
                 
                 // Sincronizar Empresas de Alarmas
-                var empresaAlarmaService = scope.ServiceProvider.GetRequiredService<EmpresaAlarmaService>();
+                var empresaAlarmaService = _serviceProvider.GetRequiredService<EmpresaAlarmaService>();
                 var empresasAlarmas = await empresaAlarmaService.ObtenerTodasAsync();
                 foreach (var empresa in empresasAlarmas)
                 {

@@ -19,7 +19,7 @@ namespace EnerfoneCRM.Services
         public async Task<List<CodigoPostal>> ObtenerActivosAsync()
         {
             await using var context = _dbContextProvider.CreateDbContext();
-            return await context.CodigosPostales
+            return await context.CodigosPostales.IgnoreQueryFilters()
                 .Where(cp => cp.Activo)
                 .OrderBy(cp => cp.CodigoPostalValor)
                 .ToListAsync();
@@ -42,7 +42,7 @@ namespace EnerfoneCRM.Services
         public async Task<CodigoPostal?> BuscarPorCodigoAsync(string codigoPostal)
         {
             await using var context = _dbContextProvider.CreateDbContext();
-            return await context.CodigosPostales
+            return await context.CodigosPostales.IgnoreQueryFilters()
                 .FirstOrDefaultAsync(cp => cp.CodigoPostalValor == codigoPostal && cp.Activo);
         }
 
@@ -69,7 +69,7 @@ namespace EnerfoneCRM.Services
 
             var busqueda = textoBusqueda.Trim().ToLower();
             
-            return await context.CodigosPostales
+            return await context.CodigosPostales.IgnoreQueryFilters()
                 .Where(cp => cp.Activo && (
                     cp.CodigoPostalValor.Contains(busqueda) ||
                     cp.Ciudad.ToLower().Contains(busqueda) ||
@@ -88,6 +88,7 @@ namespace EnerfoneCRM.Services
             
             // Verificar si ya existe
             var existe = await context.CodigosPostales
+                .IgnoreQueryFilters()
                 .AnyAsync(cp => cp.CodigoPostalValor == codigoPostal.CodigoPostalValor);
             
             if (existe)
@@ -160,6 +161,7 @@ namespace EnerfoneCRM.Services
         {
             await using var context = _dbContextProvider.CreateDbContext();
             return await context.CodigosPostales
+                .IgnoreQueryFilters()
                 .Where(cp => cp.Activo)
                 .Select(cp => cp.Provincia)
                 .Distinct()
@@ -174,6 +176,7 @@ namespace EnerfoneCRM.Services
         {
             await using var context = _dbContextProvider.CreateDbContext();
             return await context.CodigosPostales
+                .IgnoreQueryFilters()
                 .Where(cp => cp.Activo && cp.Provincia.ToLower() == provincia.ToLower())
                 .OrderBy(cp => cp.CodigoPostalValor)
                 .ToListAsync();

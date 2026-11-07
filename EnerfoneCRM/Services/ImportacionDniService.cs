@@ -6,7 +6,7 @@ namespace EnerfoneCRM.Services;
 
 public sealed class ImportacionDniService
 {
-    private const int MaximoBytes = 10 * 1024 * 1024;
+    private const int MaximoBytes = 50 * 1024 * 1024;
     private const int MaximoCaracteresOcr = 100_000;
     private const string LetrasDni = "TRWAGMYFPDXBNJZSQVHLCKE";
     private readonly OcrService ocrService;
@@ -16,7 +16,7 @@ public sealed class ImportacionDniService
     public async Task<ResultadoImportacionDni> LeerAsync(byte[] archivo, string nombreArchivo)
     {
         if (archivo.Length == 0 || archivo.Length > MaximoBytes)
-            return new(false, "El archivo está vacío o supera los 10 MB.");
+            return new(false, "El archivo está vacío o supera los 50 MB.");
 
         try
         {
@@ -132,7 +132,7 @@ public sealed class ImportacionDniService
         return new string(caracteres);
     }
 
-    private static bool EsDocumentoValido(string documento)
+    internal static bool EsDocumentoValido(string documento)
     {
         if (documento.Length != 9)
             return false;
@@ -189,7 +189,7 @@ public sealed class ImportacionDniService
         return limpio;
     }
 
-    private static string? NormalizarNacionalidad(string? nacionalidad)
+    internal static string? NormalizarNacionalidad(string? nacionalidad)
     {
         if (string.IsNullOrWhiteSpace(nacionalidad))
             return null;
@@ -220,6 +220,15 @@ public sealed record DatosDocumentoIdentidad(
     bool CorregidoPorOcr = false)
 {
     public string NombreCompleto => string.Join(' ', new[] { Nombre, Apellidos }.Where(valor => !string.IsNullOrWhiteSpace(valor)));
+    public string? TipoVia { get; init; }
+    public string? Numero { get; init; }
+    public string? Escalera { get; init; }
+    public string? Piso { get; init; }
+    public string? Puerta { get; init; }
+    public string? Aclarador { get; init; }
+    public string? Poblacion { get; init; }
+    public string? Provincia { get; init; }
+    public string? Pais { get; init; }
 }
 
 public sealed record ResultadoImportacionDni(bool Exito, string Mensaje, DatosDocumentoIdentidad? Datos = null);
