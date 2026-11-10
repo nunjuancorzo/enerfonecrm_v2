@@ -86,22 +86,41 @@ public class GeminiService(HttpClient httpClient, IConfiguration configuration, 
             ["generationConfig"] = generacion
         };
         var modelo = privada?.Modelo ?? configuration["Gemini:Model"] ?? ModeloPredeterminado;
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(modelo)}:generateContent");
-        request.Headers.Add("x-goog-api-key", clave);
-        request.Content = JsonContent.Create(solicitud);
         using var plazo = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         plazo.CancelAfter(TimeSpan.FromSeconds(90));
         try
         {
-            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, plazo.Token);
-            if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException(DescribirError(response.StatusCode,
-                    await response.Content.ReadAsStringAsync(plazo.Token)));
-            var bytes = await response.Content.ReadAsByteArrayAsync(plazo.Token);
-            if (bytes.Length > 1000000) throw new InvalidOperationException("La respuesta de Gemini es demasiado grande.");
-            using var json = JsonDocument.Parse(bytes);
-            return LeerRespuesta(json.RootElement);
+            const int maxIntentos = 3;
+            for (var intento = 1; intento <= maxIntentos; intento++)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post,
+                    $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(modelo)}:generateContent");
+                request.Headers.Add("x-goog-api-key", clave);
+                request.Content = JsonContent.Create(solicitud);
+
+                using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, plazo.Token);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var cuerpo = await response.Content.ReadAsStringAsync(plazo.Token);
+                    if (intento < maxIntentos && response.StatusCode is HttpStatusCode.ServiceUnavailable or HttpStatusCode.TooManyRequests)
+                    {
+                        var retryAfter = response.Headers.RetryAfter;
+                        var espera = retryAfter?.Delta ?? (retryAfter?.Date - DateTimeOffset.UtcNow) ?? TimeSpan.FromSeconds(intento * 2);
+                        if (espera <= TimeSpan.Zero) espera = TimeSpan.FromSeconds(intento * 2);
+                        await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(espera.TotalSeconds, 1, 10)), plazo.Token);
+                        continue;
+                    }
+
+                    throw new InvalidOperationException(DescribirError(response.StatusCode, cuerpo));
+                }
+
+                var bytes = await response.Content.ReadAsByteArrayAsync(plazo.Token);
+                if (bytes.Length > 1000000) throw new InvalidOperationException("La respuesta de Gemini es demasiado grande.");
+                using var json = JsonDocument.Parse(bytes);
+                return LeerRespuesta(json.RootElement);
+            }
+
+            throw new InvalidOperationException("Gemini no pudo completar la solicitud.");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -145,6 +164,7 @@ public class GeminiService(HttpClient httpClient, IConfiguration configuration, 
             {
                 HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "Gemini rechazo la clave o sus permisos.",
                 HttpStatusCode.TooManyRequests => "Se ha alcanzado la cuota o limite de Gemini.",
+                HttpStatusCode.ServiceUnavailable => "Gemini está temporalmente saturado o el modelo no está disponible. Inténtalo de nuevo más tarde o selecciona otro modelo en Configuración de IA.",
                 HttpStatusCode.BadRequest or HttpStatusCode.NotFound => "Gemini rechazo la solicitud o el modelo configurado.",
                 HttpStatusCode.NotImplemented => "El metodo de la API de Gemini no esta disponible.",
                 _ => "Gemini no esta disponible en este momento."

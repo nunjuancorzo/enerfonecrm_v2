@@ -19,13 +19,13 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label" for="@archivoId">Factura PDF o imagen</label>
-                        <InputFile id="@archivoId" class="form-control" OnChange="CargarArchivoAsync" accept=".pdf,.png,.jpg,.jpeg,.webp" disabled="@(procesando || !consentimiento || !GeminiService.Disponible)" />
+                        <InputFile id="@archivoId" class="form-control" OnChange="CargarArchivoAsync" accept=".pdf,.png,.jpg,.jpeg,.webp" disabled="@(procesando || !GeminiService.Disponible)" />
                         <small class="text-muted">PDF, PNG, JPEG o WebP. Máximo 50 MB y 20 páginas.</small>
                     </div>
-                    <AutorizacionGeminiEmpresa OnAutorizacion="autorizada => consentimiento = autorizada" Deshabilitado="procesando" />
+                    <p class="small text-muted">La factura se procesa con Google Gemini. Revisa los datos extraídos antes de aplicarlos.</p>
                     @if (archivoBytes != null)
                     {
-                        <button type="button" class="btn btn-outline-secondary mb-3" @onclick="AnalizarAsync" disabled="@(procesando || !consentimiento || !GeminiService.Disponible)"><i class="bi bi-arrow-clockwise me-1"></i>Volver a analizar</button>
+                        <button type="button" class="btn btn-outline-secondary mb-3" @onclick="AnalizarAsync" disabled="@(procesando || !GeminiService.Disponible)"><i class="bi bi-arrow-clockwise me-1"></i>Volver a analizar</button>
                     }
                     @if (!GeminiService.Disponible)
                     {
@@ -120,7 +120,6 @@
     private bool visible;
     private bool procesando;
     private bool confirmado;
-    private bool consentimiento;
     private bool mostrarVacios;
     private string nombreArchivo = string.Empty;
     private string error = string.Empty;
@@ -134,16 +133,15 @@
         archivoBytes = null;
         factura = null;
         confirmado = false;
-        consentimiento = false;
         error = string.Empty;
     }
 
     private async Task CargarArchivoAsync(InputFileChangeEventArgs args)
     {
         if (procesando) return;
-        if (!consentimiento || !GeminiService.Disponible)
+        if (!GeminiService.Disponible)
         {
-            error = "Configura Gemini y autoriza su uso para esta empresa antes de importar la factura.";
+            error = "Gemini no está configurado. Contacta con superadmin.";
             return;
         }
         procesando = true;
@@ -172,9 +170,9 @@
     private async Task AnalizarAsync()
     {
         if (archivoBytes == null || procesando) return;
-        if (!consentimiento || !GeminiService.Disponible)
+        if (!GeminiService.Disponible)
         {
-            error = "Configura Gemini y autoriza su uso para esta empresa antes de analizar la factura.";
+            error = "Gemini no está configurado. Contacta con superadmin.";
             return;
         }
         procesando = true;
@@ -183,7 +181,7 @@
         error = string.Empty;
         try
         {
-            factura = await GeminiFacturaService.ExtraerAsync(archivoBytes, consentimiento);
+            factura = await GeminiFacturaService.ExtraerAsync(archivoBytes);
             foreach (var campo in factura.Campos.Where(campo => FacturaImportacionService.EsNumerico(campo.Clave)))
             {
                 if (FacturaImportacionService.TryNumero(campo.Valor, out var numero))

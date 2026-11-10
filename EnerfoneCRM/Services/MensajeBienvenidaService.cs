@@ -89,7 +89,18 @@ public class MensajeBienvenidaService
         
         try
         {
-            context.MensajesBienvenida.Update(mensaje);
+            var existente = await context.MensajesBienvenida
+                .FirstOrDefaultAsync(m => m.Id == mensaje.Id);
+            if (existente == null)
+                return false;
+
+            existente.Titulo = mensaje.Titulo;
+            existente.Contenido = mensaje.Contenido;
+            existente.ImagenUrl = mensaje.ImagenUrl;
+            existente.FechaInicio = mensaje.FechaInicio;
+            existente.FechaFin = mensaje.FechaFin;
+            existente.Activo = mensaje.Activo;
+            existente.Prioridad = mensaje.Prioridad;
             await context.SaveChangesAsync();
             return true;
         }

@@ -1,6 +1,7 @@
 @page "/noticias"
 @page "/mensajes-bienvenida"
 @layout Layout.MainLayout
+@implements IDisposable
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
 @using Microsoft.AspNetCore.Components.Forms
@@ -349,6 +350,8 @@ else
 }
 
 @code {
+    private sealed record ImagenPendiente(string Name, long Size, string RutaTemporal);
+
     private bool cargandoSesion = true;
     private bool cargando = true;
     private string mensajeExito = string.Empty;
@@ -360,7 +363,7 @@ else
     private bool mostrarModal = false;
     private bool mostrarModalEliminar = false;
     private int mensajeEliminarId = 0;
-    private List<IBrowserFile> archivosImagenes = new();
+    private List<ImagenPendiente> archivosImagenes = new();
     private List<int> imagenesAEliminar = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -415,7 +418,7 @@ else
             UsuarioCreacionId = AuthService.UsuarioActual?.Id,
             Imagenes = new List<NoticiaImagen>()
         };
-        archivosImagenes.Clear();
+        LimpiarImagenesTemporales();
         imagenesAEliminar.Clear();
         mostrarModal = true;
     }
@@ -432,7 +435,7 @@ else
                 {
                     mensajeEditando.Imagenes = new List<NoticiaImagen>();
                 }
-                archivosImagenes.Clear();
+                LimpiarImagenesTemporales();
                 imagenesAEliminar.Clear();
                 mostrarModal = true;
             }
@@ -443,11 +446,13 @@ else
         }
     }
 
-    private Task CargarImagenes(InputFileChangeEventArgs e)
+    private async Task CargarImagenes(InputFileChangeEventArgs e)
     {
         try
         {
+            mensajeError = string.Empty;
             var archivosNuevos = e.GetMultipleFiles(10); // Máximo 10 imágenes a la vez
+            var imagenesAgregadas = 0;
             
             foreach (var archivo in archivosNuevos)
             {
@@ -466,26 +471,40 @@ else
                     continue;
                 }
 
-                archivosImagenes.Add(archivo);
+                var directorioTemporal = Path.Combine(EmpresaContext.RutaStorage(Configuration), "temp", "noticias");
+                Directory.CreateDirectory(directorioTemporal);
+                var rutaTemporal = Path.Combine(directorioTemporal, $"{Guid.NewGuid():N}.tmp");
+                try
+                {
+                    await using var origen = archivo.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+                    await using var destino = new FileStream(rutaTemporal, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+                    await origen.CopyToAsync(destino);
+                    archivosImagenes.Add(new ImagenPendiente(archivo.Name, archivo.Size, rutaTemporal));
+                    imagenesAgregadas++;
+                }
+                catch (Exception exArchivo)
+                {
+                    EliminarArchivoTemporal(rutaTemporal);
+                    mensajeError = $"Error al cargar la imagen {archivo.Name}: {exArchivo.Message}";
+                }
             }
 
-            if (archivosNuevos.Any() && string.IsNullOrEmpty(mensajeError))
+            if (imagenesAgregadas > 0 && string.IsNullOrEmpty(mensajeError))
             {
-                mensajeExito = $"{archivosNuevos.Count()} imagen(es) agregada(s)";
+                mensajeExito = $"{imagenesAgregadas} imagen(es) agregada(s)";
             }
         }
         catch (Exception ex)
         {
             mensajeError = $"Error al cargar las imágenes: {ex.Message}";
         }
-        
-        return Task.CompletedTask;
     }
 
     private void EliminarImagenNueva(int index)
     {
         if (index >= 0 && index < archivosImagenes.Count)
         {
+            EliminarArchivoTemporal(archivosImagenes[index].RutaTemporal);
             archivosImagenes.RemoveAt(index);
         }
     }
@@ -556,32 +575,45 @@ else
                 
                 // Obtener las imágenes actuales del mensaje para calcular el orden correcto
                 var imagenesActuales = await MensajeBienvenidaService.ObtenerImagenesNoticiaAsync(mensajeEditando.Id);
-                var ordenBase = imagenesActuales?.Count ?? 0;
-                
-                for (int i = 0; i < archivosImagenes.Count; i++)
+                var siguienteOrden = imagenesActuales?.Count ?? 0;
+
+                foreach (var archivo in archivosImagenes.ToList())
                 {
+                    string? rutaFinal = null;
                     try
                     {
-                        var rutaImagen = await GuardarImagenAsync(archivosImagenes[i]);
-                        if (string.IsNullOrEmpty(rutaImagen))
+                        var imagenGuardada = await GuardarImagenAsync(archivo);
+                        rutaFinal = imagenGuardada.RutaCompleta;
+                        if (string.IsNullOrEmpty(imagenGuardada.Url))
                         {
-                            mensajeErrorModal = $"Error al guardar la imagen: {archivosImagenes[i].Name}";
+                            mensajeErrorModal = $"Error al guardar la imagen: {archivo.Name}";
                             continue;
                         }
 
                         var nuevaImagen = new NoticiaImagen
                         {
                             MensajeId = mensajeEditando.Id,
-                            ImagenUrl = rutaImagen,
-                            Orden = ordenBase + i,
+                            ImagenUrl = imagenGuardada.Url,
+                            Orden = siguienteOrden,
                             FechaCreacion = DateTime.Now
                         };
-                        
-                        await MensajeBienvenidaService.AgregarImagenAsync(nuevaImagen);
+
+                        if (!await MensajeBienvenidaService.AgregarImagenAsync(nuevaImagen))
+                        {
+                            mensajeErrorModal = $"Error al guardar la imagen: {archivo.Name}";
+                            EliminarArchivoTemporal(rutaFinal);
+                            continue;
+                        }
+
+                        siguienteOrden++;
+                        archivosImagenes.Remove(archivo);
+                        EliminarArchivoTemporal(archivo.RutaTemporal);
                     }
                     catch (Exception exImg)
                     {
-                        mensajeErrorModal = $"Error al procesar la imagen {archivosImagenes[i].Name}: {exImg.Message}";
+                        if (!string.IsNullOrEmpty(rutaFinal))
+                            EliminarArchivoTemporal(rutaFinal);
+                        mensajeErrorModal = $"Error al procesar la imagen {archivo.Name}: {exImg.Message}";
                     }
                 }
             }
@@ -608,13 +640,13 @@ else
     {
         mostrarModal = false;
         mensajeEditando = new();
-        archivosImagenes.Clear();
+        LimpiarImagenesTemporales();
         imagenesAEliminar.Clear();
         mensajeErrorModal = string.Empty;
         mensajeExitoModal = string.Empty;
     }
 
-    private async Task<string> GuardarImagenAsync(IBrowserFile archivo)
+    private async Task<(string Url, string RutaCompleta)> GuardarImagenAsync(ImagenPendiente archivo)
     {
         var storagePath = EmpresaContext.RutaStorage(Configuration);
         
@@ -630,14 +662,39 @@ else
         var nombreArchivo = $"{Guid.NewGuid()}{extension}";
         var rutaCompleta = Path.Combine(uploadsPath, nombreArchivo);
 
-        // Guardar el archivo de forma asíncrona
-        using var stream = archivo.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
-        using var fileStream = new FileStream(rutaCompleta, FileMode.Create);
-        await stream.CopyToAsync(fileStream);
+        try
+        {
+            await using var origen = new FileStream(archivo.RutaTemporal, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+            await using var destino = new FileStream(rutaCompleta, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+            await origen.CopyToAsync(destino);
+        }
+        catch
+        {
+            EliminarArchivoTemporal(rutaCompleta);
+            throw;
+        }
 
         // Retornar la ruta para acceso web
-        return EmpresaContext.UrlStorage(Configuration, $"uploads/mensajes/{nombreArchivo}");
+        return (EmpresaContext.UrlStorage(Configuration, $"uploads/mensajes/{nombreArchivo}"), rutaCompleta);
     }
+
+    private void LimpiarImagenesTemporales()
+    {
+        foreach (var archivo in archivosImagenes)
+            EliminarArchivoTemporal(archivo.RutaTemporal);
+        archivosImagenes.Clear();
+    }
+
+    private static void EliminarArchivoTemporal(string ruta)
+    {
+        try
+        {
+            if (File.Exists(ruta)) File.Delete(ruta);
+        }
+        catch { }
+    }
+
+    public void Dispose() => LimpiarImagenesTemporales();
 
     private async Task CambiarEstado(int id, bool nuevoEstado)
     {

@@ -4,13 +4,12 @@ using UglyToad.PdfPig;
 
 namespace EnerfoneCRM.Services;
 
-public class GeminiFacturaService(GeminiService gemini, AuthService auth, ConsentimientoVoltiService consentimientoEmpresa)
+public class GeminiFacturaService(GeminiService gemini, AuthService auth)
 {
-    public async Task<FacturaImportada> ExtraerAsync(byte[] archivo, bool consentimiento, CancellationToken cancellationToken = default)
+    public async Task<FacturaImportada> ExtraerAsync(byte[] archivo, CancellationToken cancellationToken = default)
     {
         if (!auth.EstaAutenticado || auth.EmpresaId <= 0 || !auth.PuedeVerTarifas)
             throw new UnauthorizedAccessException("No tienes acceso al comparador de esta empresa.");
-        await consentimientoEmpresa.ExigirAutorizacionAsync();
         if (archivo.Length == 0 || archivo.Length > FacturaImportacionService.MaximoBytes)
             throw new ArgumentException("El archivo esta vacio o supera los 50 MB.");
         var mime = OcrService.ObtenerTipoDocumento(archivo);

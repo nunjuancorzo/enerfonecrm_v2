@@ -3,13 +3,12 @@ using EnerfoneCRM.Models;
 
 namespace EnerfoneCRM.Services;
 
-public class ExplicacionComparativaService(GeminiService gemini, AuthService auth, ConsentimientoVoltiService consentimientoEmpresa)
+public class ExplicacionComparativaService(GeminiService gemini, AuthService auth)
 {
-    public async Task<string> ExplicarAsync(ComparativaIA datos, bool consentimiento, CancellationToken cancellationToken = default)
+    public async Task<string> ExplicarAsync(ComparativaIA datos, CancellationToken cancellationToken = default)
     {
         if (!auth.EstaAutenticado || auth.EmpresaId <= 0 || !auth.PuedeVerTarifas)
             throw new UnauthorizedAccessException("No tienes acceso al comparador de esta empresa.");
-        await consentimientoEmpresa.ExigirAutorizacionAsync();
         if (datos.Ofertas.Count is < 1 or > 5 || datos.DiasFacturacion <= 0 || datos.TotalFacturaPeriodo <= 0)
             throw new ArgumentException("No hay resultados validos para explicar.");
         var empresaId = auth.EmpresaId;

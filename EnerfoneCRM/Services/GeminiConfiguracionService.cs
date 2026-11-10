@@ -10,15 +10,50 @@ public class GeminiConfiguracionService(IConfiguration configuration, IDataProte
     private string Directorio => configuration["Gemini:SecretsDirectory"] ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CorCRM", "Secrets");
     private string Ruta => Path.Combine(Directorio, "gemini.protected");
+    private string RutaLegada => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CorCRM", "Secrets", "gemini.protected");
     private IDataProtector Protector => protection.CreateProtector("CorCRM.Gemini.Configuracion.v1");
     internal sealed record Configuracion(string Clave, string Modelo);
 
     internal Configuracion? Leer()
     {
-        if (!File.Exists(Ruta)) return null;
-        try { return JsonSerializer.Deserialize<Configuracion>(Protector.Unprotect(File.ReadAllText(Ruta))); }
-        catch (Exception excepcion) when (excepcion is System.Security.Cryptography.CryptographicException or JsonException or IOException)
+        var configuracion = LeerRuta(Ruta);
+        if (configuracion != null) return configuracion;
+
+        var rutaLegada = Path.GetFullPath(RutaLegada);
+        if (rutaLegada.Equals(Path.GetFullPath(Ruta), OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal))
+            return null;
+
+        configuracion = LeerRuta(rutaLegada);
+        if (configuracion == null) return null;
+
+        try
         {
+            Directory.CreateDirectory(Directorio);
+            var temporal = Ruta + ".tmp";
+            File.WriteAllText(temporal, Protector.Protect(JsonSerializer.Serialize(configuracion)));
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(temporal, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            File.Move(temporal, Ruta, overwrite: true);
+            return configuracion;
+        }
+        catch (Exception excepcion) when (excepcion is System.Security.Cryptography.CryptographicException or JsonException or IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[Gemini] No se pudo migrar la configuración protegida anterior: {excepcion.GetType().Name}");
+            return configuracion;
+        }
+    }
+
+    private Configuracion? LeerRuta(string ruta)
+    {
+        if (!File.Exists(ruta)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<Configuracion>(Protector.Unprotect(File.ReadAllText(ruta)));
+        }
+        catch (Exception excepcion) when (excepcion is System.Security.Cryptography.CryptographicException or JsonException or IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[Gemini] No se pudo leer una configuración protegida: {excepcion.GetType().Name}");
             return null;
         }
     }

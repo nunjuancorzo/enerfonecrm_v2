@@ -2,12 +2,14 @@
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Data
 @using Blazored.SessionStorage
+@using Blazored.LocalStorage
 @using System.Timers
 @inject AuthService AuthService
 @inject ConfiguracionService ConfiguracionService
 @inject NavigationManager Navigation
 @inject ContratoService ContratoService
 @inject ISessionStorageService SessionStorage
+@inject ILocalStorageService LocalStorage
 @inject IJSRuntime JS
 @inject AparienciaService AparienciaService
 @implements IDisposable
@@ -582,8 +584,10 @@
     private string tipoAvisoSeleccionado = "energia";
     private string? grupoPrincipalAbierto;
     private List<Contrato> contratosModificados = new();
-    private const string STORAGE_KEY = "contratos_vistos_v2";
+    private const string LEGACY_STORAGE_KEY = "contratos_vistos_v2";
+    private const string STORAGE_KEY = "contratos_vistos_v3";
     private readonly SemaphoreSlim contratosVistosLock = new(1, 1);
+    private string STORAGE_KEY_ACTUAL => $"{STORAGE_KEY}_{AuthService.EmpresaId}_{AuthService.UsuarioActual?.Id ?? 0}";
     private string RutaContratos => !AuthService.EsProveedor || AuthService.EsProveedorEnergia
         ? "contratos/energia"
         : AuthService.EsProveedorTelefonia
@@ -660,6 +664,32 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
+    private async Task MigrarEstadoContratosVistosAsync()
+    {
+        if (AuthService.EmpresaId <= 0 || AuthService.UsuarioActual == null)
+            return;
+
+        await contratosVistosLock.WaitAsync();
+        try
+        {
+            if (await LocalStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY_ACTUAL) != null)
+                return;
+
+            var contratosVistosLegacy = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(LEGACY_STORAGE_KEY);
+            await LocalStorage.SetItemAsync(STORAGE_KEY_ACTUAL, contratosVistosLegacy ?? new Dictionary<int, DateTime>());
+            if (contratosVistosLegacy != null)
+                await SessionStorage.RemoveItemAsync(LEGACY_STORAGE_KEY);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NavMenu] No se pudo migrar el estado de notificaciones vistas: {ex.Message}");
+        }
+        finally
+        {
+            contratosVistosLock.Release();
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !cargado)
@@ -668,6 +698,7 @@
             await AuthService.CargarSesionAsync();
             await CargarLogoAsync();
             await CargarAparienciaAsync();
+            await MigrarEstadoContratosVistosAsync();
             await VerificarModificacionesNoVistas();
             
             // Iniciar timer para verificar cada 30 segundos
@@ -777,7 +808,7 @@
                 await contratosVistosLock.WaitAsync();
                 try
                 {
-                    contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                    contratosVistos = await LocalStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY_ACTUAL) ?? new Dictionary<int, DateTime>();
                 }
                 finally
                 {
@@ -817,7 +848,7 @@
             await contratosVistosLock.WaitAsync();
             try
             {
-                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                var contratosVistos = await LocalStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY_ACTUAL) ?? new Dictionary<int, DateTime>();
                 contratosModificados = todosContratos
                     .Where(contrato => contrato.FechaModificacion.HasValue)
                     .Where(contrato => !contratosVistos.TryGetValue(contrato.Id, out var fechaVista) || fechaVista < contrato.FechaModificacion!.Value)
@@ -864,9 +895,9 @@
         await contratosVistosLock.WaitAsync();
         try
         {
-            var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+            var contratosVistos = await LocalStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY_ACTUAL) ?? new Dictionary<int, DateTime>();
             contratosVistos[contrato.Id] = contrato.FechaModificacion.Value;
-            await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
+            await LocalStorage.SetItemAsync(STORAGE_KEY_ACTUAL, contratosVistos);
             contratosModificados.RemoveAll(item => item.Id == contrato.Id);
             actualizado = true;
         }
@@ -902,7 +933,7 @@
             await contratosVistosLock.WaitAsync();
             try
             {
-                var contratosVistos = await SessionStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY) ?? new Dictionary<int, DateTime>();
+                var contratosVistos = await LocalStorage.GetItemAsync<Dictionary<int, DateTime>>(STORAGE_KEY_ACTUAL) ?? new Dictionary<int, DateTime>();
                 foreach (var contrato in modificados)
                 {
                     var fechaModificacion = contrato.FechaModificacion!.Value;
@@ -911,7 +942,7 @@
                 }
 
                 if (modificados.Count > 0)
-                    await SessionStorage.SetItemAsync(STORAGE_KEY, contratosVistos);
+                    await LocalStorage.SetItemAsync(STORAGE_KEY_ACTUAL, contratosVistos);
             }
             finally
             {

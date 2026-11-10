@@ -2,6 +2,7 @@
 @using EnerfoneCRM.Services
 @inject AuthService AuthService
 @inject VoltiService VoltiService
+@inject GeminiService GeminiService
 @inject IJSRuntime JS
 @implements IDisposable
 @rendermode InteractiveServer
@@ -50,7 +51,14 @@
                 {
                     <div class="alert alert-danger py-2 small" role="alert">@error</div>
                 }
-                <AutorizacionGeminiEmpresa OnAutorizacion="CambiarAutorizacion" Deshabilitado="procesando" MostrarRevocacion="true" />
+                @if (!GeminiService.Disponible)
+                {
+                    <div class="small text-muted mb-2">Gemini no está configurado. Contacta con superadmin.</div>
+                }
+                else
+                {
+                    <div class="small text-muted mb-2">Las consultas se procesan con Google Gemini.</div>
+                }
                 <form class="volti-input-row" @onsubmit="Enviar" @onsubmit:preventDefault>
                     <input class="form-control" aria-label="Consulta para Volti" placeholder="Escribe tu consulta..." maxlength="1500" @bind="pregunta" @bind:event="oninput" disabled="@procesando" />
                     @if (procesando)
@@ -59,7 +67,7 @@
                     }
                     else
                     {
-                        <button type="submit" class="btn btn-primary volti-send" disabled="@(!consentimiento || string.IsNullOrWhiteSpace(pregunta))" title="Enviar consulta" aria-label="Enviar consulta"><i class="bi bi-send"></i></button>
+                        <button type="submit" class="btn btn-primary volti-send" disabled="@(!GeminiService.Disponible || string.IsNullOrWhiteSpace(pregunta))" title="Enviar consulta" aria-label="Enviar consulta"><i class="bi bi-send"></i></button>
                     }
                 </form>
             </footer>
@@ -74,7 +82,6 @@
     private string pregunta = string.Empty;
     private string? error;
     private bool abierto;
-    private bool consentimiento;
     private bool procesando;
     private bool desplazar;
     private int empresaId;
@@ -109,7 +116,6 @@
         if (empresaId != AuthService.EmpresaId || usuarioId != AuthService.UsuarioActual?.Id)
         {
             Limpiar();
-            consentimiento = false;
             abierto = false;
         }
         empresaId = AuthService.EmpresaId;
@@ -119,15 +125,9 @@
 
     private void AlternarChat() => abierto = !abierto;
 
-    private void CambiarAutorizacion(bool autorizada)
-    {
-        consentimiento = autorizada;
-        if (!autorizada) Limpiar();
-    }
-
     private async Task Enviar()
     {
-        if (procesando || !consentimiento || string.IsNullOrWhiteSpace(pregunta)) return;
+        if (procesando || !GeminiService.Disponible || string.IsNullOrWhiteSpace(pregunta)) return;
         var consulta = pregunta.Trim();
         var anteriores = mensajes.Where(mensaje => mensaje.Usuario).TakeLast(4).Select(mensaje => mensaje.Texto).ToList();
         pregunta = string.Empty;
@@ -140,7 +140,7 @@
         cancelacion = plazo;
         try
         {
-            var resultado = await VoltiService.ConsultarAsync(consulta, anteriores, consentimiento, plazo.Token);
+            var resultado = await VoltiService.ConsultarAsync(consulta, anteriores, plazo.Token);
             if (!plazo.IsCancellationRequested) mensajes.Add(new Mensaje(false, resultado.Texto, resultado.Referencias));
         }
         catch (OperationCanceledException) { }

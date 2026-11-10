@@ -2,13 +2,14 @@
 @using EnerfoneCRM.Services
 @using System.Text.Json
 @inject ExplicacionComparativaService ExplicacionService
+@inject GeminiService GeminiService
 @implements IDisposable
 
 <section class="border-bottom pb-3 mb-4">
-    <AutorizacionGeminiEmpresa OnAutorizacion="CambiarAutorizacion" Deshabilitado="procesando" />
-    <button class="btn btn-outline-primary" @onclick="Explicar" disabled="@(procesando || !consentimiento || Datos.Ofertas.Count == 0)">
+    <button class="btn btn-outline-primary" @onclick="Explicar" disabled="@(procesando || !GeminiService.Disponible || Datos.Ofertas.Count == 0)">
         <i class="bi bi-stars me-2"></i>Explicar comparativa
     </button>
+    <small class="text-muted ms-2">La explicación se genera con Google Gemini.</small>
     @if (procesando)
     {
         <span class="ms-3" role="status"><span class="spinner-border spinner-border-sm me-2"></span>Preparando explicacion...</span>
@@ -28,7 +29,6 @@
     private string firma = string.Empty;
     private string? respuesta;
     private string? error;
-    private bool consentimiento;
     private bool procesando;
     private CancellationTokenSource? cancelacion;
 
@@ -42,15 +42,9 @@
         error = null;
     }
 
-    private void CambiarAutorizacion(bool autorizada)
-    {
-        consentimiento = autorizada;
-        if (!autorizada) cancelacion?.Cancel();
-    }
-
     private async Task Explicar()
     {
-        if (procesando || !consentimiento) return;
+        if (procesando || !GeminiService.Disponible || Datos.Ofertas.Count == 0) return;
         procesando = true;
         error = null;
         var firmaSolicitud = firma;
@@ -58,7 +52,7 @@
         cancelacion = plazo;
         try
         {
-            var texto = await ExplicacionService.ExplicarAsync(Datos, consentimiento, plazo.Token);
+            var texto = await ExplicacionService.ExplicarAsync(Datos, plazo.Token);
             if (firma == firmaSolicitud) respuesta = texto;
         }
         catch (OperationCanceledException) { }

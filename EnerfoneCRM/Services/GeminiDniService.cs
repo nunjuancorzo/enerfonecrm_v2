@@ -5,7 +5,7 @@ using EnerfoneCRM.Models;
 
 namespace EnerfoneCRM.Services;
 
-public class GeminiDniService(GeminiService gemini, AuthService auth, ConsentimientoVoltiService consentimientoEmpresa)
+public class GeminiDniService(GeminiService gemini, AuthService auth)
 {
     internal static IReadOnlyList<string> TiposVia { get; } = Array.AsReadOnly(new[]
     {
@@ -30,11 +30,10 @@ public class GeminiDniService(GeminiService gemini, AuthService auth, Consentimi
         public string? Pais { get; init; }
     }
 
-    public async Task<ResultadoImportacionDni> LeerAsync(byte[] archivo, bool consentimiento, CancellationToken cancellationToken = default)
+    public async Task<ResultadoImportacionDni> LeerAsync(byte[] archivo, CancellationToken cancellationToken = default)
     {
         if (!auth.EstaAutenticado || auth.EmpresaId <= 0 || !auth.PuedeVerClientes || auth.EsProveedor)
             throw new UnauthorizedAccessException("No tienes permiso para importar documentos de clientes.");
-        await consentimientoEmpresa.ExigirAutorizacionAsync();
         if (archivo.Length == 0 || archivo.Length > FacturaImportacionService.MaximoBytes)
             throw new ArgumentException("El documento esta vacio o supera los 50 MB.");
         var mime = OcrService.ObtenerTipoDocumento(archivo);

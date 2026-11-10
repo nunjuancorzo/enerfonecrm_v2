@@ -73,6 +73,17 @@ public class GeminiServiceTests
     }
 
     [Fact]
+    public void ErrorGemini503IndicaSaturacionTemporalYNoExponeRespuestaRemota()
+    {
+        var mensaje = GeminiService.DescribirError(HttpStatusCode.ServiceUnavailable,
+            "{\"error\":{\"status\":\"UNAVAILABLE\",\"message\":\"contenido-remoto\"}}");
+        Assert.Contains("temporalmente saturado", mensaje);
+        Assert.Contains("HTTP 503", mensaje);
+        Assert.Contains("UNAVAILABLE", mensaje);
+        Assert.DoesNotContain("contenido-remoto", mensaje);
+    }
+
+    [Fact]
     public void ErrorGeminiExplicaRestriccionesDeClave()
     {
         var mensaje = GeminiService.DescribirError(HttpStatusCode.Forbidden,

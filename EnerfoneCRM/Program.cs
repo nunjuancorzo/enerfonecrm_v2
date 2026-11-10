@@ -12,7 +12,53 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Agregar HttpContextAccessor para acceder al hostname
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddDataProtection();
+
+var storagePathGemini = builder.Configuration.GetValue<string>("StoragePath");
+if (string.IsNullOrWhiteSpace(storagePathGemini))
+    storagePathGemini = Path.Combine(builder.Environment.ContentRootPath, "storage");
+var geminiSecretsPath = builder.Configuration.GetValue<string>("Gemini:SecretsDirectory");
+if (string.IsNullOrWhiteSpace(geminiSecretsPath))
+    geminiSecretsPath = Path.Combine(storagePathGemini, "gemini-secrets");
+var dataProtectionKeysPath = builder.Configuration.GetValue<string>("DataProtection:KeysDirectory");
+if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+    dataProtectionKeysPath = Path.Combine(storagePathGemini, "data-protection-keys");
+Directory.CreateDirectory(geminiSecretsPath);
+Directory.CreateDirectory(dataProtectionKeysPath);
+if (!OperatingSystem.IsWindows())
+{
+    File.SetUnixFileMode(geminiSecretsPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    File.SetUnixFileMode(dataProtectionKeysPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+}
+
+var legacyDataProtectionPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ASP.NET", "DataProtection-Keys");
+var legacyDataProtectionPathFull = Path.GetFullPath(legacyDataProtectionPath);
+var dataProtectionKeysPathFull = Path.GetFullPath(dataProtectionKeysPath);
+var rutaClaveComparador = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+try
+{
+    if (!legacyDataProtectionPathFull.Equals(dataProtectionKeysPathFull, rutaClaveComparador) &&
+        Directory.Exists(legacyDataProtectionPath) &&
+        !Directory.EnumerateFiles(dataProtectionKeysPath, "*.xml").Any())
+    {
+        foreach (var keyFile in Directory.EnumerateFiles(legacyDataProtectionPath, "*.xml"))
+        {
+            var destination = Path.Combine(dataProtectionKeysPath, Path.GetFileName(keyFile));
+            if (!File.Exists(destination)) File.Copy(keyFile, destination);
+        }
+    }
+}
+catch (Exception excepcion) when (excepcion is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+{
+    Console.WriteLine($"[DataProtection] No se pudo migrar el anillo de claves anterior: {excepcion.GetType().Name}");
+}
+
+builder.Configuration["Gemini:SecretsDirectory"] = geminiSecretsPath;
+builder.Configuration["DataProtection:KeysDirectory"] = dataProtectionKeysPath;
+var dataProtection = builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+if (OperatingSystem.IsWindows())
+    dataProtection.ProtectKeysWithDpapi(protectToLocalMachine: true);
 
 // Configurar MySQL con selección dinámica de base de datos
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
@@ -65,7 +111,6 @@ builder.Services.AddScoped<GeminiFacturaService>();
 builder.Services.AddScoped<GeminiDniService>();
 builder.Services.AddScoped<ExplicacionComparativaService>();
 builder.Services.AddScoped<VoltiService>();
-builder.Services.AddScoped<ConsentimientoVoltiService>();
 builder.Services.AddScoped<EmpresaContext>();
 builder.Services.AddScoped<EmpresaService>();
 builder.Services.AddScoped<DbContextProvider>();
