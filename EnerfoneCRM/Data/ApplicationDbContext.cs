@@ -125,12 +125,21 @@ public class ApplicationDbContext : DbContext
                         nameof(ConfiguracionEmpresa.FechaActualizacion));
             if ((entry.Metadata.ClrType.Name.StartsWith("Usuario", StringComparison.Ordinal) || entry.Entity is ConfiguracionEmpresa) && !EsSuperAdmin && !esAltaPendiente && !esEdicionDatosEmpresa && !esEdicionPaletaEmpresa)
                 throw new UnauthorizedAccessException("Solo superadmin puede gestionar usuarios.");
-            if (EmpresaId <= 0)
+            
+            // En contexto público, permitir operaciones sin validación de EmpresaId
+            if (!_publico && EmpresaId <= 0)
                 throw new UnauthorizedAccessException("Debe seleccionar una empresa.");
+            
             if (entry.Entity is Usuario usuario && entry.State != EntityState.Deleted &&
                 usuario.NombreUsuario.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("El nombre superadmin esta reservado.");
+            
             var empresa = entry.Property("EmpresaId");
+            
+            // En contexto público, no aplicar restricciones de EmpresaId
+            if (_publico)
+                continue;
+                
             if (entry.State != EntityState.Added)
             {
                 var stored = entry.GetDatabaseValues();
