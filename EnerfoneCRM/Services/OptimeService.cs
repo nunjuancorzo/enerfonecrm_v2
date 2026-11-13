@@ -112,15 +112,28 @@ public class OptimeService
         if (!string.IsNullOrWhiteSpace(solicitud.Cnae) && 
             !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Cnae, @"^\d{1,10}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El CNAE debe ser numérico");
-        if (!string.IsNullOrWhiteSpace(solicitud.Iban) && 
-            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Iban, @"^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$"))
-            throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN no es válido");
+        
+        // Validar IBAN - normalizar primero (remover espacios, guiones) y aceptar minúsculas
+        if (!string.IsNullOrWhiteSpace(solicitud.Iban))
+        {
+            var ibanNormalizado = System.Text.RegularExpressions.Regex.Replace(solicitud.Iban, @"[\s\-]", "").ToUpper();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(ibanNormalizado, @"^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$"))
+                throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN no es válido");
+            solicitud.Iban = ibanNormalizado;
+        }
+        
         if (!string.IsNullOrWhiteSpace(solicitud.Ccc) && 
             !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Ccc, @"^\d{20}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El Nº CCC debe tener 20 dígitos");
-        if (!string.IsNullOrWhiteSpace(solicitud.Swift) && 
-            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Swift, @"^[A-Z0-9]{8,11}$"))
-            throw new System.ComponentModel.DataAnnotations.ValidationException("El SWIFT debe tener 8 u 11 caracteres");
+        
+        // Validar SWIFT - normalizar a mayúsculas
+        if (!string.IsNullOrWhiteSpace(solicitud.Swift))
+        {
+            var swiftNormalizado = solicitud.Swift.ToUpper().Trim();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(swiftNormalizado, @"^[A-Z0-9]{8,11}$"))
+                throw new System.ComponentModel.DataAnnotations.ValidationException("El SWIFT debe tener 8 u 11 caracteres");
+            solicitud.Swift = swiftNormalizado;
+        }
         
         solicitud.Id = 0;
         solicitud.FechaCreacion = DateTime.Now;
