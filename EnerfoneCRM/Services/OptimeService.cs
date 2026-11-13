@@ -27,6 +27,13 @@ public class OptimeService
     public static string? ObtenerContentType(string nombreArchivo) =>
         ContentTypes.TryGetValue(Path.GetExtension(nombreArchivo), out var ct) ? ct : null;
 
+    public async Task<bool> ObtenerFormularioHabilitadoAsync(int empresaId)
+    {
+        await using var context = _dbContextProvider.CreateAuthenticationDbContext();
+        var empresa = await context.Empresas.AsNoTracking().FirstOrDefaultAsync(e => e.Id == empresaId);
+        return empresa?.FormularioOptimeHabilitado ?? false;
+    }
+
     public async Task<List<OptimeSolicitud>> ObtenerTodasAsync()
     {
         await using var context = _dbContextProvider.CreateDbContext();
@@ -63,12 +70,63 @@ public class OptimeService
     public async Task CrearAsync(OptimeSolicitud solicitud, IEnumerable<OptimeDocumento> documentos)
     {
         Normalizar(solicitud);
-        Validator.ValidateObject(solicitud, new ValidationContext(solicitud), validateAllProperties: true);
+        
+        // Validar que la empresa exista
+        if (solicitud.EmpresaId <= 0)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("La empresa no es válida");
+        
+        // Validar que el formulario esté habilitado para esta empresa
+        await using var context = _dbContextProvider.CreatePublicDbContext();
+        var empresa = await context.Empresas.AsNoTracking().FirstOrDefaultAsync(e => e.Id == solicitud.EmpresaId);
+        if (empresa == null || !empresa.FormularioOptimeHabilitado)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El formulario de Optime no está disponible para esta empresa");
+        
+        // Validar solo propiedades requeridas
+        var requiredProps = new[] { nameof(OptimeSolicitud.RazonSocial), nameof(OptimeSolicitud.CifNif), 
+            nameof(OptimeSolicitud.DireccionFiscal), nameof(OptimeSolicitud.Poblacion), 
+            nameof(OptimeSolicitud.Provincia), nameof(OptimeSolicitud.CodigoPostal),
+            nameof(OptimeSolicitud.PersonaContacto), nameof(OptimeSolicitud.NifPersonaContacto),
+            nameof(OptimeSolicitud.Telefono), nameof(OptimeSolicitud.Email) };
+        
+        var tipoSolicitud = typeof(OptimeSolicitud);
+        foreach (var propName in requiredProps)
+        {
+            var prop = tipoSolicitud.GetProperty(propName);
+            var valor = prop?.GetValue(solicitud) as string;
+            if (string.IsNullOrWhiteSpace(valor))
+            {
+                throw new System.ComponentModel.DataAnnotations.ValidationException(
+                    $"El campo '{propName}' es requerido");
+            }
+        }
+        
+        // Validar formatos específicos
+        if (!System.Text.RegularExpressions.Regex.IsMatch(solicitud.CodigoPostal, @"^\d{5}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El código postal debe tener 5 dígitos");
+        if (!System.Text.RegularExpressions.Regex.IsMatch(solicitud.Telefono, @"^\+?[0-9 ]{9,20}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El teléfono no es válido");
+        if (!System.Text.RegularExpressions.Regex.IsMatch(solicitud.Email, @"^[^\s@]+@[^\s@]+\.[^\s@]+$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El email no es válido");
+        
+        // Validar campos opcionales si están presentes
+        if (!string.IsNullOrWhiteSpace(solicitud.Cnae) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Cnae, @"^\d{1,10}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El CNAE debe ser numérico");
+        if (!string.IsNullOrWhiteSpace(solicitud.Iban) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Iban, @"^ES\d{2}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN debe tener el formato ES00");
+        if (!string.IsNullOrWhiteSpace(solicitud.Ccc) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Ccc, @"^\d{20}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El Nº CCC debe tener 20 dígitos");
+        if (!string.IsNullOrWhiteSpace(solicitud.Swift) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Swift, @"^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El SWIFT debe tener 8 u 11 caracteres");
+        
         solicitud.Id = 0;
         solicitud.FechaCreacion = DateTime.Now;
         solicitud.FechaModificacion = null;
 
-        await using var context = _dbContextProvider.CreateDbContext();
+        // Usar el mismo context para guardar
         await using var transaccion = await context.Database.BeginTransactionAsync();
 
         context.OptimeSolicitudes.Add(solicitud);
@@ -88,7 +146,18 @@ public class OptimeService
     public async Task<bool> ActualizarAsync(OptimeSolicitud solicitud)
     {
         Normalizar(solicitud);
-        Validator.ValidateObject(solicitud, new ValidationContext(solicitud), validateAllProperties: true);
+        
+        // Validar formatos
+        if (!string.IsNullOrWhiteSpace(solicitud.Cnae) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Cnae, @"^\d{1,10}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El CNAE debe ser numérico");
+        if (!string.IsNullOrWhiteSpace(solicitud.Iban) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Iban, @"^ES\d{2}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN debe tener el formato ES00");
+        if (!string.IsNullOrWhiteSpace(solicitud.Ccc) && 
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Ccc, @"^\d{20}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El Nº CCC debe tener 20 dígitos");
+        
         await using var context = _dbContextProvider.CreateDbContext();
         var existente = await context.OptimeSolicitudes.FindAsync(solicitud.Id);
         if (existente == null)

@@ -16,4 +16,7 @@ public class Empresa
 
     [Column("activa")]
     public bool Activa { get; set; } = true;
+
+    [Column("formulario_optime_habilitado")]
+    public bool FormularioOptimeHabilitado { get; set; } = false;
 }

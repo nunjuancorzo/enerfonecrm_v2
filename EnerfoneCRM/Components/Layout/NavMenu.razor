@@ -4,6 +4,7 @@
 @using Blazored.SessionStorage
 @using Blazored.LocalStorage
 @using System.Timers
+@using Microsoft.EntityFrameworkCore
 @inject AuthService AuthService
 @inject ConfiguracionService ConfiguracionService
 @inject NavigationManager Navigation
@@ -12,6 +13,7 @@
 @inject ILocalStorageService LocalStorage
 @inject IJSRuntime JS
 @inject AparienciaService AparienciaService
+@inject DbContextProvider DbContextProvider
 @implements IDisposable
 @rendermode InteractiveServer
 
@@ -122,7 +124,7 @@
                     }
                 </ul>
                 <div class="crm-sidebar-footer">
-                    @if (AuthService.EsAdministrador)
+                    @if (AuthService.EsAdministrador && formularioOptimeHabilitado)
                     {
                         <a href="optime" class="btn-sidebar-tool"><i class="bi bi-calendar-event"></i>Optime</a>
                     }
@@ -308,7 +310,7 @@
                 </ul>
 
                 <div class="d-flex align-items-center text-white">
-                    @if (AuthService.EsAdministrador)
+                    @if (AuthService.EsAdministrador && formularioOptimeHabilitado)
                     {
                         <a href="optime" class="me-3 btn-optime" style="display: flex; align-items: center; justify-content: center; gap: 6px; height: 50px; padding: 0 14px; border: 2px solid #4FC3F7; border-radius: 8px; background: transparent; color: #fff; text-decoration: none; transition: all 0.3s ease;" title="Optime">
                             <i class="bi bi-calendar-event" style="font-size: 1.1rem; color: #4FC3F7;"></i>
@@ -584,6 +586,7 @@
     private string tipoAvisoSeleccionado = "energia";
     private string? grupoPrincipalAbierto;
     private List<Contrato> contratosModificados = new();
+    private bool formularioOptimeHabilitado = false;
     private const string LEGACY_STORAGE_KEY = "contratos_vistos_v2";
     private const string STORAGE_KEY = "contratos_vistos_v3";
     private readonly SemaphoreSlim contratosVistosLock = new(1, 1);
@@ -698,6 +701,7 @@
             await AuthService.CargarSesionAsync();
             await CargarLogoAsync();
             await CargarAparienciaAsync();
+            await CargarConfiguracionOptimeAsync();
             await MigrarEstadoContratosVistosAsync();
             await VerificarModificacionesNoVistas();
             
@@ -781,6 +785,21 @@
         catch (Exception ex)
         {
             Console.WriteLine($"[NavMenu] No se pudo aplicar la apariencia de la empresa: {ex.Message}");
+        }
+    }
+
+    private async Task CargarConfiguracionOptimeAsync()
+    {
+        try
+        {
+            await using var context = DbContextProvider.CreateDbContext();
+            var empresa = await context.Empresas.FirstOrDefaultAsync();
+            formularioOptimeHabilitado = empresa?.FormularioOptimeHabilitado ?? false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NavMenu] No se pudo cargar la configuración de Optime: {ex.Message}");
+            formularioOptimeHabilitado = false;
         }
     }
 

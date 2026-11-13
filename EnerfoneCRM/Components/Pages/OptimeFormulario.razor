@@ -1,4 +1,4 @@
-@page "/optime/formulario"
+@page "/optime/formulario/{empresaId:int}"
 @using EnerfoneCRM.Models
 @using EnerfoneCRM.Services
 @using Microsoft.AspNetCore.Components.Forms
@@ -14,19 +14,49 @@
 
 <div class="optime-shell">
     <main class="optime-card">
-        <header class="optime-header">
-            <div>
-                <h1>Ficha Nuevo Colaborador</h1>
-                <p>Alta PdV - Naturgy Mayorista</p>
+        @if (!formularioHabilitado && !cargando)
+        {
+            <header class="optime-header">
+                <div>
+                    <h1>Acceso no disponible</h1>
+                </div>
+            </header>
+            <div class="optime-body">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i><strong>Formulario no disponible</strong>
+                    <br />
+                    <small>El formulario de Optime no está disponible en este momento. Por favor, contacta con el administrador de tu empresa.</small>
+                </div>
             </div>
-            @if (!string.IsNullOrWhiteSpace(errorDocumentos))
-            {
-                <div class="alert alert-warning">La ficha está guardada, pero la documentación firmada no se ha enviado: @errorDocumentos Contacta con un administrador.</div>
-            }
-        </header>
+        }
+        else if (cargando)
+        {
+            <header class="optime-header">
+                <div>
+                    <h1>Cargando...</h1>
+                </div>
+            </header>
+            <div class="optime-body">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <header class="optime-header">
+                <div>
+                    <h1>Ficha Nuevo Colaborador</h1>
+                    <p>Alta PdV - Naturgy Mayorista</p>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(errorDocumentos))
+                {
+                    <div class="alert alert-warning">La ficha está guardada, pero la documentación firmada no se ha enviado: @errorDocumentos Contacta con un administrador.</div>
+                }
+            </header>
 
-        <div class="optime-body">
-            @if (enviado)
+            <div class="optime-body">
+                @if (enviado)
             {
                 <div class="alert alert-success">
                     <i class="bi bi-check-circle me-2"></i><strong>Ficha enviada correctamente.</strong> Gracias, nos pondremos en contacto contigo.
@@ -202,6 +232,7 @@
                 </EditForm>
             }
         </div>
+        }
     </main>
 </div>
 
@@ -241,6 +272,35 @@
     private bool documentosEnviados;
     private string? error;
     private string? errorDocumentos;
+    [Parameter]
+    public int EmpresaId { get; set; }
+
+    private bool formularioHabilitado;
+    private bool cargando = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            if (EmpresaId > 0)
+            {
+                formularioHabilitado = await OptimeService.ObtenerFormularioHabilitadoAsync(EmpresaId);
+            }
+            else
+            {
+                formularioHabilitado = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error al cargar configuración de Optime para empresa {EmpresaId}", EmpresaId);
+            formularioHabilitado = false;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -334,6 +394,7 @@
                 Contenido = Convert.FromBase64String(dataUrl[(separador + 1)..])
             });
 
+            solicitud.EmpresaId = EmpresaId;
             solicitud.FechaFirma = DateOnly.FromDateTime(DateTime.Today);
             await OptimeService.CrearAsync(solicitud, docs);
             enviado = true;

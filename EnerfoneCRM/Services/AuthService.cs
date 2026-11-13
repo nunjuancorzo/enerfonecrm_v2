@@ -76,8 +76,9 @@ public class AuthService
 
     // Métodos de verificación de permisos de gestión (Administrador o Backoffice con permiso)
     // Backoffice con acceso a un módulo tiene los mismos permisos que Administrador en ese módulo
+    // Proveedores también pueden gestionar sus propios contratos
     public bool PuedeGestionarClientes => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerClientes == true);
-    public bool PuedeGestionarContratos => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerContratos == true);
+    public bool PuedeGestionarContratos => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerContratos == true) || EsProveedor;
     public bool PuedeGestionarTarifas => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerTarifas == true);
     public bool PuedeGestionarLiquidaciones => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerLiquidaciones == true);
     public bool PuedeGestionarSips => EsAdministrador || (EsBackoffice && _usuarioActual?.PuedeVerSips == true);
@@ -88,6 +89,26 @@ public class AuthService
     public bool PuedeGestionarUsuarios => EsSuperAdmin;
 
     public event Action? OnAuthStateChanged;
+
+    /// <summary>
+    /// Verifica si el usuario actual puede modificar un contrato específico.
+    /// Los Administrador y Backoffice pueden modificar cualquier contrato.
+    /// Los Proveedores solo pueden modificar contratos que pertenecen a su comercializadora.
+    /// </summary>
+    public bool PuedeModificarContrato(string? comercializadoraContrato)
+    {
+        if (EsAdministrador || EsBackoffice)
+            return true;
+
+        if (EsProveedor)
+        {
+            // El proveedor puede modificar si el contrato pertenece a su comercializadora
+            return !string.IsNullOrEmpty(comercializadoraContrato) && 
+                   comercializadoraContrato == _usuarioActual?.Comercializadora;
+        }
+
+        return false;
+    }
 
     public async Task<bool> CargarSesionAsync()
     {

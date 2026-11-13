@@ -4676,6 +4676,15 @@ else
     {
         if (contratoParaBaja == null) return;
 
+        // Validar permisos: el usuario debe poder modificar este contrato
+        if (!AuthService.PuedeModificarContrato(contratoParaBaja.EnComercializadora))
+        {
+            mensajeError = "No tienes permiso para modificar este contrato. Solo puedes modificar contratos de tu comercializadora.";
+            procesandoBaja = false;
+            StateHasChanged();
+            return;
+        }
+
         procesandoBaja = true;
         StateHasChanged();
 

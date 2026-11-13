@@ -68,6 +68,9 @@ public class ConfiguracionService
                 existente.ModuloSipsActivo = configuracion.ModuloSipsActivo;
                 existente.EnvioDocumentosFirmaAutomatico = configuracion.EnvioDocumentosFirmaAutomatico;
                 
+                // Formulario de Optime
+                existente.FormularioOptimeHabilitado = configuracion.FormularioOptimeHabilitado;
+                
                 context.ConfiguracionesEmpresa.Update(existente);
             }
             else

@@ -10,6 +10,10 @@ public class OptimeSolicitud
     [Column("id")]
     public int Id { get; set; }
 
+    [Column("empresa_id")]
+    [Required]
+    public int EmpresaId { get; set; }
+
     [Column("razon_social")]
     [Required(ErrorMessage = "La razón social es obligatoria")]
     [StringLength(200)]

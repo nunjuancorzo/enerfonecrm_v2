@@ -13,6 +13,7 @@ public class ApplicationDbContext : DbContext
     internal bool PermitirEdicionDatosEmpresa { get; set; }
     internal bool PermitirEdicionPaletaEmpresa { get; set; }
     private readonly bool _autenticacion;
+    private readonly bool _publico;
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -32,13 +33,20 @@ public class ApplicationDbContext : DbContext
         _autenticacion = autenticacion;
     }
 
+    internal ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, bool autenticacion, bool publico)
+        : base(options)
+    {
+        _autenticacion = autenticacion;
+        _publico = publico;
+    }
+
     public DbSet<Empresa> Empresas { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<Usuario>().HasIndex(usuario => usuario.NombreUsuario).IsUnique();
-        modelBuilder.Entity<Empresa>().HasQueryFilter(empresa => _autenticacion || EsSuperAdmin || empresa.Id == EmpresaId);
+        modelBuilder.Entity<Empresa>().HasQueryFilter(empresa => _publico || _autenticacion || EsSuperAdmin || empresa.Id == EmpresaId);
         var referencias = new Dictionary<string, Type>
         {
             ["UsuarioId"] = typeof(Usuario), ["GestorId"] = typeof(Usuario), ["JefeVentasId"] = typeof(Usuario),
@@ -89,7 +97,7 @@ public class ApplicationDbContext : DbContext
         var cambios = ChangeTracker.Entries().Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToList();
         foreach (var entry in cambios)
         {
-            if (_autenticacion)
+            if (_autenticacion && !_publico)
                 throw new UnauthorizedAccessException("El contexto de autenticacion es de solo lectura.");
             if (entry.Entity is Empresa)
             {

@@ -454,6 +454,10 @@ else
             var archivosNuevos = e.GetMultipleFiles(10); // Máximo 10 imágenes a la vez
             var imagenesAgregadas = 0;
             
+            // Process files immediately in the event handler to preserve Blazor context
+            var directorioTemporal = Path.Combine(EmpresaContext.RutaStorage(Configuration), "temp", "noticias");
+            Directory.CreateDirectory(directorioTemporal);
+            
             foreach (var archivo in archivosNuevos)
             {
                 // Validar tamaño (50MB máximo)
@@ -471,14 +475,16 @@ else
                     continue;
                 }
 
-                var directorioTemporal = Path.Combine(EmpresaContext.RutaStorage(Configuration), "temp", "noticias");
-                Directory.CreateDirectory(directorioTemporal);
                 var rutaTemporal = Path.Combine(directorioTemporal, $"{Guid.NewGuid():N}.tmp");
                 try
                 {
-                    await using var origen = archivo.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
-                    await using var destino = new FileStream(rutaTemporal, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
-                    await origen.CopyToAsync(destino);
+                    // Read the file immediately while the Blazor context is still valid
+                    await using (var origen = archivo.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024))
+                    {
+                        await using var destino = new FileStream(rutaTemporal, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+                        await origen.CopyToAsync(destino);
+                    }
+                    
                     archivosImagenes.Add(new ImagenPendiente(archivo.Name, archivo.Size, rutaTemporal));
                     imagenesAgregadas++;
                 }

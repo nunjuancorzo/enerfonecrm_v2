@@ -159,4 +159,8 @@ public class ConfiguracionEmpresa
 
     [Column("ocr_fallback_automatico")]
     public bool OcrFallbackAutomatico { get; set; } = true;
+
+    // Configuración de Optime
+    [Column("formulario_optime_habilitado")]
+    public bool FormularioOptimeHabilitado { get; set; } = false;
 }

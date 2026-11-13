@@ -37,7 +37,7 @@ else
                 <button class="btn btn-outline-secondary" @onclick="CopiarEnlace" title="@UrlFormulario">
                     <i class="bi bi-link-45deg me-1"></i>@(enlaceCopiado ? "¡Enlace copiado!" : "Copiar enlace del formulario")
                 </button>
-                <a class="btn btn-outline-primary" href="optime/formulario" target="_blank">
+                <a class="btn btn-outline-primary" href="@($"optime/formulario/{AuthService.EmpresaId}")" target="_blank">
                     <i class="bi bi-box-arrow-up-right me-1"></i>Abrir formulario
                 </a>
                 <button class="btn btn-primary" @onclick="AbrirNueva">
@@ -386,7 +386,7 @@ else
 
     private bool EsNueva => solicitudEdicion?.Id == 0;
     private bool TieneAcceso => AuthService.EsAdministrador;
-    private string UrlFormulario => Navigation.ToAbsoluteUri("optime/formulario").ToString();
+    private string UrlFormulario => Navigation.ToAbsoluteUri($"optime/formulario/{AuthService.EmpresaId}").ToString();
 
     private IEnumerable<OptimeSolicitud> SolicitudesFiltradas =>
         string.IsNullOrWhiteSpace(filtro)

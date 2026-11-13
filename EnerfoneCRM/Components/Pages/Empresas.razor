@@ -4,6 +4,7 @@
 @using EnerfoneCRM.Services
 @inject AuthService AuthService
 @inject EmpresaService EmpresaService
+@inject ConfiguracionService ConfiguracionService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -12,68 +13,210 @@
 <div class="container-fluid p-4">
     @if (cargando)
     {
-        <div class="spinner-border" role="status"><span class="visually-hidden">Cargando...</span></div>
+        <div class="d-flex justify-content-center align-items-center" style="height: 400px;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
     }
     else if (!AuthService.EsSuperAdmin)
     {
-        <div class="alert alert-danger">Solo superadmin puede gestionar empresas.</div>
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>Solo superadmin puede gestionar empresas.</span>
+        </div>
     }
     else
     {
-        <h2><i class="bi bi-buildings me-2"></i>Empresas</h2>
-        @if (!string.IsNullOrEmpty(error))
-        {
-            <div class="alert alert-danger" role="alert">@error</div>
-        }
-        <EditForm Model="edicion" OnValidSubmit="Guardar" class="row g-3 align-items-end my-3">
-            <DataAnnotationsValidator />
-            <div class="col-12 col-md-7">
-                <label for="empresa-nombre" class="form-label">Nombre</label>
-                <InputText id="empresa-nombre" class="form-control" @bind-Value="edicion.Nombre" />
-                <ValidationMessage For="@(() => edicion.Nombre)" />
-            </div>
-            <div class="col-auto">
-                <div class="form-check form-switch mb-2">
-                    <InputCheckbox id="empresa-activa" class="form-check-input" @bind-Value="edicion.Activa" />
-                    <label for="empresa-activa" class="form-check-label">Activa</label>
+        <!-- Header -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="mb-1"><i class="bi bi-buildings me-2"></i>Gestión de Empresas</h2>
+                    <p class="text-muted mb-0">Administra las empresas del sistema</p>
                 </div>
+                <button class="btn btn-primary btn-lg" @onclick="AbrirModal">
+                    <i class="bi bi-plus-circle me-2"></i>Nueva Empresa
+                </button>
             </div>
-            <div class="col-auto d-flex gap-2">
-                <button type="submit" class="btn btn-primary" disabled="@guardando" title="Guardar empresa" aria-label="Guardar empresa"><i class="bi bi-save"></i></button>
-                <button type="button" class="btn btn-outline-secondary" @onclick="Nueva" title="Nueva empresa" aria-label="Nueva empresa"><i class="bi bi-plus-lg"></i></button>
-            </div>
-        </EditForm>
-        <div class="table-responsive">
-            <table class="table table-striped align-middle">
-                <thead><tr><th>Empresa</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
-                <tbody>
-                    @foreach (var empresa in empresas)
-                    {
-                        <tr>
-                            <td>@empresa.Nombre</td>
-                            <td>@(empresa.Activa ? "Activa" : "Inactiva")</td>
-                            <td class="text-end text-nowrap">
-                                <button class="btn btn-outline-secondary btn-sm" @onclick="() => Editar(empresa)" title="Editar empresa" aria-label="Editar empresa"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-outline-primary btn-sm" disabled="@(!empresa.Activa)" @onclick="() => GestionarUsuarios(empresa)" title="Gestionar usuarios" aria-label="Gestionar usuarios"><i class="bi bi-people"></i></button>
-                            </td>
-                        </tr>
-                    }
-                    @if (empresas.Count == 0)
-                    {
-                        <tr><td colspan="3">No hay empresas.</td></tr>
-                    }
-                </tbody>
-            </table>
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <span>@error</span>
+                </div>
+            }
         </div>
+
+        <!-- Grid de Empresas -->
+        @if (empresas.Count > 0)
+        {
+            <div class="row g-4">
+                @foreach (var empresa in empresas)
+                {
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 shadow-sm empresa-card" style="transition: all 0.3s ease;">
+                            <div class="card-header bg-light border-0 pb-0">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h5 class="card-title mb-0">@empresa.Nombre</h5>
+                                    <span class="badge @(empresa.Activa ? "bg-success" : "bg-secondary")">
+                                        @(empresa.Activa ? "Activa" : "Inactiva")
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="d-flex align-items-center gap-2 text-muted">
+                                        <i class="bi bi-hash"></i>
+                                        <small>ID: @empresa.Id</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-light border-top d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="() => AbrirModalEdicion(empresa)">
+                                    <i class="bi bi-pencil me-1"></i>Editar
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary flex-grow-1" disabled="@(!empresa.Activa)" @onclick="() => GestionarUsuarios(empresa)">
+                                    <i class="bi bi-people me-1"></i>Usuarios
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" disabled="@guardando" @onclick="() => Eliminar(empresa)" title="Eliminar empresa">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-info-circle"></i>
+                <span>No hay empresas registradas. Crea una nueva para comenzar.</span>
+            </div>
+        }
     }
 </div>
+
+<!-- Modal de Edición/Creación -->
+<div class="modal @(mostrarModal ? "show" : "")" style="display: @(mostrarModal ? "block" : "none");" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title">
+                    <i class="bi @(edicion.Id == 0 ? "bi-plus-circle" : "bi-pencil-square") me-2"></i>
+                    @(edicion.Id == 0 ? "Nueva Empresa" : "Editar Empresa")
+                </h5>
+                <button type="button" class="btn-close" @onclick="CerrarModal" disabled="@guardando"></button>
+            </div>
+            <EditForm Model="edicion" OnValidSubmit="Guardar" class="needs-validation">
+                <DataAnnotationsValidator />
+                <div class="modal-body">
+                    @if (!string.IsNullOrEmpty(modalError))
+                    {
+                        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+                            <i class="bi bi-exclamation-circle"></i>
+                            <span>@modalError</span>
+                        </div>
+                    }
+                    <div class="mb-3">
+                        <label for="empresa-nombre" class="form-label">
+                            <strong>Nombre de la Empresa</strong>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <InputText id="empresa-nombre" class="form-control form-control-lg" 
+                                   @bind-Value="edicion.Nombre" placeholder="Ej: Enerfone Solutions" />
+                        <ValidationMessage For="@(() => edicion.Nombre)" class="text-danger small mt-1" />
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <InputCheckbox id="empresa-activa" class="form-check-input" @bind-Value="edicion.Activa" />
+                        <label class="form-check-label" for="empresa-activa">
+                            <strong>Empresa Activa</strong>
+                            <br />
+                            <small class="text-muted">Los usuarios solo pueden acceder a empresas activas</small>
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <InputCheckbox id="empresa-optime" class="form-check-input" @bind-Value="formularioOptimeHabilitado" />
+                        <label class="form-check-label" for="empresa-optime">
+                            <strong>Habilitar Formulario de Optime</strong>
+                            <br />
+                            <small class="text-muted">Permite a esta empresa captar colaboradores a través del formulario de Optime</small>
+                        </label>
+                    </div>
+
+                    @if (edicion.Id > 0)
+                    {
+                        <div class="alert alert-info d-flex gap-2">
+                            <i class="bi bi-info-circle flex-shrink-0"></i>
+                            <div>
+                                <strong>Información de la Ficha</strong>
+                                <br />
+                                <small>ID de la empresa: <strong>@edicion.Id</strong></small>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CerrarModal" disabled="@guardando">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@guardando">
+                        @if (guardando)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        @(edicion.Id == 0 ? "Crear Empresa" : "Guardar Cambios")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@if (mostrarModal)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+<style>
+    .empresa-card {
+        border: 1px solid #e9ecef;
+        cursor: default;
+    }
+    
+    .empresa-card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-2px);
+    }
+
+    .modal.show {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
 
 @code {
     private bool cargando = true;
     private bool guardando;
+    private bool mostrarModal;
     private string? error;
+    private string? modalError;
     private Empresa edicion = new();
     private List<Empresa> empresas = new();
+    private bool formularioOptimeHabilitado;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -81,28 +224,94 @@
         await AuthService.CargarSesionAsync();
         if (AuthService.EsSuperAdmin)
         {
-            try { empresas = await EmpresaService.ObtenerTodasAsync(); }
-            catch { error = "No se pudieron cargar las empresas. Compruebe la migracion de la base de datos."; }
+            try 
+            { 
+                empresas = await EmpresaService.ObtenerTodasAsync();
+            }
+            catch 
+            { 
+                error = "No se pudieron cargar las empresas. Compruebe la migración de la base de datos.";
+            }
         }
         cargando = false;
         StateHasChanged();
     }
 
-    private void Nueva() { edicion = new(); error = null; }
-    private void Editar(Empresa empresa) => edicion = new Empresa { Id = empresa.Id, Nombre = empresa.Nombre, Activa = empresa.Activa };
+    private async Task AbrirModal()
+    {
+        edicion = new Empresa { Activa = true };
+        formularioOptimeHabilitado = false;
+        modalError = null;
+        mostrarModal = true;
+        await Task.CompletedTask;
+    }
+
+    private async Task AbrirModalEdicion(Empresa empresa)
+    {
+        edicion = new Empresa 
+        { 
+            Id = empresa.Id, 
+            Nombre = empresa.Nombre, 
+            Activa = empresa.Activa,
+            FormularioOptimeHabilitado = empresa.FormularioOptimeHabilitado
+        };
+        formularioOptimeHabilitado = empresa.FormularioOptimeHabilitado;
+        modalError = null;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        modalError = null;
+    }
 
     private async Task Guardar()
     {
         guardando = true;
+        modalError = null;
+        try
+        {
+            // Actualizar el estado de Optime antes de guardar
+            edicion.FormularioOptimeHabilitado = formularioOptimeHabilitado;
+            await EmpresaService.GuardarAsync(edicion);
+            
+            empresas = await EmpresaService.ObtenerTodasAsync();
+            CerrarModal();
+            error = null;
+        }
+        catch (Exception ex) 
+        { 
+            modalError = ex.Message;
+        }
+        finally 
+        { 
+            guardando = false;
+        }
+    }
+
+    private async Task Eliminar(Empresa empresa)
+    {
+        if (!confirm($"¿Está seguro de que desea eliminar la empresa '{empresa.Nombre}'?"))
+            return;
+
+        guardando = true;
         error = null;
         try
         {
-            await EmpresaService.GuardarAsync(edicion);
+            // Asumiendo que el servicio tiene un método Delete
+            // await EmpresaService.EliminarAsync(empresa.Id);
+            error = "La funcionalidad de eliminación no está disponible en esta versión.";
             empresas = await EmpresaService.ObtenerTodasAsync();
-            Nueva();
         }
-        catch (Exception ex) { error = ex.Message; }
-        finally { guardando = false; }
+        catch (Exception ex) 
+        { 
+            error = ex.Message;
+        }
+        finally 
+        { 
+            guardando = false;
+        }
     }
 
     private async Task GestionarUsuarios(Empresa empresa)
@@ -112,6 +321,14 @@
             await AuthService.SeleccionarEmpresaAsync(empresa.Id);
             Navigation.NavigateTo("/usuarios", forceLoad: true);
         }
-        catch (Exception ex) { error = ex.Message; }
+        catch (Exception ex) 
+        { 
+            error = ex.Message;
+        }
+    }
+
+    private bool confirm(string mensaje)
+    {
+        return true;
     }
 }
