@@ -70,7 +70,6 @@ public class OptimeSolicitud
     public string? Cnae { get; set; }
 
     [Column("iban")]
-    [RegularExpression(@"^ES\d{2}$", ErrorMessage = "El IBAN debe tener el formato ES00")]
     public string? Iban { get; set; }
 
     [NotMapped]
@@ -81,11 +80,9 @@ public class OptimeSolicitud
     }
 
     [Column("ccc")]
-    [RegularExpression(@"^\d{20}$", ErrorMessage = "El Nº CCC debe tener 20 dígitos")]
     public string? Ccc { get; set; }
 
     [Column("swift")]
-    [RegularExpression(@"^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$", ErrorMessage = "El SWIFT debe tener 8 u 11 caracteres")]
     public string? Swift { get; set; }
 
     [Column("titular_cuenta")]
