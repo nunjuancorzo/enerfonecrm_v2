@@ -103,7 +103,7 @@ public class OptimeService
         // Validar formatos específicos
         if (!System.Text.RegularExpressions.Regex.IsMatch(solicitud.CodigoPostal, @"^\d{5}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El código postal debe tener 5 dígitos");
-        if (!System.Text.RegularExpressions.Regex.IsMatch(solicitud.Telefono, @"^\+?[0-9 ]{9,20}$"))
+        if (!System.Text.RegularExpressions.Regex.IsMatch(solicitud.Telefono, @"^[\+]?[0-9\s\(\)\-]{8,25}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El teléfono no es válido");
         if (!System.Text.RegularExpressions.Regex.IsMatch(solicitud.Email, @"^[^\s@]+@[^\s@]+\.[^\s@]+$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El email no es válido");
@@ -113,13 +113,13 @@ public class OptimeService
             !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Cnae, @"^\d{1,10}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El CNAE debe ser numérico");
         if (!string.IsNullOrWhiteSpace(solicitud.Iban) && 
-            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Iban, @"^ES\d{2}$"))
-            throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN debe tener el formato ES00");
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Iban, @"^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$"))
+            throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN no es válido");
         if (!string.IsNullOrWhiteSpace(solicitud.Ccc) && 
             !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Ccc, @"^\d{20}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El Nº CCC debe tener 20 dígitos");
         if (!string.IsNullOrWhiteSpace(solicitud.Swift) && 
-            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Swift, @"^[A-Za-z0-9]{8}([A-Za-z0-9]{3})?$"))
+            !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Swift, @"^[A-Z0-9]{8,11}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El SWIFT debe tener 8 u 11 caracteres");
         
         solicitud.Id = 0;
