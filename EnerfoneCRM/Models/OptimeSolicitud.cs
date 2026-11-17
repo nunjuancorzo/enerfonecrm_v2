@@ -10,7 +10,7 @@ public class OptimeSolicitud
     [Column("id")]
     public int Id { get; set; }
 
-    [Column("empresa_id")]
+    [Column("id_empresa")]
     [Required]
     public int EmpresaId { get; set; }
 
@@ -134,6 +134,10 @@ public class OptimeDocumento
 
     [Column("solicitud_id")]
     public int SolicitudId { get; set; }
+
+    [Column("id_empresa")]
+    [Required]
+    public int EmpresaId { get; set; }
 
     [Column("tipo")]
     [StringLength(50)]

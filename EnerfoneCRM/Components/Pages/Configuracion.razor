@@ -237,7 +237,7 @@ else
                                     <InputText class="form-control" @bind-Value="configuracion.Web" placeholder="https://www.ejemplo.com" />
                                 </div>
 
-                                @if (AuthService.EsSuperAdmin)
+                                @if (PuedeConfigurarSmtp)
                                 {
                                 <hr class="my-4" />
 
@@ -423,6 +423,7 @@ else
     private bool errorApariencia;
     private string mensajeApariencia = string.Empty;
     private bool PuedeGestionarPaleta => AuthService.EmpresaId > 0 && (AuthService.EsAdministrador || AuthService.EsSuperAdmin);
+    private bool PuedeConfigurarSmtp => AuthService.EsSuperAdmin || AuthService.EsAdministrador;
     private IReadOnlyList<PaletaVisual> PaletasDisponibles => AparienciaService.Paletas
         .Append(AparienciaService.CrearPersonalizada(colorAcento, colorBarra, colorFondo))
         .ToArray();

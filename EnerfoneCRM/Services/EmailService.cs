@@ -3,6 +3,7 @@ using System.Net.Mail;
 using System.Net.Mime;
 using System.Text;
 using EnerfoneCRM.Models;
+using EnerfoneCRM.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace EnerfoneCRM.Services;
@@ -292,6 +293,69 @@ public class EmailService
             await smtp.SendMailAsync(message);
 
             return (true, "Email enviado correctamente");
+        }
+        catch (SmtpException smtpEx)
+        {
+            return (false, $"Error al enviar email: {smtpEx.Message}");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error inesperado al enviar email: {ex.Message}");
+        }
+    }
+
+    public async Task<(bool exito, string mensaje)> EnviarEmailConAdjuntosEnMemoriaAsync(
+        ApplicationDbContext context,
+        string destinatario,
+        string asunto,
+        string cuerpoHtml,
+        IReadOnlyCollection<(byte[] Contenido, string NombreArchivo, string TipoMime)> adjuntos)
+    {
+        try
+        {
+            var config = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+
+            if (config == null)
+                return (false, "No se encontró la configuración de la empresa");
+
+            if (string.IsNullOrEmpty(config.SmtpServidor) ||
+                string.IsNullOrEmpty(config.SmtpUsuario) ||
+                string.IsNullOrEmpty(config.SmtpPassword))
+                return (false, "La configuración SMTP está incompleta. Configure el servidor de email en Configuración de Empresa");
+
+            using var message = new MailMessage
+            {
+                From = new MailAddress(config.SmtpEmailDesde ?? config.SmtpUsuario, config.SmtpNombreDesde ?? config.NombreEmpresa),
+                Subject = asunto,
+                Body = cuerpoHtml,
+                IsBodyHtml = true
+            };
+            message.To.Add(destinatario);
+
+            var streams = new List<MemoryStream>();
+            try
+            {
+                foreach (var adjunto in adjuntos)
+                {
+                    var stream = new MemoryStream(adjunto.Contenido);
+                    streams.Add(stream);
+                    message.Attachments.Add(new Attachment(stream, adjunto.NombreArchivo, adjunto.TipoMime));
+                }
+
+                using var smtp = new SmtpClient(config.SmtpServidor, config.SmtpPuerto ?? 587)
+                {
+                    Credentials = new NetworkCredential(config.SmtpUsuario, config.SmtpPassword),
+                    EnableSsl = config.SmtpUsarSsl
+                };
+                await smtp.SendMailAsync(message);
+
+                return (true, "Email enviado correctamente");
+            }
+            finally
+            {
+                foreach (var stream in streams)
+                    stream?.Dispose();
+            }
         }
         catch (SmtpException smtpEx)
         {

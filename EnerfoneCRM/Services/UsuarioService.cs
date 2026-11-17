@@ -61,11 +61,22 @@ public class UsuarioService
             .FirstOrDefaultAsync(u => u.NombreUsuario == nombreUsuario);
     }
 
-    public async Task<List<Usuario>> ObtenerAdministradoresActivosAsync()
+    public async Task<List<Usuario>> ObtenerAdministradoresActivosAsync(int? empresaId = null)
     {
         await using var context = _dbContextProvider.CreateDbContext();
+        var query = context.Usuarios
+            .Where(u => u.Rol == "Administrador" && u.Activo && !string.IsNullOrEmpty(u.Email));
+        
+        if (empresaId.HasValue)
+            query = query.Where(u => u.EmpresaId == empresaId);
+        
+        return await query.ToListAsync();
+    }
+
+    public async Task<List<Usuario>> ObtenerAdministradoresActivosAsync(ApplicationDbContext context, int empresaId)
+    {
         return await context.Usuarios
-            .Where(u => u.Rol == "Administrador" && u.Activo && !string.IsNullOrEmpty(u.Email))
+            .Where(u => u.Rol == "Administrador" && u.Activo && !string.IsNullOrEmpty(u.Email) && u.EmpresaId == empresaId)
             .ToListAsync();
     }
 

@@ -48,6 +48,11 @@ public class DbContextProvider
         return new ApplicationDbContext(CrearOpciones(), autenticacion: true, publico: true);
     }
 
+    internal ApplicationDbContext CreateFirmaDbContext(int empresaId)
+    {
+        return new ApplicationDbContext(CrearOpciones(), empresaId, firma: true, firmaContextType: "firma");
+    }
+
     internal async Task<bool> ResolverEmpresaFirmaAsync<TEntity>(string token) where TEntity : class
     {
         if (typeof(TEntity) != typeof(SolicitudFirma) && typeof(TEntity) != typeof(SolicitudFirmaColaborador) && typeof(TEntity) != typeof(OptimeFirma))

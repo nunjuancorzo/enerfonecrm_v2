@@ -39,6 +39,7 @@ public class OptimeService
         await using var context = _dbContextProvider.CreateDbContext();
         return await context.OptimeSolicitudes
             .AsNoTracking()
+            .Where(s => s.EmpresaId == context.EmpresaId)
             .OrderByDescending(s => s.FechaCreacion)
             .ToListAsync();
     }
@@ -113,12 +114,14 @@ public class OptimeService
             !System.Text.RegularExpressions.Regex.IsMatch(solicitud.Cnae, @"^\d{1,10}$"))
             throw new System.ComponentModel.DataAnnotations.ValidationException("El CNAE debe ser numérico");
         
-        // Validar IBAN - normalizar primero (remover espacios, guiones) y aceptar minúsculas
+        // Validar IBAN - solo valida el formato "ES + 2 dígitos de control"
+        // El resto del IBAN (número de cuenta) está en Ccc
         if (!string.IsNullOrWhiteSpace(solicitud.Iban))
         {
             var ibanNormalizado = System.Text.RegularExpressions.Regex.Replace(solicitud.Iban, @"[\s\-]", "").ToUpper();
-            if (!System.Text.RegularExpressions.Regex.IsMatch(ibanNormalizado, @"^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$"))
-                throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN no es válido");
+            // Validar: 2 letras (país) + 2 dígitos (control)
+            if (!System.Text.RegularExpressions.Regex.IsMatch(ibanNormalizado, @"^[A-Z]{2}\d{2}$"))
+                throw new System.ComponentModel.DataAnnotations.ValidationException("El IBAN debe tener formato: País (2 letras) + Dígitos control (2 dígitos). Ej: ES91");
             solicitud.Iban = ibanNormalizado;
         }
         
@@ -142,18 +145,29 @@ public class OptimeService
         // Usar el mismo context para guardar
         await using var transaccion = await context.Database.BeginTransactionAsync();
 
-        context.OptimeSolicitudes.Add(solicitud);
-        await context.SaveChangesAsync();
-
-        foreach (var doc in documentos)
+        try
         {
-            doc.Id = 0;
-            doc.SolicitudId = solicitud.Id;
-            doc.FechaCreacion = DateTime.Now;
-            context.OptimeDocumentos.Add(doc);
+            context.OptimeSolicitudes.Add(solicitud);
+            await context.SaveChangesAsync();
+
+            foreach (var doc in documentos)
+            {
+                doc.Id = 0;
+                doc.SolicitudId = solicitud.Id;
+                doc.EmpresaId = solicitud.EmpresaId;
+                doc.FechaCreacion = DateTime.Now;
+                context.OptimeDocumentos.Add(doc);
+            }
+            await context.SaveChangesAsync();
+            await transaccion.CommitAsync();
         }
-        await context.SaveChangesAsync();
-        await transaccion.CommitAsync();
+        catch (Exception ex)
+        {
+            await transaccion.RollbackAsync();
+            // Re-lanzar con más contexto
+            throw new System.ComponentModel.DataAnnotations.ValidationException(
+                $"Error al guardar la solicitud: {ex.InnerException?.Message ?? ex.Message}", ex);
+        }
     }
 
     public async Task<bool> ActualizarAsync(OptimeSolicitud solicitud)
@@ -188,6 +202,13 @@ public class OptimeService
     public async Task ReemplazarDocumentoAsync(int solicitudId, OptimeDocumento documento)
     {
         await using var context = _dbContextProvider.CreateDbContext();
+        var solicitud = await context.OptimeSolicitudes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == solicitudId);
+        
+        if (solicitud == null)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("La solicitud no existe");
+
         var anteriores = await context.OptimeDocumentos
             .Where(d => d.SolicitudId == solicitudId && d.Tipo == documento.Tipo)
             .ToListAsync();
@@ -195,6 +216,7 @@ public class OptimeService
 
         documento.Id = 0;
         documento.SolicitudId = solicitudId;
+        documento.EmpresaId = solicitud.EmpresaId;
         documento.FechaCreacion = DateTime.Now;
         context.OptimeDocumentos.Add(documento);
         await context.SaveChangesAsync();

@@ -22,6 +22,7 @@ public class OptimeFirma
 
     [Key, Column("id")] public int Id { get; set; }
     [Column("solicitud_id")] public int SolicitudId { get; set; }
+    [Required, Column("id_empresa")] public int EmpresaId { get; set; }
     [Required, StringLength(20), Column("tipo_documento")] public string TipoDocumento { get; set; } = string.Empty;
     [Required, StringLength(36), Column("proceso_id")] public string ProcesoId { get; set; } = string.Empty;
     [Required, StringLength(64), Column("token_hash")] public string TokenHash { get; set; } = string.Empty;

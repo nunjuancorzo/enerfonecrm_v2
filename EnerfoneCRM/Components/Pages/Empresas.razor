@@ -5,6 +5,7 @@
 @inject AuthService AuthService
 @inject EmpresaService EmpresaService
 @inject ConfiguracionService ConfiguracionService
+@inject DatosPruebaService DatosPruebaService
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -70,15 +71,29 @@
                                         <i class="bi bi-hash"></i>
                                         <small>ID: @empresa.Id</small>
                                     </div>
+                                    @if (empresa.EsEmpresaPrueba)
+                                    {
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-flask me-1"></i>Empresa de Prueba
+                                            </span>
+                                        </div>
+                                    }
                                 </div>
                             </div>
-                            <div class="card-footer bg-light border-top d-flex gap-2">
+                            <div class="card-footer bg-light border-top d-flex gap-2 flex-wrap">
                                 <button class="btn btn-sm btn-outline-primary flex-grow-1" @onclick="() => AbrirModalEdicion(empresa)">
                                     <i class="bi bi-pencil me-1"></i>Editar
                                 </button>
                                 <button class="btn btn-sm btn-outline-secondary flex-grow-1" disabled="@(!empresa.Activa)" @onclick="() => GestionarUsuarios(empresa)">
                                     <i class="bi bi-people me-1"></i>Usuarios
                                 </button>
+                                @if (empresa.EsEmpresaPrueba)
+                                {
+                                    <button class="btn btn-sm btn-outline-warning flex-grow-1" disabled="true" title="Funcionalidad deshabilitada temporalmente">
+                                        <i class="bi bi-flask me-1"></i><span>Generar Datos</span>
+                                    </button>
+                                }
                                 <button class="btn btn-sm btn-outline-danger" disabled="@guardando" @onclick="() => Eliminar(empresa)" title="Eliminar empresa">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -147,6 +162,15 @@
                         </label>
                     </div>
 
+                    <div class="form-check form-switch mb-3">
+                        <InputCheckbox id="empresa-prueba" class="form-check-input" @bind-Value="esEmpresaPrueba" />
+                        <label class="form-check-label" for="empresa-prueba">
+                            <strong>Marcar como Empresa de Prueba</strong>
+                            <br />
+                            <small class="text-muted">Solo las empresas marcadas como prueba podrán generar datos de prueba</small>
+                        </label>
+                    </div>
+
                     @if (edicion.Id > 0)
                     {
                         <div class="alert alert-info d-flex gap-2">
@@ -160,6 +184,12 @@
                     }
                 </div>
                 <div class="modal-footer border-0 pt-0">
+                    @if (edicion.Id > 0 && esEmpresaPrueba)
+                    {
+                        <button type="button" class="btn btn-outline-warning" disabled="true" title="Funcionalidad deshabilitada temporalmente">
+                            <i class="bi bi-flask me-1"></i><span>Generar Datos (deshabilitado)</span>
+                        </button>
+                    }
                     <button type="button" class="btn btn-outline-secondary" @onclick="CerrarModal" disabled="@guardando">
                         Cancelar
                     </button>
@@ -211,12 +241,16 @@
 @code {
     private bool cargando = true;
     private bool guardando;
+    private bool generandoDatos;
+    private int empresaGenerando;
     private bool mostrarModal;
     private string? error;
     private string? modalError;
     private Empresa edicion = new();
     private List<Empresa> empresas = new();
     private bool formularioOptimeHabilitado;
+    private bool esEmpresaPrueba;
+    private Dictionary<int, ConfiguracionEmpresa> configuracionEmpresa = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -227,6 +261,7 @@
             try 
             { 
                 empresas = await EmpresaService.ObtenerTodasAsync();
+                await CargarConfiguracionesEmpresa();
             }
             catch 
             { 
@@ -237,10 +272,28 @@
         StateHasChanged();
     }
 
+    private async Task CargarConfiguracionesEmpresa()
+    {
+        configuracionEmpresa.Clear();
+        foreach (var empresa in empresas)
+        {
+            try
+            {
+                var config = await ConfiguracionService.ObtenerConfiguracionPorEmpresaAsync(empresa.Id);
+                if (config != null)
+                {
+                    configuracionEmpresa[empresa.Id] = config;
+                }
+            }
+            catch { /* Error cargando configuración */ }
+        }
+    }
+
     private async Task AbrirModal()
     {
         edicion = new Empresa { Activa = true };
         formularioOptimeHabilitado = false;
+        esEmpresaPrueba = false;
         modalError = null;
         mostrarModal = true;
         await Task.CompletedTask;
@@ -253,9 +306,12 @@
             Id = empresa.Id, 
             Nombre = empresa.Nombre, 
             Activa = empresa.Activa,
-            FormularioOptimeHabilitado = empresa.FormularioOptimeHabilitado
+            FormularioOptimeHabilitado = empresa.FormularioOptimeHabilitado,
+            EsEmpresaPrueba = empresa.EsEmpresaPrueba
         };
         formularioOptimeHabilitado = empresa.FormularioOptimeHabilitado;
+        esEmpresaPrueba = empresa.EsEmpresaPrueba;
+        
         modalError = null;
         mostrarModal = true;
     }
@@ -272,17 +328,19 @@
         modalError = null;
         try
         {
-            // Actualizar el estado de Optime antes de guardar
+            // Actualizar los estados antes de guardar
             edicion.FormularioOptimeHabilitado = formularioOptimeHabilitado;
+            edicion.EsEmpresaPrueba = esEmpresaPrueba;
             await EmpresaService.GuardarAsync(edicion);
             
             empresas = await EmpresaService.ObtenerTodasAsync();
+            await CargarConfiguracionesEmpresa();
             CerrarModal();
             error = null;
         }
         catch (Exception ex) 
         { 
-            modalError = ex.Message;
+            modalError = $"Error: {ex.Message}";
         }
         finally 
         { 
@@ -324,6 +382,40 @@
         catch (Exception ex) 
         { 
             error = ex.Message;
+        }
+    }
+
+    private async Task GenerarDatosPrueba(Empresa empresa)
+    {
+        if (!confirm($"¿Está seguro de que desea generar datos de prueba para '{empresa.Nombre}'? Esto puede sobrescribir datos existentes."))
+            return;
+
+        generandoDatos = true;
+        empresaGenerando = empresa.Id;
+        try
+        {
+            var (success, message) = await DatosPruebaService.GenerarDatosPruebaAsync(empresa.Id);
+            
+            if (success)
+            {
+                error = $"✓ {message}";
+                await Task.Delay(3000);
+                error = null;
+            }
+            else
+            {
+                error = $"✗ {message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            error = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            generandoDatos = false;
+            empresaGenerando = 0;
+            StateHasChanged();
         }
     }
 

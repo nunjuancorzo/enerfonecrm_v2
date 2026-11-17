@@ -385,7 +385,7 @@ else
     private bool enviandoFirma;
 
     private bool EsNueva => solicitudEdicion?.Id == 0;
-    private bool TieneAcceso => AuthService.EsAdministrador;
+    private bool TieneAcceso => AuthService.EsAdministrador || AuthService.EsBackoffice;
     private string UrlFormulario => Navigation.ToAbsoluteUri($"optime/formulario/{AuthService.EmpresaId}").ToString();
 
     private IEnumerable<OptimeSolicitud> SolicitudesFiltradas =>

@@ -148,6 +148,7 @@ builder.Services.AddScoped<IncidenciaImagenService>();
 builder.Services.AddScoped<ContractSigningPdfService>();
 builder.Services.AddScoped<FirmaService>();
 builder.Services.AddScoped<OptimeService>();
+builder.Services.AddScoped<DatosPruebaService>();
 builder.Services.AddScoped<OptimeFirmaService>();
 builder.Services.AddScoped<PdfLiquidacionService>();
 builder.Services.AddScoped<PdfSipsService>();
@@ -259,6 +260,199 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseAntiforgery();
+
+// ============================================================================
+// API de Tarifas - Endpoints para aplicaciones externas
+// ============================================================================
+// Middleware de validación de API Key
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        var apiKey = context.Request.Headers["X-API-Key"].FirstOrDefault();
+        
+        // Validar API Key (configurar en appsettings.json)
+        var validApiKey = context.RequestServices.GetRequiredService<IConfiguration>().GetValue<string>("ApiKey:Tariffs");
+        
+        if (string.IsNullOrEmpty(validApiKey) || apiKey != validApiKey)
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsJsonAsync(new { error = "API Key inválida o ausente" });
+            return;
+        }
+    }
+    
+    await next();
+});
+
+// Endpoint: GET /api/tarifas/gas
+app.MapGet("/api/tarifas/gas", async (TarifaGasService service) =>
+{
+    try
+    {
+        var tarifas = await service.ObtenerActivasAsync();
+        return Results.Ok(new 
+        { 
+            success = true,
+            count = tarifas.Count,
+            data = tarifas
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetTarifasGas")
+.Produces(200)
+.Produces(401)
+.WithDescription("Obtiene todas las tarifas de gas activas")
+.RequireAuthorization();
+
+// Endpoint: GET /api/tarifas/energia
+app.MapGet("/api/tarifas/energia", async (TarifaEnergiaService service) =>
+{
+    try
+    {
+        var tarifas = await service.ObtenerTodasAsync();
+        return Results.Ok(new 
+        { 
+            success = true,
+            count = tarifas.Count,
+            data = tarifas
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetTarifasEnergia")
+
+.Produces(200)
+.Produces(401)
+.WithDescription("Obtiene todas las tarifas de energía");
+
+// Endpoint: GET /api/tarifas/luz
+app.MapGet("/api/tarifas/luz", async (TarifaLuzService service) =>
+{
+    try
+    {
+        var tarifas = await service.ObtenerActivasAsync();
+        return Results.Ok(new 
+        { 
+            success = true,
+            count = tarifas.Count,
+            data = tarifas
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetTarifasLuz")
+
+.Produces(200)
+.Produces(401)
+.WithDescription("Obtiene todas las tarifas de luz activas");
+
+// Endpoint: GET /api/tarifas/telefonia
+app.MapGet("/api/tarifas/telefonia", async (TarifaTelefoniaService service) =>
+{
+    try
+    {
+        var tarifas = await service.ObtenerTodasAsync();
+        return Results.Ok(new 
+        { 
+            success = true,
+            count = tarifas.Count,
+            data = tarifas
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetTarifasTelefonia")
+
+.Produces(200)
+.Produces(401)
+.WithDescription("Obtiene todas las tarifas de telefonía");
+
+// Endpoint: GET /api/tarifas/alarmas
+app.MapGet("/api/tarifas/alarmas", async (TarifaAlarmaService service) =>
+{
+    try
+    {
+        var tarifas = await service.ObtenerTodasAsync();
+        return Results.Ok(new 
+        { 
+            success = true,
+            count = tarifas.Count,
+            data = tarifas
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetTarifasAlarmas")
+
+.Produces<dynamic>(200)
+.Produces(401)
+.WithDescription("Obtiene todas las tarifas de alarmas activas");
+
+// Endpoint: GET /api/tarifas/todas (todas las tarifas consolidadas)
+app.MapGet("/api/tarifas/todas", async (
+    TarifaGasService gasService,
+    TarifaEnergiaService energiaService,
+    TarifaLuzService luzService,
+    TarifaTelefoniaService telefoniaService,
+    TarifaAlarmaService alarmaService) =>
+{
+    try
+    {
+        var gas = await gasService.ObtenerActivasAsync();
+        var energia = await energiaService.ObtenerTodasAsync();
+        var luz = await luzService.ObtenerActivasAsync();
+        var telefonia = await telefoniaService.ObtenerTodasAsync();
+        var alarmas = await alarmaService.ObtenerTodasAsync();
+        
+        return Results.Ok(new 
+        {
+            success = true,
+            timestamp = DateTime.UtcNow,
+            totales = new
+            {
+                gas = gas.Count,
+                energia = energia.Count,
+                luz = luz.Count,
+                telefonia = telefonia.Count,
+                alarmas = alarmas.Count
+            },
+            tarifas = new
+            {
+                gas,
+                energia,
+                luz,
+                telefonia,
+                alarmas
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("GetTodasLasTarifas")
+
+.Produces(200)
+.Produces(401)
+.WithDescription("Obtiene todas las tarifas consolidadas (gas, energía, luz, telefonía, alarmas)");
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

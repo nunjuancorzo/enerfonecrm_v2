@@ -218,17 +218,22 @@
                         <div class="alert alert-danger mt-4 mb-0"><i class="bi bi-exclamation-triangle me-2"></i>@error</div>
                     }
 
-                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-4" disabled="@enviando">
-                        @if (enviando)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                        }
-                        else
-                        {
-                            <i class="bi bi-send me-2"></i>
-                        }
-                        Enviar ficha
-                    </button>
+                    <div class="mt-4 d-grid gap-2">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="RellenarDatosEjemplo">
+                            <i class="bi bi-pencil-square me-2"></i>Rellenar datos de ejemplo
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-lg" disabled="@enviando">
+                            @if (enviando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-send me-2"></i>
+                            }
+                            Enviar ficha
+                        </button>
+                    </div>
                 </EditForm>
             }
         </div>
@@ -407,17 +412,16 @@
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error generando o enviando los documentos firmados de Optime para la solicitud {Id}", solicitud.Id);
+                Logger.LogError(ex, "Error generando o enviando los documentos firmados de Optime para la solicitud {Id}: {ErrorMessage}", solicitud.Id, ex.Message);
                 documentosEnviados = false;
-                errorDocumentos = ex is System.ComponentModel.DataAnnotations.ValidationException
-                    ? ex.Message : "No se pudo generar o enviar la documentación.";
+                errorDocumentos = ex.Message;
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error guardando la ficha de alta de Optime");
-            error = ex is System.ComponentModel.DataAnnotations.ValidationException
-                ? ex.Message : "No se ha podido enviar la ficha. Inténtalo de nuevo.";
+            Logger.LogError(ex, "Error guardando la ficha de alta de Optime. Tipo: {ExceptionType}, Mensaje: {Message}", ex.GetType().Name, ex.Message);
+            // Mostrar el error real siempre, no solo si es ValidationException
+            error = ex.Message;
         }
         finally
         {
@@ -433,5 +437,34 @@
         enviado = false;
         errorDocumentos = null;
         error = null;
+    }
+
+    private void RellenarDatosEjemplo()
+    {
+        // Datos de ejemplo para pruebas rápidas
+        solicitud.RazonSocial = "Ejemplo S.L.";
+        solicitud.CifNif = "A12345678";
+        solicitud.DireccionFiscal = "Calle Principal, 123";
+        solicitud.Poblacion = "Madrid";
+        solicitud.Provincia = "Madrid";
+        solicitud.CodigoPostal = "28001";
+        solicitud.PersonaContacto = "Juan García López";
+        solicitud.NifPersonaContacto = "12345678A";
+        solicitud.Telefono = "+34 91 234 5678";
+        solicitud.Email = "contacto@ejemplo.com";
+        solicitud.Cnae = "4711";
+        solicitud.Iban = "ES9121000418450200051332";  // IBAN válido de ejemplo
+        solicitud.Ccc = string.Empty;  // No usamos CCC en el ejemplo
+        solicitud.Swift = "CAIXESBBXXX";
+        solicitud.TitularCuenta = "Ejemplo S.L.";
+        solicitud.InteresLowi = true;
+        solicitud.InteresVodafone = false;
+        solicitud.InteresRentik = false;
+        solicitud.Interes3DSeguridad = true;
+        solicitud.AceptaCodigoBuenasPracticas = true;
+        solicitud.AceptaAdhesionPdv = true;
+        
+        error = null;
+        StateHasChanged();
     }
 }

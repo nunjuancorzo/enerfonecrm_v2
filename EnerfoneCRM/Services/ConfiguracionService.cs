@@ -21,12 +21,18 @@ public class ConfiguracionService
         return await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
     }
 
+    public async Task<ConfiguracionEmpresa?> ObtenerConfiguracionPorEmpresaAsync(int empresaId)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        return await context.ConfiguracionesEmpresa.FirstOrDefaultAsync(c => c.Id == empresaId);
+    }
+
     public async Task<(bool exito, string mensaje)> GuardarConfiguracionAsync(ConfiguracionEmpresa configuracion)
     {
         try
         {
             await using var context = _dbContextProvider.CreateDbContext();
-            var existente = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            var existente = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync(c => c.Id == configuracion.Id);
             
             if (existente != null)
             {
@@ -96,7 +102,7 @@ public class ConfiguracionService
         try
         {
             await using var context = _dbContextProvider.CreateDbContext();
-            var existente = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            var existente = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync(c => c.Id == configuracion.Id);
             if (existente == null)
             {
                 existente = new ConfiguracionEmpresa();
@@ -143,7 +149,7 @@ public class ConfiguracionService
         try
         {
             await using var context = _dbContextProvider.CreateDbContext();
-            var configuracion = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            var configuracion = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync(c => c.Id == _authService.EmpresaId);
             if (configuracion == null)
                 return (false, "Primero debe guardarse la configuración de empresa.");
 

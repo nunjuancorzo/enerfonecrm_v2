@@ -19,4 +19,7 @@ public class Empresa
 
     [Column("formulario_optime_habilitado")]
     public bool FormularioOptimeHabilitado { get; set; } = false;
+
+    [Column("es_empresa_prueba")]
+    public bool EsEmpresaPrueba { get; set; } = false;
 }

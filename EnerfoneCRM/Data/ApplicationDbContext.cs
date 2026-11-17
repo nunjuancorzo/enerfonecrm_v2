@@ -6,7 +6,8 @@ namespace EnerfoneCRM.Data;
 
 public class ApplicationDbContext : DbContext
 {
-    public int EmpresaId { get; }
+    private int _empresaId;
+    public int EmpresaId => _empresaId;
     public bool EsSuperAdmin { get; }
     internal event Action? ContratosActualizados;
     internal bool PermitirAltaUsuarioInactiva { get; set; }
@@ -14,6 +15,7 @@ public class ApplicationDbContext : DbContext
     internal bool PermitirEdicionPaletaEmpresa { get; set; }
     private readonly bool _autenticacion;
     private readonly bool _publico;
+    private readonly bool _firma;
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -23,7 +25,7 @@ public class ApplicationDbContext : DbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, int empresaId, bool esSuperAdmin = false)
         : base(options)
     {
-        EmpresaId = empresaId;
+        _empresaId = empresaId;
         EsSuperAdmin = esSuperAdmin;
     }
 
@@ -38,6 +40,13 @@ public class ApplicationDbContext : DbContext
     {
         _autenticacion = autenticacion;
         _publico = publico;
+    }
+
+    internal ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, int empresaId, bool firma, string firmaContextType)
+        : base(options)
+    {
+        _empresaId = empresaId;
+        _firma = firma;
     }
 
     public DbSet<Empresa> Empresas { get; set; }
@@ -76,7 +85,26 @@ public class ApplicationDbContext : DbContext
             if (entityType.ClrType == typeof(OptimeFirma) || entityType.ClrType == typeof(OptimeDocumento))
                 modelBuilder.Entity(entityType.ClrType).HasOne(typeof(OptimeSolicitud)).WithMany().HasForeignKey("SolicitudId").OnDelete(DeleteBehavior.NoAction);
         }
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(entity => entity.ClrType != typeof(Empresa)).ToList())
+        
+        // Configuración específica para OptimeSolicitud
+        modelBuilder.Entity<OptimeSolicitud>()
+            .Property(e => e.EmpresaId)
+            .HasColumnName("id_empresa");
+        modelBuilder.Entity<OptimeSolicitud>()
+            .HasIndex(e => e.EmpresaId)
+            .HasName("idx_optime_empresa");
+        
+        // Configuración específica para OptimeDocumento
+        modelBuilder.Entity<OptimeDocumento>()
+            .Property(e => e.EmpresaId)
+            .HasColumnName("id_empresa");
+        
+        // Configuración específica para OptimeFirma
+        modelBuilder.Entity<OptimeFirma>()
+            .Property(e => e.EmpresaId)
+            .HasColumnName("id_empresa");
+        
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(entity => entity.ClrType != typeof(Empresa) && entity.ClrType != typeof(OptimeSolicitud) && entity.ClrType != typeof(OptimeDocumento) && entity.ClrType != typeof(OptimeFirma)).ToList())
         {
             var entity = modelBuilder.Entity(entityType.ClrType);
             entity.Property<int>("EmpresaId").HasColumnName("id_empresa").IsConcurrencyToken();
@@ -123,11 +151,16 @@ public class ApplicationDbContext : DbContext
                         nameof(ConfiguracionEmpresa.TemaActualizadoPor) or
                         nameof(ConfiguracionEmpresa.TemaActualizadoEn) or
                         nameof(ConfiguracionEmpresa.FechaActualizacion));
+            
+            // En contexto público, permitir todas las operaciones sin restricciones de autorización
+            if (_publico)
+                continue;
+                
             if ((entry.Metadata.ClrType.Name.StartsWith("Usuario", StringComparison.Ordinal) || entry.Entity is ConfiguracionEmpresa) && !EsSuperAdmin && !esAltaPendiente && !esEdicionDatosEmpresa && !esEdicionPaletaEmpresa)
                 throw new UnauthorizedAccessException("Solo superadmin puede gestionar usuarios.");
             
-            // En contexto público, permitir operaciones sin validación de EmpresaId
-            if (!_publico && EmpresaId <= 0)
+            // En contexto público o firma, permitir operaciones sin validación de EmpresaId
+            if (!_publico && !_firma && EmpresaId <= 0)
                 throw new UnauthorizedAccessException("Debe seleccionar una empresa.");
             
             if (entry.Entity is Usuario usuario && entry.State != EntityState.Deleted &&
@@ -136,8 +169,8 @@ public class ApplicationDbContext : DbContext
             
             var empresa = entry.Property("EmpresaId");
             
-            // En contexto público, no aplicar restricciones de EmpresaId
-            if (_publico)
+            // En contexto público o firma, no aplicar restricciones de EmpresaId
+            if (_publico || _firma)
                 continue;
                 
             if (entry.State != EntityState.Added)
@@ -151,7 +184,7 @@ public class ApplicationDbContext : DbContext
                 throw new UnauthorizedAccessException("No se puede cambiar la empresa de un registro.");
             empresa.CurrentValue = EmpresaId;
         }
-        foreach (var entry in cambios.Where(entry => entry.Entity is not Empresa && entry.State != EntityState.Deleted))
+        foreach (var entry in cambios.Where(entry => entry.Entity is not Empresa and not OptimeDocumento and not OptimeFirma && entry.State != EntityState.Deleted))
         {
             foreach (var foreignKey in entry.Metadata.GetForeignKeys())
             {

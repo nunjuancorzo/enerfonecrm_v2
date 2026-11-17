@@ -55,78 +55,126 @@ public class OptimeFirmaService
 
     public async Task<ResultadoFirma> ProcesarAltaFirmadaAsync(int solicitudId, string? ipPublicaCliente = null)
     {
-        await using var context = _dbContextProvider.CreateDbContext();
-        var solicitud = await context.OptimeSolicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.Id == solicitudId);
-        if (solicitud == null) return new(false, "Solicitud no encontrada.");
-        if (string.IsNullOrWhiteSpace(solicitud.Email) || !new EmailAddressAttribute().IsValid(solicitud.Email))
-            return new(false, "La solicitud no tiene un email válido.");
-
-        var documentoFirma = await context.OptimeDocumentos.AsNoTracking()
-            .FirstOrDefaultAsync(d => d.SolicitudId == solicitudId && d.Tipo == OptimeDocumento.TipoFirma);
-        if (documentoFirma?.Contenido is not { Length: > 0 } imagenFirma)
-            return new(false, "La solicitud no tiene una firma válida.");
-
-        var ahora = DateTime.Now;
-        var ahoraUtc = ahora.ToUniversalTime();
-        var ip = ObtenerIp(ipPublicaCliente);
-        var registros = new List<OptimeFirma>();
-        var adjuntos = new List<(byte[] Contenido, string NombreArchivo, string TipoMime)>();
-
-        foreach (var tipo in OptimeFirma.Tipos)
+        try
         {
-            var original = GenerarDocumento(tipo, solicitud, ahora);
-            var firmado = FirmarDocumento(tipo, original, solicitud, imagenFirma, ip, ahora);
-            registros.Add(new OptimeFirma
+            // Primero, obtener la solicitud con contexto público para conocer la empresa
+            int empresaId = 0;
+            await using (var contextPublico = _dbContextProvider.CreatePublicDbContext())
             {
-                SolicitudId = solicitudId,
-                TipoDocumento = tipo,
-                ProcesoId = Guid.NewGuid().ToString("D"),
-                TokenHash = _tokenService.Hash(_tokenService.Generar()),
-                FechaCreacionUtc = ahoraUtc,
-                FechaCaducidadUtc = ahoraUtc,
-                FechaFirmaUtc = ahoraUtc,
-                Estado = EstadoSolicitudFirma.Firmado,
-                EmailDestinatario = solicitud.Email.Trim(),
-                NombreDestinatario = solicitud.PersonaContacto,
-                DocumentoOriginal = original,
-                DocumentoFirmado = firmado,
-                FirmaImagen = imagenFirma,
-                HashDocumentoOriginal = ContractSigningPdfService.CalcularHash(original),
-                HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado),
-                IpFirma = ip,
-                UserAgentFirma = _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString()
-            });
-            adjuntos.Add((firmado, NombreArchivo(tipo, true), "application/pdf"));
-        }
+                var solicitudTemp = await contextPublico.OptimeSolicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.Id == solicitudId);
+                if (solicitudTemp == null) return new(false, "Solicitud no encontrada.");
+                empresaId = solicitudTemp.EmpresaId;
+            }
+            
+            // Luego, crear el contexto de firma con la empresa
+            await using var context = _dbContextProvider.CreateFirmaDbContext(empresaId);
+            var solicitud = await context.OptimeSolicitudes.AsNoTracking().FirstOrDefaultAsync(s => s.Id == solicitudId);
+            if (solicitud == null) return new(false, "Solicitud no encontrada.");
+            if (string.IsNullOrWhiteSpace(solicitud.Email) || !new EmailAddressAttribute().IsValid(solicitud.Email))
+                return new(false, "La solicitud no tiene un email válido.");
 
-        context.OptimeFirmas.AddRange(registros);
-        await context.SaveChangesAsync();
+            var documentoFirma = await context.OptimeDocumentos.AsNoTracking()
+                .FirstOrDefaultAsync(d => d.SolicitudId == solicitudId && d.Tipo == OptimeDocumento.TipoFirma);
+            if (documentoFirma?.Contenido is not { Length: > 0 } imagenFirma)
+                return new(false, "La solicitud no tiene una firma válida.");
 
-        var errores = new List<string>();
-        var envioCliente = await _emailService.EnviarEmailConAdjuntosEnMemoriaAsync(
-            solicitud.Email.Trim(),
-            "Documentación firmada de alta Optime",
-            $"<p>Hola {WebUtility.HtmlEncode(solicitud.PersonaContacto)},</p><p>Adjuntamos una copia de los tres documentos firmados para el alta del punto de venta <strong>{WebUtility.HtmlEncode(solicitud.RazonSocial)}</strong>.</p>",
-            adjuntos);
-        if (!envioCliente.exito) errores.Add($"Cliente: {envioCliente.mensaje}");
+            var ahora = DateTime.Now;
+            var ahoraUtc = ahora.ToUniversalTime();
+            var ip = ObtenerIp(ipPublicaCliente);
+            var registros = new List<OptimeFirma>();
+            var adjuntos = new List<(byte[] Contenido, string NombreArchivo, string TipoMime)>();
 
-        var administradores = await _usuarioService.ObtenerAdministradoresActivosAsync();
-        if (administradores.Count == 0)
-            errores.Add("No hay ningún usuario administrador activo con email.");
+            foreach (var tipo in OptimeFirma.Tipos)
+            {
+                _logger.LogInformation("Generando documento Optime tipo: {Tipo}", tipo);
+                var original = GenerarDocumento(tipo, solicitud, ahora);
+                var firmado = FirmarDocumento(tipo, original, solicitud, imagenFirma, ip, ahora);
+                registros.Add(new OptimeFirma
+                {
+                    SolicitudId = solicitudId,
+                    EmpresaId = solicitud.EmpresaId,
+                    TipoDocumento = tipo,
+                    ProcesoId = Guid.NewGuid().ToString("D"),
+                    TokenHash = _tokenService.Hash(_tokenService.Generar()),
+                    FechaCreacionUtc = ahoraUtc,
+                    FechaCaducidadUtc = ahoraUtc,
+                    FechaFirmaUtc = ahoraUtc,
+                    Estado = EstadoSolicitudFirma.Firmado,
+                    EmailDestinatario = solicitud.Email.Trim(),
+                    NombreDestinatario = solicitud.PersonaContacto,
+                    DocumentoOriginal = original,
+                    DocumentoFirmado = firmado,
+                    FirmaImagen = imagenFirma,
+                    HashDocumentoOriginal = ContractSigningPdfService.CalcularHash(original),
+                    HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado),
+                    IpFirma = ip,
+                    UserAgentFirma = _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString()
+                });
+                adjuntos.Add((firmado, NombreArchivo(tipo, true), "application/pdf"));
+            }
 
-        foreach (var administrador in administradores)
-        {
-            var envioAdministrador = await _emailService.EnviarEmailConAdjuntosEnMemoriaAsync(
-                administrador.Email,
-                $"Nueva alta de usuario Optime: {solicitud.RazonSocial}",
-                $"<p>Se ha dado de alta un nuevo usuario de Optime.</p><p><strong>Punto de venta:</strong> {WebUtility.HtmlEncode(solicitud.RazonSocial)}<br/><strong>Persona de contacto:</strong> {WebUtility.HtmlEncode(solicitud.PersonaContacto)}<br/><strong>Email:</strong> {WebUtility.HtmlEncode(solicitud.Email)}</p><p>Se adjuntan los tres documentos firmados.</p>",
+            context.OptimeFirmas.AddRange(registros);
+            await context.SaveChangesAsync();
+            _logger.LogInformation("Guardados {Count} registros de firma para solicitud {Id}", registros.Count, solicitudId);
+
+            var errores = new List<string>();
+            _logger.LogInformation("Enviando email a cliente: {Email}", solicitud.Email);
+            var envioCliente = await _emailService.EnviarEmailConAdjuntosEnMemoriaAsync(
+                context,
+                solicitud.Email.Trim(),
+                "Documentación firmada de alta Optime",
+                $"<p>Hola {WebUtility.HtmlEncode(solicitud.PersonaContacto)},</p><p>Adjuntamos una copia de los tres documentos firmados para el alta del punto de venta <strong>{WebUtility.HtmlEncode(solicitud.RazonSocial)}</strong>.</p>",
                 adjuntos);
-            if (!envioAdministrador.exito) errores.Add($"Administrador {administrador.Email}: {envioAdministrador.mensaje}");
-        }
+            if (!envioCliente.exito)
+            {
+                _logger.LogWarning("Error enviando email a cliente: {Mensaje}", envioCliente.mensaje);
+                errores.Add($"Cliente: {envioCliente.mensaje}");
+            }
+            else
+            {
+                _logger.LogInformation("Email enviado a cliente exitosamente");
+            }
 
-        return errores.Count == 0
-            ? new(true, "Documentos firmados enviados al cliente y al administrador.")
-            : new(false, string.Join(" | ", errores));
+            _logger.LogInformation("Obteniendo administradores activos para empresa {EmpresaId}", solicitud.EmpresaId);
+            var administradores = await _usuarioService.ObtenerAdministradoresActivosAsync(context, solicitud.EmpresaId);
+            if (administradores.Count == 0)
+            {
+                _logger.LogWarning("No hay administradores activos");
+                errores.Add("No hay ningún usuario administrador activo con email.");
+            }
+
+            foreach (var administrador in administradores)
+            {
+                _logger.LogInformation("Enviando email a administrador: {Email}", administrador.Email);
+                var envioAdministrador = await _emailService.EnviarEmailConAdjuntosEnMemoriaAsync(
+                    context,
+                    administrador.Email,
+                    $"Nueva alta de usuario Optime: {solicitud.RazonSocial}",
+                    $"<p>Se ha dado de alta un nuevo usuario de Optime.</p><p><strong>Punto de venta:</strong> {WebUtility.HtmlEncode(solicitud.RazonSocial)}<br/><strong>Persona de contacto:</strong> {WebUtility.HtmlEncode(solicitud.PersonaContacto)}<br/><strong>Email:</strong> {WebUtility.HtmlEncode(solicitud.Email)}</p><p>Se adjuntan los tres documentos firmados.</p>",
+                    adjuntos);
+                if (!envioAdministrador.exito)
+                {
+                    _logger.LogWarning("Error enviando email a administrador {Email}: {Mensaje}", administrador.Email, envioAdministrador.mensaje);
+                    errores.Add($"Administrador {administrador.Email}: {envioAdministrador.mensaje}");
+                }
+                else
+                {
+                    _logger.LogInformation("Email enviado a administrador {Email} exitosamente", administrador.Email);
+                }
+            }
+
+            var resultado = errores.Count == 0
+                ? new ResultadoFirma(true, "Documentos firmados enviados al cliente y al administrador.")
+                : new ResultadoFirma(false, string.Join(" | ", errores));
+            
+            _logger.LogInformation("Resultado final ProcesarAltaFirmadaAsync: Exito={Exito}, Mensaje={Mensaje}", resultado.Exito, resultado.Mensaje);
+            return resultado;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Excepción en ProcesarAltaFirmadaAsync para solicitud {Id}: {ErrorMessage}", solicitudId, ex.Message);
+            throw;
+        }
     }
 
     public async Task<ResultadoFirma> EnviarDocumentoAsync(int solicitudId, string tipo, string? baseUrlAlternativa)
@@ -160,6 +208,7 @@ public class OptimeFirmaService
         var firma = new OptimeFirma
         {
             SolicitudId = solicitudId,
+            EmpresaId = solicitud.EmpresaId,
             TipoDocumento = tipo,
             ProcesoId = Guid.NewGuid().ToString("D"),
             TokenHash = _tokenService.Hash(token),
