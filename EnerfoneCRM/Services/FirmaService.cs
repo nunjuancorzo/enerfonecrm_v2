@@ -20,6 +20,8 @@ public sealed record ResultadoFirma(bool Exito, string Mensaje, string? Url = nu
 
 public class FirmaService
 {
+    internal const int MaxDocumentoFirmaManualBytes = 10 * 1024 * 1024;
+    private const string TipoDocumentoFirmaManual = "DocumentoFirmaManual";
     private const int TokenExpirationDays = 2;
     private readonly DbContextProvider _dbContextProvider;
     private readonly EmailService _emailService;
@@ -151,8 +153,17 @@ public class FirmaService
             return null;
         }
 
-        var solicitud = await ObtenerSolicitudValidaAsync(token);
+        await using var context = await _dbContextProvider.CreateFirmaPublicaDbContextAsync<SolicitudFirma>(token);
+        if (context == null) return null;
+
+        var solicitud = await ObtenerSolicitudValidaAsync(context, token);
         if (solicitud == null)
+        {
+            return null;
+        }
+
+        var contrato = await context.Contratos.AsNoTracking().FirstOrDefaultAsync(c => c.Id == solicitud.ContratoId);
+        if (contrato == null)
         {
             return null;
         }
@@ -160,28 +171,15 @@ public class FirmaService
         if (string.IsNullOrWhiteSpace(solicitud.IpFirma))
         {
             var ipSolicitud = ObtenerIp();
-            if (!string.IsNullOrWhiteSpace(ipSolicitud))
-            {
-                await GuardarIpSolicitudAsync(solicitud.Id, ipSolicitud);
-                solicitud.IpFirma = ipSolicitud;
-            }
+            if (!string.IsNullOrWhiteSpace(ipSolicitud)) solicitud.IpFirma = ipSolicitud;
         }
 
-        if (solicitud.Estado is EstadoSolicitudFirma.Enviado or EstadoSolicitudFirma.Pendiente)
+        var cambioEstado = solicitud.Estado is EstadoSolicitudFirma.Enviado or EstadoSolicitudFirma.Pendiente;
+        if (cambioEstado)
         {
-            await CambiarEstadoAsync(solicitud.Id, EstadoSolicitudFirma.EnProceso, "EnlaceAbierto");
             solicitud.Estado = EstadoSolicitudFirma.EnProceso;
         }
-        else
-        {
-            await RegistrarEventoAsync(solicitud.Id, "EnlaceAbierto", null, "OK", null);
-        }
-        await using var context = _dbContextProvider.CreateDbContext();
-        var contrato = await context.Contratos.AsNoTracking().FirstOrDefaultAsync(c => c.Id == solicitud.ContratoId);
-        if (contrato == null)
-        {
-            return null;
-        }
+        await RegistrarEventoAsync(solicitud.Id, "EnlaceAbierto", null, "OK", cambioEstado ? solicitud.Estado : null, context);
 
         return new SolicitudFirmaPublicaDto(
             solicitud.ProcesoId,
@@ -196,8 +194,9 @@ public class FirmaService
 
     public async Task<(byte[]? Contenido, string? Nombre, string Mensaje)> ObtenerDocumentoPublicoAsync(string token, int documentoId)
     {
-        var solicitud = await ObtenerSolicitudValidaAsync(token, permitirEnProceso: true);
-        if (solicitud == null)
+        await using var context = await _dbContextProvider.CreateFirmaPublicaDbContextAsync<SolicitudFirma>(token);
+        var solicitud = context == null ? null : await ObtenerSolicitudValidaAsync(context, token);
+        if (context == null || solicitud == null)
         {
             return (null, null, "El enlace no es valido o ha caducado.");
         }
@@ -208,7 +207,6 @@ public class FirmaService
             return (null, null, "Documento no disponible.");
         }
 
-        await using var context = _dbContextProvider.CreateDbContext();
         var documento = await context.FicherosContratos.AsNoTracking()
             .FirstOrDefaultAsync(f => f.Id == documentoId && f.IdContrato == solicitud.ContratoId);
         if (documento == null)
@@ -216,7 +214,7 @@ public class FirmaService
             return (null, null, "Documento no encontrado.");
         }
 
-        await RegistrarEventoAsync(solicitud.Id, "DocumentoConsultado", documentoId, "OK", null);
+        await RegistrarEventoAsync(solicitud.Id, "DocumentoConsultado", documentoId, "OK", null, context);
         return (documento.Fichero, documento.NombreFichero, "OK");
     }
 
@@ -232,15 +230,16 @@ public class FirmaService
             return new(false, "La firma no es valida.");
         }
 
-        var solicitud = await ObtenerSolicitudValidaAsync(token, permitirEnProceso: true);
-        if (solicitud == null)
+        await using var context = await _dbContextProvider.CreateFirmaPublicaDbContextAsync<SolicitudFirma>(token);
+        var actual = context == null ? null : await ObtenerSolicitudValidaAsync(context, token, sinSeguimiento: true);
+        if (context == null || actual == null)
         {
             return new(false, "El enlace no es valido o ha caducado.");
         }
 
-        await using var context = _dbContextProvider.CreateDbContext();
         await using var transaction = await context.Database.BeginTransactionAsync();
-        var actual = await context.SolicitudesFirma.FirstOrDefaultAsync(s => s.Id == solicitud.Id);
+        var solicitudId = actual.Id;
+        actual = await context.SolicitudesFirma.FirstOrDefaultAsync(s => s.Id == solicitudId);
         if (actual == null || actual.Estado != EstadoSolicitudFirma.EnProceso || actual.FechaCaducidadUtc <= DateTime.UtcNow)
         {
             return new(false, "La solicitud ya no esta disponible.");
@@ -257,7 +256,7 @@ public class FirmaService
         var ipFirma = ObtenerIp(ipPublicaCliente);
         if (string.IsNullOrWhiteSpace(ipFirma)) ipFirma = ObtenerIp(actual.IpFirma);
         var fechaFirmaUtc = DateTime.UtcNow;
-        var firmado = await _pdfService.GenerarDocumentoFirmadoAsync(original.Fichero, contrato, cliente, firma, ipFirma, fechaFirmaUtc);
+        var firmado = await _pdfService.GenerarDocumentoFirmadoAsync(context, contrato, cliente, firma, ipFirma, fechaFirmaUtc);
         var documentoFirmado = new FicheroContrato
         {
             IdContrato = actual.ContratoId,
@@ -281,9 +280,8 @@ public class FirmaService
             contrato.FechaModificacion = DateTime.Now;
         }
 
-        await context.SaveChangesAsync();
+        await RegistrarEventoAsync(actual.Id, "FirmaCompletada", documentoFirmado.Id, "OK", null, context);
         await transaction.CommitAsync();
-        await RegistrarEventoAsync(actual.Id, "FirmaCompletada", documentoFirmado.Id, "OK", null);
         return new(true, "La documentacion se ha firmado correctamente.");
     }
 
@@ -347,32 +345,46 @@ public class FirmaService
         try { url = ConstruirUrlFirmaColaborador(_configuration["PublicSigning:BaseUrl"], token); }
         catch (ArgumentException excepcion) { return new(false, excepcion.Message); }
         await using var context = _dbContextProvider.CreateDbContext();
+        if (!context.EsSuperAdmin) return new(false, "Solo superadmin puede enviar documentación a firmar.");
         var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId);
         if (usuario == null) return new(false, "Colaborador no encontrado.");
         if (!EmailService.EsEmailValido(usuario.Email)) return new(false, "El colaborador no tiene un email valido.");
-        var original = await _pdfService.GenerarDocumentoColaboradorOriginalAsync(usuario);
+        var original = await _pdfService.GenerarDocumentoColaboradorOriginalAsync(context, usuario);
         var now = DateTime.UtcNow;
-        var anteriores = await context.SolicitudesFirmaColaboradores.Where(s => s.UsuarioId == usuarioId && s.Estado != EstadoSolicitudFirma.Firmado).ToListAsync();
-        foreach (var anterior in anteriores) anterior.Estado = EstadoSolicitudFirma.Cancelado;
         var solicitud = new SolicitudFirmaColaborador
         {
             UsuarioId = usuarioId, ProcesoId = Guid.NewGuid().ToString("D"), TokenHash = _tokenService.Hash(token),
             FechaCreacionUtc = now, FechaCaducidadUtc = now.AddDays(TokenExpirationDays),
-            Estado = EstadoSolicitudFirma.Enviado, EmailDestinatario = usuario.Email,
+            Estado = EstadoSolicitudFirma.Pendiente, EmailDestinatario = usuario.Email.Trim(),
             NombreDestinatario = string.Join(" ", new[] { usuario.Nombre, usuario.Apellidos }.Where(x => !string.IsNullOrWhiteSpace(x))),
             DocumentoOriginal = original, HashDocumentoOriginal = ContractSigningPdfService.CalcularHash(original)
         };
         context.SolicitudesFirmaColaboradores.Add(solicitud);
         await context.SaveChangesAsync();
         var email = await _emailService.EnviarEmailFirmaAsync(
-            usuario.Email,
+            context,
+            solicitud.EmailDestinatario,
             "Contrato de colaboración pendiente de firma",
             solicitud.NombreDestinatario ?? "colaborador",
             "Ponemos a tu disposición el contrato de colaboración mercantil para que puedas revisarlo y firmarlo de forma segura.",
             "Consultar y firmar contrato",
             url,
             solicitud.FechaCaducidadUtc);
-        return email.exito ? new(true, "Contrato enviado a firma.", url) : new(false, email.mensaje);
+        solicitud.Estado = email.exito ? EstadoSolicitudFirma.Enviado : EstadoSolicitudFirma.ErrorEnvio;
+        if (email.exito)
+        {
+            var anteriores = await context.SolicitudesFirmaColaboradores
+                .Where(s => s.UsuarioId == usuarioId && s.Id != solicitud.Id && s.Estado == EstadoSolicitudFirma.Enviado)
+                .ToListAsync();
+            foreach (var anterior in anteriores) anterior.Estado = EstadoSolicitudFirma.Cancelado;
+        }
+        else
+        {
+            _logger.LogWarning("No se pudo enviar la solicitud de firma {SolicitudId} de empresa {EmpresaId}: {Error}",
+                solicitud.Id, context.EmpresaId, email.mensaje);
+        }
+        await context.SaveChangesAsync();
+        return email.exito ? new(true, "Documentación enviada a firmar.", url) : new(false, email.mensaje);
     }
 
     public static string ConstruirUrlFirmaColaborador(string? baseUrl, string token)
@@ -387,11 +399,20 @@ public class FirmaService
 
     public async Task<SolicitudFirmaColaborador?> ObtenerSolicitudColaboradorAsync(string token)
     {
-        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<SolicitudFirmaColaborador>(token)) return null;
-        await using var context = _dbContextProvider.CreateDbContext();
+        if (!_configuration.GetValue("PublicSigning:Enabled", true)) return null;
+        await using var context = await _dbContextProvider.CreateFirmaPublicaDbContextAsync<SolicitudFirmaColaborador>(token);
+        if (context == null) return null;
         var solicitud = await context.SolicitudesFirmaColaboradores.FirstOrDefaultAsync(s => s.TokenHash == _tokenService.Hash(token));
-        if (solicitud == null || solicitud.Estado is EstadoSolicitudFirma.Cancelado or EstadoSolicitudFirma.Caducado) return null;
-        if (solicitud.FechaCaducidadUtc <= DateTime.UtcNow) { solicitud.Estado = EstadoSolicitudFirma.Caducado; await context.SaveChangesAsync(); return null; }
+        if (solicitud == null || solicitud.Estado is not (EstadoSolicitudFirma.Enviado or EstadoSolicitudFirma.Firmado)) return null;
+        if (solicitud.FechaCaducidadUtc <= DateTime.UtcNow)
+        {
+            if (solicitud.Estado == EstadoSolicitudFirma.Enviado)
+            {
+                solicitud.Estado = EstadoSolicitudFirma.Caducado;
+                await context.SaveChangesAsync();
+            }
+            return null;
+        }
         if (string.IsNullOrWhiteSpace(solicitud.IpFirma))
         {
             var ipSolicitud = ObtenerIp();
@@ -408,9 +429,17 @@ public class FirmaService
     {
         await using var context = _dbContextProvider.CreateDbContext();
         return await context.SolicitudesFirmaColaboradores.AsNoTracking()
-            .Where(s => s.UsuarioId == usuarioId)
-            .OrderByDescending(s => s.FechaCreacionUtc)
+            .Where(s => s.UsuarioId == usuarioId && s.Estado != EstadoSolicitudFirma.FirmadoManual)
+            .OrderByDescending(s => s.Estado == EstadoSolicitudFirma.Firmado && s.DocumentoFirmado != null)
+            .ThenByDescending(s => s.FechaCreacionUtc)
             .FirstOrDefaultAsync();
+    }
+
+    internal async Task<bool> TieneContratoColaboradorManualAsync(int usuarioId)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        return context.EsSuperAdmin && await context.SolicitudesFirmaColaboradores.AnyAsync(s =>
+            s.UsuarioId == usuarioId && s.Estado == EstadoSolicitudFirma.FirmadoManual && s.DocumentoFirmado != null);
     }
 
     public async Task<HashSet<int>> ObtenerUsuariosColaboradoresFirmadosAsync(IEnumerable<int> usuarioIds)
@@ -419,28 +448,60 @@ public class FirmaService
         if (ids.Count == 0) return new HashSet<int>();
         await using var context = _dbContextProvider.CreateDbContext();
         var firmados = await context.SolicitudesFirmaColaboradores.AsNoTracking()
-            .Where(s => ids.Contains(s.UsuarioId) && s.Estado == EstadoSolicitudFirma.Firmado)
+            .Where(s => ids.Contains(s.UsuarioId) && (s.Estado == EstadoSolicitudFirma.Firmado || s.Estado == EstadoSolicitudFirma.FirmadoManual) && s.DocumentoFirmado != null)
             .Select(s => s.UsuarioId)
             .Distinct()
             .ToListAsync();
         return firmados.ToHashSet();
     }
 
-    public async Task<(byte[]? Contenido, string? Nombre)> ObtenerDocumentoColaboradorPrivadoAsync(int usuarioId, bool firmado)
+    internal async Task<(byte[]? Contenido, string? Nombre)> ObtenerDocumentoColaboradorFirmadoAsync(int usuarioId, bool manual)
     {
         await using var context = _dbContextProvider.CreateDbContext();
-        var solicitud = await context.SolicitudesFirmaColaboradores.AsNoTracking()
-            .Where(s => s.UsuarioId == usuarioId)
+        if (!context.EsSuperAdmin) return (null, null);
+        var estado = manual ? EstadoSolicitudFirma.FirmadoManual : EstadoSolicitudFirma.Firmado;
+        var contenido = await context.SolicitudesFirmaColaboradores.AsNoTracking()
+            .Where(s => s.UsuarioId == usuarioId && s.Estado == estado && s.DocumentoFirmado != null)
             .OrderByDescending(s => s.FechaCreacionUtc)
+            .Select(s => s.DocumentoFirmado)
             .FirstOrDefaultAsync();
-        var contenido = firmado ? solicitud?.DocumentoFirmado : solicitud?.DocumentoOriginal;
-        return contenido == null ? (null, null) : (contenido, firmado ? "contrato-colaborador-firmado.pdf" : "contrato-colaborador.pdf");
+        return contenido == null ? (null, null) : (contenido, manual ? "contrato-colaborador-firmado-manualmente.pdf" : "contrato-colaborador-firmado.pdf");
+    }
+
+    internal async Task<byte[]?> GenerarContratoColaboradorManualAsync(int usuarioId)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        if (!context.EsSuperAdmin) return null;
+        var usuario = await context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuarioId);
+        return usuario == null ? null : await _pdfService.GenerarDocumentoColaboradorOriginalAsync(context, usuario);
+    }
+
+    internal async Task<ResultadoFirma> GuardarContratoColaboradorManualAsync(int usuarioId, string nombre, byte[] contenido)
+    {
+        var error = ValidarPdfFirmaManual(nombre, contenido);
+        if (error != null) return new(false, error);
+        await using var context = _dbContextProvider.CreateDbContext();
+        if (!context.EsSuperAdmin) return new(false, "Solo superadmin puede importar contratos firmados.");
+        var usuario = await context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuarioId);
+        if (usuario == null) return new(false, "Usuario no encontrado en la empresa activa.");
+        var now = DateTime.UtcNow;
+        context.SolicitudesFirmaColaboradores.Add(new SolicitudFirmaColaborador
+        {
+            UsuarioId = usuarioId, ProcesoId = Guid.NewGuid().ToString("D"),
+            TokenHash = _tokenService.Hash(_tokenService.Generar()), FechaCreacionUtc = now, FechaCaducidadUtc = now,
+            Estado = EstadoSolicitudFirma.FirmadoManual, EmailDestinatario = usuario.Email,
+            DocumentoFirmado = contenido, HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(contenido)
+        });
+        await context.SaveChangesAsync();
+        return new(true, "Contrato firmado manualmente guardado. La cuenta no se ha activado.");
     }
 
     public async Task<ResultadoFirma> CompletarFirmaColaboradorAsync(string token, byte[] firma, string? ipPublicaCliente = null)
     {
-        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<SolicitudFirmaColaborador>(token)) return new(false, "El enlace no es valido.");
-        await using var context = _dbContextProvider.CreateDbContext();
+        if (!_configuration.GetValue("PublicSigning:Enabled", true)) return new(false, "La firma pública está desactivada.");
+        if (firma.Length is 0 or > 2 * 1024 * 1024) return new(false, "La firma no es válida.");
+        await using var context = await _dbContextProvider.CreateFirmaPublicaDbContextAsync<SolicitudFirmaColaborador>(token);
+        if (context == null) return new(false, "El enlace no es válido.");
         var solicitud = await context.SolicitudesFirmaColaboradores.FirstOrDefaultAsync(s => s.TokenHash == _tokenService.Hash(token));
         if (solicitud == null || solicitud.Estado != EstadoSolicitudFirma.Enviado || solicitud.FechaCaducidadUtc <= DateTime.UtcNow) return new(false, "El enlace no es valido o ha caducado.");
         var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.Id == solicitud.UsuarioId);
@@ -448,7 +509,7 @@ public class FirmaService
         var ipFirma = ObtenerIp(ipPublicaCliente);
         if (string.IsNullOrWhiteSpace(ipFirma)) ipFirma = ObtenerIp(solicitud.IpFirma);
         var fechaFirmaUtc = DateTime.UtcNow;
-        var firmado = await _pdfService.GenerarDocumentoColaboradorFirmadoAsync(usuario, firma, ipFirma, fechaFirmaUtc);
+        var firmado = await _pdfService.GenerarDocumentoColaboradorFirmadoAsync(context, usuario, firma, ipFirma, fechaFirmaUtc);
         solicitud.DocumentoFirmado = firmado; solicitud.FirmaImagen = firma; solicitud.Estado = EstadoSolicitudFirma.Firmado; solicitud.FechaFirmaUtc = fechaFirmaUtc; solicitud.HashDocumentoFirmado = ContractSigningPdfService.CalcularHash(firmado); solicitud.IpFirma = ipFirma; solicitud.UserAgentFirma = ObtenerUserAgent();
         await context.SaveChangesAsync();
         return new(true, "Contrato firmado correctamente.");
@@ -471,15 +532,63 @@ public class FirmaService
         return documento == null ? (null, null) : (documento.Fichero, documento.NombreFichero);
     }
 
-    private async Task<SolicitudFirma?> ObtenerSolicitudValidaAsync(string token, bool permitirEnProceso = false)
+    internal async Task<byte[]?> GenerarDocumentoFirmaManualAsync(int contratoId)
     {
-        if (string.IsNullOrWhiteSpace(token) || token.Length > 256)
-        {
-            return null;
-        }
-
-        if (!await _dbContextProvider.ResolverEmpresaFirmaAsync<SolicitudFirma>(token)) return null;
         await using var context = _dbContextProvider.CreateDbContext();
+        var contrato = await context.Contratos.AsNoTracking().FirstOrDefaultAsync(c => c.Id == contratoId);
+        if (contrato == null) return null;
+
+        var cliente = contrato.IdCliente is int clienteId
+            ? await context.Clientes.AsNoTracking().FirstOrDefaultAsync(c => c.Id == clienteId)
+            : null;
+        return await _pdfService.GenerarDocumentoOriginalAsync(context, contrato, cliente);
+    }
+
+    internal async Task<ResultadoFirma> GuardarDocumentoFirmaManualAsync(int contratoId, string nombre, byte[] contenido)
+    {
+        var error = ValidarPdfFirmaManual(nombre, contenido);
+        if (error != null) return new(false, error);
+
+        await using var context = _dbContextProvider.CreateDbContext();
+        if (!await context.Contratos.AnyAsync(c => c.Id == contratoId))
+            return new(false, "No se encontró el contrato en la empresa activa.");
+
+        context.FicherosContratos.Add(new FicheroContrato
+        {
+            IdContrato = contratoId,
+            TipoFichero = TipoDocumentoFirmaManual,
+            NombreFichero = $"contrato-{contratoId}-firmado-manualmente-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}.pdf",
+            Fichero = contenido
+        });
+        await context.SaveChangesAsync();
+        return new(true, "PDF firmado manualmente guardado.");
+    }
+
+    private static string? ValidarPdfFirmaManual(string nombre, byte[] contenido) =>
+        contenido.Length > MaxDocumentoFirmaManualBytes ? "El PDF firmado no debe superar los 10 MB."
+        : !nombre.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) || !contenido.AsSpan().StartsWith("%PDF-"u8)
+            ? "Selecciona un archivo PDF válido." : null;
+
+    private static IQueryable<FicheroContrato> DocumentosFirmaManual(ApplicationDbContext context, int contratoId) =>
+        context.FicherosContratos.AsNoTracking()
+            .Where(f => f.IdContrato == contratoId && f.TipoFichero == TipoDocumentoFirmaManual);
+
+    internal async Task<List<(int Id, string? Nombre)>> ObtenerDocumentosFirmaManualAsync(int contratoId)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        var documentos = await DocumentosFirmaManual(context, contratoId)
+            .OrderByDescending(f => f.Id).Select(f => new { f.Id, f.NombreFichero }).ToListAsync();
+        return documentos.Select(f => (f.Id, f.NombreFichero)).ToList();
+    }
+
+    internal async Task<FicheroContrato?> ObtenerDocumentoFirmaManualAsync(int contratoId, int documentoId)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        return await DocumentosFirmaManual(context, contratoId).FirstOrDefaultAsync(f => f.Id == documentoId);
+    }
+
+    private async Task<SolicitudFirma?> ObtenerSolicitudValidaAsync(ApplicationDbContext context, string token, bool sinSeguimiento = false)
+    {
         var hash = _tokenService.Hash(token);
         var solicitud = await context.SolicitudesFirma.FirstOrDefaultAsync(s => s.TokenHash == hash);
         if (solicitud == null)
@@ -493,27 +602,22 @@ public class FirmaService
             {
                 solicitud.Estado = EstadoSolicitudFirma.Caducado;
             }
-            await context.SaveChangesAsync();
-            await RegistrarEventoAsync(solicitud.Id, "SolicitudCaducada", null, "OK", null);
+            await RegistrarEventoAsync(solicitud.Id, "SolicitudCaducada", null, "OK", null, context);
             return null;
         }
 
+        if (sinSeguimiento) context.Entry(solicitud).State = EntityState.Detached;
         return solicitud.Estado is EstadoSolicitudFirma.Enviado or EstadoSolicitudFirma.Pendiente or EstadoSolicitudFirma.EnProceso or EstadoSolicitudFirma.Firmado ? solicitud : null;
-    }
-
-    private async Task CambiarEstadoAsync(int solicitudId, string estado, string evento)
-    {
-        await using var context = _dbContextProvider.CreateDbContext();
-        var solicitud = await context.SolicitudesFirma.FirstOrDefaultAsync(s => s.Id == solicitudId);
-        if (solicitud == null) return;
-        solicitud.Estado = estado;
-        await context.SaveChangesAsync();
-        await RegistrarEventoAsync(solicitudId, evento, null, "OK", estado);
     }
 
     private async Task RegistrarEventoAsync(int solicitudId, string tipo, int? documentoId, string resultado, string? datos)
     {
         await using var context = _dbContextProvider.CreateDbContext();
+        await RegistrarEventoAsync(solicitudId, tipo, documentoId, resultado, datos, context);
+    }
+
+    private async Task RegistrarEventoAsync(int solicitudId, string tipo, int? documentoId, string resultado, string? datos, ApplicationDbContext context)
+    {
         context.SolicitudesFirmaEventos.Add(new SolicitudFirmaEvento
         {
             SolicitudFirmaId = solicitudId,
@@ -542,16 +646,6 @@ public class FirmaService
 
     private string ObtenerIp(string? ipNavegador = null) =>
         FirmaIpResolver.ObtenerIpPublica(_httpContextAccessor.HttpContext, ipNavegador);
-
-    private async Task GuardarIpSolicitudAsync(int solicitudId, string ip)
-    {
-        if (string.IsNullOrWhiteSpace(ip)) return;
-        await using var context = _dbContextProvider.CreateDbContext();
-        var solicitud = await context.SolicitudesFirma.FirstOrDefaultAsync(s => s.Id == solicitudId);
-        if (solicitud == null || !string.IsNullOrWhiteSpace(solicitud.IpFirma)) return;
-        solicitud.IpFirma = ip;
-        await context.SaveChangesAsync();
-    }
 
     private string ObtenerUserAgent()
     {

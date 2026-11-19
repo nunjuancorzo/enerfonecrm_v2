@@ -752,6 +752,13 @@ else
                         var usuarioExistente = await context.Usuarios.FindAsync(usuario.Id);
                         if (usuarioExistente != null)
                         {
+                            var errorActivacion = await EnerfoneCRM.Services.UsuarioService.ValidarActivacionAsync(context, usuarioExistente, usuario.Activo);
+                            if (errorActivacion != null)
+                            {
+                                errores++;
+                                erroresValidacion.Add($"Usuario {usuario.Id}: {errorActivacion}");
+                                continue;
+                            }
                             usuarioExistente.NombreUsuario = usuario.NombreUsuario;
                             usuarioExistente.Nombre = usuario.Nombre;
                             usuarioExistente.Apellidos = usuario.Apellidos;

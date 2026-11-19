@@ -62,10 +62,24 @@ public class EmailService
     {
         try
         {
-            // Obtener configuración SMTP
-            using var context = _dbContextProvider.CreateDbContext();
-            var config = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            await using var context = _dbContextProvider.CreateDbContext();
+            var config = await context.ConfiguracionesEmpresa.AsNoTracking().FirstOrDefaultAsync();
+            return await EnviarEmailConConfiguracionAsync(config, destinatario, asunto, cuerpoHtml,
+                adjuntoPdf, nombreAdjunto, tipoMime, imagenInline, tipoMimeImagenInline, idContenidoImagenInline);
+        }
+        catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException)
+        {
+            return (false, $"No se pudo leer la configuración SMTP: {ex.Message}");
+        }
+    }
 
+    private static async Task<(bool exito, string mensaje)> EnviarEmailConConfiguracionAsync(
+        ConfiguracionEmpresa? config, string destinatario, string asunto, string cuerpoHtml,
+        byte[] adjuntoPdf, string nombreAdjunto, string tipoMime, byte[]? imagenInline,
+        string? tipoMimeImagenInline, string idContenidoImagenInline)
+    {
+        try
+        {
             if (config == null)
             {
                 return (false, "No se encontró la configuración de la empresa");
@@ -137,6 +151,13 @@ public class EmailService
         return await EnviarEmailConAdjuntoAsync(destinatario, asunto, cuerpoHtml, Array.Empty<byte>(), string.Empty);
     }
 
+    public async Task<(bool exito, string mensaje)> ProbarConfiguracionSmtpAsync(ConfiguracionEmpresa config, string destinatario)
+    {
+        var cuerpo = "<p>Este es un correo de prueba de la configuración SMTP de CRM Enerfone.</p>";
+        return await EnviarEmailConConfiguracionAsync(config, destinatario, "Prueba de configuración SMTP", cuerpo,
+            Array.Empty<byte>(), string.Empty, "application/pdf", null, null, "logo-empresa");
+    }
+
     public async Task<(bool exito, string mensaje)> EnviarEmailFirmaAsync(
         string destinatario,
         string asunto,
@@ -146,14 +167,22 @@ public class EmailService
         string url,
         DateTime fechaCaducidadUtc)
     {
+        await using var context = _dbContextProvider.CreateDbContext();
+        return await EnviarEmailFirmaAsync(context, destinatario, asunto, nombreDestinatario, descripcion,
+            textoAccion, url, fechaCaducidadUtc);
+    }
+
+    internal async Task<(bool exito, string mensaje)> EnviarEmailFirmaAsync(
+        ApplicationDbContext context, string destinatario, string asunto, string nombreDestinatario,
+        string descripcion, string textoAccion, string url, DateTime fechaCaducidadUtc)
+    {
         try
         {
-            await using var context = _dbContextProvider.CreateDbContext();
-            var configuracion = await context.ConfiguracionesEmpresa.FirstOrDefaultAsync();
+            var configuracion = await context.ConfiguracionesEmpresa.AsNoTracking().FirstOrDefaultAsync();
             if (configuracion == null)
                 return (false, "No se encontró la configuración de la empresa.");
 
-            var correo = PlantillaEmailFirma.Crear(
+            var html = PlantillaEmailFirma.Crear(
                 configuracion,
                 asunto,
                 nombreDestinatario,
@@ -162,16 +191,17 @@ public class EmailService
                 url,
                 fechaCaducidadUtc);
 
-            return await EnviarEmailConAdjuntoAsync(
+            return await EnviarEmailConConfiguracionAsync(
+                configuracion,
                 destinatario,
                 asunto,
-                correo.Html,
+                html,
                 Array.Empty<byte>(),
                 string.Empty,
                 "application/pdf",
-                correo.Logo?.Contenido,
-                correo.Logo?.TipoMime,
-                correo.Logo?.IdContenido ?? "logo-empresa");
+                null,
+                null,
+                "logo-empresa");
         }
         catch (Exception ex)
         {

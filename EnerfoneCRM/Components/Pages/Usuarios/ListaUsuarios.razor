@@ -110,7 +110,7 @@ else
                                 }
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="btn-group" style="width: 100%;">
                                 <button type="button" class="btn btn-outline-secondary dropdown-toggle text-start" data-bs-toggle="dropdown" aria-expanded="false" style="width: 100%;">
                                     <i class="bi bi-funnel me-2"></i>
@@ -192,7 +192,14 @@ else
                                 </ul>
                             </div>
                         </div>
-                        <div class="col-md-4 text-end">
+                        <div class="col-md-2">
+                            <select class="form-select" value="@estadoFiltro" @onchange="CambiarEstadoFiltro">
+                                <option value="Todos">Todos los estados</option>
+                                <option value="Activos">Solo activos</option>
+                                <option value="Inactivos">Solo inactivos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 text-end">
                             <small class="text-muted">
                                 Mostrando @usuariosFiltrados.Count de @usuarios.Count usuario(s)
                             </small>
@@ -414,6 +421,7 @@ else
     private List<Usuario> usuariosCompletos = new(); // Todos los usuarios filtrados sin paginación
     private string textoBusqueda = string.Empty;
     private List<string> rolesFiltro = new();
+    private string estadoFiltro = "Todos";
     
     // Ordenamiento
     private string columnaOrden = "NombreUsuario";
@@ -518,6 +526,14 @@ else
                 .ToList();
         }
 
+        // Luego filtrar por estado (activo / inactivo)
+        usuariosFiltradosPorBusqueda = estadoFiltro switch
+        {
+            "Activos" => usuariosFiltradosPorBusqueda.Where(u => u.Activo).ToList(),
+            "Inactivos" => usuariosFiltradosPorBusqueda.Where(u => !u.Activo).ToList(),
+            _ => usuariosFiltradosPorBusqueda
+        };
+
         // Luego ordenar
         var usuariosParaPaginar = columnaOrden switch
         {
@@ -575,6 +591,12 @@ else
         FiltrarUsuarios();
     }
     
+    private void CambiarEstadoFiltro(ChangeEventArgs e)
+    {
+        estadoFiltro = e.Value?.ToString() ?? "Todos";
+        FiltrarUsuarios();
+    }
+
     private void LimpiarFiltroRol()
     {
         rolesFiltro.Clear();

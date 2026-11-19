@@ -11,7 +11,7 @@ BEGIN
     DECLARE tablas CURSOR FOR
         SELECT TABLE_NAME FROM information_schema.TABLES
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
-          AND TABLE_NAME <> 'empresas';
+          AND TABLE_NAME NOT IN ('empresas', 'perfil_superadmin');
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET terminado = 1;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -121,6 +121,7 @@ DELIMITER ;
 SELECT id_empresa, nombre, activa FROM empresas ORDER BY id_empresa;
 SELECT TABLE_NAME AS tabla_sin_empresa FROM information_schema.TABLES AS tablas
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+  AND TABLE_NAME <> 'perfil_superadmin'
   AND NOT EXISTS (
       SELECT 1 FROM information_schema.COLUMNS AS columnas
       WHERE columnas.TABLE_SCHEMA = tablas.TABLE_SCHEMA AND columnas.TABLE_NAME = tablas.TABLE_NAME

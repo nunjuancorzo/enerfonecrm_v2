@@ -4,6 +4,10 @@
 bin/
 obj/
 
+# Carpeta de publicación local (se copia manualmente al servidor)
+publicado/
+EnerfoneCRM/publish/
+
 # Archivos de backup
 *.bak
 *.bak[0-9]

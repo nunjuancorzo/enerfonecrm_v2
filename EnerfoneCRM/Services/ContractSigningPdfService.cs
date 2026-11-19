@@ -13,39 +13,43 @@ namespace EnerfoneCRM.Services;
 
 public class ContractSigningPdfService
 {
-    private readonly ConfiguracionService _configuracionService;
     private readonly DbContextProvider _dbContextProvider;
 
-    public ContractSigningPdfService(ConfiguracionService configuracionService, DbContextProvider dbContextProvider)
+    public ContractSigningPdfService(DbContextProvider dbContextProvider)
     {
-        _configuracionService = configuracionService;
         _dbContextProvider = dbContextProvider;
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
     public async Task<byte[]> GenerarDocumentoOriginalAsync(Contrato contrato, Cliente? cliente)
     {
-        var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
-        var datosTarifa = await ObtenerDatosTarifaAsync(contrato);
+        await using var context = _dbContextProvider.CreateDbContext();
+        return await GenerarDocumentoOriginalAsync(context, contrato, cliente);
+    }
+
+    internal async Task<byte[]> GenerarDocumentoOriginalAsync(ApplicationDbContext context, Contrato contrato, Cliente? cliente)
+    {
+        var configuracion = await context.ConfiguracionesEmpresa.AsNoTracking().FirstOrDefaultAsync();
+        var datosTarifa = await ObtenerDatosTarifaAsync(context, contrato);
         return GenerarDocumento(contrato, cliente, configuracion, datosTarifa.tarifaLuz, datosTarifa.tarifaTelefonia, datosTarifa.tarifaAlarma, datosTarifa.logoProveedor, null, null, null);
     }
 
-    public async Task<byte[]> GenerarDocumentoFirmadoAsync(byte[] documentoOriginal, Contrato contrato, Cliente? cliente, byte[] firma, string ipFirma, DateTime fechaFirmaUtc)
+    internal async Task<byte[]> GenerarDocumentoFirmadoAsync(ApplicationDbContext context, Contrato contrato, Cliente? cliente, byte[] firma, string ipFirma, DateTime fechaFirmaUtc)
     {
-        var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
-        var datosTarifa = await ObtenerDatosTarifaAsync(contrato);
+        var configuracion = await context.ConfiguracionesEmpresa.AsNoTracking().FirstOrDefaultAsync();
+        var datosTarifa = await ObtenerDatosTarifaAsync(context, contrato);
         return GenerarDocumento(contrato, cliente, configuracion, datosTarifa.tarifaLuz, datosTarifa.tarifaTelefonia, datosTarifa.tarifaAlarma, datosTarifa.logoProveedor, firma, ipFirma, fechaFirmaUtc);
     }
 
-    public async Task<byte[]> GenerarDocumentoColaboradorOriginalAsync(Usuario usuario)
+    internal async Task<byte[]> GenerarDocumentoColaboradorOriginalAsync(ApplicationDbContext context, Usuario usuario)
     {
-        var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
+        var configuracion = await context.ConfiguracionesEmpresa.AsNoTracking().FirstOrDefaultAsync();
         return GenerarDocumentoColaboradorCompleto(usuario, configuracion, null, null, null);
     }
 
-    public async Task<byte[]> GenerarDocumentoColaboradorFirmadoAsync(Usuario usuario, byte[] firma, string ipFirma, DateTime fechaFirmaUtc)
+    internal async Task<byte[]> GenerarDocumentoColaboradorFirmadoAsync(ApplicationDbContext context, Usuario usuario, byte[] firma, string ipFirma, DateTime fechaFirmaUtc)
     {
-        var configuracion = await _configuracionService.ObtenerConfiguracionAsync();
+        var configuracion = await context.ConfiguracionesEmpresa.AsNoTracking().FirstOrDefaultAsync();
         return GenerarDocumentoColaboradorCompleto(usuario, configuracion, firma, ipFirma, fechaFirmaUtc);
     }
 
@@ -72,12 +76,24 @@ public class ContractSigningPdfService
             DibujarTexto(paginaInicial, $"En Mérida (Badajoz), a {fechaContrato}.", fuente, 72, 137);
 
             CubrirCampo(paginaInicial, 65, 394, 470, 156);
-            DibujarTexto(paginaInicial, $"DE OTRA PARTE, D./Dª. {nombre}", fuente, 72, 419);
-            DibujarTexto(paginaInicial, $"{domicilio}, provisto/a de", fuente, 72, 438);
-            DibujarTexto(paginaInicial, $"C.I.F./N.I.F. número {nifCif}; representada en este acto, en su", fuente, 72, 456);
-            DibujarTexto(paginaInicial, $"caso, por D./Dª. {nombre}, mayor de edad, con N.I.F. número {nifCif}", fuente, 72, 474);
-            DibujarTexto(paginaInicial, $"{cargo}, cargo para el que se halla facultado en virtud de las", fuente, 72, 492);
-            DibujarTexto(paginaInicial, "facultades estatutariamente conferidas y vigentes a la fecha de la firma del presente contrato.", fuente, 72, 510);
+            var razonSocialPyme = Limpiar(usuario.RazonSocialPyme);
+            var cifPyme = Limpiar(usuario.CifPyme);
+            if (Usuario.EsPyme(usuario.TipoEntidad) && razonSocialPyme.Length > 0 && cifPyme.Length > 0)
+            {
+                DibujarTexto(paginaInicial, $"DE OTRA PARTE, {razonSocialPyme}, provista de C.I.F. número {cifPyme};", fuente, 72, 419);
+                DibujarTexto(paginaInicial, $"representada en este acto, en su caso, por D./Dª. {nombre}, mayor de edad,", fuente, 72, 438);
+                DibujarTexto(paginaInicial, $"con N.I.F. número {nifCif}, {cargo}, cargo para el que se halla facultado en virtud de las", fuente, 72, 456);
+                DibujarTexto(paginaInicial, "facultades estatutariamente conferidas y vigentes a la fecha de la firma del presente contrato.", fuente, 72, 474);
+            }
+            else
+            {
+                DibujarTexto(paginaInicial, $"DE OTRA PARTE, D./Dª. {nombre}", fuente, 72, 419);
+                DibujarTexto(paginaInicial, $"{domicilio}, provisto/a de", fuente, 72, 438);
+                DibujarTexto(paginaInicial, $"C.I.F./N.I.F. número {nifCif}; representada en este acto, en su", fuente, 72, 456);
+                DibujarTexto(paginaInicial, $"caso, por D./Dª. {nombre}, mayor de edad, con N.I.F. número {nifCif}", fuente, 72, 474);
+                DibujarTexto(paginaInicial, $"{cargo}, cargo para el que se halla facultado en virtud de las", fuente, 72, 492);
+                DibujarTexto(paginaInicial, "facultades estatutariamente conferidas y vigentes a la fecha de la firma del presente contrato.", fuente, 72, 510);
+            }
         }
 
         using (var paginaFinal = XGraphics.FromPdfPage(document.Pages[20], XGraphicsPdfPageOptions.Append))
@@ -371,10 +387,8 @@ public class ContractSigningPdfService
         try { return Convert.FromBase64String(base64); } catch (FormatException) { return null; }
     }
 
-    private async Task<(TarifaLuz? tarifaLuz, TarifaTelefonia? tarifaTelefonia, TarifaAlarma? tarifaAlarma, byte[]? logoProveedor)> ObtenerDatosTarifaAsync(Contrato contrato)
+    private static async Task<(TarifaLuz? tarifaLuz, TarifaTelefonia? tarifaTelefonia, TarifaAlarma? tarifaAlarma, byte[]? logoProveedor)> ObtenerDatosTarifaAsync(ApplicationDbContext context, Contrato contrato)
     {
-        await using var context = _dbContextProvider.CreateDbContext();
-
         TarifaLuz? tarifaLuz = null;
         if (contrato.EnTarifaId.HasValue)
             tarifaLuz = await context.TarifasLuz.AsNoTracking().FirstOrDefaultAsync(t => t.Id == contrato.EnTarifaId.Value);

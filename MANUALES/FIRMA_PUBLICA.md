@@ -11,6 +11,7 @@ La funcionalidad usa una solicitud de firma independiente del estado operativo d
 - Cada operacion publica registra un evento en `solicitudes_firma_eventos`.
 - El documento original y el documento firmado se conservan como documentos separados en `ficheroscontratos`.
 - La pagina publica no requiere usuario ni contrasena.
+- El token identifica el `id_empresa` de la solicitud. El contrato, sus PDF y los eventos se consultan y guardan en esa empresa, independientemente de cualquier sesion abierta en el navegador.
 
 ## Puesta en marcha
 
@@ -29,18 +30,18 @@ Ejemplo de configuracion:
 }
 ```
 
-`BaseUrl` debe ser la URL HTTPS publica que recibira el cliente. No debe contener una barra final.
+En produccion, `BaseUrl` debe ser la URL HTTPS publica que recibira el cliente. No debe contener una barra final. En el perfil HTTP de desarrollo se usa `http://localhost:5169`. Si un correo de prueba ya enviado apunta a `localhost:5170`, se puede cambiar solo el puerto a `5169` conservando el resto del enlace mientras siga vigente.
 
 ## Flujo para el colaborador
 
-### Registro de un nuevo usuario
+### Alta y habilitación de un usuario
 
 - El email del registro es obligatorio y debe tener un formato valido. Se guarda sin espacios al principio o al final.
-- Tras crear el usuario Colaborador, todavia inactivo, el registro solicita automaticamente la firma del contrato de colaboracion. El correo contiene un enlace para consultar y firmar el documento; no requiere iniciar sesion ni activar antes la cuenta.
-- Se reutiliza `FirmaService.CrearSolicitudColaboradorAsync`, la plantilla `Resources/contrato_colaboradores.pdf` y la solicitud de firma del colaborador. La URL es `/firma-colaborador/{token}` y su caducidad actual es de dos dias.
-- Deben estar disponibles la tabla `solicitudes_firma_colaboradores`, la plantilla y la configuracion SMTP. `PublicSigning:Enabled` debe estar activo y `PublicSigning:BaseUrl` debe ser una URL HTTPS publica, sin query ni fragmento. HTTP solo se admite para localhost en desarrollo.
-- La pantalla confirma el envio cuando SMTP lo acepta. Si falla el envio o la generacion, la cuenta no se vuelve a crear: se muestra un aviso y un administrador puede reenviar el contrato desde la ficha del usuario.
-- Las notificaciones a administradores se conservan y se envian despues de solicitar la firma al nuevo colaborador.
+- El administrador de empresa solicita el alta y la cuenta queda deshabilitada. El alta no envía el contrato automáticamente.
+- En **Gestión de usuarios**, el superadmin selecciona la empresa, abre la ficha y pulsa **Enviar documentación a firmar**. El correo usa el SMTP de esa empresa y contiene un enlace `/firma-colaborador/{token}`, válido durante dos días y accesible sin iniciar sesión.
+- Deben estar disponibles la tabla `solicitudes_firma_colaborador`, la plantilla `Resources/contrato_colaboradores.pdf` y la configuración SMTP. `PublicSigning:Enabled` debe estar activo y `PublicSigning:BaseUrl` debe ser una URL HTTPS pública, sin query ni fragmento. HTTP solo se admite para localhost en desarrollo.
+- La pantalla marca el envío cuando SMTP lo acepta. Si falla, muestra el error y conserva cualquier enlace anterior vigente. En **Firma manual (fuera del CRM)**, el superadmin puede descargar el contrato e importar el PDF firmado (hasta 10 MB).
+- El superadmin revisa el contrato firmado y habilita al usuario desde su ficha. Firmar o importar el PDF no activa la cuenta automáticamente.
 
 ### Envio de contratos al cliente
 
@@ -50,6 +51,10 @@ Ejemplo de configuracion:
 4. El sistema genera una copia cumplimentada de `contrato_clientes.pdf`, la guarda como documento original y envia el enlace por SMTP.
 5. Mientras este pendiente se puede reenviar, lo que invalida la solicitud anterior, o cancelar.
 6. Cuando el cliente termina, la ficha muestra el estado y permite descargar el documento firmado.
+
+### Firma manual fuera del CRM
+
+En la ficha del contrato, debajo de **Firma de documentación**, el recuadro **Firma manual (fuera del CRM)** permite descargar el PDF cumplimentado sin enviar un correo ni crear una solicitud. Cuando el cliente lo devuelva firmado, se puede cargar como PDF de hasta 10 MB y descargar de nuevo desde ese mismo recuadro. Los archivos manuales no sustituyen los de la firma por correo ni cambian el estado de esa solicitud o del contrato.
 
 ## Flujo para el cliente
 

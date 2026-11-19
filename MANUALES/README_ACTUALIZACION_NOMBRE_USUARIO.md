@@ -65,7 +65,7 @@ Un usuario llamado "maria.garcia" necesita cambiar su nombre de usuario a "m.gar
 
 ### Proceso
 1. El administrador accede a **Gestión de Usuarios** → **Editar Usuario**
-2. Cambia el campo "Nombre de Usuario" de "maria.garcia" a "m.garcia"
+2. Pulsa **Cambiar nombre de usuario** y sustituye "maria.garcia" por "m.garcia". Si solo editas otros datos, no actives ese botón. La contraseña tampoco se modifica salvo que pulses **Cambiar contraseña** y escribas una nueva.
 3. Guarda los cambios
 
 ### Resultado

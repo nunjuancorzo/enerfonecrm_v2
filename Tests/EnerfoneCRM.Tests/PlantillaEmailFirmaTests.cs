@@ -8,7 +8,7 @@ namespace EnerfoneCRM.Tests;
 public class PlantillaEmailFirmaTests
 {
     [Fact]
-    public void UsaLogoInlinePaletaYEscapaLosDatosDelDestinatario()
+    public void UsaLaPaletaYEscapaLosDatosDelDestinatarioSinImagenIncrustada()
     {
         var configuracion = new ConfiguracionEmpresa
         {
@@ -21,7 +21,7 @@ public class PlantillaEmailFirmaTests
             TemaColorFondo = "#F1F2F3"
         };
 
-        var correo = PlantillaEmailFirma.Crear(
+        var html = PlantillaEmailFirma.Crear(
             configuracion,
             "Documentación pendiente",
             "<script>alert(1)</script>",
@@ -30,22 +30,19 @@ public class PlantillaEmailFirmaTests
             "https://example.com/firma/token",
             DateTime.UtcNow.AddDays(2));
 
-        Assert.NotNull(correo.Logo);
-        Assert.Equal("image/png", correo.Logo.TipoMime);
-        Assert.Contains("cid:logo-empresa", correo.Html);
-        Assert.Contains("margin:0 auto", correo.Html);
-        Assert.Contains("align=\"center\" bgcolor=\"#ffffff\"", correo.Html);
-        Assert.Contains("#123456", correo.Html);
-        Assert.Contains("#234567", correo.Html);
-        Assert.Contains("#F1F2F3", correo.Html);
-        Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", correo.Html);
-        Assert.DoesNotContain("<script>alert(1)</script>", correo.Html);
+        Assert.DoesNotContain("cid:", html);
+        Assert.Contains("#123456", html);
+        Assert.Contains("#234567", html);
+        Assert.Contains("#F1F2F3", html);
+        Assert.Contains("Empresa &lt;Central&gt;", html);
+        Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt;", html);
+        Assert.DoesNotContain("<script>alert(1)</script>", html);
     }
 
     [Fact]
     public void ConservaUnaCabeceraDeMarcaSiNoHayImagen()
     {
-        var correo = PlantillaEmailFirma.Crear(
+        var html = PlantillaEmailFirma.Crear(
             new ConfiguracionEmpresa { NombreEmpresa = "Enerfone" },
             "Firma pendiente",
             "Cliente",
@@ -54,8 +51,25 @@ public class PlantillaEmailFirmaTests
             "https://example.com/firma/token",
             DateTime.UtcNow.AddDays(2));
 
-        Assert.Null(correo.Logo);
-        Assert.Contains("Enerfone", correo.Html);
-        Assert.Contains("Firmar", correo.Html);
+        Assert.Contains("Enerfone", html);
+        Assert.Contains("Firmar", html);
+    }
+
+    [Fact]
+    public void NotificacionNoIncluyeBotonNiCaducidadYEscapaLosDatos()
+    {
+        var html = PlantillaEmailFirma.CrearNotificacion(
+            new ConfiguracionEmpresa { NombreEmpresa = "Enerfone", TemaColorAcento = "#123456" },
+            "Nueva alta",
+            "Administrador",
+            "Se ha dado de alta un usuario.",
+            [("Punto de venta", "<b>Bar & Co</b>")],
+            "Se adjuntan los documentos.");
+
+        Assert.DoesNotContain("<a href", html);
+        Assert.DoesNotContain("caducidad", html);
+        Assert.Contains("Punto de venta", html);
+        Assert.Contains("&lt;b&gt;Bar &amp; Co&lt;/b&gt;", html);
+        Assert.Contains("Se adjuntan los documentos.", html);
     }
 }

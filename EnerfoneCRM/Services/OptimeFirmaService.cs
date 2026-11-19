@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Net;
+using EnerfoneCRM.Data;
 using EnerfoneCRM.Models;
 using Microsoft.EntityFrameworkCore;
 using PdfSharpCore.Drawing;
@@ -118,12 +119,19 @@ public class OptimeFirmaService
             _logger.LogInformation("Guardados {Count} registros de firma para solicitud {Id}", registros.Count, solicitudId);
 
             var errores = new List<string>();
+            var configuracion = await ObtenerConfiguracionAsync(context);
             _logger.LogInformation("Enviando email a cliente: {Email}", solicitud.Email);
             var envioCliente = await _emailService.EnviarEmailConAdjuntosEnMemoriaAsync(
                 context,
                 solicitud.Email.Trim(),
                 "Documentación firmada de alta Optime",
-                $"<p>Hola {WebUtility.HtmlEncode(solicitud.PersonaContacto)},</p><p>Adjuntamos una copia de los tres documentos firmados para el alta del punto de venta <strong>{WebUtility.HtmlEncode(solicitud.RazonSocial)}</strong>.</p>",
+                PlantillaEmailFirma.CrearNotificacion(
+                    configuracion,
+                    "Documentación firmada de alta Optime",
+                    solicitud.PersonaContacto,
+                    $"Adjuntamos una copia de los tres documentos firmados para el alta del punto de venta {solicitud.RazonSocial}.",
+                    [],
+                    "Los documentos firmados se adjuntan a este correo."),
                 adjuntos);
             if (!envioCliente.exito)
             {
@@ -150,7 +158,17 @@ public class OptimeFirmaService
                     context,
                     administrador.Email,
                     $"Nueva alta de usuario Optime: {solicitud.RazonSocial}",
-                    $"<p>Se ha dado de alta un nuevo usuario de Optime.</p><p><strong>Punto de venta:</strong> {WebUtility.HtmlEncode(solicitud.RazonSocial)}<br/><strong>Persona de contacto:</strong> {WebUtility.HtmlEncode(solicitud.PersonaContacto)}<br/><strong>Email:</strong> {WebUtility.HtmlEncode(solicitud.Email)}</p><p>Se adjuntan los tres documentos firmados.</p>",
+                    PlantillaEmailFirma.CrearNotificacion(
+                        configuracion,
+                        $"Nueva alta de usuario Optime: {solicitud.RazonSocial}",
+                        administrador.Nombre ?? administrador.NombreUsuario,
+                        "Se ha dado de alta un nuevo usuario de Optime.",
+                        [
+                            ("Punto de venta", solicitud.RazonSocial),
+                            ("Persona de contacto", solicitud.PersonaContacto),
+                            ("Email", solicitud.Email)
+                        ],
+                        "Se adjuntan los tres documentos firmados."),
                     adjuntos);
                 if (!envioAdministrador.exito)
                 {
@@ -225,13 +243,15 @@ public class OptimeFirmaService
 
         var url = $"{ObtenerBaseUrl(baseUrlAlternativa)}/firma-optime/{Uri.EscapeDataString(token)}";
         var titulo = OptimeFirma.Titulo(tipo);
-        var cuerpo =
-            $"<p>Hola {WebUtility.HtmlEncode(solicitud.PersonaContacto)},</p>" +
-            $"<p>Tiene disponible para su firma el documento <strong>{WebUtility.HtmlEncode(titulo)}</strong> correspondiente al alta del punto de venta <strong>{WebUtility.HtmlEncode(solicitud.RazonSocial)}</strong>.</p>" +
-            $"<p><a href=\"{WebUtility.HtmlEncode(url)}\">Consultar y firmar documento</a></p>" +
-            $"<p>Este enlace es personal y válido hasta el {firma.FechaCaducidadUtc.ToLocalTime():dd/MM/yyyy}.</p>";
-
-        var email = await _emailService.EnviarEmailSimpleAsync(firma.EmailDestinatario, $"{titulo} - pendiente de firma", cuerpo);
+        var email = await _emailService.EnviarEmailFirmaAsync(
+            context,
+            firma.EmailDestinatario,
+            $"{titulo} - pendiente de firma",
+            solicitud.PersonaContacto,
+            $"Tiene disponible para su firma el documento {titulo} correspondiente al alta del punto de venta {solicitud.RazonSocial}.",
+            "Consultar y firmar documento",
+            url,
+            firma.FechaCaducidadUtc);
         if (!email.exito)
         {
             firma.ErrorEnvio = email.mensaje.Length > 500 ? email.mensaje[..500] : email.mensaje;
@@ -358,6 +378,9 @@ public class OptimeFirmaService
         };
         return firmado ? $"{baseNombre}-firmado.pdf" : $"{baseNombre}.pdf";
     }
+
+    private static async Task<ConfiguracionEmpresa> ObtenerConfiguracionAsync(ApplicationDbContext context) =>
+        await context.ConfiguracionesEmpresa.AsNoTracking().FirstOrDefaultAsync() ?? new ConfiguracionEmpresa();
 
     private string ObtenerBaseUrl(string? alternativa)
     {

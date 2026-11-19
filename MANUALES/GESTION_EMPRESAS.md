@@ -24,6 +24,16 @@ El repositorio original de ficheros se conserva para Enerfone. Su ID se configur
 
 Las imagenes de incidencias, noticias y los adjuntos de ofertas nuevos tambien se guardan bajo el almacenamiento de su empresa. `/storage` exige una sesion protegida vigente y bloquea rutas de otras empresas. El almacenamiento de la empresa original conserva sus rutas para evitar mover ficheros existentes. No publicar esa carpeta mediante un alias de IIS/Nginx que evite el middleware del CRM.
 
-Todas las entidades EF tienen `EmpresaId`, mapeada a `id_empresa`; salvo Usuario y Empresa, es una propiedad sombra de EF. Consultas y escrituras usan la empresa del contexto. Un contexto sin empresa no puede consultar datos del CRM ni escribirlos.
+Las entidades de empresa tienen `EmpresaId`, mapeada a `id_empresa`; salvo Usuario y Empresa, es una propiedad sombra de EF. Consultas y escrituras usan la empresa del contexto. Un contexto sin empresa no puede consultar ni escribir datos de las empresas. El perfil global de superadmin es una excepcion explicita: no tiene `id_empresa` y solo superadmin puede consultarlo o editarlo desde la interfaz, incluso sin empresa seleccionada.
+
+## Perfil global y avisos de solicitudes de usuarios
+
+Antes de publicar esta funcionalidad, realizar una copia de seguridad y ejecutar `EnerfoneCRM/Data/CrearPerfilSuperAdmin.sql` en la base de datos del CRM. El script es repetible y no crea ni modifica usuarios de empresas. No se ejecuta automaticamente al arrancar la aplicacion.
+
+`/mi-perfil` y sus enlaces de menu son exclusivos de superadmin. El perfil se guarda en una unica fila de `perfil_superadmin`, independiente de la empresa seleccionada y de la tabla `usuarios`. No cambia las credenciales de acceso. Iniciar sesion como superadmin, abrir **Mi perfil**, indicar un email valido y guardar. El correo permanece tras cerrar sesion o reiniciar la aplicacion. No se reutiliza el correo de un administrador de empresa ni una direccion ficticia cuando falta configuracion.
+
+Al registrar una solicitud en **Ajustes > Solicitar usuario**, la cuenta queda inactiva y se envia un aviso al email guardado en el perfil global. Incluye la empresa, nombre de usuario, nombre completo, rol y un enlace a gestion de usuarios, pero nunca la contrasena. Se utiliza la configuracion SMTP de la empresa solicitante; debe estar configurada y ser accesible desde el servidor IIS.
+
+Si falta el email global, la tabla no esta creada o el envio falla, se conserva la solicitud inactiva y se muestra una advertencia; no se anuncia un envio correcto ni se crea de nuevo la solicitud. No hay reintentos automaticos ni cola de correo. Comprobar el envio con una solicitud de prueba despues del despliegue. Los usuarios de empresa siguen editandose desde su mantenimiento, no desde este perfil global.
 
 Las sesiones estan protegidas con ASP.NET Core Data Protection. En produccion, mantener el anillo de claves persistente y compartido entre instancias del mismo despliegue; no compartirlo entre instalaciones independientes.

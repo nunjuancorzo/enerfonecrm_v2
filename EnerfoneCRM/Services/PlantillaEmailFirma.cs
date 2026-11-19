@@ -3,15 +3,9 @@ using EnerfoneCRM.Models;
 
 namespace EnerfoneCRM.Services;
 
-public sealed record LogoInlineEmail(byte[] Contenido, string TipoMime, string IdContenido);
-public sealed record CorreoFirmaHtml(string Html, LogoInlineEmail? Logo);
-
 public static class PlantillaEmailFirma
 {
-    private const string IdLogo = "logo-empresa";
-    private const int MaximoLogoBytes = 2 * 1024 * 1024;
-
-    public static CorreoFirmaHtml Crear(
+    public static string Crear(
         ConfiguracionEmpresa configuracion,
         string asunto,
         string nombreDestinatario,
@@ -25,27 +19,69 @@ public static class PlantillaEmailFirma
             configuracion.TemaColorAcento,
             configuracion.TemaColorBarra,
             configuracion.TemaColorFondo);
-        var logo = LeerLogo(configuracion.LogoUrl);
-        var empresa = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(configuracion.NombreEmpresa)
-            ? "Voltia Solutions"
-            : configuracion.NombreEmpresa.Trim());
-        var logoHtml = logo != null
-          ? $"<img src=\"cid:{IdLogo}\" alt=\"{empresa}\" width=\"180\" style=\"display:block;width:180px;max-width:100%;height:auto;margin:0 auto;border:0;\">"
-            : $"<span style=\"color:{paleta.TextoBarra};font-size:22px;font-weight:bold;\">{empresa}</span>";
-        var nombre = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(nombreDestinatario) ? "" : nombreDestinatario.Trim());
-        var texto = WebUtility.HtmlEncode(descripcion);
-        var titulo = WebUtility.HtmlEncode(asunto);
         var accion = WebUtility.HtmlEncode(textoAccion);
         var enlace = WebUtility.HtmlEncode(url);
         var caducidad = fechaCaducidadUtc.ToLocalTime().ToString("dd/MM/yyyy");
+        var colorAccion = paleta.TextoAccion;
+        var contenido =
+            $"<p style=\"margin:0 0 24px;font-size:16px;line-height:1.6;color:#424b55;\">{WebUtility.HtmlEncode(descripcion)}</p>" +
+            $"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\"><tr><td align=\"center\" bgcolor=\"{paleta.Acento}\" style=\"border-radius:5px;background-color:{paleta.Acento};\">" +
+            $"<a href=\"{enlace}\" style=\"display:inline-block;padding:14px 22px;border:1px solid {paleta.Acento};border-radius:5px;color:{colorAccion};font-size:15px;font-weight:bold;text-decoration:none;\">{accion}</a>" +
+            "</td></tr></table>" +
+            $"<p style=\"margin:24px 0 0;font-size:13px;line-height:1.5;color:#66717d;\">Este enlace es personal y estará disponible hasta el <strong>{caducidad}</strong>.</p>" +
+            "<p style=\"margin:16px 0 0;font-size:13px;line-height:1.5;color:#66717d;\">Si no esperabas este mensaje, puedes ignorarlo.</p>";
+
+        return Envolver(configuracion, asunto, nombreDestinatario, contenido);
+    }
+
+    /// <summary>
+    /// Notificación sin acción: introducción, datos opcionales en formato etiqueta/valor y nota final.
+    /// Usar para correos que solo informan (por ejemplo, con documentos adjuntos).
+    /// </summary>
+    public static string CrearNotificacion(
+        ConfiguracionEmpresa configuracion,
+        string asunto,
+        string nombreDestinatario,
+        string introduccion,
+        IEnumerable<(string Etiqueta, string Valor)> datos,
+        string? nota = null)
+    {
+        var filas = string.Concat(datos.Select(d =>
+            $"<tr><td style=\"padding:6px 12px 6px 0;font-size:14px;color:#66717d;vertical-align:top;white-space:nowrap;\">{WebUtility.HtmlEncode(d.Etiqueta)}</td>" +
+            $"<td style=\"padding:6px 0;font-size:14px;color:#20252b;font-weight:bold;\">{WebUtility.HtmlEncode(d.Valor)}</td></tr>"));
+        var bloqueDatos = string.IsNullOrEmpty(filas)
+            ? ""
+            : $"<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"margin:0 0 24px;\">{filas}</table>";
+        var bloqueNota = string.IsNullOrWhiteSpace(nota)
+            ? ""
+            : $"<p style=\"margin:0 0 16px;font-size:14px;line-height:1.6;color:#424b55;\">{WebUtility.HtmlEncode(nota)}</p>";
+
+        var contenido =
+            $"<p style=\"margin:0 0 24px;font-size:16px;line-height:1.6;color:#424b55;\">{WebUtility.HtmlEncode(introduccion)}</p>" +
+            bloqueDatos + bloqueNota;
+
+        return Envolver(configuracion, asunto, nombreDestinatario, contenido);
+    }
+
+    private static string Envolver(ConfiguracionEmpresa configuracion, string asunto, string nombreDestinatario, string contenidoHtml)
+    {
+        var paleta = AparienciaService.Resolver(
+            configuracion.TemaVisual,
+            configuracion.TemaColorAcento,
+            configuracion.TemaColorBarra,
+            configuracion.TemaColorFondo);
+        var empresa = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(configuracion.NombreEmpresa)
+            ? "Voltia Solutions"
+            : configuracion.NombreEmpresa.Trim());
+        var logoHtml = $"<span style=\"color:{paleta.TextoBarra};font-size:22px;font-weight:bold;\">{empresa}</span>";
+        var nombre = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(nombreDestinatario) ? "" : nombreDestinatario.Trim());
+        var titulo = WebUtility.HtmlEncode(asunto);
         var contacto = WebUtility.HtmlEncode(configuracion.Email ?? configuracion.Web ?? "");
         var fondo = paleta.Fondo;
         var barra = paleta.BarraLateral;
         var acento = paleta.Acento;
-        var colorAccion = paleta.TextoAccion;
-        var colorBarra = paleta.TextoBarra;
 
-        var html = $"""
+        return $"""
             <!doctype html>
             <html lang="es">
             <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -58,12 +94,7 @@ public static class PlantillaEmailFirma
                     <tr><td style="padding:32px;">
                       <p style="margin:0 0 8px;color:#66717d;font-size:14px;">Hola {nombre},</p>
                       <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#20252b;">{titulo}</h1>
-                      <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#424b55;">{texto}</p>
-                      <table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td align="center" bgcolor="{acento}" style="border-radius:5px;background-color:{acento};">
-                        <a href="{enlace}" style="display:inline-block;padding:14px 22px;border:1px solid {acento};border-radius:5px;color:{colorAccion};font-size:15px;font-weight:bold;text-decoration:none;">{accion}</a>
-                      </td></tr></table>
-                      <p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#66717d;">Este enlace es personal y estará disponible hasta el <strong>{caducidad}</strong>.</p>
-                      <p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:#66717d;">Si no esperabas este mensaje, puedes ignorarlo.</p>
+                      {contenidoHtml}
                     </td></tr>
                     <tr><td style="padding:18px 32px;background-color:#f7f8fa;border-top:1px solid #e3e7eb;font-size:12px;line-height:1.5;color:#66717d;">
                       <strong style="color:{barra};">{empresa}</strong>{(string.IsNullOrEmpty(contacto) ? "" : $"<br>{contacto}")}
@@ -75,33 +106,5 @@ public static class PlantillaEmailFirma
             </body>
             </html>
             """;
-
-        return new(html, logo);
-    }
-
-    private static LogoInlineEmail? LeerLogo(string? logoUrl)
-    {
-        if (string.IsNullOrWhiteSpace(logoUrl) || !logoUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        var separador = logoUrl.IndexOf(',');
-        if (separador < 0 || !logoUrl[..separador].EndsWith(";base64", StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        var tipoMime = logoUrl[5..logoUrl.IndexOf(';')].ToLowerInvariant();
-        if (tipoMime is not ("image/png" or "image/jpeg" or "image/gif" or "image/webp"))
-            return null;
-
-        try
-        {
-            var contenido = Convert.FromBase64String(logoUrl[(separador + 1)..]);
-            return contenido.Length is > 0 and <= MaximoLogoBytes
-                ? new LogoInlineEmail(contenido, tipoMime, IdLogo)
-                : null;
-        }
-        catch (FormatException)
-        {
-            return null;
-        }
     }
 }

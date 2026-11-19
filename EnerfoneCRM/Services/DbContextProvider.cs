@@ -55,21 +55,38 @@ public class DbContextProvider
 
     internal async Task<bool> ResolverEmpresaFirmaAsync<TEntity>(string token) where TEntity : class
     {
+        var empresaId = await BuscarEmpresaPorTokenFirmaAsync<TEntity>(token);
+        if (!empresaId.HasValue || (_empresaContext.EmpresaId > 0 && _empresaContext.EmpresaId != empresaId.Value))
+            return false;
+        _empresaContext.Establecer(empresaId.Value, _empresaContext.EsSuperAdmin);
+        return true;
+    }
+
+    internal async Task<ApplicationDbContext?> CreateFirmaPublicaDbContextAsync<TEntity>(string token) where TEntity : class
+    {
+        var empresaId = await BuscarEmpresaPorTokenFirmaAsync<TEntity>(token);
+        if (!empresaId.HasValue) return null;
+
+        var context = new ApplicationDbContext(CrearOpciones(), empresaId.Value);
+        RegistrarEventos(context);
+        return context;
+    }
+
+    private async Task<int?> BuscarEmpresaPorTokenFirmaAsync<TEntity>(string token) where TEntity : class
+    {
         if (typeof(TEntity) != typeof(SolicitudFirma) && typeof(TEntity) != typeof(SolicitudFirmaColaborador) && typeof(TEntity) != typeof(OptimeFirma))
             throw new InvalidOperationException("Tipo de firma no permitido.");
-        if (string.IsNullOrWhiteSpace(token) || token.Length > 256) return false;
+        if (string.IsNullOrWhiteSpace(token) || token.Length > 256) return null;
         await using var context = CreateAuthenticationDbContext();
         var hash = new FirmaTokenService().Hash(token);
         var empresaId = await context.Set<TEntity>()
             .Where(firma => EF.Property<string>(firma, "TokenHash") == hash)
             .Select(firma => (int?)EF.Property<int>(firma, "EmpresaId")).SingleOrDefaultAsync();
-        if (!empresaId.HasValue || !await context.Empresas.AnyAsync(empresa => empresa.Id == empresaId && empresa.Activa)) return false;
-        if (_empresaContext.EmpresaId > 0 && _empresaContext.EmpresaId != empresaId) return false;
-        _empresaContext.Establecer(empresaId.Value, _empresaContext.EsSuperAdmin);
-        return true;
+        return empresaId is > 0 && await context.Empresas.AnyAsync(empresa => empresa.Id == empresaId && empresa.Activa)
+            ? empresaId : null;
     }
 
-    private DbContextOptions<ApplicationDbContext> CrearOpciones()
+    internal virtual DbContextOptions<ApplicationDbContext> CrearOpciones()
     {
         // Obtener hostname desde diferentes fuentes (IIS puede usar X-Forwarded-Host)
         var host = _httpContextAccessor.HttpContext?.Request.Headers["X-Forwarded-Host"].FirstOrDefault() 

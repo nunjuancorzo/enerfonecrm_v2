@@ -31,8 +31,34 @@
                 <DataAnnotationsValidator />
                 <div class="modal-body" style="background-color: #e9ecef; max-height: calc(90vh - 140px); overflow-y: auto;">
                     <div class="mb-3">
+                        <label class="form-label fw-bold">Tipo usuario</label>
+                        <InputSelect class="form-select" @bind-Value="model.TipoEntidad">
+                            <option value="">Seleccione...</option>
+                            <option value="Autonomo">Autónomo</option>
+                            <option value="PYME">Pyme</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => model.TipoEntidad)" />
+                    </div>
+
+                    @if (Usuario.EsPyme(model.TipoEntidad))
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Razón social de la Pyme</label>
+                                <InputText class="form-control" @bind-Value="model.RazonSocialPyme" />
+                                <ValidationMessage For="@(() => model.RazonSocialPyme)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">CIF de la Pyme</label>
+                                <InputText class="form-control" @bind-Value="model.CifPyme" />
+                                <ValidationMessage For="@(() => model.CifPyme)" />
+                            </div>
+                        </div>
+                    }
+
+                    <div class="mb-3">
                         <label class="form-label">Nombre de Usuario</label>
-                        <InputText class="form-control" @bind-Value="model.NombreUsuario" />
+                        <InputText class="form-control" autocomplete="off" @bind-Value="model.NombreUsuario" />
                         <ValidationMessage For="@(() => model.NombreUsuario)" />
                     </div>
 
@@ -61,7 +87,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">CIF/NIF</label>
+                        <label class="form-label">DNI</label>
                         <InputText class="form-control" @bind-Value="model.NifCif" />
                     </div>
 
@@ -87,12 +113,12 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Contraseña</label>
-                            <InputText class="form-control" @bind-Value="model.Password" type="password" />
+                            <InputText class="form-control" @bind-Value="model.Password" type="password" autocomplete="new-password" />
                             <ValidationMessage For="@(() => model.Password)" />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Confirmar Contraseña</label>
-                            <InputText class="form-control" @bind-Value="model.ConfirmarPassword" type="password" />
+                            <InputText class="form-control" @bind-Value="model.ConfirmarPassword" type="password" autocomplete="new-password" />
                             <ValidationMessage For="@(() => model.ConfirmarPassword)" />
                         </div>
                     </div>
@@ -432,21 +458,13 @@
 
                     <!-- Datos bancarios y tipo de entidad -->
                     <div class="mb-3">
-                        <h6 class="mb-3"><i class="bi bi-bank me-2"></i>Datos Bancarios y Tipo de Entidad</h6>
+                        <h6 class="mb-3"><i class="bi bi-bank me-2"></i>Datos Bancarios</h6>
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">Número de Cuenta (IBAN)</label>
                                 <InputText class="form-control" @bind-Value="model.NumeroCuenta" placeholder="ES91 2100 0418 4502 0005 1332" />
                                 <div class="form-text">Formato IBAN: ES91 2100 0418 4502 0005 1332</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Tipo de Entidad</label>
-                                <InputSelect class="form-select" @bind-Value="model.TipoEntidad">
-                                    <option value="N/A">N/A</option>
-                                    <option value="Autonomo">Autónomo</option>
-                                    <option value="PYME">PYME</option>
-                                </InputSelect>
                             </div>
                         </div>
                     </div>
@@ -906,6 +924,8 @@
             Comision = model.Comision,
             NumeroCuenta = model.NumeroCuenta,
             TipoEntidad = model.TipoEntidad,
+            RazonSocialPyme = Usuario.EsPyme(model.TipoEntidad) ? model.RazonSocialPyme?.Trim() : null,
+            CifPyme = Usuario.EsPyme(model.TipoEntidad) ? model.CifPyme?.Trim() : null,
             ArchivoDni = rutaDni,
             ArchivoCif = rutaCif,
             ArchivoPoder = rutaPoder,
@@ -934,7 +954,7 @@
         return $"usuarios/{nombreArchivo}"; // Ruta relativa para la BD
     }
 
-    private class CrearUsuarioModel
+    private class CrearUsuarioModel : IValidatableObject
     {
         [Required(ErrorMessage = "El nombre de usuario es requerido")]
         [StringLength(45)]
@@ -991,8 +1011,31 @@
         [StringLength(34)]
         public string? NumeroCuenta { get; set; }
 
+        [Required(ErrorMessage = "Debe seleccionar el tipo de usuario (Autónomo o Pyme)")]
         [StringLength(20)]
-        public string? TipoEntidad { get; set; } = "N/A";
+        public string? TipoEntidad { get; set; }
+
+        [StringLength(200)]
+        public string? RazonSocialPyme { get; set; }
+
+        [StringLength(20)]
+        public string? CifPyme { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (Usuario.EsPyme(TipoEntidad))
+            {
+                if (string.IsNullOrWhiteSpace(RazonSocialPyme))
+                {
+                    yield return new ValidationResult("La razón social de la Pyme es obligatoria", new[] { nameof(RazonSocialPyme) });
+                }
+
+                if (string.IsNullOrWhiteSpace(CifPyme))
+                {
+                    yield return new ValidationResult("El CIF de la Pyme es obligatorio", new[] { nameof(CifPyme) });
+                }
+            }
+        }
     }
 
     private static bool RequiereComisionJerarquia(string? rol)

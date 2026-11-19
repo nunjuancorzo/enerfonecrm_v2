@@ -5,6 +5,7 @@
 @inject AuthService AuthService
 @inject ConfiguracionService ConfiguracionService
 @inject AparienciaService AparienciaService
+@inject EmailService EmailService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -290,6 +291,22 @@ else
                                     </div>
                                 </div>
 
+                                <div class="mb-3">
+                                    <button type="button" class="btn btn-outline-primary" @onclick="AbrirPruebaSmtp" disabled="@(probandoSmtp || guardando)">
+                                        @if (probandoSmtp)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            <span>Enviando prueba...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-send me-1"></i>
+                                            <span>Probar configuración SMTP</span>
+                                        }
+                                    </button>
+                                    <small class="text-muted d-block mt-1">Envía un correo de prueba con los datos del formulario (no hace falta guardar antes).</small>
+                                </div>
+
                                 <hr class="my-4" />
 
                                 <h5 class="mb-3"><i class="bi bi-toggles me-2"></i>Control de Módulos</h5>
@@ -398,6 +415,35 @@ else
                                     </button>
                                 </div>
                             </EditForm>
+
+                            @if (mostrarPruebaSmtp)
+                            {
+                            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow-lg">
+                                        <div class="modal-header bg-primary text-white">
+                                            <h5 class="modal-title"><i class="bi bi-send me-2"></i>Probar configuración SMTP</h5>
+                                            <button type="button" class="btn-close btn-close-white" @onclick="CancelarPruebaSmtp"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <label class="form-label">Email de destino</label>
+                                            <input type="email" class="form-control" @bind="destinoPruebaSmtp" @bind:event="oninput" placeholder="cuenta@ejemplo.com" />
+                                            <small class="text-muted">Se enviará un correo de prueba a esta dirección.</small>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" @onclick="CancelarPruebaSmtp" disabled="@probandoSmtp">Cancelar</button>
+                                            <button type="button" class="btn btn-primary" @onclick="EnviarPruebaSmtp" disabled="@(probandoSmtp || string.IsNullOrWhiteSpace(destinoPruebaSmtp))">
+                                                @if (probandoSmtp)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                }
+                                                <span>Enviar prueba</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            }
                         </div>
                     </div>
                 </div>
@@ -410,6 +456,9 @@ else
     private bool cargandoSesion = true;
     private bool cargando = true;
     private bool guardando = false;
+    private bool probandoSmtp = false;
+    private bool mostrarPruebaSmtp = false;
+    private string destinoPruebaSmtp = string.Empty;
     private string mensajeExito = string.Empty;
     private string mensajeError = string.Empty;
     private ConfiguracionEmpresa configuracion = new();
@@ -486,6 +535,54 @@ else
         finally
         {
             cargando = false;
+        }
+    }
+
+    private void AbrirPruebaSmtp()
+    {
+        destinoPruebaSmtp = string.Empty;
+        mostrarPruebaSmtp = true;
+    }
+
+    private void CancelarPruebaSmtp()
+    {
+        mostrarPruebaSmtp = false;
+    }
+
+    private async Task EnviarPruebaSmtp()
+    {
+        var destinatario = destinoPruebaSmtp?.Trim() ?? string.Empty;
+        if (!EmailService.EsEmailValido(destinatario))
+        {
+            mensajeError = "Indique un email de destino válido para enviar la prueba.";
+            return;
+        }
+
+        probandoSmtp = true;
+        mensajeError = string.Empty;
+        mensajeExito = string.Empty;
+
+        try
+        {
+            var (exito, mensaje) = await EmailService.ProbarConfiguracionSmtpAsync(configuracion, destinatario);
+            mostrarPruebaSmtp = false;
+            if (exito)
+            {
+                mensajeExito = $"Prueba SMTP enviada correctamente a {destinatario}. Revise la bandeja de entrada.";
+            }
+            else
+            {
+                mensajeError = $"Prueba SMTP fallida: {mensaje}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error inesperado al probar SMTP: {ex.Message}";
+        }
+        finally
+        {
+            probandoSmtp = false;
+            StateHasChanged();
         }
     }
 

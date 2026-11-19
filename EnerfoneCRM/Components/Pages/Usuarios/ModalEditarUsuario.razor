@@ -8,6 +8,7 @@
 @inject EnerfoneCRM.Services.AuthService AuthService
 @inject EnerfoneCRM.Services.EmailService EmailService
 @inject EnerfoneCRM.Services.FirmaService FirmaService
+@inject ILogger<ModalEditarUsuario> Logger
 @inject IJSRuntime JS
 
 <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -67,46 +68,103 @@
 
                     @if (pestanaActiva == "datos")
                     {
+                    @if (AuthService.EsSuperAdmin)
+                    {
                     <div class="card shadow-sm mb-3 border-primary">
                         <div class="card-header bg-primary text-white"><h6 class="mb-0"><i class="bi bi-pen me-2"></i>Firma de contrato de colaboracion</h6></div>
                         <div class="card-body">
                             @if (solicitudFirmaColaborador == null)
                             {
                                 <p class="text-muted">No se ha enviado el contrato a firma.</p>
-                                <button type="button" class="btn btn-primary" @onclick="EnviarContratoColaborador" disabled="@enviandoFirma"><i class="bi bi-send me-1"></i>@(enviandoFirma ? "Enviando..." : "Enviar contrato a firmar")</button>
                             }
                             else
                             {
                                 <div class="row g-2 small mb-3">
                                     <div class="col-md-3"><strong>Estado:</strong> <span class="badge @ColorFirma(solicitudFirmaColaborador.Estado)">@solicitudFirmaColaborador.Estado</span></div>
-                                    <div class="col-md-3"><strong>Enviado:</strong> @solicitudFirmaColaborador.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                                    <div class="col-md-3"><strong>Solicitud:</strong> @solicitudFirmaColaborador.FechaCreacionUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
                                     <div class="col-md-3"><strong>Caducidad:</strong> @solicitudFirmaColaborador.FechaCaducidadUtc.ToLocalTime().ToString("dd/MM/yyyy")</div>
                                     <div class="col-md-3"><strong>Firma:</strong> @(solicitudFirmaColaborador.FechaFirmaUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "-")</div>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-outline-primary" @onclick="EnviarContratoColaborador" disabled="@enviandoFirma"><i class="bi bi-arrow-repeat me-1"></i>Reenviar</button>
-                                    @if (solicitudFirmaColaborador.DocumentoFirmado != null)
-                                    {
-                                        <button type="button" class="btn btn-outline-success" @onclick="VerContratoFirmado"><i class="bi bi-file-earmark-pdf me-1"></i>Ver documento firmado</button>
-                                    }
-                                </div>
                             }
+                            <div class="d-flex flex-wrap gap-2">
+                                @if (solicitudFirmaColaborador?.Estado != EstadoSolicitudFirma.Firmado)
+                                {
+                                    <button type="button" class="btn btn-primary" @onclick="EnviarContratoColaborador" disabled="@enviandoFirma"><i class="bi bi-send me-1"></i>Enviar documentación a firmar</button>
+                                }
+                                @if (solicitudFirmaColaborador?.DocumentoFirmado != null)
+                                {
+                                    <button type="button" class="btn btn-outline-success" @onclick="() => VerContratoFirmado(false)" disabled="@enviandoFirma"><i class="bi bi-file-earmark-pdf me-1"></i>Ver contrato firmado por correo</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card shadow-sm mt-4 mb-3 border-secondary">
+                        <div class="card-header"><h6 class="mb-0"><i class="bi bi-file-earmark-pdf me-2"></i>Firma manual (fuera del CRM)</h6></div>
+                        <div class="card-body">
+                            <p class="text-muted">Descarga el contrato para enviarlo por tu cuenta. Cuando te lo devuelvan firmado, adjúntalo aquí (PDF, máximo 10 MB).</p>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <button type="button" class="btn btn-outline-primary" @onclick="DescargarContratoManual" disabled="@enviandoFirma"><i class="bi bi-download me-1"></i>Descargar contrato para firma manual</button>
+                                @if (tieneContratoManual)
+                                {
+                                    <button type="button" class="btn btn-outline-success" @onclick="() => VerContratoFirmado(true)" disabled="@enviandoFirma">Ver contrato firmado manualmente</button>
+                                }
+                            </div>
+                            <label class="d-block fw-semibold">
+                                Importar contrato firmado manualmente
+                                <InputFile OnChange="ImportarContratoManual" class="form-control mt-1" accept=".pdf,application/pdf" disabled="@enviandoFirma" />
+                            </label>
                         </div>
                     </div>
                     @if (!string.IsNullOrEmpty(mensajeFirma))
                     {
-                        <div class="alert alert-info">@mensajeFirma</div>
+                        <div role="status" class="alert @(errorFirma ? "alert-danger" : "alert-success")">@mensajeFirma</div>
+                    }
                     }
                     @if (!string.IsNullOrEmpty(mensajeError))
                     {
                         <div class="alert alert-danger">@mensajeError</div>
                     }
 
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tipo usuario</label>
+                        <InputSelect class="form-select" @bind-Value="usuario.TipoEntidad">
+                            <option value="">Seleccione...</option>
+                            <option value="Autonomo">Autónomo</option>
+                            <option value="PYME">Pyme</option>
+                        </InputSelect>
+                        @if (string.IsNullOrWhiteSpace(usuario.TipoEntidad) || string.Equals(usuario.TipoEntidad, "N/A", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="form-text text-danger">Es obligatorio seleccionar el tipo de usuario antes de guardar.</div>
+                        }
+                    </div>
+
+                    @if (global::EnerfoneCRM.Models.Usuario.EsPyme(usuario.TipoEntidad))
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Razón social de la Pyme</label>
+                                <InputText class="form-control" @bind-Value="usuario.RazonSocialPyme" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">CIF de la Pyme</label>
+                                <InputText class="form-control" @bind-Value="usuario.CifPyme" />
+                            </div>
+                        </div>
+                    }
+
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">Nombre de Usuario</label>
-                            <InputText class="form-control" @bind-Value="usuario.NombreUsuario" />
-                            <ValidationMessage For="@(() => usuario.NombreUsuario)" />
+                            @if (cambiarNombreUsuario)
+                            {
+                                <InputText class="form-control" autocomplete="off" @bind-Value="usuario.NombreUsuario" />
+                                <ValidationMessage For="@(() => usuario.NombreUsuario)" />
+                            }
+                            else
+                            {
+                                <div class="form-control-plaintext">@Usuario?.NombreUsuario</div>
+                                <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => cambiarNombreUsuario = true">Cambiar nombre de usuario</button>
+                            }
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Email</label>
@@ -133,8 +191,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">CIF/NIF</label>
-                        <InputText class="form-control" @bind-Value="usuario.NifCif" />
+                        <label class="form-label">DNI</label>
                     </div>
 
                     <div class="mb-3">
@@ -783,21 +840,13 @@
 
                     <!-- Datos bancarios y tipo de entidad -->
                     <div class="mb-3">
-                        <h6 class="mb-3"><i class="bi bi-bank me-2"></i>Datos Bancarios y Tipo de Entidad</h6>
+                        <h6 class="mb-3"><i class="bi bi-bank me-2"></i>Datos Bancarios</h6>
                         
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">Número de Cuenta (IBAN)</label>
                                 <InputText class="form-control" @bind-Value="usuario.NumeroCuenta" placeholder="ES91 2100 0418 4502 0005 1332" />
                                 <div class="form-text">Formato IBAN: ES91 2100 0418 4502 0005 1332</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Tipo de Entidad</label>
-                                <InputSelect class="form-select" @bind-Value="usuario.TipoEntidad">
-                                    <option value="N/A">N/A</option>
-                                    <option value="Autonomo">Autónomo</option>
-                                    <option value="PYME">PYME</option>
-                                </InputSelect>
                             </div>
                         </div>
                     </div>
@@ -902,10 +951,14 @@
 
                     <div class="mb-3">
                         <div class="form-check">
-                            <InputCheckbox id="activo" class="form-check-input" @bind-Value="usuario.Activo" />
+                            <InputCheckbox id="activo" class="form-check-input" @bind-Value="usuario.Activo" disabled="@RequiereFirmaParaActivar" />
                             <label class="form-check-label" for="activo">
                                 Usuario Activo
                             </label>
+                            @if (RequiereFirmaParaActivar)
+                            {
+                                <div class="form-text">El usuario podrá habilitarse cuando conste un contrato firmado.</div>
+                            }
                             <div class="form-text">Los usuarios inactivos no podrán acceder al sistema</div>
                         </div>
                     </div>
@@ -1023,7 +1076,14 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Nueva Contraseña</label>
-                            <InputText type="password" class="form-control" @bind-Value="nuevaPassword" placeholder="Dejar en blanco para no cambiar" />
+                            @if (cambiarPassword)
+                            {
+                                <InputText type="password" class="form-control" autocomplete="new-password" @bind-Value="nuevaPassword" placeholder="Dejar en blanco para no cambiar" />
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-outline-secondary d-block" @onclick="() => cambiarPassword = true">Cambiar contraseña</button>
+                            }
                         </div>
                     </div>
                     }
@@ -1099,10 +1159,16 @@
     private string? comisionTexto;  // Campo auxiliar para permitir valores vacíos
     private string rolOriginal = string.Empty;  // Para validar cambios de rol a Administrador
     private string nuevaPassword = string.Empty;
+    private bool cambiarNombreUsuario;
+    private bool cambiarPassword;
     private bool enviandoEmail = false;
     private bool enviandoFirma = false;
     private string mensajeFirma = string.Empty;
+    private bool errorFirma;
+    private bool tieneContratoManual;
     private SolicitudFirmaColaborador? solicitudFirmaColaborador;
+    private bool RequiereFirmaParaActivar => Usuario is { Activo: false } && Usuario.Rol != "Administrador"
+        && !tieneContratoManual && solicitudFirmaColaborador?.Estado != EstadoSolicitudFirma.Firmado;
     private List<HistoricoLiquidacion> liquidacionesUsuario = new();
     private bool cargandoLiquidacionesUsuario;
     private List<string> comercializadoras = new();
@@ -1292,7 +1358,8 @@
                 pestanaActiva = "datos";
                 liquidacionesUsuario = new();
                 await CargarLiquidacionesUsuarioAsync();
-                solicitudFirmaColaborador = await FirmaService.ObtenerUltimaSolicitudColaboradorAsync(Usuario.Id);
+                mensajeFirma = string.Empty;
+                await CargarEstadoFirma(Usuario.Id);
                 usuariosJerarquiaCache = null;
 
                 // Guardar rol original para validación
@@ -1332,7 +1399,9 @@
                     PuedeVerOfertas = Usuario.PuedeVerOfertas,
                     PuedeVerUsuarios = Usuario.PuedeVerUsuarios,
                     NumeroCuenta = Usuario.NumeroCuenta,
-                    TipoEntidad = Usuario.TipoEntidad,
+                    TipoEntidad = global::EnerfoneCRM.Models.Usuario.NormalizarTipoEntidad(Usuario.TipoEntidad),
+                    RazonSocialPyme = Usuario.RazonSocialPyme,
+                    CifPyme = Usuario.CifPyme,
                     ArchivoDni = Usuario.ArchivoDni,
                     ArchivoCif = Usuario.ArchivoCif,
                     ArchivoPoder = Usuario.ArchivoPoder,
@@ -1340,6 +1409,8 @@
                     FechaCreacion = Usuario.FechaCreacion
                 };
                 nuevaPassword = string.Empty;
+                cambiarNombreUsuario = false;
+                cambiarPassword = false;
 
                 await CargarGestores();
                 await CargarJefesVentas();
@@ -1760,27 +1831,91 @@
             && !string.Equals(rol, "Administrador", StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task EnviarContratoColaborador()
+    private async Task CargarEstadoFirma(int usuarioId)
     {
-        enviandoFirma = true;
-        mensajeError = string.Empty;
-        var resultado = await FirmaService.CrearSolicitudColaboradorAsync(usuario.Id);
-        mensajeFirma = resultado.Mensaje;
-        solicitudFirmaColaborador = await FirmaService.ObtenerUltimaSolicitudColaboradorAsync(usuario.Id);
-        enviandoFirma = false;
+        if (!AuthService.EsSuperAdmin) return;
+        solicitudFirmaColaborador = await FirmaService.ObtenerUltimaSolicitudColaboradorAsync(usuarioId);
+        tieneContratoManual = await FirmaService.TieneContratoColaboradorManualAsync(usuarioId);
     }
 
-    private async Task VerContratoFirmado()
+    private Task EnviarContratoColaborador() => EjecutarAccionFirma(async () =>
     {
-        var documento = await FirmaService.ObtenerDocumentoColaboradorPrivadoAsync(usuario.Id, true);
-        if (documento.Contenido == null) return;
-        await JS.InvokeVoidAsync("openFileInNewTab", documento.Nombre ?? "contrato-colaborador-firmado.pdf", Convert.ToBase64String(documento.Contenido), "application/pdf");
+        var resultado = await FirmaService.CrearSolicitudColaboradorAsync(usuario.Id);
+        mensajeFirma = resultado.Mensaje;
+        errorFirma = !resultado.Exito;
+        await CargarEstadoFirma(usuario.Id);
+    }, "No se pudo enviar la documentación a firmar.");
+
+    private Task DescargarContratoManual() => EjecutarAccionFirma(async () =>
+    {
+        var contenido = await FirmaService.GenerarContratoColaboradorManualAsync(usuario.Id)
+            ?? throw new InvalidOperationException("No se encontró el contrato.");
+        await JS.InvokeVoidAsync("descargarArchivo", "contrato-colaborador-para-firma-manual.pdf", Convert.ToBase64String(contenido), "application/pdf");
+    }, "No se pudo descargar el contrato para firma manual.");
+
+    private Task ImportarContratoManual(InputFileChangeEventArgs e) => EjecutarAccionFirma(async () =>
+    {
+        if (e.File.Size > EnerfoneCRM.Services.FirmaService.MaxDocumentoFirmaManualBytes)
+        {
+            mensajeFirma = "El PDF firmado no debe superar los 10 MB.";
+            errorFirma = true;
+            return;
+        }
+        await using var archivo = e.File.OpenReadStream(EnerfoneCRM.Services.FirmaService.MaxDocumentoFirmaManualBytes);
+        using var buffer = new MemoryStream();
+        await archivo.CopyToAsync(buffer);
+        var resultado = await FirmaService.GuardarContratoColaboradorManualAsync(usuario.Id, e.File.Name, buffer.ToArray());
+        mensajeFirma = resultado.Mensaje;
+        errorFirma = !resultado.Exito;
+        if (resultado.Exito) await CargarEstadoFirma(usuario.Id);
+    }, "No se pudo importar el contrato firmado manualmente.");
+
+    private Task VerContratoFirmado(bool manual) => EjecutarAccionFirma(async () =>
+    {
+        var documento = await FirmaService.ObtenerDocumentoColaboradorFirmadoAsync(usuario.Id, manual);
+        if (documento.Contenido == null) throw new InvalidOperationException("No se encontró el documento firmado.");
+        await JS.InvokeVoidAsync("openFileInNewTab", documento.Nombre, Convert.ToBase64String(documento.Contenido), "application/pdf");
+    }, "No se pudo abrir el contrato firmado.");
+
+    private async Task EjecutarAccionFirma(Func<Task> accion, string mensajeErrorFirma)
+    {
+        if (!AuthService.EsSuperAdmin || enviandoFirma) return;
+        enviandoFirma = true;
+        mensajeFirma = string.Empty;
+        try { await accion(); }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException or JSException
+            or System.Data.Common.DbException or Microsoft.EntityFrameworkCore.DbUpdateException or PdfSharpCore.Pdf.IO.PdfReaderException)
+        {
+            Logger.LogError(ex, "{Mensaje} Usuario {UsuarioId}", mensajeErrorFirma, usuario.Id);
+            mensajeFirma = mensajeErrorFirma;
+            errorFirma = true;
+        }
+        finally { enviandoFirma = false; }
     }
 
     private static string ColorFirma(string estado) => estado == EstadoSolicitudFirma.Firmado ? "bg-success" : estado == EstadoSolicitudFirma.Caducado ? "bg-secondary" : "bg-warning text-dark";
 
     private async Task HandleSubmit()
     {
+        if (Usuario == null) return;
+        if (!cambiarNombreUsuario) usuario.NombreUsuario = Usuario.NombreUsuario;
+        mensajeError = string.Empty;
+        var errorTipo = global::EnerfoneCRM.Models.Usuario.ValidarTipoEntidad(usuario.TipoEntidad, usuario.RazonSocialPyme, usuario.CifPyme);
+        if (errorTipo != null)
+        {
+            mensajeError = errorTipo;
+            return;
+        }
+        usuario.TipoEntidad = global::EnerfoneCRM.Models.Usuario.NormalizarTipoEntidad(usuario.TipoEntidad);
+        if (!global::EnerfoneCRM.Models.Usuario.EsPyme(usuario.TipoEntidad))
+        {
+            usuario.RazonSocialPyme = null;
+            usuario.CifPyme = null;
+        }
+        usuario.PasswordHash = cambiarPassword && !string.IsNullOrWhiteSpace(nuevaPassword)
+            ? nuevaPassword
+            : Usuario.PasswordHash;
+
         Console.WriteLine("[ModalEditarUsuario] ===== HandleSubmit EJECUTADO =====");
         Console.WriteLine($"[ModalEditarUsuario] Usuario: {usuario?.NombreUsuario}, ID: {usuario?.Id}");
         
@@ -1817,7 +1952,7 @@
             
             if (existeAdministrador)
             {
-                mensajeError = "Ya existe un usuario con rol Administrador. Solo puede haber un administrador por sistema.";
+                mensajeError = "Ya existe un usuario con rol Administrador en esta empresa.";
                 return;
             }
         }
@@ -1846,12 +1981,6 @@
         {
             Console.WriteLine($"Error al guardar archivos: {ex.Message}");
             return;
-        }
-
-        // Si se proporcionó una nueva contraseña, actualizarla
-        if (!string.IsNullOrWhiteSpace(nuevaPassword))
-        {
-            usuario.PasswordHash = nuevaPassword;
         }
 
         PrepararProveedorParaGuardar();

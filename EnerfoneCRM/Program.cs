@@ -119,6 +119,7 @@ builder.Services.AddScoped<LogAccesoService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AparienciaService>();
 builder.Services.AddScoped<UsuarioService>();
+builder.Services.AddScoped<PerfilSuperAdminService>();
 builder.Services.AddScoped<ConfiguracionService>();
 builder.Services.AddScoped<TarifaEnergiaService>();
 builder.Services.AddScoped<TarifaLuzService>();

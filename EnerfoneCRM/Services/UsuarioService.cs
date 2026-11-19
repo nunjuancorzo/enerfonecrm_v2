@@ -45,6 +45,25 @@ public class UsuarioService
         return await context.Usuarios.FindAsync(id);
     }
 
+    public async Task<(bool exito, string mensaje)> ActualizarPerfilPropioAsync(int usuarioId, string? nombre, string? apellidos, string email, string? telefono)
+    {
+        await using var context = _dbContextProvider.CreateDbContext();
+        var usuario = await context.Usuarios.FindAsync(usuarioId);
+        if (usuario == null)
+        {
+            return (false, "Usuario no encontrado");
+        }
+
+        usuario.Nombre = nombre?.Trim();
+        usuario.Apellidos = apellidos?.Trim();
+        usuario.Email = email.Trim();
+        usuario.Telefono = string.IsNullOrWhiteSpace(telefono) ? null : telefono.Trim();
+
+        context.PermitirEdicionPerfilPropio = true;
+        await context.SaveChangesAsync();
+        return (true, "Perfil actualizado correctamente");
+    }
+
     public async Task<List<HistoricoLiquidacion>> ObtenerLiquidacionesUsuarioAsync(int usuarioId)
     {
         await using var context = _dbContextProvider.CreateDbContext();
@@ -85,8 +104,8 @@ public class UsuarioService
         await using var context = _dbContextProvider.CreateDbContext();
         if (!context.EsSuperAdmin) return (false, "Solo superadmin puede gestionar usuarios.");
         if (context.EmpresaId <= 0) return (false, "Seleccione una empresa antes de crear usuarios.");
-        if (usuario.NombreUsuario.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
-            return (false, "Este nombre de usuario esta reservado.");
+        var errorNombre = ValidarNombreUsuarioEmpresa(usuario);
+        if (errorNombre != null) return (false, errorNombre);
         usuario.EmpresaId = context.EmpresaId;
         
         // Validar que solo puede haber un administrador
@@ -97,7 +116,7 @@ public class UsuarioService
             
             if (existeAdministrador)
             {
-                return (false, "Ya existe un usuario con rol Administrador. Solo puede haber un administrador por sistema.");
+                return (false, "Ya existe un usuario con rol Administrador en esta empresa.");
             }
         }
         
@@ -182,7 +201,7 @@ public class UsuarioService
 
             await context.SaveChangesAsync();
             await transaction.CommitAsync();
-            return (true, "Solicitud registrada. El usuario permanecerá inactivo hasta que superadmin lo active.");
+            return (true, "Solicitud registrada. Superadmin enviará la documentación a firmar antes de habilitar la cuenta.");
         }
         catch (Exception ex)
         {
@@ -195,10 +214,10 @@ public class UsuarioService
     public async Task<(string? Email, string? EmpresaNombre)> ObtenerDatosAvisoSuperAdminAsync(int empresaId)
     {
         await using var context = _dbContextProvider.CreateAuthenticationDbContext();
-        var email = await context.Usuarios
-            .Where(u => u.Id == -1 && u.NombreUsuario == "superadmin")
-            .Select(u => u.Email)
-            .FirstOrDefaultAsync();
+        var email = await context.PerfilesSuperAdmin
+            .Where(perfil => perfil.Id == 1)
+            .Select(perfil => perfil.Email)
+            .SingleOrDefaultAsync();
         var empresaNombre = await context.Empresas
             .Where(empresa => empresa.Id == empresaId)
             .Select(empresa => empresa.Nombre)
@@ -212,6 +231,8 @@ public class UsuarioService
         {
             await using var context = _dbContextProvider.CreateDbContext();
             if (!context.EsSuperAdmin) return (false, "Solo superadmin puede gestionar usuarios.");
+            var errorNombre = ValidarNombreUsuarioEmpresa(usuario);
+            if (errorNombre != null) return (false, errorNombre);
             
             // Obtener el usuario actual de la BD para comparar si cambió el nombre
             var usuarioAnterior = await context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuario.Id);
@@ -219,6 +240,9 @@ public class UsuarioService
             {
                 return (false, "Usuario no encontrado");
             }
+
+            var errorActivacion = await ValidarActivacionAsync(context, usuarioAnterior, usuario.Activo);
+            if (errorActivacion != null) return (false, errorActivacion);
             
             // Validar que solo puede haber un administrador (si está cambiando a ese rol)
             if (usuario.Rol == "Administrador" && usuarioAnterior.Rol != "Administrador")
@@ -228,7 +252,7 @@ public class UsuarioService
                 
                 if (existeAdministrador)
                 {
-                    return (false, "Ya existe un usuario con rol Administrador. Solo puede haber un administrador por sistema.");
+                    return (false, "Ya existe un usuario con rol Administrador en esta empresa.");
                 }
             }
             
@@ -239,8 +263,6 @@ public class UsuarioService
             Console.WriteLine($"[UsuarioService] Usuario ID: {usuario.Id}, Nombre anterior: '{nombreAnterior}', Nombre nuevo: '{nombreNuevo}', ¿Cambió?: {nombreCambio}");
             
             // Validar que no exista otro usuario con el mismo nombre
-            if (usuario.NombreUsuario.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
-                return (false, "Este nombre de usuario esta reservado.");
             await using var credenciales = _dbContextProvider.CreateAuthenticationDbContext();
             var existeNombreUsuario = await credenciales.Usuarios
                 .AnyAsync(u => u.NombreUsuario == usuario.NombreUsuario && u.Id != usuario.Id);
@@ -309,6 +331,23 @@ public class UsuarioService
             Console.WriteLine($"[UsuarioService] StackTrace: {ex.StackTrace}");
             return (false, $"Error al actualizar el usuario: {ex.Message}");
         }
+    }
+
+    internal static async Task<string?> ValidarActivacionAsync(ApplicationDbContext context, Usuario usuarioAnterior, bool activar)
+    {
+        if (usuarioAnterior.Activo || !activar || usuarioAnterior.Rol == "Administrador") return null;
+        var firmado = await context.SolicitudesFirmaColaboradores.AnyAsync(s => s.UsuarioId == usuarioAnterior.Id &&
+            (s.Estado == EstadoSolicitudFirma.Firmado || s.Estado == EstadoSolicitudFirma.FirmadoManual) &&
+            s.DocumentoFirmado != null);
+        return firmado ? null : "Antes de habilitar al usuario, debe constar un contrato firmado por correo o importado manualmente.";
+    }
+
+    private static string? ValidarNombreUsuarioEmpresa(Usuario usuario)
+    {
+        usuario.NombreUsuario = usuario.NombreUsuario?.Trim() ?? string.Empty;
+        if (usuario.Id == -1 || usuario.NombreUsuario.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+            return "«superadmin» está reservado para la cuenta global. Usa el nombre del usuario de la empresa.";
+        return string.IsNullOrEmpty(usuario.NombreUsuario) ? "Introduce un nombre de usuario." : null;
     }
 
     // Métodos para gestionar comercializadoras permitidas
@@ -538,6 +577,7 @@ public class UsuarioService
         }
 
         usuario.PasswordHash = passwordNuevo;
+        context.PermitirEdicionPerfilPropio = true;
         await context.SaveChangesAsync();
 
         return (true, "Contraseña actualizada exitosamente");

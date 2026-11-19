@@ -13,6 +13,7 @@ public class ApplicationDbContext : DbContext
     internal bool PermitirAltaUsuarioInactiva { get; set; }
     internal bool PermitirEdicionDatosEmpresa { get; set; }
     internal bool PermitirEdicionPaletaEmpresa { get; set; }
+    internal bool PermitirEdicionPerfilPropio { get; set; }
     private readonly bool _autenticacion;
     private readonly bool _publico;
     private readonly bool _firma;
@@ -55,6 +56,8 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<Usuario>().HasIndex(usuario => usuario.NombreUsuario).IsUnique();
+        modelBuilder.Entity<PerfilSuperAdmin>().Property(perfil => perfil.Id).ValueGeneratedNever();
+        modelBuilder.Entity<PerfilSuperAdmin>().HasQueryFilter(perfil => EsSuperAdmin || (_autenticacion && !_publico));
         modelBuilder.Entity<Empresa>().HasQueryFilter(empresa => _publico || _autenticacion || EsSuperAdmin || empresa.Id == EmpresaId);
         var referencias = new Dictionary<string, Type>
         {
@@ -104,7 +107,7 @@ public class ApplicationDbContext : DbContext
             .Property(e => e.EmpresaId)
             .HasColumnName("id_empresa");
         
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(entity => entity.ClrType != typeof(Empresa) && entity.ClrType != typeof(OptimeSolicitud) && entity.ClrType != typeof(OptimeDocumento) && entity.ClrType != typeof(OptimeFirma)).ToList())
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(entity => entity.ClrType != typeof(Empresa) && entity.ClrType != typeof(PerfilSuperAdmin) && entity.ClrType != typeof(OptimeSolicitud) && entity.ClrType != typeof(OptimeDocumento) && entity.ClrType != typeof(OptimeFirma)).ToList())
         {
             var entity = modelBuilder.Entity(entityType.ClrType);
             entity.Property<int>("EmpresaId").HasColumnName("id_empresa").IsConcurrencyToken();
@@ -127,6 +130,14 @@ public class ApplicationDbContext : DbContext
         {
             if (_autenticacion && !_publico)
                 throw new UnauthorizedAccessException("El contexto de autenticacion es de solo lectura.");
+            if (entry.Entity is PerfilSuperAdmin perfil)
+            {
+                if (!EsSuperAdmin)
+                    throw new UnauthorizedAccessException("Solo superadmin puede editar su perfil global.");
+                if (perfil.Id != 1)
+                    throw new InvalidOperationException("Solo puede existir un perfil global de superadmin.");
+                continue;
+            }
             if (entry.Entity is Empresa)
             {
                 if (!EsSuperAdmin) throw new UnauthorizedAccessException("Solo superadmin puede gestionar empresas.");
@@ -151,12 +162,20 @@ public class ApplicationDbContext : DbContext
                         nameof(ConfiguracionEmpresa.TemaActualizadoPor) or
                         nameof(ConfiguracionEmpresa.TemaActualizadoEn) or
                         nameof(ConfiguracionEmpresa.FechaActualizacion));
+            var esEdicionPerfilPropio = entry.Entity is Usuario && PermitirEdicionPerfilPropio &&
+                entry.State == EntityState.Modified &&
+                entry.Properties.Where(property => property.IsModified).All(property =>
+                    property.Metadata.Name is nameof(Usuario.Nombre) or
+                        nameof(Usuario.Apellidos) or
+                        nameof(Usuario.Email) or
+                        nameof(Usuario.Telefono) or
+                        nameof(Usuario.PasswordHash));
             
             // En contexto público, permitir todas las operaciones sin restricciones de autorización
             if (_publico)
                 continue;
                 
-            if ((entry.Metadata.ClrType.Name.StartsWith("Usuario", StringComparison.Ordinal) || entry.Entity is ConfiguracionEmpresa) && !EsSuperAdmin && !esAltaPendiente && !esEdicionDatosEmpresa && !esEdicionPaletaEmpresa)
+            if ((entry.Metadata.ClrType.Name.StartsWith("Usuario", StringComparison.Ordinal) || entry.Entity is ConfiguracionEmpresa) && !EsSuperAdmin && !esAltaPendiente && !esEdicionDatosEmpresa && !esEdicionPaletaEmpresa && !esEdicionPerfilPropio)
                 throw new UnauthorizedAccessException("Solo superadmin puede gestionar usuarios.");
             
             // En contexto público o firma, permitir operaciones sin validación de EmpresaId
@@ -219,6 +238,7 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<PerfilSuperAdmin> PerfilesSuperAdmin { get; set; }
     public DbSet<ConfiguracionEmpresa> ConfiguracionesEmpresa { get; set; }
     public DbSet<TarifaEnergia> TarifasEnergia { get; set; }
     public DbSet<TarifaLuz> TarifasLuz { get; set; }

@@ -126,6 +126,61 @@ public class Usuario
     [StringLength(20)]
     public string? TipoEntidad { get; set; }
 
+    [Column("razon_social_pyme")]
+    [StringLength(200)]
+    public string? RazonSocialPyme { get; set; }
+
+    [Column("cif_pyme")]
+    [StringLength(20)]
+    public string? CifPyme { get; set; }
+
+    public const string TipoAutonomo = "Autonomo";
+    public const string TipoPyme = "PYME";
+
+    public static bool EsPyme(string? tipoEntidad) =>
+        string.Equals(tipoEntidad, TipoPyme, StringComparison.OrdinalIgnoreCase);
+
+    // Unifica las variantes guardadas (p. ej. "Autónomo" con tilde) con los valores del selector.
+    public static string? NormalizarTipoEntidad(string? tipoEntidad)
+    {
+        var valor = tipoEntidad?.Trim();
+        if (string.Equals(valor, "Autónomo", StringComparison.OrdinalIgnoreCase) || string.Equals(valor, TipoAutonomo, StringComparison.OrdinalIgnoreCase))
+            return TipoAutonomo;
+        if (EsPyme(valor))
+            return TipoPyme;
+        return valor;
+    }
+
+    // Devuelve el motivo por el que el tipo de usuario no es válido, o null si lo es.
+    public static string? ValidarTipoEntidad(string? tipoEntidadOriginal, string? razonSocialPyme, string? cifPyme)
+    {
+        var tipoEntidad = NormalizarTipoEntidad(tipoEntidadOriginal);
+        if (string.IsNullOrWhiteSpace(tipoEntidad) || string.Equals(tipoEntidad, "N/A", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Debe seleccionar el tipo de usuario (Autónomo o Pyme)";
+        }
+
+        if (!string.Equals(tipoEntidad, TipoAutonomo, StringComparison.OrdinalIgnoreCase) && !EsPyme(tipoEntidad))
+        {
+            return "El tipo de usuario no es válido";
+        }
+
+        if (EsPyme(tipoEntidad))
+        {
+            if (string.IsNullOrWhiteSpace(razonSocialPyme))
+            {
+                return "La razón social de la Pyme es obligatoria";
+            }
+
+            if (string.IsNullOrWhiteSpace(cifPyme))
+            {
+                return "El CIF de la Pyme es obligatorio";
+            }
+        }
+
+        return null;
+    }
+
     // Archivos adjuntos
     [Column("archivo_dni")]
     [StringLength(255)]

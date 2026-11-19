@@ -7,6 +7,7 @@
 @inject AuthService AuthService
 @inject UsuarioService UsuarioService
 @inject EmailService EmailService
+@inject ILogger<SolicitarUsuario> Logger
 @inject NavigationManager Navigation
 @rendermode InteractiveServer
 
@@ -26,7 +27,7 @@ else
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
             <div>
                 <h2 class="mb-1"><i class="bi bi-person-plus me-2"></i>Solicitar usuario</h2>
-                <p class="text-muted mb-0">La cuenta quedará inactiva hasta que superadmin la active.</p>
+                <p class="text-muted mb-0">La cuenta quedará inactiva. Superadmin enviará la documentación para firmar antes de habilitarla.</p>
             </div>
             <button type="button" class="btn btn-primary" @onclick="AbrirFormulario">
                 <i class="bi bi-person-plus me-2"></i>Nueva solicitud
@@ -95,27 +96,40 @@ else
             return;
         }
 
-        var (emailSuperAdmin, empresaNombre) = await UsuarioService.ObtenerDatosAvisoSuperAdminAsync(AuthService.EmpresaId);
         mensajeExito = $"Solicitud registrada para {datos.usuario.NombreUsuario}. La cuenta está inactiva.";
-        if (string.IsNullOrWhiteSpace(emailSuperAdmin) || string.IsNullOrWhiteSpace(empresaNombre))
+        try
         {
-            mensajeError = "No se pudo notificar a superadmin: falta su correo o no se pudo identificar la empresa.";
-            return;
-        }
+            var (emailSuperAdmin, empresaNombre) = await UsuarioService.ObtenerDatosAvisoSuperAdminAsync(AuthService.EmpresaId);
+            if (string.IsNullOrWhiteSpace(emailSuperAdmin) || !EmailService.EsEmailValido(emailSuperAdmin) || string.IsNullOrWhiteSpace(empresaNombre))
+            {
+                mensajeError = "La solicitud se ha registrado, pero no se pudo notificar a superadmin. Debe configurar un email válido en su página Mi perfil; comprueba también que la empresa exista.";
+                return;
+            }
 
-        var usuarioNombre = WebUtility.HtmlEncode(datos.usuario.NombreUsuario);
-        var nombreCompleto = WebUtility.HtmlEncode($"{datos.usuario.Nombre} {datos.usuario.Apellidos}".Trim());
-        var rol = WebUtility.HtmlEncode(datos.usuario.Rol);
-        var empresa = WebUtility.HtmlEncode(empresaNombre);
-        var urlUsuarios = new Uri(new Uri(Navigation.BaseUri), "usuarios").AbsoluteUri;
-        var cuerpo = $"<p>El administrador de <strong>{empresa}</strong> ha solicitado un usuario.</p>" +
-            $"<p><strong>Usuario:</strong> {usuarioNombre}<br><strong>Nombre:</strong> {nombreCompleto}<br><strong>Rol:</strong> {rol}</p>" +
-            $"<p>La cuenta se ha creado desactivada. Revisa su ficha y actívala desde <a href=\"{WebUtility.HtmlEncode(urlUsuarios)}\">Gestión de usuarios</a>.</p>";
-        var (enviado, detalle) = await EmailService.EnviarEmailSimpleAsync(
-            emailSuperAdmin,
-            $"Solicitud de alta de usuario - {empresaNombre}",
-            cuerpo);
-        if (!enviado)
-            mensajeError = $"El usuario quedó creado e inactivo, pero no se pudo enviar el aviso a superadmin: {detalle}";
+            var usuarioNombre = WebUtility.HtmlEncode(datos.usuario.NombreUsuario);
+            var nombreCompleto = WebUtility.HtmlEncode($"{datos.usuario.Nombre} {datos.usuario.Apellidos}".Trim());
+            var rol = WebUtility.HtmlEncode(datos.usuario.Rol);
+            var empresa = WebUtility.HtmlEncode(empresaNombre);
+            var urlUsuarios = new Uri(new Uri(Navigation.BaseUri), "usuarios").AbsoluteUri;
+            var cuerpo = $"<p>El administrador de <strong>{empresa}</strong> ha solicitado un usuario.</p>" +
+                $"<p><strong>Usuario:</strong> {usuarioNombre}<br><strong>Nombre:</strong> {nombreCompleto}<br><strong>Rol:</strong> {rol}</p>" +
+                $"<p>La cuenta se ha creado desactivada. Envía la documentación a firmar desde <a href=\"{WebUtility.HtmlEncode(urlUsuarios)}\">Gestión de usuarios</a> y habilita la cuenta después de revisar el contrato firmado.</p>";
+            var (enviado, detalle) = await EmailService.EnviarEmailSimpleAsync(
+                emailSuperAdmin,
+                $"Solicitud de alta de usuario - {empresaNombre}",
+                cuerpo);
+            if (enviado)
+                mensajeExito += " Aviso enviado a superadmin.";
+            else
+            {
+                Logger.LogWarning("No se pudo enviar el aviso de solicitud de usuario: {Detalle}", detalle);
+                mensajeError = $"El usuario quedó creado e inactivo, pero no se pudo enviar el aviso a superadmin: {detalle}";
+            }
+        }
+        catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException)
+        {
+            Logger.LogError(ex, "No se pudo consultar el destinatario del aviso de solicitud de usuario");
+            mensajeError = "La solicitud quedó registrada e inactiva, pero no se pudo consultar el perfil global de superadmin para notificarla. Comprueba la conexión y la actualización de base de datos.";
+        }
     }
 }

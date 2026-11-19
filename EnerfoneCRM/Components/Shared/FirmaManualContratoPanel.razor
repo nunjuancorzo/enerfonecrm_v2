@@ -1,0 +1,126 @@
+@using EnerfoneCRM.Services
+@inject FirmaService FirmaService
+@inject AuthService AuthService
+@inject IJSRuntime JS
+@inject ILogger<FirmaManualContratoPanel> Logger
+
+@if (PuedeGestionar)
+{
+    <div class="card shadow-sm mt-4 mb-3 border-secondary">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="bi bi-file-earmark-pdf me-2"></i>Firma manual (fuera del CRM)</h6>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Descarga el PDF para enviarlo por tu cuenta. Cuando te lo devuelvan firmado, adjúntalo aquí. Esto no cambia el estado de la firma por correo.</p>
+            <button type="button" class="btn btn-outline-primary mb-3" @onclick="DescargarOriginal" disabled="@ocupado">
+                <i class="bi bi-download me-1"></i>Descargar PDF para firma manual
+            </button>
+            <label class="d-block fw-semibold">
+                Cargar PDF firmado manualmente
+                <InputFile OnChange="CargarFirmado" class="form-control mt-1" accept=".pdf,application/pdf" disabled="@ocupado" />
+            </label>
+            <small class="text-muted">Máximo 10 MB por PDF.</small>
+
+            @if (documentos.Count > 0)
+            {
+                <ul class="list-unstyled mb-0 mt-3">
+                    @foreach (var documento in documentos)
+                    {
+                        <li>
+                            <button type="button" class="btn btn-link px-0 text-break text-start" @onclick="() => DescargarFirmado(documento.Id)" disabled="@ocupado">
+                                <i class="bi bi-download me-1"></i>@documento.Nombre
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+            @if (!string.IsNullOrEmpty(mensaje))
+            {
+                <div role="status" class="alert @(error ? "alert-danger" : "alert-success") mt-3 mb-0">@mensaje</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int ContratoId { get; set; }
+    private List<(int Id, string? Nombre)> documentos = new();
+    private bool ocupado;
+    private bool error;
+    private string? mensaje;
+    private bool PuedeGestionar => ContratoId > 0 && AuthService.EstaAutenticado && AuthService.PuedeGestionarContratos;
+
+    protected override Task OnParametersSetAsync() => EjecutarAsync(ActualizarDocumentos, "No se pudieron cargar los PDF de firma manual.");
+
+    private async Task ActualizarDocumentos() =>
+        documentos = await FirmaService.ObtenerDocumentosFirmaManualAsync(ContratoId);
+
+    private Task DescargarOriginal() => EjecutarAsync(async () =>
+    {
+        var contenido = await FirmaService.GenerarDocumentoFirmaManualAsync(ContratoId);
+        if (contenido == null)
+        {
+            MostrarMensaje("No se encontró el contrato en la empresa activa.", true);
+            return;
+        }
+        await DescargarPdf($"contrato-{ContratoId}-para-firma-manual.pdf", contenido);
+    }, "No se pudo descargar el PDF para firma manual.");
+
+    private Task CargarFirmado(InputFileChangeEventArgs e) => EjecutarAsync(async () =>
+    {
+        var archivo = e.File;
+        if (archivo.Size > FirmaService.MaxDocumentoFirmaManualBytes)
+        {
+            MostrarMensaje("El PDF firmado no debe superar los 10 MB.", true);
+            return;
+        }
+
+        using var buffer = new MemoryStream();
+        await using var stream = archivo.OpenReadStream(FirmaService.MaxDocumentoFirmaManualBytes);
+        await stream.CopyToAsync(buffer);
+        var resultado = await FirmaService.GuardarDocumentoFirmaManualAsync(ContratoId, archivo.Name, buffer.ToArray());
+        MostrarMensaje(resultado.Mensaje, !resultado.Exito);
+        if (resultado.Exito) await ActualizarDocumentos();
+    }, "No se pudo cargar el PDF firmado manualmente.");
+
+    private Task DescargarFirmado(int documentoId) => EjecutarAsync(async () =>
+    {
+        var documento = await FirmaService.ObtenerDocumentoFirmaManualAsync(ContratoId, documentoId);
+        if (documento == null)
+        {
+            MostrarMensaje("El PDF firmado manualmente no está disponible.", true);
+            return;
+        }
+        await DescargarPdf(documento.NombreFichero ?? "contrato-firmado-manualmente.pdf", documento.Fichero);
+    }, "No se pudo descargar el PDF firmado manualmente.");
+
+    private ValueTask DescargarPdf(string nombre, byte[] contenido) =>
+        JS.InvokeVoidAsync("descargarArchivo", nombre, Convert.ToBase64String(contenido), "application/pdf");
+
+    private async Task EjecutarAsync(Func<Task> accion, string mensajeError)
+    {
+        if (!PuedeGestionar || ocupado) return;
+        ocupado = true;
+        mensaje = null;
+        try
+        {
+            await accion();
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or JSException
+            or System.Data.Common.DbException or Microsoft.EntityFrameworkCore.DbUpdateException)
+        {
+            Logger.LogError(ex, "{Mensaje} Contrato {ContratoId}", mensajeError, ContratoId);
+            MostrarMensaje(mensajeError, true);
+        }
+        finally
+        {
+            ocupado = false;
+        }
+    }
+
+    private void MostrarMensaje(string texto, bool esError)
+    {
+        mensaje = texto;
+        error = esError;
+    }
+}

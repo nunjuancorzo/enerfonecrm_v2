@@ -5,7 +5,6 @@
 @inject UsuarioService UsuarioService
 @inject ConfiguracionService ConfiguracionService
 @inject EmailService EmailService
-@inject FirmaService FirmaService
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
 @rendermode InteractiveServer
@@ -32,14 +31,10 @@
                             <h5 class="alert-heading">
                                 <i class="bi bi-check-circle me-2"></i>¡Registro exitoso!
                             </h5>
-                            <p class="mb-0">Tu cuenta ha sido creada correctamente. Un administrador debe activarla antes de que puedas acceder al sistema.</p>
+                            <p class="mb-0">Tu cuenta se ha creado deshabilitada. El superadmin te enviará la documentación para firmar antes de habilitarla.</p>
                             @if (cargando)
                             {
-                                <p class="mt-2 mb-0" role="status"><span class="spinner-border spinner-border-sm me-1"></span>Completando registro y envío del contrato...</p>
-                            }
-                            @if (contratoFirmaEnviado)
-                            {
-                                <p class="mt-2 mb-0">Hemos enviado el contrato de colaboración a @usuario.Email para que puedas consultarlo y firmarlo.</p>
+                                <p class="mt-2 mb-0" role="status"><span class="spinner-border spinner-border-sm me-1"></span>Completando registro...</p>
                             }
                             @if (!string.IsNullOrEmpty(avisoFirma))
                             {
@@ -442,7 +437,6 @@
         return nombreArchivo;
     }
 
-    private bool contratoFirmaEnviado;
     private string avisoFirma = string.Empty;
 
     private async Task HandleRegistro()
@@ -451,7 +445,6 @@
         intentoEnvio = true;
         mensajeError = string.Empty;
         avisoFirma = string.Empty;
-        contratoFirmaEnviado = false;
 
         // Validaciones
         if (string.IsNullOrWhiteSpace(usuario.NombreUsuario))
@@ -589,21 +582,9 @@
 
                     await UsuarioService.ActualizarAsync(usuarioCreado);
 
-                    try
-                    {
-                        var resultadoFirma = await FirmaService.CrearSolicitudColaboradorAsync(usuarioCreado.Id);
-                        contratoFirmaEnviado = resultadoFirma.Exito;
-                        if (!resultadoFirma.Exito)
-                            avisoFirma = "La cuenta está creada, pero no se ha podido enviar el contrato de colaboración. Contacta con un administrador para que lo reenvíe.";
-                    }
-                    catch (Exception excepcionFirma)
-                    {
-                        avisoFirma = "La cuenta está creada, pero el contrato de colaboración queda pendiente de envío. Contacta con un administrador.";
-                        Console.WriteLine($"[REGISTRO] Error al solicitar la firma del contrato: {excepcionFirma.GetType().Name}");
-                    }
-                                    await EnviarNotificacionAdministrador(usuarioCreado);
+                    await EnviarNotificacionAdministrador(usuarioCreado);
                 }
-                else avisoFirma = "La cuenta está creada, pero no se ha podido recuperar para enviar el contrato. Contacta con un administrador.";
+                else avisoFirma = "La cuenta está creada, pero no se ha podido recuperar para completar los datos del registro.";
 
                 registroExitoso = true;
             }

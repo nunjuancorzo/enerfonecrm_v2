@@ -83,6 +83,8 @@ public static class EstadoSolicitudFirma
     public const string Pendiente = "Pendiente";
     public const string EnProceso = "En proceso";
     public const string Firmado = "Firmado";
+    public const string FirmadoManual = "Firmado manualmente";
+    public const string ErrorEnvio = "Error de envío";
     public const string Cancelado = "Cancelado";
     public const string Caducado = "Caducado";
 }

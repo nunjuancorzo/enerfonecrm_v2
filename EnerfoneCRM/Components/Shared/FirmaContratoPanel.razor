@@ -47,6 +47,7 @@
                         <button type="button" class="btn btn-outline-secondary" @onclick="ConsultarOriginal"><i class="bi bi-eye me-1"></i>Ver documentacion</button>
                     }
                 </div>
+                <FirmaManualContratoPanel @key="(AuthService.EmpresaId, ContratoId)" ContratoId="ContratoId" />
             }
             @if (!string.IsNullOrEmpty(mensaje))
             {
